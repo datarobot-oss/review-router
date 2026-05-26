@@ -1,0 +1,11 @@
+# Default owner
+* @datarobot-community/customer-engineering
+
+# Infrastructure
+infra/ @datarobot-community/platform-team
+
+# Docs — individual user, should be ignored for labels
+docs/ @johndoe
+
+# Multiple owners
+src/shared/ @datarobot-community/customer-engineering @datarobot-community/platform-team

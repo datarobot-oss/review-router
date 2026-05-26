@@ -1,0 +1,7 @@
+teams:
+  customer-engineering:
+    label: "Needs Review: Customer Engineering"
+    slack_channel: "#app-templates-tests"
+  platform-team:
+    label: "Needs Review: Platform"
+    slack_channel: "#platform-reviews"

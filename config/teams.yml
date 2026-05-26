@@ -1,0 +1,4 @@
+teams:
+  applications:
+    label: "Needs Review: Applications"
+    slack_channel: "#applications-spam"

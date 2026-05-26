@@ -1,0 +1,54 @@
+import { buildOwnershipComment, upsertComment, COMMENT_MARKER } from "../src/comment";
+
+describe("buildOwnershipComment", () => {
+  it("builds a comment with team ownership table", () => {
+    const teamFiles = new Map<string, string[]>();
+    teamFiles.set("customer-engineering", ["src/app.py", "src/utils.py"]);
+    teamFiles.set("platform-team", ["infra/main.tf"]);
+    const comment = buildOwnershipComment({ teamFiles, unownedFiles: [] }, "datarobot-community");
+    expect(comment).toContain(COMMENT_MARKER);
+    expect(comment).toContain("## Code Ownership");
+    expect(comment).toContain("@datarobot-community/customer-engineering");
+    expect(comment).toContain("`src/app.py`");
+    expect(comment).toContain("@datarobot-community/platform-team");
+    expect(comment).toContain("`infra/main.tf`");
+    expect(comment).not.toContain("Unowned files");
+  });
+
+  it("includes unowned files section when present", () => {
+    const teamFiles = new Map<string, string[]>();
+    teamFiles.set("customer-engineering", ["src/app.py"]);
+    const comment = buildOwnershipComment({ teamFiles, unownedFiles: ["docs/README.md", "scripts/setup.sh"] }, "datarobot-community");
+    expect(comment).toContain("Unowned files");
+    expect(comment).toContain("docs/README.md");
+    expect(comment).toContain("scripts/setup.sh");
+  });
+
+  it("handles empty ownership map", () => {
+    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: ["file.txt"] }, "datarobot-community");
+    expect(comment).toContain(COMMENT_MARKER);
+    expect(comment).toContain("file.txt");
+  });
+});
+
+describe("upsertComment", () => {
+  const mockOctokit = {
+    rest: { issues: { listComments: jest.fn(), createComment: jest.fn(), updateComment: jest.fn() } },
+  };
+  beforeEach(() => jest.clearAllMocks());
+
+  it("creates a new comment when none exists", async () => {
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    mockOctokit.rest.issues.createComment.mockResolvedValue({});
+    await upsertComment(mockOctokit as any, "owner", "repo", 1, "body");
+    expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({ owner: "owner", repo: "repo", issue_number: 1, body: "body" });
+  });
+
+  it("updates existing comment when marker is found", async () => {
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [{ id: 42, body: `${COMMENT_MARKER}\nold content` }] });
+    mockOctokit.rest.issues.updateComment.mockResolvedValue({});
+    await upsertComment(mockOctokit as any, "owner", "repo", 1, `${COMMENT_MARKER}\nnew`);
+    expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith({ owner: "owner", repo: "repo", comment_id: 42, body: `${COMMENT_MARKER}\nnew` });
+    expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+});

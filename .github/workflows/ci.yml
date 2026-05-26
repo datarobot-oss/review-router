@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+      - name: Verify and auto-rebuild dist/
+        run: |
+          if [ -z "$(git diff --name-only dist/)" ]; then
+            echo "dist/ is up to date"
+            exit 0
+          fi
+
+          # Fork PRs have read-only GITHUB_TOKEN — can't push back
+          IS_FORK="${{ github.event.pull_request.head.repo.full_name != github.repository }}"
+          if [ "${{ github.event_name }}" != "pull_request" ] || [ "$IS_FORK" = "true" ]; then
+            echo "::error::dist/ is out of date. Run 'npm run build' and commit the result."
+            git diff --stat dist/
+            exit 1
+          fi
+
+          echo "dist/ is out of date — auto-committing"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dist/
+          git commit -m "chore: rebuild dist"
+          git push

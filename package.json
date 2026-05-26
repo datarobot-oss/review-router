@@ -17,7 +17,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0",
+    "@actions/github": "^9.1.1",
     "@slack/web-api": "^7.16.0",
     "codeowners-utils": "^1.0.2",
     "js-yaml": "^4.1.1"

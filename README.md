@@ -19,6 +19,7 @@ Add this workflow to your repo at `.github/workflows/review-router.yml`:
 ### Full mode (with GitHub App)
 
 ```yaml
+---
 name: Review Router
 
 # SECURITY: Use "pull_request" only — NEVER "pull_request_target".
@@ -37,8 +38,7 @@ permissions:
 jobs:
   route:
     if: >
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (
+      github.event.pull_request.head.repo.full_name == github.repository && (
         (github.event.action == 'labeled' && github.event.label.name == 'Ready for Review') ||
         (github.event.action == 'submitted' && github.event.review.state == 'approved')
       )

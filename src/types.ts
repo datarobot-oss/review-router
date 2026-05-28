@@ -5,6 +5,7 @@ export interface TeamConfig {
 
 export interface TeamsConfig {
   teams: Record<string, TeamConfig>;
+  default_slack_channel?: string;
 }
 
 export interface OwnershipMap {

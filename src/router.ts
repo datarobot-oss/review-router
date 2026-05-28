@@ -10,10 +10,7 @@ import {
   upsertComment,
   COMMENT_MARKER,
 } from "./comment";
-import {
-  buildSlackMessage,
-  sendSlackNotification,
-} from "./slack";
+import { sendSlackNotification } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
 import { ActionInputs, Capabilities, OrgConfig } from "./types";
 
@@ -69,7 +66,7 @@ export async function handleLabeled(
   }
 
   const entries = parseCodeowners(codeownersContent);
-  const ownership = mapFilesToTeams(filenames, entries, ctx.owner);
+  const ownership = mapFilesToTeams(filenames, entries);
 
   core.info(
     `Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`
@@ -113,19 +110,20 @@ export async function handleLabeled(
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
     if (slackChannel && ctx.inputs.slackToken) {
-      const message = buildSlackMessage({
+      const slackParams = {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
         prNumber: ctx.prNumber,
         repoName: ctx.repo,
         author: ctx.author,
+        teamSlug,
         files: teamFileList,
-      });
-      await sendSlackNotification(ctx.inputs.slackToken, slackChannel, message);
+      };
+      await sendSlackNotification(ctx.inputs.slackToken, slackChannel, slackParams);
     }
   }
 
-  const commentBody = buildOwnershipComment(ownership, ctx.owner);
+  const commentBody = buildOwnershipComment(ownership);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
 }
 

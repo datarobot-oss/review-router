@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import { WebClient } from "@slack/web-api";
+import { WebClient, KnownBlock } from "@slack/web-api";
 
 export interface SlackMessageParams {
   prUrl: string;
@@ -7,23 +7,68 @@ export interface SlackMessageParams {
   prNumber: number;
   repoName: string;
   author: string;
+  teamSlug: string;
   files: string[];
 }
 
-export function buildSlackMessage(params: SlackMessageParams): string {
-  const fileList = params.files.map((f) => `• ${f}`).join("\n");
+export function buildSlackBlocks(params: SlackMessageParams): KnownBlock[] {
+  const fileList = params.files.map((f) => `\`${f}\``).join("\n");
+
   return [
-    `📋 *Review requested:* <${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
-    `*Author:* ${params.author}`,
-    `*Files for your team:*`,
-    fileList,
-  ].join("\n");
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "📋 Review Requested",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      fields: [
+        {
+          type: "mrkdwn",
+          text: `*PR:*\n<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
+        },
+        {
+          type: "mrkdwn",
+          text: `*Author:*\n${params.author}`,
+        },
+      ],
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Team:* ${params.teamSlug}\n*Files:*\n${fileList}`,
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: {
+            type: "plain_text",
+            text: "Open PR",
+            emoji: true,
+          },
+          url: params.prUrl,
+          style: "primary",
+        },
+      ],
+    },
+  ];
+}
+
+export function buildSlackFallbackText(params: SlackMessageParams): string {
+  return `Review requested: ${params.repoName}#${params.prNumber}: ${params.prTitle} by ${params.author}`;
 }
 
 export async function sendSlackNotification(
   token: string,
   channel: string,
-  text: string
+  params: SlackMessageParams
 ): Promise<void> {
   if (!token) {
     core.debug("No Slack token provided, skipping notification");
@@ -32,7 +77,11 @@ export async function sendSlackNotification(
 
   try {
     const client = new WebClient(token);
-    await client.chat.postMessage({ channel, text });
+    await client.chat.postMessage({
+      channel,
+      text: buildSlackFallbackText(params),
+      blocks: buildSlackBlocks(params),
+    });
     core.info(`Sent Slack notification to ${channel}`);
   } catch (error) {
     core.warning(

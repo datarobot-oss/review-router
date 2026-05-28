@@ -1,31 +1,32 @@
 import { buildOwnershipComment, upsertComment, COMMENT_MARKER } from "../src/comment";
 
 describe("buildOwnershipComment", () => {
-  it("builds a comment with team ownership table", () => {
+  it("builds a comment with team ownership list", () => {
     const teamFiles = new Map<string, string[]>();
     teamFiles.set("customer-engineering", ["src/app.py", "src/utils.py"]);
     teamFiles.set("platform-team", ["infra/main.tf"]);
-    const comment = buildOwnershipComment({ teamFiles, unownedFiles: [] }, "datarobot-community");
+    const comment = buildOwnershipComment({ teamFiles, unownedFiles: [] });
     expect(comment).toContain(COMMENT_MARKER);
     expect(comment).toContain("## Code Ownership");
-    expect(comment).toContain("@datarobot-community/customer-engineering");
-    expect(comment).toContain("`src/app.py`");
-    expect(comment).toContain("@datarobot-community/platform-team");
-    expect(comment).toContain("`infra/main.tf`");
+    expect(comment).toContain("**customer-engineering**");
+    expect(comment).toContain("- `src/app.py`");
+    expect(comment).toContain("- `src/utils.py`");
+    expect(comment).toContain("**platform-team**");
+    expect(comment).toContain("- `infra/main.tf`");
     expect(comment).not.toContain("Unowned files");
   });
 
   it("includes unowned files section when present", () => {
     const teamFiles = new Map<string, string[]>();
     teamFiles.set("customer-engineering", ["src/app.py"]);
-    const comment = buildOwnershipComment({ teamFiles, unownedFiles: ["docs/README.md", "scripts/setup.sh"] }, "datarobot-community");
+    const comment = buildOwnershipComment({ teamFiles, unownedFiles: ["docs/README.md", "scripts/setup.sh"] });
     expect(comment).toContain("Unowned files");
     expect(comment).toContain("docs/README.md");
     expect(comment).toContain("scripts/setup.sh");
   });
 
   it("handles empty ownership map", () => {
-    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: ["file.txt"] }, "datarobot-community");
+    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: ["file.txt"] });
     expect(comment).toContain(COMMENT_MARKER);
     expect(comment).toContain("file.txt");
   });

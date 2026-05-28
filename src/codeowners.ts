@@ -20,52 +20,37 @@ export function matchFileToOwners(
   return [];
 }
 
-function fileMatchesPattern(filePath: string, pattern: string): boolean {
-  // Normalize: remove leading /
-  const normalizedPattern = pattern.replace(/^\//, "");
+function patternToRegex(pattern: string): RegExp {
+  let regexStr = pattern
+    .replace(/^\//, "")
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*\*/g, "\0GLOBSTAR\0")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\0GLOBSTAR\0/g, ".*")
+    .replace(/\?/g, "[^/]");
 
-  // Wildcard * matches everything
-  if (normalizedPattern === "*") {
-    return true;
+  // Directory pattern: match anything under it
+  if (regexStr.endsWith("/")) {
+    regexStr += ".*";
   }
 
-  // Directory pattern (ends with /)
-  if (normalizedPattern.endsWith("/")) {
-    return filePath.startsWith(normalizedPattern);
-  }
-
-  // Directory prefix without trailing slash
-  if (
-    filePath.startsWith(normalizedPattern + "/") ||
-    filePath === normalizedPattern
-  ) {
-    return true;
-  }
-
-  // Glob-style matching for simple patterns
-  const regexStr = normalizedPattern
-    .replace(/\./g, "\\.")
-    .replace(/\*\*/g, ".*")
-    .replace(/(?<!\.)(\*)/g, "[^/]*");
-  const regex = new RegExp(`^${regexStr}$`);
-  return regex.test(filePath);
+  return new RegExp(`^${regexStr}$`);
 }
 
-function extractTeamSlug(
-  owner: string,
-  orgPrefix: string
-): string | undefined {
-  const prefix = `@${orgPrefix}/`;
-  if (owner.startsWith(prefix)) {
-    return owner.slice(prefix.length);
-  }
-  return undefined;
+function fileMatchesPattern(filePath: string, pattern: string): boolean {
+  if (pattern === "*") return true;
+  return patternToRegex(pattern).test(filePath);
+}
+
+function extractTeamSlug(owner: string): string | undefined {
+  // Match @org/team-slug for any org
+  const match = owner.match(/^@[^/]+\/(.+)$/);
+  return match ? match[1] : undefined;
 }
 
 export function mapFilesToTeams(
   files: string[],
-  entries: CodeOwnersEntry[],
-  orgPrefix: string
+  entries: CodeOwnersEntry[]
 ): OwnershipMap {
   const teamFiles = new Map<string, string[]>();
   const unownedFiles: string[] = [];
@@ -73,7 +58,7 @@ export function mapFilesToTeams(
   for (const file of files) {
     const owners = matchFileToOwners(file, entries);
     const teamSlugs = owners
-      .map((o) => extractTeamSlug(o, orgPrefix))
+      .map((o) => extractTeamSlug(o))
       .filter((slug): slug is string => slug !== undefined);
 
     if (teamSlugs.length === 0) {

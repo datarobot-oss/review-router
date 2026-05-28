@@ -14,9 +14,17 @@ async function run(): Promise<void> {
     needsReviewLabelColor: core.getInput("needs-review-label-color"),
   };
 
-  const octokit = github.getOctokit(inputs.githubToken);
   const context = github.context;
   const { owner, repo } = context.repo;
+
+  const pr = context.payload.pull_request;
+  const isFork = pr && pr.head?.repo?.full_name !== `${owner}/${repo}`;
+  if (isFork) {
+    core.info("Skipping fork PR — secrets are not available");
+    return;
+  }
+
+  const octokit = github.getOctokit(inputs.githubToken);
 
   const teamsConfig = loadTeamsConfigForOrg(owner);
 

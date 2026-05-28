@@ -53,7 +53,7 @@ export async function sendSlackNotification(
     const attachment = buildSlackAttachment(params);
     await client.chat.postMessage({
       channel,
-      text: attachment.fallback,
+      text: "",
       attachments: [attachment],
     });
     core.info(`Sent Slack notification to ${channel}`);

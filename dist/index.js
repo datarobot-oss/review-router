@@ -46725,32 +46725,55 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.loadTeamsConfig = loadTeamsConfig;
+exports.parseTeamsConfig = parseTeamsConfig;
+exports.loadTeamsConfigForOrg = loadTeamsConfigForOrg;
 exports.getLabelForTeam = getLabelForTeam;
+exports.humanizeSlug = humanizeSlug;
 exports.getSlackChannel = getSlackChannel;
 const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 const yaml = __importStar(__nccwpck_require__(4281));
 const core = __importStar(__nccwpck_require__(7484));
-function loadTeamsConfig(configPath) {
+function parseTeamsConfig(content) {
+    const parsed = yaml.load(content);
+    return parsed && parsed.orgs ? parsed : { orgs: {} };
+}
+function loadTeamsConfigForOrg(org) {
+    const configPath = path.join(__dirname, "..", "config", "teams.yml");
     try {
         const content = fs.readFileSync(configPath, "utf8");
-        const parsed = yaml.load(content);
-        return parsed && parsed.teams ? parsed : { teams: {} };
+        const config = parseTeamsConfig(content);
+        const orgConfig = config.orgs[org];
+        if (orgConfig) {
+            core.info(`Loaded team config for org "${org}"`);
+            return orgConfig;
+        }
+        core.warning(`No config section found for org "${org}" in teams.yml`);
     }
     catch {
         core.warning(`Could not load teams config from ${configPath}`);
-        return { teams: {} };
     }
+    return { teams: {} };
 }
 function getLabelForTeam(config, teamSlug, prefix) {
     const teamConfig = config.teams[teamSlug];
     if (teamConfig) {
         return teamConfig.label;
     }
-    return `${prefix}: ${teamSlug}`;
+    return `${prefix}: ${humanizeSlug(teamSlug)}`;
+}
+function humanizeSlug(slug) {
+    return slug
+        .split("-")
+        .map((word) => {
+        if (word.toLowerCase() === "datarobot")
+            return "DataRobot";
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+        .join(" ");
 }
 function getSlackChannel(config, teamSlug) {
-    return config.teams[teamSlug]?.slack_channel;
+    return config.teams[teamSlug]?.slack_channel ?? config.default_slack_channel;
 }
 
 
@@ -46797,7 +46820,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
-const path = __importStar(__nccwpck_require__(6928));
 const router_1 = __nccwpck_require__(8954);
 const auth_1 = __nccwpck_require__(9081);
 const config_1 = __nccwpck_require__(2973);
@@ -46812,8 +46834,7 @@ async function run() {
     const octokit = github.getOctokit(inputs.githubToken);
     const context = github.context;
     const { owner, repo } = context.repo;
-    const configPath = path.join(__dirname, "..", "config", "teams.yml");
-    const teamsConfig = (0, config_1.loadTeamsConfig)(configPath);
+    const teamsConfig = (0, config_1.loadTeamsConfigForOrg)(owner);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     const eventName = context.eventName;
     const action = context.payload.action;

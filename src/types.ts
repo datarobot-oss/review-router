@@ -3,8 +3,13 @@ export interface TeamConfig {
   slack_channel: string;
 }
 
-export interface TeamsConfig {
+export interface OrgConfig {
+  default_slack_channel?: string;
   teams: Record<string, TeamConfig>;
+}
+
+export interface TeamsConfig {
+  orgs: Record<string, OrgConfig>;
 }
 
 export interface OwnershipMap {

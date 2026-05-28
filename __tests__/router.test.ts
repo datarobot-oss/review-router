@@ -3,8 +3,7 @@ import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
 import * as comment from "../src/comment";
 import * as slack from "../src/slack";
-import * as config from "../src/config";
-import * as path from "path";
+import { OrgConfig } from "../src/types";
 
 jest.mock("../src/labels");
 jest.mock("../src/comment");
@@ -29,9 +28,18 @@ const mockOctokit = {
   paginate: jest.fn(),
 };
 
-const teamsConfig = config.loadTeamsConfig(
-  path.join(__dirname, "fixtures", "teams.yml")
-);
+const teamsConfig: OrgConfig = {
+  teams: {
+    "customer-engineering": {
+      label: "Needs Review: Customer Engineering",
+      slack_channel: "#app-templates-tests",
+    },
+    "platform-team": {
+      label: "Needs Review: Platform",
+      slack_channel: "#platform-reviews",
+    },
+  },
+};
 
 beforeEach(() => jest.clearAllMocks());
 

@@ -13,21 +13,19 @@ export interface SlackMessageParams {
   prNumber: number;
   repoName: string;
   author: string;
-  teamSlug: string;
-  statusEmoji: string;
   additions: number;
   deletions: number;
-  files: FileStats[];
+  allFiles: FileStats[];
 }
 
 export function buildSlackAttachment(params: SlackMessageParams) {
-  const fileList = params.files
+  const fileList = params.allFiles
     .map((f) => `• ${f.filename} \`+${f.additions} -${f.deletions}\``)
     .join("\n");
 
   const text = [
-    `PR by *${params.author}* needs a review:` +
-      `${params.statusEmoji} \`+${params.additions} -${params.deletions}\` ` +
+    `PR by *${params.author}* needs a review: ` +
+      `\`+${params.additions} -${params.deletions}\` ` +
       `<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
     `based on the following changes:`,
     fileList,
@@ -36,11 +34,8 @@ export function buildSlackAttachment(params: SlackMessageParams) {
   return {
     text,
     color: "#1a7ccc",
+    fallback: `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`,
   };
-}
-
-export function buildSlackFallbackText(params: SlackMessageParams): string {
-  return `PR by ${params.author} needs a review: +${params.additions} -${params.deletions} ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
 }
 
 export async function sendSlackNotification(
@@ -55,10 +50,11 @@ export async function sendSlackNotification(
 
   try {
     const client = new WebClient(token);
+    const attachment = buildSlackAttachment(params);
     await client.chat.postMessage({
       channel,
-      text: buildSlackFallbackText(params),
-      attachments: [buildSlackAttachment(params)],
+      text: attachment.fallback,
+      attachments: [attachment],
     });
     core.info(`Sent Slack notification to ${channel}`);
   } catch (error) {

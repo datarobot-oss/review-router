@@ -51,7 +51,6 @@ async function run(): Promise<void> {
       repo,
       prNumber: pr.number,
       baseBranch: pr.base.ref,
-      headSha: pr.head?.sha ?? "",
       prUrl: pr.html_url ?? "",
       prTitle: pr.title ?? "",
       author: pr.user?.login ?? "",

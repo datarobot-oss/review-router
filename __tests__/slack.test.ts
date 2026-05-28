@@ -1,4 +1,4 @@
-import { buildSlackAttachment, buildSlackFallbackText, sendSlackNotification } from "../src/slack";
+import { buildSlackAttachment, sendSlackNotification } from "../src/slack";
 
 const params = {
   prUrl: "https://github.com/org/repo/pull/1",
@@ -6,11 +6,9 @@ const params = {
   prNumber: 1,
   repoName: "repo",
   author: "alice",
-  teamSlug: "applications",
-  statusEmoji: ":yellow_pending:",
   additions: 15,
   deletions: 3,
-  files: [
+  allFiles: [
     { filename: "src/app.py", additions: 10, deletions: 2 },
     { filename: "src/utils.py", additions: 5, deletions: 1 },
   ],
@@ -24,17 +22,14 @@ describe("buildSlackAttachment", () => {
     expect(attachment.text).toContain("repo#1: Add feature X");
     expect(attachment.text).toContain("• src/app.py `+10 -2`");
     expect(attachment.text).toContain("• src/utils.py `+5 -1`");
-    expect(attachment.text).toContain(":yellow_pending:");
     expect(attachment.color).toBe("#1a7ccc");
   });
-});
 
-describe("buildSlackFallbackText", () => {
-  it("returns a plain text summary", () => {
-    const text = buildSlackFallbackText(params);
-    expect(text).toContain("repo#1");
-    expect(text).toContain("Add feature X");
-    expect(text).toContain("alice");
+  it("has a plain text fallback", () => {
+    const attachment = buildSlackAttachment(params);
+    expect(attachment.fallback).toContain("repo#1");
+    expect(attachment.fallback).toContain("alice");
+    expect(attachment.fallback).not.toContain("*");
   });
 });
 

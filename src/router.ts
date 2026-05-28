@@ -21,7 +21,6 @@ export interface LabeledContext {
   repo: string;
   prNumber: number;
   baseBranch: string;
-  headSha: string;
   prUrl: string;
   prTitle: string;
   author: string;
@@ -58,8 +57,6 @@ export async function handleLabeled(
   }
   core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
 
-  const statusEmoji = await getCommitStatusEmoji(octokit, ctx.owner, ctx.repo, ctx.headSha);
-
   const codeownersContent = await fetchCodeownersContent(
     octokit,
     ctx.owner,
@@ -77,11 +74,15 @@ export async function handleLabeled(
   const entries = parseCodeowners(codeownersContent);
   const ownership = mapFilesToTeams(filenames, entries);
 
+  const allFileStats = filenames
+    .map((f) => fileStatsMap.get(f))
+    .filter((s): s is FileStats => s !== undefined);
+
   core.info(
     `Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`
   );
 
-  for (const [teamSlug, teamFileList] of ownership.teamFiles) {
+  for (const [teamSlug] of ownership.teamFiles) {
     const labelName = getLabelForTeam(
       ctx.teamsConfig,
       teamSlug,
@@ -119,20 +120,15 @@ export async function handleLabeled(
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
     if (slackChannel && ctx.inputs.slackToken) {
-      const teamFileStats = teamFileList
-        .map((f) => fileStatsMap.get(f))
-        .filter((s): s is FileStats => s !== undefined);
       await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
         prNumber: ctx.prNumber,
         repoName: ctx.repo,
         author: ctx.author,
-        teamSlug,
-        statusEmoji,
         additions: ctx.additions,
         deletions: ctx.deletions,
-        files: teamFileStats,
+        allFiles: allFileStats,
       });
     }
   }
@@ -195,30 +191,6 @@ export async function handleReviewSubmitted(
         );
       }
     }
-  }
-}
-
-async function getCommitStatusEmoji(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-  ref: string
-): Promise<string> {
-  try {
-    const { data } = await octokit.rest.repos.getCombinedStatusForRef({
-      owner,
-      repo,
-      ref,
-    });
-    const statusMap: Record<string, string> = {
-      success: ":green_with_check:",
-      pending: ":yellow_pending:",
-      failure: ":red_with_cross:",
-      error: ":red_with_cross:",
-    };
-    return statusMap[data.state] ?? "";
-  } catch {
-    return "";
   }
 }
 

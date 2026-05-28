@@ -46864,7 +46864,6 @@ async function run() {
             repo,
             prNumber: pr.number,
             baseBranch: pr.base.ref,
-            headSha: pr.head?.sha ?? "",
             prUrl: pr.html_url ?? "",
             prTitle: pr.title ?? "",
             author: pr.user?.login ?? "",
@@ -47048,7 +47047,6 @@ async function handleLabeled(octokit, ctx) {
         fileStatsMap.set(f.filename, { filename: f.filename, additions: f.additions, deletions: f.deletions });
     }
     core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
-    const statusEmoji = await getCommitStatusEmoji(octokit, ctx.owner, ctx.repo, ctx.headSha);
     const codeownersContent = await (0, codeowners_1.fetchCodeownersContent)(octokit, ctx.owner, ctx.repo, ctx.baseBranch);
     if (codeownersContent === null) {
         const warningBody = `${comment_1.COMMENT_MARKER}\n⚠️ No \`.github/CODEOWNERS\` file found on the \`${ctx.baseBranch}\` branch. Review routing skipped.\n\nPlease add a CODEOWNERS file to enable automatic review routing.`;
@@ -47058,8 +47056,11 @@ async function handleLabeled(octokit, ctx) {
     }
     const entries = (0, codeowners_1.parseCodeowners)(codeownersContent);
     const ownership = (0, codeowners_1.mapFilesToTeams)(filenames, entries);
+    const allFileStats = filenames
+        .map((f) => fileStatsMap.get(f))
+        .filter((s) => s !== undefined);
     core.info(`Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`);
-    for (const [teamSlug, teamFileList] of ownership.teamFiles) {
+    for (const [teamSlug] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
         await (0, labels_1.ensureLabel)(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
         await (0, labels_1.applyLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, labelName);
@@ -47082,20 +47083,15 @@ async function handleLabeled(octokit, ctx) {
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
         if (slackChannel && ctx.inputs.slackToken) {
-            const teamFileStats = teamFileList
-                .map((f) => fileStatsMap.get(f))
-                .filter((s) => s !== undefined);
             await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,
                 prNumber: ctx.prNumber,
                 repoName: ctx.repo,
                 author: ctx.author,
-                teamSlug,
-                statusEmoji,
                 additions: ctx.additions,
                 deletions: ctx.deletions,
-                files: teamFileStats,
+                allFiles: allFileStats,
             });
         }
     }
@@ -47140,25 +47136,6 @@ async function handleReviewSubmitted(octokit, ctx) {
                 core.warning(`Error checking team membership for ${ctx.reviewer} in ${teamSlug}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
-    }
-}
-async function getCommitStatusEmoji(octokit, owner, repo, ref) {
-    try {
-        const { data } = await octokit.rest.repos.getCombinedStatusForRef({
-            owner,
-            repo,
-            ref,
-        });
-        const statusMap = {
-            success: ":green_with_check:",
-            pending: ":yellow_pending:",
-            failure: ":red_with_cross:",
-            error: ":red_with_cross:",
-        };
-        return statusMap[data.state] ?? "";
-    }
-    catch {
-        return "";
     }
 }
 function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
@@ -47214,17 +47191,16 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildSlackAttachment = buildSlackAttachment;
-exports.buildSlackFallbackText = buildSlackFallbackText;
 exports.sendSlackNotification = sendSlackNotification;
 const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
 function buildSlackAttachment(params) {
-    const fileList = params.files
+    const fileList = params.allFiles
         .map((f) => `• ${f.filename} \`+${f.additions} -${f.deletions}\``)
         .join("\n");
     const text = [
-        `PR by *${params.author}* needs a review:` +
-            `${params.statusEmoji} \`+${params.additions} -${params.deletions}\` ` +
+        `PR by *${params.author}* needs a review: ` +
+            `\`+${params.additions} -${params.deletions}\` ` +
             `<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
         `based on the following changes:`,
         fileList,
@@ -47232,10 +47208,8 @@ function buildSlackAttachment(params) {
     return {
         text,
         color: "#1a7ccc",
+        fallback: `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`,
     };
-}
-function buildSlackFallbackText(params) {
-    return `PR by ${params.author} needs a review: +${params.additions} -${params.deletions} ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
 }
 async function sendSlackNotification(token, channel, params) {
     if (!token) {
@@ -47244,10 +47218,11 @@ async function sendSlackNotification(token, channel, params) {
     }
     try {
         const client = new web_api_1.WebClient(token);
+        const attachment = buildSlackAttachment(params);
         await client.chat.postMessage({
             channel,
-            text: buildSlackFallbackText(params),
-            attachments: [buildSlackAttachment(params)],
+            text: attachment.fallback,
+            attachments: [attachment],
         });
         core.info(`Sent Slack notification to ${channel}`);
     }

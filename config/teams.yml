@@ -1,30 +1,28 @@
 # Team config per org.
 # The action selects the section matching the repo's org at runtime.
-# All Slack channels set to #applications-spam for testing.
+# Slack channels: set per-team to enable notifications, omit to skip.
 
 orgs:
   datarobot-oss:
-    default_slack_channel: "#applications-spam"
     teams:
       datarobot-agent-skills:
         label: "Needs Review: Agent Skills"
-        slack_channel: "#applications-spam"
+        slack_channel: ""
       agentic-assistant:
         label: "Needs Review: Agentic Assistant"
-        slack_channel: "#applications-spam"
+        slack_channel: ""
       core-modeling:
         label: "Needs Review: Core Modeling"
-        slack_channel: "#applications-spam"
+        slack_channel: ""
       applications:
         label: "Needs Review: Applications"
-        slack_channel: "#applications-spam"
+        slack_channel: ""
 
   datarobot-community:
-    default_slack_channel: "#applications-spam"
     teams:
       customer-engineering:
         label: "Needs Review: Customer Engineering"
-        slack_channel: "#applications-spam"
+        slack_channel: ""
       applications:
         label: "Needs Review: Applications"
-        slack_channel: "#applications-spam"
+        slack_channel: ""

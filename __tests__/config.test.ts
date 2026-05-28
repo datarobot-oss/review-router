@@ -1,11 +1,12 @@
 import { loadTeamsConfigForOrg, getLabelForTeam, getSlackChannel, parseTeamsConfig, humanizeSlug } from "../src/config";
+import { OrgConfig } from "../src/types";
 
 describe("loadTeamsConfigForOrg", () => {
   it("loads org-specific config section", () => {
     const config = loadTeamsConfigForOrg("datarobot-oss");
     expect(config.teams["applications"]).toEqual({
       label: "Needs Review: Applications",
-      slack_channel: "#applications-spam",
+      slack_channel: "",
     });
   });
 
@@ -69,13 +70,25 @@ describe("humanizeSlug", () => {
 
 describe("getSlackChannel", () => {
   it("returns team-specific channel when configured", () => {
-    const config = loadTeamsConfigForOrg("datarobot-oss");
-    expect(getSlackChannel(config, "applications")).toBe("#applications-spam");
+    const config: OrgConfig = {
+      teams: { foo: { label: "L", slack_channel: "#foo-reviews" } },
+    };
+    expect(getSlackChannel(config, "foo")).toBe("#foo-reviews");
   });
 
   it("falls back to default_slack_channel for unconfigured team", () => {
-    const config = loadTeamsConfigForOrg("datarobot-oss");
-    expect(getSlackChannel(config, "some-unknown-team")).toBe("#applications-spam");
+    const config: OrgConfig = {
+      default_slack_channel: "#default",
+      teams: { foo: { label: "L", slack_channel: "#foo" } },
+    };
+    expect(getSlackChannel(config, "unknown-team")).toBe("#default");
+  });
+
+  it("skips notification when channel is empty string", () => {
+    const config: OrgConfig = {
+      teams: { foo: { label: "L", slack_channel: "" } },
+    };
+    expect(getSlackChannel(config, "foo")).toBe("");
   });
 
   it("returns undefined when no default and no team config", () => {

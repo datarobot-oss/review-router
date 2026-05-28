@@ -46864,9 +46864,12 @@ async function run() {
             repo,
             prNumber: pr.number,
             baseBranch: pr.base.ref,
+            headSha: pr.head?.sha ?? "",
             prUrl: pr.html_url ?? "",
             prTitle: pr.title ?? "",
             author: pr.user?.login ?? "",
+            additions: pr.additions ?? 0,
+            deletions: pr.deletions ?? 0,
             inputs,
             capabilities,
             teamsConfig,
@@ -47040,7 +47043,12 @@ async function handleLabeled(octokit, ctx) {
         pull_number: ctx.prNumber,
     });
     const filenames = files.map((f) => f.filename);
+    const fileStatsMap = new Map();
+    for (const f of files) {
+        fileStatsMap.set(f.filename, { filename: f.filename, additions: f.additions, deletions: f.deletions });
+    }
     core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
+    const statusEmoji = await getCommitStatusEmoji(octokit, ctx.owner, ctx.repo, ctx.headSha);
     const codeownersContent = await (0, codeowners_1.fetchCodeownersContent)(octokit, ctx.owner, ctx.repo, ctx.baseBranch);
     if (codeownersContent === null) {
         const warningBody = `${comment_1.COMMENT_MARKER}\n⚠️ No \`.github/CODEOWNERS\` file found on the \`${ctx.baseBranch}\` branch. Review routing skipped.\n\nPlease add a CODEOWNERS file to enable automatic review routing.`;
@@ -47074,20 +47082,26 @@ async function handleLabeled(octokit, ctx) {
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
         if (slackChannel && ctx.inputs.slackToken) {
-            const slackParams = {
+            const teamFileStats = teamFileList
+                .map((f) => fileStatsMap.get(f))
+                .filter((s) => s !== undefined);
+            await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,
                 prNumber: ctx.prNumber,
                 repoName: ctx.repo,
                 author: ctx.author,
                 teamSlug,
-                files: teamFileList,
-            };
-            await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, slackParams);
+                statusEmoji,
+                additions: ctx.additions,
+                deletions: ctx.deletions,
+                files: teamFileStats,
+            });
         }
     }
     const commentBody = (0, comment_1.buildOwnershipComment)(ownership);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
+    await (0, labels_1.removeLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 async function handleReviewSubmitted(octokit, ctx) {
     if (!ctx.capabilities.hasOrgAccess) {
@@ -47126,6 +47140,25 @@ async function handleReviewSubmitted(octokit, ctx) {
                 core.warning(`Error checking team membership for ${ctx.reviewer} in ${teamSlug}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
+    }
+}
+async function getCommitStatusEmoji(octokit, owner, repo, ref) {
+    try {
+        const { data } = await octokit.rest.repos.getCombinedStatusForRef({
+            owner,
+            repo,
+            ref,
+        });
+        const statusMap = {
+            success: ":green_with_check:",
+            pending: ":yellow_pending:",
+            failure: ":red_with_cross:",
+            error: ":red_with_cross:",
+        };
+        return statusMap[data.state] ?? "";
+    }
+    catch {
+        return "";
     }
 }
 function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
@@ -47180,61 +47213,29 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.buildSlackBlocks = buildSlackBlocks;
+exports.buildSlackAttachment = buildSlackAttachment;
 exports.buildSlackFallbackText = buildSlackFallbackText;
 exports.sendSlackNotification = sendSlackNotification;
 const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
-function buildSlackBlocks(params) {
-    const fileList = params.files.map((f) => `\`${f}\``).join("\n");
-    return [
-        {
-            type: "header",
-            text: {
-                type: "plain_text",
-                text: "📋 Review Requested",
-                emoji: true,
-            },
-        },
-        {
-            type: "section",
-            fields: [
-                {
-                    type: "mrkdwn",
-                    text: `*PR:*\n<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
-                },
-                {
-                    type: "mrkdwn",
-                    text: `*Author:*\n${params.author}`,
-                },
-            ],
-        },
-        {
-            type: "section",
-            text: {
-                type: "mrkdwn",
-                text: `*Team:* ${params.teamSlug}\n*Files:*\n${fileList}`,
-            },
-        },
-        {
-            type: "actions",
-            elements: [
-                {
-                    type: "button",
-                    text: {
-                        type: "plain_text",
-                        text: "Open PR",
-                        emoji: true,
-                    },
-                    url: params.prUrl,
-                    style: "primary",
-                },
-            ],
-        },
-    ];
+function buildSlackAttachment(params) {
+    const fileList = params.files
+        .map((f) => `• ${f.filename} \`+${f.additions} -${f.deletions}\``)
+        .join("\n");
+    const text = [
+        `PR by *${params.author}* needs a review:` +
+            `${params.statusEmoji} \`+${params.additions} -${params.deletions}\` ` +
+            `<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
+        `based on the following changes:`,
+        fileList,
+    ].join("\n");
+    return {
+        text,
+        color: "#1a7ccc",
+    };
 }
 function buildSlackFallbackText(params) {
-    return `Review requested: ${params.repoName}#${params.prNumber}: ${params.prTitle} by ${params.author}`;
+    return `PR by ${params.author} needs a review: +${params.additions} -${params.deletions} ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
 }
 async function sendSlackNotification(token, channel, params) {
     if (!token) {
@@ -47246,7 +47247,7 @@ async function sendSlackNotification(token, channel, params) {
         await client.chat.postMessage({
             channel,
             text: buildSlackFallbackText(params),
-            blocks: buildSlackBlocks(params),
+            attachments: [buildSlackAttachment(params)],
         });
         core.info(`Sent Slack notification to ${channel}`);
     }

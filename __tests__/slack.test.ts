@@ -1,4 +1,4 @@
-import { buildSlackBlocks, buildSlackFallbackText, sendSlackNotification } from "../src/slack";
+import { buildSlackAttachment, buildSlackFallbackText, sendSlackNotification } from "../src/slack";
 
 const params = {
   prUrl: "https://github.com/org/repo/pull/1",
@@ -7,17 +7,25 @@ const params = {
   repoName: "repo",
   author: "alice",
   teamSlug: "applications",
-  files: ["src/app.py", "src/utils.py"],
+  statusEmoji: ":yellow_pending:",
+  additions: 15,
+  deletions: 3,
+  files: [
+    { filename: "src/app.py", additions: 10, deletions: 2 },
+    { filename: "src/utils.py", additions: 5, deletions: 1 },
+  ],
 };
 
-describe("buildSlackBlocks", () => {
-  it("returns block kit blocks with header, PR info, files, and button", () => {
-    const blocks = buildSlackBlocks(params);
-    expect(blocks).toHaveLength(4);
-    expect(blocks[0].type).toBe("header");
-    expect(blocks[1].type).toBe("section");
-    expect(blocks[2].type).toBe("section");
-    expect(blocks[3].type).toBe("actions");
+describe("buildSlackAttachment", () => {
+  it("formats an EngProd-style attachment", () => {
+    const attachment = buildSlackAttachment(params);
+    expect(attachment.text).toContain("PR by *alice* needs a review:");
+    expect(attachment.text).toContain("`+15 -3`");
+    expect(attachment.text).toContain("repo#1: Add feature X");
+    expect(attachment.text).toContain("• src/app.py `+10 -2`");
+    expect(attachment.text).toContain("• src/utils.py `+5 -1`");
+    expect(attachment.text).toContain(":yellow_pending:");
+    expect(attachment.color).toBe("#1a7ccc");
   });
 });
 

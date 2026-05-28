@@ -10,7 +10,7 @@ import {
   upsertComment,
   COMMENT_MARKER,
 } from "./comment";
-import { sendSlackNotification } from "./slack";
+import { sendSlackNotification, FileStats } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
 import { ActionInputs, Capabilities, OrgConfig } from "./types";
 
@@ -21,9 +21,12 @@ export interface LabeledContext {
   repo: string;
   prNumber: number;
   baseBranch: string;
+  headSha: string;
   prUrl: string;
   prTitle: string;
   author: string;
+  additions: number;
+  deletions: number;
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
@@ -49,7 +52,13 @@ export async function handleLabeled(
     pull_number: ctx.prNumber,
   });
   const filenames = files.map((f: { filename: string }) => f.filename);
+  const fileStatsMap = new Map<string, FileStats>();
+  for (const f of files as Array<{ filename: string; additions: number; deletions: number }>) {
+    fileStatsMap.set(f.filename, { filename: f.filename, additions: f.additions, deletions: f.deletions });
+  }
   core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
+
+  const statusEmoji = await getCommitStatusEmoji(octokit, ctx.owner, ctx.repo, ctx.headSha);
 
   const codeownersContent = await fetchCodeownersContent(
     octokit,
@@ -110,21 +119,28 @@ export async function handleLabeled(
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
     if (slackChannel && ctx.inputs.slackToken) {
-      const slackParams = {
+      const teamFileStats = teamFileList
+        .map((f) => fileStatsMap.get(f))
+        .filter((s): s is FileStats => s !== undefined);
+      await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
         prNumber: ctx.prNumber,
         repoName: ctx.repo,
         author: ctx.author,
         teamSlug,
-        files: teamFileList,
-      };
-      await sendSlackNotification(ctx.inputs.slackToken, slackChannel, slackParams);
+        statusEmoji,
+        additions: ctx.additions,
+        deletions: ctx.deletions,
+        files: teamFileStats,
+      });
     }
   }
 
   const commentBody = buildOwnershipComment(ownership);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
+
+  await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 
 export async function handleReviewSubmitted(
@@ -179,6 +195,30 @@ export async function handleReviewSubmitted(
         );
       }
     }
+  }
+}
+
+async function getCommitStatusEmoji(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  ref: string
+): Promise<string> {
+  try {
+    const { data } = await octokit.rest.repos.getCombinedStatusForRef({
+      owner,
+      repo,
+      ref,
+    });
+    const statusMap: Record<string, string> = {
+      success: ":green_with_check:",
+      pending: ":yellow_pending:",
+      failure: ":red_with_cross:",
+      error: ":red_with_cross:",
+    };
+    return statusMap[data.state] ?? "";
+  } catch {
+    return "";
   }
 }
 

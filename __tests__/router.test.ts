@@ -17,6 +17,7 @@ const mockOctokit = {
     },
     repos: {
       getContent: jest.fn(),
+      getCombinedStatusForRef: jest.fn().mockResolvedValue({ data: { state: "pending" } }),
     },
     orgs: {
       checkMembershipForUser: jest.fn(),
@@ -66,9 +67,12 @@ describe("handleLabeled", () => {
       repo: "test-repo",
       prNumber: 1,
       baseBranch: "main",
+      headSha: "abc123",
       prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
       prTitle: "Test PR",
       author: "alice",
+      additions: 10,
+      deletions: 5,
       inputs: {
         githubToken: "token",
         slackToken: "",
@@ -95,9 +99,12 @@ describe("handleLabeled", () => {
       repo: "test-repo",
       prNumber: 1,
       baseBranch: "main",
+      headSha: "abc123",
       prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
       prTitle: "Test PR",
       author: "alice",
+      additions: 10,
+      deletions: 5,
       inputs: {
         githubToken: "token",
         slackToken: "",

@@ -16,15 +16,10 @@ When the **"Ready for Review"** label is added to a PR, this action:
 
 Add this workflow to your repo at `.github/workflows/review-router.yml`:
 
-### Full mode (with GitHub App)
-
 ```yaml
 ---
 name: Review Router
 
-# SECURITY: Use "pull_request" only — NEVER "pull_request_target".
-# pull_request does not pass secrets to fork PRs (safe).
-# pull_request_target does pass secrets to fork PRs (unsafe).
 on:
   pull_request:
     types: [labeled]
@@ -37,8 +32,6 @@ permissions:
 
 jobs:
   route:
-    # Skip fork PRs — they can't access secrets
-    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token
@@ -55,31 +48,6 @@ jobs:
           slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
-### PoC mode (no GitHub App needed)
-
-```yaml
-name: Review Router
-
-on:
-  pull_request:
-    types: [labeled]
-
-permissions:
-  contents: read
-  pull-requests: write
-
-jobs:
-  route:
-    runs-on: ubuntu-latest
-    if: github.event.action == 'labeled' && github.event.label.name == 'Ready for Review'
-    steps:
-      - uses: datarobot-oss/review-router@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-PoC limitations: no team review requests, no auto-label removal on approval, no Slack.
-
 ## CODEOWNERS
 
 Add a `.github/CODEOWNERS` file to your repo:
@@ -94,9 +62,9 @@ infra/ @datarobot/platform-team
 
 ## Adding a new team
 
-1. Create the GitHub team in the appropriate org
+1. Create the GitHub team in the your GitHub organization
 2. Add the team to repos' `.github/CODEOWNERS` files
-3. Add an entry to `config/teams.yml` in this repo
+3. Add an entry to `config/teams.yml` in this [review-router](https://github.com/datarobot-oss/review-router)
 4. Invite the Slack bot to the team's channel
 
 ## Contributing

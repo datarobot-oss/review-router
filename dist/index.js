@@ -46838,10 +46838,14 @@ async function run() {
     };
     const context = github.context;
     const { owner, repo } = context.repo;
+    if (context.eventName === "pull_request_target") {
+        core.setFailed("This action must not be used with pull_request_target. Use pull_request instead.");
+        return;
+    }
     const pr = context.payload.pull_request;
     const isFork = pr && pr.head?.repo?.full_name !== `${owner}/${repo}`;
     if (isFork) {
-        core.info("Skipping fork PR — secrets are not available");
+        core.info("Skipping fork PR");
         return;
     }
     const octokit = github.getOctokit(inputs.githubToken);

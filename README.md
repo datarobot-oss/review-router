@@ -22,9 +22,6 @@ Add this workflow to your repo at `.github/workflows/review-router.yml`:
 ---
 name: Review Router
 
-# SECURITY: Use "pull_request" only — NEVER "pull_request_target".
-# pull_request does not pass secrets to fork PRs (safe).
-# pull_request_target does pass secrets to fork PRs (unsafe).
 on:
   pull_request:
     types: [labeled]
@@ -37,8 +34,6 @@ permissions:
 
 jobs:
   route:
-    # Skip fork PRs — they can't access secrets
-    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token
@@ -58,6 +53,7 @@ jobs:
 ### PoC mode (no GitHub App needed)
 
 ```yaml
+---
 name: Review Router
 
 on:
@@ -71,7 +67,6 @@ permissions:
 jobs:
   route:
     runs-on: ubuntu-latest
-    if: github.event.action == 'labeled' && github.event.label.name == 'Ready for Review'
     steps:
       - uses: datarobot-oss/review-router@v1
         with:

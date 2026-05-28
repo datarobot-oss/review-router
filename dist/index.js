@@ -46836,9 +46836,15 @@ async function run() {
         needsReviewPrefix: core.getInput("needs-review-prefix"),
         needsReviewLabelColor: core.getInput("needs-review-label-color"),
     };
-    const octokit = github.getOctokit(inputs.githubToken);
     const context = github.context;
     const { owner, repo } = context.repo;
+    const pr = context.payload.pull_request;
+    const isFork = pr && pr.head?.repo?.full_name !== `${owner}/${repo}`;
+    if (isFork) {
+        core.info("Skipping fork PR — secrets are not available");
+        return;
+    }
+    const octokit = github.getOctokit(inputs.githubToken);
     const teamsConfig = (0, config_1.loadTeamsConfigForOrg)(owner);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     const eventName = context.eventName;
@@ -47221,7 +47227,7 @@ async function sendSlackNotification(token, channel, params) {
         const attachment = buildSlackAttachment(params);
         await client.chat.postMessage({
             channel,
-            text: attachment.fallback,
+            text: "",
             attachments: [attachment],
         });
         core.info(`Sent Slack notification to ${channel}`);

@@ -37,11 +37,8 @@ permissions:
 
 jobs:
   route:
-    if: >
-      github.event.pull_request.head.repo.full_name == github.repository && (
-        (github.event.action == 'labeled' && github.event.label.name == 'Ready for Review') ||
-        (github.event.action == 'submitted' && github.event.review.state == 'approved')
-      )
+    # Skip fork PRs — they can't access secrets
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token

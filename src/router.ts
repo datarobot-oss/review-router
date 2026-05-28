@@ -15,7 +15,7 @@ import {
   sendSlackNotification,
 } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
-import { ActionInputs, Capabilities, TeamsConfig } from "./types";
+import { ActionInputs, Capabilities, OrgConfig } from "./types";
 
 type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
 
@@ -29,7 +29,7 @@ export interface LabeledContext {
   author: string;
   inputs: ActionInputs;
   capabilities: Capabilities;
-  teamsConfig: TeamsConfig;
+  teamsConfig: OrgConfig;
 }
 
 export interface ReviewContext {
@@ -39,7 +39,7 @@ export interface ReviewContext {
   reviewer: string;
   inputs: ActionInputs;
   capabilities: Capabilities;
-  teamsConfig: TeamsConfig;
+  teamsConfig: OrgConfig;
 }
 
 export async function handleLabeled(
@@ -186,7 +186,7 @@ export async function handleReviewSubmitted(
 
 function resolveTeamSlugFromLabel(
   labelName: string,
-  teamsConfig: TeamsConfig,
+  teamsConfig: OrgConfig,
   prefix: string
 ): string | undefined {
   for (const [slug, cfg] of Object.entries(teamsConfig.teams)) {

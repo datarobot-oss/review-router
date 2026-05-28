@@ -2,33 +2,32 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
 import * as core from "@actions/core";
-import { TeamsConfig } from "./types";
+import { TeamsConfig, OrgConfig } from "./types";
 
 export function parseTeamsConfig(content: string): TeamsConfig {
   const parsed = yaml.load(content) as TeamsConfig;
-  return parsed && parsed.teams ? parsed : { teams: {} };
+  return parsed && parsed.orgs ? parsed : { orgs: {} };
 }
 
-export function loadTeamsConfigForOrg(org: string): TeamsConfig {
-  const orgConfigPath = path.join(__dirname, "..", "config", `teams-${org}.yml`);
-  const fallbackPath = path.join(__dirname, "..", "config", "teams.yml");
-
-  for (const configPath of [orgConfigPath, fallbackPath]) {
-    try {
-      const content = fs.readFileSync(configPath, "utf8");
-      core.info(`Loaded team config from ${path.basename(configPath)}`);
-      return parseTeamsConfig(content);
-    } catch {
-      continue;
+export function loadTeamsConfigForOrg(org: string): OrgConfig {
+  const configPath = path.join(__dirname, "..", "config", "teams.yml");
+  try {
+    const content = fs.readFileSync(configPath, "utf8");
+    const config = parseTeamsConfig(content);
+    const orgConfig = config.orgs[org];
+    if (orgConfig) {
+      core.info(`Loaded team config for org "${org}"`);
+      return orgConfig;
     }
+    core.warning(`No config section found for org "${org}" in teams.yml`);
+  } catch {
+    core.warning(`Could not load teams config from ${configPath}`);
   }
-
-  core.warning(`No team config found for org "${org}"`);
   return { teams: {} };
 }
 
 export function getLabelForTeam(
-  config: TeamsConfig,
+  config: OrgConfig,
   teamSlug: string,
   prefix: string
 ): string {
@@ -50,7 +49,7 @@ export function humanizeSlug(slug: string): string {
 }
 
 export function getSlackChannel(
-  config: TeamsConfig,
+  config: OrgConfig,
   teamSlug: string
 ): string | undefined {
   return config.teams[teamSlug]?.slack_channel ?? config.default_slack_channel;

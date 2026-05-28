@@ -46736,22 +46736,23 @@ const yaml = __importStar(__nccwpck_require__(4281));
 const core = __importStar(__nccwpck_require__(7484));
 function parseTeamsConfig(content) {
     const parsed = yaml.load(content);
-    return parsed && parsed.teams ? parsed : { teams: {} };
+    return parsed && parsed.orgs ? parsed : { orgs: {} };
 }
 function loadTeamsConfigForOrg(org) {
-    const orgConfigPath = path.join(__dirname, "..", "config", `teams-${org}.yml`);
-    const fallbackPath = path.join(__dirname, "..", "config", "teams.yml");
-    for (const configPath of [orgConfigPath, fallbackPath]) {
-        try {
-            const content = fs.readFileSync(configPath, "utf8");
-            core.info(`Loaded team config from ${path.basename(configPath)}`);
-            return parseTeamsConfig(content);
+    const configPath = path.join(__dirname, "..", "config", "teams.yml");
+    try {
+        const content = fs.readFileSync(configPath, "utf8");
+        const config = parseTeamsConfig(content);
+        const orgConfig = config.orgs[org];
+        if (orgConfig) {
+            core.info(`Loaded team config for org "${org}"`);
+            return orgConfig;
         }
-        catch {
-            continue;
-        }
+        core.warning(`No config section found for org "${org}" in teams.yml`);
     }
-    core.warning(`No team config found for org "${org}"`);
+    catch {
+        core.warning(`Could not load teams config from ${configPath}`);
+    }
     return { teams: {} };
 }
 function getLabelForTeam(config, teamSlug, prefix) {

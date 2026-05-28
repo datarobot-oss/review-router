@@ -1,4 +1,25 @@
+# Bundled fallback config — used when no org-level config exists at
+# {org}/.github/review-router/teams.yml
+#
+# All channels set to #applications-spam for testing.
+
+default_slack_channel: "#applications-spam"
+
 teams:
+  # datarobot-oss org teams
+  datarobot-agent-skills:
+    label: "Needs Review: Agent Skills"
+    slack_channel: "#applications-spam"
+
+  # datarobot org teams (cross-org, referenced in CODEOWNERS)
+  agentic-assistant:
+    label: "Needs Review: Agentic Assistant"
+    slack_channel: "#applications-spam"
+
+  core-modeling:
+    label: "Needs Review: Core Modeling"
+    slack_channel: "#applications-spam"
+
   applications:
     label: "Needs Review: Applications"
     slack_channel: "#applications-spam"

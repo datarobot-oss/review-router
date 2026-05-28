@@ -36,7 +36,17 @@ export function getLabelForTeam(
   if (teamConfig) {
     return teamConfig.label;
   }
-  return `${prefix}: ${teamSlug}`;
+  return `${prefix}: ${humanizeSlug(teamSlug)}`;
+}
+
+export function humanizeSlug(slug: string): string {
+  return slug
+    .split("-")
+    .map((word) => {
+      if (word.toLowerCase() === "datarobot") return "DataRobot";
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
 }
 
 export function getSlackChannel(

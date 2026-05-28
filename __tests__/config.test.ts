@@ -1,4 +1,4 @@
-import { loadTeamsConfigForOrg, getLabelForTeam, getSlackChannel, parseTeamsConfig } from "../src/config";
+import { loadTeamsConfigForOrg, getLabelForTeam, getSlackChannel, parseTeamsConfig, humanizeSlug } from "../src/config";
 
 describe("loadTeamsConfigForOrg", () => {
   it("loads org-specific config when it exists", () => {
@@ -40,10 +40,24 @@ describe("getLabelForTeam", () => {
     );
   });
 
-  it("generates label from slug for unknown team", () => {
+  it("generates humanized label from slug for unknown team", () => {
     expect(getLabelForTeam(config, "unknown-team", "Needs Review")).toBe(
-      "Needs Review: unknown-team"
+      "Needs Review: Unknown Team"
     );
+  });
+});
+
+describe("humanizeSlug", () => {
+  it("capitalizes each word", () => {
+    expect(humanizeSlug("core-modeling")).toBe("Core Modeling");
+  });
+
+  it("handles DataRobot as a special case", () => {
+    expect(humanizeSlug("datarobot-agent-skills")).toBe("DataRobot Agent Skills");
+  });
+
+  it("handles single word", () => {
+    expect(humanizeSlug("applications")).toBe("Applications");
   });
 });
 

@@ -46728,6 +46728,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseTeamsConfig = parseTeamsConfig;
 exports.loadTeamsConfigForOrg = loadTeamsConfigForOrg;
 exports.getLabelForTeam = getLabelForTeam;
+exports.humanizeSlug = humanizeSlug;
 exports.getSlackChannel = getSlackChannel;
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
@@ -46758,7 +46759,17 @@ function getLabelForTeam(config, teamSlug, prefix) {
     if (teamConfig) {
         return teamConfig.label;
     }
-    return `${prefix}: ${teamSlug}`;
+    return `${prefix}: ${humanizeSlug(teamSlug)}`;
+}
+function humanizeSlug(slug) {
+    return slug
+        .split("-")
+        .map((word) => {
+        if (word.toLowerCase() === "datarobot")
+            return "DataRobot";
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+        .join(" ");
 }
 function getSlackChannel(config, teamSlug) {
     return config.teams[teamSlug]?.slack_channel ?? config.default_slack_channel;

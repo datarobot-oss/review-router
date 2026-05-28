@@ -46525,44 +46525,37 @@ function matchFileToOwners(filePath, entries) {
     }
     return [];
 }
+function patternToRegex(pattern) {
+    let regexStr = pattern
+        .replace(/^\//, "")
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*\*/g, "\0GLOBSTAR\0")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\0GLOBSTAR\0/g, ".*")
+        .replace(/\?/g, "[^/]");
+    // Directory pattern: match anything under it
+    if (regexStr.endsWith("/")) {
+        regexStr += ".*";
+    }
+    return new RegExp(`^${regexStr}$`);
+}
 function fileMatchesPattern(filePath, pattern) {
-    // Normalize: remove leading /
-    const normalizedPattern = pattern.replace(/^\//, "");
-    // Wildcard * matches everything
-    if (normalizedPattern === "*") {
+    if (pattern === "*")
         return true;
-    }
-    // Directory pattern (ends with /)
-    if (normalizedPattern.endsWith("/")) {
-        return filePath.startsWith(normalizedPattern);
-    }
-    // Directory prefix without trailing slash
-    if (filePath.startsWith(normalizedPattern + "/") ||
-        filePath === normalizedPattern) {
-        return true;
-    }
-    // Glob-style matching for simple patterns
-    const regexStr = normalizedPattern
-        .replace(/\./g, "\\.")
-        .replace(/\*\*/g, ".*")
-        .replace(/(?<!\.)(\*)/g, "[^/]*");
-    const regex = new RegExp(`^${regexStr}$`);
-    return regex.test(filePath);
+    return patternToRegex(pattern).test(filePath);
 }
-function extractTeamSlug(owner, orgPrefix) {
-    const prefix = `@${orgPrefix}/`;
-    if (owner.startsWith(prefix)) {
-        return owner.slice(prefix.length);
-    }
-    return undefined;
+function extractTeamSlug(owner) {
+    // Match @org/team-slug for any org
+    const match = owner.match(/^@[^/]+\/(.+)$/);
+    return match ? match[1] : undefined;
 }
-function mapFilesToTeams(files, entries, orgPrefix) {
+function mapFilesToTeams(files, entries) {
     const teamFiles = new Map();
     const unownedFiles = [];
     for (const file of files) {
         const owners = matchFileToOwners(file, entries);
         const teamSlugs = owners
-            .map((o) => extractTeamSlug(o, orgPrefix))
+            .map((o) => extractTeamSlug(o))
             .filter((slug) => slug !== undefined);
         if (teamSlugs.length === 0) {
             unownedFiles.push(file);
@@ -46646,18 +46639,16 @@ exports.buildOwnershipComment = buildOwnershipComment;
 exports.upsertComment = upsertComment;
 const core = __importStar(__nccwpck_require__(7484));
 exports.COMMENT_MARKER = "<!-- review-router-ownership -->";
-function buildOwnershipComment(ownership, orgName) {
+function buildOwnershipComment(ownership) {
     const lines = [exports.COMMENT_MARKER, "## Code Ownership", ""];
-    if (ownership.teamFiles.size > 0) {
-        lines.push("| Team | Files |");
-        lines.push("|------|-------|");
-        for (const [team, files] of ownership.teamFiles) {
-            const fileList = files.map((f) => `\`${f}\``).join(", ");
-            lines.push(`| @${orgName}/${team} | ${fileList} |`);
+    for (const [team, files] of ownership.teamFiles) {
+        lines.push(`**${team}**`);
+        for (const file of files) {
+            lines.push(`- \`${file}\``);
         }
+        lines.push("");
     }
     if (ownership.unownedFiles.length > 0) {
-        lines.push("");
         lines.push("<details><summary>Unowned files (no CODEOWNERS match)</summary>");
         lines.push("");
         for (const file of ownership.unownedFiles) {
@@ -46665,20 +46656,34 @@ function buildOwnershipComment(ownership, orgName) {
         }
         lines.push("");
         lines.push("</details>");
+        lines.push("");
     }
-    lines.push("");
     lines.push("_Review requested from the teams above. Labels will be removed automatically upon approval._");
     return lines.join("\n");
 }
 async function upsertComment(octokit, owner, repo, prNumber, body) {
-    const { data: comments } = await octokit.rest.issues.listComments({ owner, repo, issue_number: prNumber });
+    const { data: comments } = await octokit.rest.issues.listComments({
+        owner,
+        repo,
+        issue_number: prNumber,
+    });
     const existing = comments.find((c) => c.body && c.body.includes(exports.COMMENT_MARKER));
     if (existing) {
-        await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+        await octokit.rest.issues.updateComment({
+            owner,
+            repo,
+            comment_id: existing.id,
+            body,
+        });
         core.info(`Updated ownership comment on PR #${prNumber}`);
     }
     else {
-        await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+        await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body,
+        });
         core.info(`Posted ownership comment on PR #${prNumber}`);
     }
 }
@@ -47044,7 +47049,7 @@ async function handleLabeled(octokit, ctx) {
         return;
     }
     const entries = (0, codeowners_1.parseCodeowners)(codeownersContent);
-    const ownership = (0, codeowners_1.mapFilesToTeams)(filenames, entries, ctx.owner);
+    const ownership = (0, codeowners_1.mapFilesToTeams)(filenames, entries);
     core.info(`Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`);
     for (const [teamSlug, teamFileList] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
@@ -47069,18 +47074,19 @@ async function handleLabeled(octokit, ctx) {
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
         if (slackChannel && ctx.inputs.slackToken) {
-            const message = (0, slack_1.buildSlackMessage)({
+            const slackParams = {
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,
                 prNumber: ctx.prNumber,
                 repoName: ctx.repo,
                 author: ctx.author,
+                teamSlug,
                 files: teamFileList,
-            });
-            await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, message);
+            };
+            await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, slackParams);
         }
     }
-    const commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.owner);
+    const commentBody = (0, comment_1.buildOwnershipComment)(ownership);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
 }
 async function handleReviewSubmitted(octokit, ctx) {
@@ -47174,27 +47180,74 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.buildSlackMessage = buildSlackMessage;
+exports.buildSlackBlocks = buildSlackBlocks;
+exports.buildSlackFallbackText = buildSlackFallbackText;
 exports.sendSlackNotification = sendSlackNotification;
 const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
-function buildSlackMessage(params) {
-    const fileList = params.files.map((f) => `• ${f}`).join("\n");
+function buildSlackBlocks(params) {
+    const fileList = params.files.map((f) => `\`${f}\``).join("\n");
     return [
-        `📋 *Review requested:* <${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
-        `*Author:* ${params.author}`,
-        `*Files for your team:*`,
-        fileList,
-    ].join("\n");
+        {
+            type: "header",
+            text: {
+                type: "plain_text",
+                text: "📋 Review Requested",
+                emoji: true,
+            },
+        },
+        {
+            type: "section",
+            fields: [
+                {
+                    type: "mrkdwn",
+                    text: `*PR:*\n<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
+                },
+                {
+                    type: "mrkdwn",
+                    text: `*Author:*\n${params.author}`,
+                },
+            ],
+        },
+        {
+            type: "section",
+            text: {
+                type: "mrkdwn",
+                text: `*Team:* ${params.teamSlug}\n*Files:*\n${fileList}`,
+            },
+        },
+        {
+            type: "actions",
+            elements: [
+                {
+                    type: "button",
+                    text: {
+                        type: "plain_text",
+                        text: "Open PR",
+                        emoji: true,
+                    },
+                    url: params.prUrl,
+                    style: "primary",
+                },
+            ],
+        },
+    ];
 }
-async function sendSlackNotification(token, channel, text) {
+function buildSlackFallbackText(params) {
+    return `Review requested: ${params.repoName}#${params.prNumber}: ${params.prTitle} by ${params.author}`;
+}
+async function sendSlackNotification(token, channel, params) {
     if (!token) {
         core.debug("No Slack token provided, skipping notification");
         return;
     }
     try {
         const client = new web_api_1.WebClient(token);
-        await client.chat.postMessage({ channel, text });
+        await client.chat.postMessage({
+            channel,
+            text: buildSlackFallbackText(params),
+            blocks: buildSlackBlocks(params),
+        });
         core.info(`Sent Slack notification to ${channel}`);
     }
     catch (error) {

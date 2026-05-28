@@ -1,5 +1,11 @@
 import * as core from "@actions/core";
-import { WebClient, KnownBlock } from "@slack/web-api";
+import { WebClient } from "@slack/web-api";
+
+export interface FileStats {
+  filename: string;
+  additions: number;
+  deletions: number;
+}
 
 export interface SlackMessageParams {
   prUrl: string;
@@ -8,61 +14,33 @@ export interface SlackMessageParams {
   repoName: string;
   author: string;
   teamSlug: string;
-  files: string[];
+  statusEmoji: string;
+  additions: number;
+  deletions: number;
+  files: FileStats[];
 }
 
-export function buildSlackBlocks(params: SlackMessageParams): KnownBlock[] {
-  const fileList = params.files.map((f) => `\`${f}\``).join("\n");
+export function buildSlackAttachment(params: SlackMessageParams) {
+  const fileList = params.files
+    .map((f) => `• ${f.filename} \`+${f.additions} -${f.deletions}\``)
+    .join("\n");
 
-  return [
-    {
-      type: "header",
-      text: {
-        type: "plain_text",
-        text: "📋 Review Requested",
-        emoji: true,
-      },
-    },
-    {
-      type: "section",
-      fields: [
-        {
-          type: "mrkdwn",
-          text: `*PR:*\n<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
-        },
-        {
-          type: "mrkdwn",
-          text: `*Author:*\n${params.author}`,
-        },
-      ],
-    },
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*Team:* ${params.teamSlug}\n*Files:*\n${fileList}`,
-      },
-    },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: {
-            type: "plain_text",
-            text: "Open PR",
-            emoji: true,
-          },
-          url: params.prUrl,
-          style: "primary",
-        },
-      ],
-    },
-  ];
+  const text = [
+    `PR by *${params.author}* needs a review:` +
+      `${params.statusEmoji} \`+${params.additions} -${params.deletions}\` ` +
+      `<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
+    `based on the following changes:`,
+    fileList,
+  ].join("\n");
+
+  return {
+    text,
+    color: "#1a7ccc",
+  };
 }
 
 export function buildSlackFallbackText(params: SlackMessageParams): string {
-  return `Review requested: ${params.repoName}#${params.prNumber}: ${params.prTitle} by ${params.author}`;
+  return `PR by ${params.author} needs a review: +${params.additions} -${params.deletions} ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
 }
 
 export async function sendSlackNotification(
@@ -80,7 +58,7 @@ export async function sendSlackNotification(
     await client.chat.postMessage({
       channel,
       text: buildSlackFallbackText(params),
-      blocks: buildSlackBlocks(params),
+      attachments: [buildSlackAttachment(params)],
     });
     core.info(`Sent Slack notification to ${channel}`);
   } catch (error) {

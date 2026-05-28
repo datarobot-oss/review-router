@@ -1,9 +1,8 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import * as path from "path";
 import { handleLabeled, handleReviewSubmitted } from "./router";
 import { detectCapabilities, isOrgMember } from "./auth";
-import { loadTeamsConfig, fetchOrgTeamsConfig } from "./config";
+import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 
 async function run(): Promise<void> {
@@ -19,10 +18,7 @@ async function run(): Promise<void> {
   const context = github.context;
   const { owner, repo } = context.repo;
 
-  const orgConfig = await fetchOrgTeamsConfig(octokit, owner);
-  const teamsConfig = orgConfig ?? loadTeamsConfig(
-    path.join(__dirname, "..", "config", "teams.yml")
-  );
+  const teamsConfig = loadTeamsConfigForOrg(owner);
 
   const capabilities = await detectCapabilities(octokit, owner);
 

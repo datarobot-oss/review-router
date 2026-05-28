@@ -1,24 +1,23 @@
-import { loadTeamsConfig, getLabelForTeam, getSlackChannel, parseTeamsConfig } from "../src/config";
-import * as path from "path";
+import { loadTeamsConfigForOrg, getLabelForTeam, getSlackChannel, parseTeamsConfig } from "../src/config";
 
-const fixtureDir = path.join(__dirname, "fixtures");
-
-describe("loadTeamsConfig", () => {
-  it("parses teams.yml into TeamsConfig", () => {
-    const config = loadTeamsConfig(path.join(fixtureDir, "teams.yml"));
-    expect(config.teams["customer-engineering"]).toEqual({
-      label: "Needs Review: Customer Engineering",
-      slack_channel: "#app-templates-tests",
-    });
-    expect(config.teams["platform-team"]).toEqual({
-      label: "Needs Review: Platform",
-      slack_channel: "#platform-reviews",
+describe("loadTeamsConfigForOrg", () => {
+  it("loads org-specific config when it exists", () => {
+    const config = loadTeamsConfigForOrg("datarobot-oss");
+    expect(config.teams["applications"]).toEqual({
+      label: "Needs Review: Applications",
+      slack_channel: "#applications-spam",
     });
   });
 
-  it("returns empty teams map for missing file", () => {
-    const config = loadTeamsConfig("/nonexistent/path/teams.yml");
-    expect(config.teams).toEqual({});
+  it("falls back to teams.yml for unknown org", () => {
+    const config = loadTeamsConfigForOrg("unknown-org");
+    expect(config.teams["applications"]).toBeDefined();
+  });
+
+  it("falls back to teams.yml for org with no specific config", () => {
+    const config = loadTeamsConfigForOrg("some-random-org-with-no-config");
+    expect(config.teams).toBeDefined();
+    expect(config.teams["applications"]).toBeDefined();
   });
 });
 
@@ -33,11 +32,11 @@ describe("parseTeamsConfig", () => {
 });
 
 describe("getLabelForTeam", () => {
-  const config = loadTeamsConfig(path.join(fixtureDir, "teams.yml"));
+  const config = loadTeamsConfigForOrg("datarobot-oss");
 
   it("returns configured label for known team", () => {
-    expect(getLabelForTeam(config, "customer-engineering", "Needs Review")).toBe(
-      "Needs Review: Customer Engineering"
+    expect(getLabelForTeam(config, "applications", "Needs Review")).toBe(
+      "Needs Review: Applications"
     );
   });
 

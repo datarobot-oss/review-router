@@ -1,0 +1,13 @@
+# Team config for the datarobot-community org.
+# All channels set to #applications-spam for testing.
+
+default_slack_channel: "#applications-spam"
+
+teams:
+  customer-engineering:
+    label: "Needs Review: Customer Engineering"
+    slack_channel: "#applications-spam"
+
+  applications:
+    label: "Needs Review: Applications"
+    slack_channel: "#applications-spam"

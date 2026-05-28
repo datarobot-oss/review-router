@@ -46726,46 +46726,32 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseTeamsConfig = parseTeamsConfig;
-exports.loadTeamsConfig = loadTeamsConfig;
-exports.fetchOrgTeamsConfig = fetchOrgTeamsConfig;
+exports.loadTeamsConfigForOrg = loadTeamsConfigForOrg;
 exports.getLabelForTeam = getLabelForTeam;
 exports.getSlackChannel = getSlackChannel;
 const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 const yaml = __importStar(__nccwpck_require__(4281));
 const core = __importStar(__nccwpck_require__(7484));
-const ORG_CONFIG_PATH = "review-router/teams.yml";
 function parseTeamsConfig(content) {
     const parsed = yaml.load(content);
     return parsed && parsed.teams ? parsed : { teams: {} };
 }
-function loadTeamsConfig(configPath) {
-    try {
-        const content = fs.readFileSync(configPath, "utf8");
-        return parseTeamsConfig(content);
-    }
-    catch {
-        core.warning(`Could not load teams config from ${configPath}`);
-        return { teams: {} };
-    }
-}
-async function fetchOrgTeamsConfig(octokit, org) {
-    try {
-        const response = await octokit.rest.repos.getContent({
-            owner: org,
-            repo: ".github",
-            path: ORG_CONFIG_PATH,
-        });
-        if ("content" in response.data && response.data.content) {
-            const content = Buffer.from(response.data.content, "base64").toString("utf8");
-            core.info(`Loaded team config from ${org}/.github/${ORG_CONFIG_PATH}`);
+function loadTeamsConfigForOrg(org) {
+    const orgConfigPath = path.join(__dirname, "..", "config", `teams-${org}.yml`);
+    const fallbackPath = path.join(__dirname, "..", "config", "teams.yml");
+    for (const configPath of [orgConfigPath, fallbackPath]) {
+        try {
+            const content = fs.readFileSync(configPath, "utf8");
+            core.info(`Loaded team config from ${path.basename(configPath)}`);
             return parseTeamsConfig(content);
         }
-        return null;
+        catch {
+            continue;
+        }
     }
-    catch {
-        core.debug(`No org-level team config found at ${org}/.github/${ORG_CONFIG_PATH}`);
-        return null;
-    }
+    core.warning(`No team config found for org "${org}"`);
+    return { teams: {} };
 }
 function getLabelForTeam(config, teamSlug, prefix) {
     const teamConfig = config.teams[teamSlug];
@@ -46822,7 +46808,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
-const path = __importStar(__nccwpck_require__(6928));
 const router_1 = __nccwpck_require__(8954);
 const auth_1 = __nccwpck_require__(9081);
 const config_1 = __nccwpck_require__(2973);
@@ -46837,8 +46822,7 @@ async function run() {
     const octokit = github.getOctokit(inputs.githubToken);
     const context = github.context;
     const { owner, repo } = context.repo;
-    const orgConfig = await (0, config_1.fetchOrgTeamsConfig)(octokit, owner);
-    const teamsConfig = orgConfig ?? (0, config_1.loadTeamsConfig)(path.join(__dirname, "..", "config", "teams.yml"));
+    const teamsConfig = (0, config_1.loadTeamsConfigForOrg)(owner);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     const eventName = context.eventName;
     const action = context.payload.action;

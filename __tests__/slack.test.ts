@@ -4,7 +4,9 @@ const params = {
   prUrl: "https://github.com/org/repo/pull/1",
   prTitle: "Add feature X",
   prNumber: 1,
+  orgName: "org",
   repoName: "repo",
+  baseBranch: "main",
   author: "alice",
   additions: 15,
   deletions: 3,
@@ -24,27 +26,29 @@ describe("buildSlackBlocks", () => {
     expect(blocks[3].type).toBe("actions");
   });
 
-  it("includes PR link and title in header section", () => {
+  it("includes PR link with org, diff stats, base branch, and title", () => {
     const { blocks } = buildSlackBlocks(params);
     const header = blocks[0].text!.text;
-    expect(header).toContain(":github:");
-    expect(header).toContain("<https://github.com/org/repo/pull/1|repo#1>");
+    expect(header).toContain(":pencil2:");
+    expect(header).toContain("<https://github.com/org/repo/pull/1|org/repo#1>");
+    expect(header).toContain("`+15 -3`");
+    expect(header).toContain("to be merged into `main`");
     expect(header).toContain("Add feature X");
   });
 
-  it("includes author and diff stats in context", () => {
+  it("includes author without diff stats in context", () => {
     const { blocks } = buildSlackBlocks(params);
     const context = blocks[1].elements![0].text as string;
     expect(context).toContain("alice");
-    expect(context).toContain("`+15 -3`");
+    expect(context).not.toContain("+15");
   });
 
-  it("lists filenames without per-file stats", () => {
+  it("lists files as code with per-file stats", () => {
     const { blocks } = buildSlackBlocks(params);
     const files = blocks[2].text!.text;
-    expect(files).toContain("src/app.py");
-    expect(files).toContain("src/utils.py");
-    expect(files).not.toContain("+10");
+    expect(files).toContain("*Changes:*");
+    expect(files).toContain("• `src/app.py` `+10 -2`");
+    expect(files).toContain("• `src/utils.py` `+5 -1`");
   });
 
   it("has a View PR button with correct URL", () => {
@@ -52,6 +56,20 @@ describe("buildSlackBlocks", () => {
     const button = blocks[3].elements![0];
     expect((button.text as { text: string }).text).toBe("View PR");
     expect(button.url).toBe("https://github.com/org/repo/pull/1");
+  });
+
+  it("truncates file list beyond 10 files", () => {
+    const manyFiles = Array.from({ length: 15 }, (_, i) => ({
+      filename: `src/file${i}.ts`,
+      additions: 1,
+      deletions: 0,
+    }));
+    const { blocks } = buildSlackBlocks({ ...params, allFiles: manyFiles });
+    const files = blocks[2].text!.text;
+    expect(files).toContain("`src/file0.ts`");
+    expect(files).toContain("`src/file9.ts`");
+    expect(files).not.toContain("`src/file10.ts`");
+    expect(files).toContain("and 5 more files");
   });
 
   it("has a plain text fallback", () => {

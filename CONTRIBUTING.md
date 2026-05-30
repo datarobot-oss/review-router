@@ -22,6 +22,18 @@ seven days
 - Ensure the bug was not already reported in the projects Issues section
 - Open an issue as described above
 
+## Development
+
+```bash
+npm ci          # install dependencies
+npm run lint    # run eslint
+npm test        # run tests with coverage
+npm run build   # compile to dist/
+npm run all     # lint + test + build
+```
+
+CI auto-rebuilds `dist/` on PRs when it's out of date.
+
 ## Responding to issues and pull requests
 
 This project's maintainers will make every effort to respond to any

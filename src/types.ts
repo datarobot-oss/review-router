@@ -17,6 +17,8 @@ export interface OwnershipMap {
   unownedFiles: string[];
 }
 
+export type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
+
 export interface ActionInputs {
   githubToken: string;
   slackToken: string;

@@ -18,24 +18,56 @@ export interface SlackMessageParams {
   allFiles: FileStats[];
 }
 
-export function buildSlackAttachment(params: SlackMessageParams) {
+export interface SlackBlock {
+  type: string;
+  text?: { type: string; text: string };
+  elements?: Array<{ type: string; text: string | { type: string; text: string }; url?: string }>;
+}
+
+export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlock[]; fallback: string } {
   const fileList = params.allFiles
-    .map((f) => `• ${f.filename} \`+${f.additions} -${f.deletions}\``)
+    .map((f) => f.filename)
     .join("\n");
 
-  const text = [
-    `PR by *${params.author}* needs a review: ` +
-      `\`+${params.additions} -${params.deletions}\` ` +
-      `<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
-    `based on the following changes:`,
-    fileList,
-  ].join("\n");
+  const blocks: SlackBlock[] = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `:github: *<${params.prUrl}|${params.repoName}#${params.prNumber}>*\n${params.prTitle}`,
+      },
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `*Author:* ${params.author}  ·  \`+${params.additions} -${params.deletions}\``,
+        },
+      ],
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Files:*\n${fileList}`,
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "View PR" },
+          url: params.prUrl,
+        },
+      ],
+    },
+  ];
 
-  return {
-    text,
-    color: "#1a7ccc",
-    fallback: `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`,
-  };
+  const fallback = `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
+
+  return { blocks, fallback };
 }
 
 export async function sendSlackNotification(
@@ -50,11 +82,11 @@ export async function sendSlackNotification(
 
   try {
     const client = new WebClient(token);
-    const attachment = buildSlackAttachment(params);
+    const { blocks, fallback } = buildSlackBlocks(params);
     await client.chat.postMessage({
       channel,
-      text: "",
-      attachments: [attachment],
+      text: fallback,
+      blocks,
     });
     core.info(`Sent Slack notification to ${channel}`);
   } catch (error) {

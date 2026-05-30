@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v6
         with:
@@ -27,14 +28,14 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      - name: Verify and auto-rebuild dist/
+      - name: Check dist/ freshness
+        id: dist-check
         run: |
           if [ -z "$(git diff --name-only dist/)" ]; then
             echo "dist/ is up to date"
             exit 0
           fi
 
-          # Fork PRs have read-only GITHUB_TOKEN — can't push back
           IS_FORK="${{ github.event.pull_request.head.repo.full_name != github.repository }}"
           if [ "${{ github.event_name }}" != "pull_request" ] || [ "$IS_FORK" = "true" ]; then
             echo "::error::dist/ is out of date. Run 'npm run build' and commit the result."
@@ -42,9 +43,24 @@ jobs:
             exit 1
           fi
 
-          echo "dist/ is out of date — auto-committing"
+          echo "needs_rebuild=true" >> "$GITHUB_OUTPUT"
+
+      - name: Generate App token
+        if: steps.dist-check.outputs.needs_rebuild == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.REVIEW_ROUTER_APP_ID }}
+          private-key: ${{ secrets.REVIEW_ROUTER_APP_PRIVATE_KEY }}
+
+      - name: Auto-rebuild and push dist/
+        if: steps.dist-check.outputs.needs_rebuild == 'true'
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${APP_TOKEN}@github.com/${{ github.repository }}.git"
           git add dist/
           git commit -m "chore: rebuild dist"
           git push
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}

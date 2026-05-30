@@ -11,7 +11,9 @@ export interface SlackMessageParams {
   prUrl: string;
   prTitle: string;
   prNumber: number;
+  orgName: string;
   repoName: string;
+  baseBranch: string;
   author: string;
   additions: number;
   deletions: number;
@@ -26,7 +28,7 @@ export interface SlackBlock {
 
 export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlock[]; fallback: string } {
   const fileList = params.allFiles
-    .map((f) => f.filename)
+    .map((f) => `• \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
     .join("\n");
 
   const blocks: SlackBlock[] = [
@@ -34,7 +36,7 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `:github: *<${params.prUrl}|${params.repoName}#${params.prNumber}>*\n${params.prTitle}`,
+        text: `:pencil2: *<${params.prUrl}|${params.orgName}/${params.repoName}#${params.prNumber}>*  \`+${params.additions} -${params.deletions}\` to be merged in \`${params.baseBranch}\`\n${params.prTitle}`,
       },
     },
     {
@@ -42,7 +44,7 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       elements: [
         {
           type: "mrkdwn",
-          text: `*Author:* ${params.author}  ·  \`+${params.additions} -${params.deletions}\``,
+          text: `*Author:* ${params.author}`,
         },
       ],
     },
@@ -50,7 +52,7 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*Files:*\n${fileList}`,
+        text: `*Changes:*\n${fileList}`,
       },
     },
     {

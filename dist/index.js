@@ -47111,7 +47111,9 @@ async function handleLabeled(octokit, ctx) {
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,
                 prNumber: ctx.prNumber,
+                orgName: ctx.owner,
                 repoName: ctx.repo,
+                baseBranch: ctx.baseBranch,
                 author: ctx.author,
                 additions: ctx.additions,
                 deletions: ctx.deletions,
@@ -47222,14 +47224,14 @@ const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
 function buildSlackBlocks(params) {
     const fileList = params.allFiles
-        .map((f) => f.filename)
+        .map((f) => `• \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
         .join("\n");
     const blocks = [
         {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `:github: *<${params.prUrl}|${params.repoName}#${params.prNumber}>*\n${params.prTitle}`,
+                text: `:pencil2: *<${params.prUrl}|${params.orgName}/${params.repoName}#${params.prNumber}>*  \`+${params.additions} -${params.deletions}\` to be merged in \`${params.baseBranch}\`\n${params.prTitle}`,
             },
         },
         {
@@ -47237,7 +47239,7 @@ function buildSlackBlocks(params) {
             elements: [
                 {
                     type: "mrkdwn",
-                    text: `*Author:* ${params.author}  ·  \`+${params.additions} -${params.deletions}\``,
+                    text: `*Author:* ${params.author}`,
                 },
             ],
         },
@@ -47245,7 +47247,7 @@ function buildSlackBlocks(params) {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `*Files:*\n${fileList}`,
+                text: `*Changes:*\n${fileList}`,
             },
         },
         {

@@ -50,6 +50,12 @@ describe("getLabelForTeam", () => {
       "Needs Review: Unknown Team"
     );
   });
+
+  it("resolves -oss suffixed slug to base team config", () => {
+    expect(getLabelForTeam(config, "applications-oss", "Needs Review")).toBe(
+      "Needs Review: Applications"
+    );
+  });
 });
 
 describe("humanizeSlug", () => {
@@ -92,5 +98,12 @@ describe("getSlackChannel", () => {
   it("returns undefined when no default and no team config", () => {
     const config = { teams: {} };
     expect(getSlackChannel(config, "unknown-team")).toBeUndefined();
+  });
+
+  it("resolves -oss suffixed slug to base team channel", () => {
+    const config: OrgConfig = {
+      teams: { foo: { label: "L", slack_channel: "#foo-reviews" } },
+    };
+    expect(getSlackChannel(config, "foo-oss")).toBe("#foo-reviews");
   });
 });

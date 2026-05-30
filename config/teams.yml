@@ -5,6 +5,9 @@
 orgs:
   datarobot-oss:
     teams:
+      applications:
+        label: "Needs Review: Applications"
+        slack_channel: "#applications-spam"
       datarobot-agent-skills:
         label: "Needs Review: Agent Skills"
         slack_channel: "#applications-spam"
@@ -14,9 +17,18 @@ orgs:
       core-modeling:
         label: "Needs Review: Core Modeling"
         slack_channel: ""
-      applications:
-        label: "Needs Review: Applications"
-        slack_channel: "#applications-spam"
+      buzok:
+        label: "Needs Review: Buzok"
+        slack_channel: ""
+      mcp:
+        label: "Needs Review: MCP"
+        slack_channel: ""
+      api-docs:
+        label: "Needs Review: API Docs"
+        slack_channel: ""
+      docs:
+        label: "Needs Review: Docs"
+        slack_channel: ""
 
   datarobot-community:
     teams:
@@ -25,4 +37,19 @@ orgs:
         slack_channel: ""
       applications:
         label: "Needs Review: Applications"
+        slack_channel: ""
+      buzok:
+        label: "Needs Review: Buzok"
+        slack_channel: ""
+      mcp:
+        label: "Needs Review: MCP"
+        slack_channel: ""
+      dsx:
+        label: "Needs Review: DSX"
+        slack_channel: ""
+      api-docs:
+        label: "Needs Review: API Docs"
+        slack_channel: ""
+      docs:
+        label: "Needs Review: Docs"
         slack_channel: ""

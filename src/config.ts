@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
 import * as core from "@actions/core";
-import { TeamsConfig, OrgConfig } from "./types";
+import { TeamsConfig, OrgConfig, TeamConfig } from "./types";
 
 export function parseTeamsConfig(content: string): TeamsConfig {
   const parsed = yaml.load(content) as TeamsConfig;
@@ -26,12 +26,17 @@ export function loadTeamsConfigForOrg(org: string): OrgConfig {
   return { teams: {} };
 }
 
+function resolveTeamConfig(config: OrgConfig, teamSlug: string): TeamConfig | undefined {
+  return config.teams[teamSlug]
+    ?? (teamSlug.endsWith("-oss") ? config.teams[teamSlug.slice(0, -4)] : undefined);
+}
+
 export function getLabelForTeam(
   config: OrgConfig,
   teamSlug: string,
   prefix: string
 ): string {
-  const teamConfig = config.teams[teamSlug];
+  const teamConfig = resolveTeamConfig(config, teamSlug);
   if (teamConfig) {
     return teamConfig.label;
   }
@@ -52,5 +57,5 @@ export function getSlackChannel(
   config: OrgConfig,
   teamSlug: string
 ): string | undefined {
-  return config.teams[teamSlug]?.slack_channel ?? config.default_slack_channel;
+  return resolveTeamConfig(config, teamSlug)?.slack_channel ?? config.default_slack_channel;
 }

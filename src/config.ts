@@ -27,8 +27,9 @@ export function loadTeamsConfigForOrg(org: string): OrgConfig {
 }
 
 function resolveTeamConfig(config: OrgConfig, teamSlug: string): TeamConfig | undefined {
-  return config.teams[teamSlug]
-    ?? (teamSlug.endsWith("-oss") ? config.teams[teamSlug.slice(0, -4)] : undefined);
+  if (config.teams[teamSlug]) return config.teams[teamSlug];
+  if (teamSlug.endsWith("-oss")) return config.teams[teamSlug.slice(0, -4)];
+  return undefined;
 }
 
 export function getLabelForTeam(

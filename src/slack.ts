@@ -27,16 +27,22 @@ export interface SlackBlock {
 }
 
 export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlock[]; fallback: string } {
-  const fileList = params.allFiles
+  const maxFiles = 10;
+  const visibleFiles = params.allFiles.slice(0, maxFiles);
+  const remaining = params.allFiles.length - visibleFiles.length;
+  let fileList = visibleFiles
     .map((f) => `• \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
     .join("\n");
+  if (remaining > 0) {
+    fileList += `\n_and ${remaining} more file${remaining === 1 ? "" : "s"}_`;
+  }
 
   const blocks: SlackBlock[] = [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `:pencil2: *<${params.prUrl}|${params.orgName}/${params.repoName}#${params.prNumber}>*  \`+${params.additions} -${params.deletions}\` to be merged in \`${params.baseBranch}\`\n${params.prTitle}`,
+        text: `:pencil2: *<${params.prUrl}|${params.orgName}/${params.repoName}#${params.prNumber}>*  \`+${params.additions} -${params.deletions}\` to be merged into \`${params.baseBranch}\`\n${params.prTitle}`,
       },
     },
     {

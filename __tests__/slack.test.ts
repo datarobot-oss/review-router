@@ -32,7 +32,7 @@ describe("buildSlackBlocks", () => {
     expect(header).toContain(":pencil2:");
     expect(header).toContain("<https://github.com/org/repo/pull/1|org/repo#1>");
     expect(header).toContain("`+15 -3`");
-    expect(header).toContain("to be merged in `main`");
+    expect(header).toContain("to be merged into `main`");
     expect(header).toContain("Add feature X");
   });
 
@@ -56,6 +56,20 @@ describe("buildSlackBlocks", () => {
     const button = blocks[3].elements![0];
     expect((button.text as { text: string }).text).toBe("View PR");
     expect(button.url).toBe("https://github.com/org/repo/pull/1");
+  });
+
+  it("truncates file list beyond 10 files", () => {
+    const manyFiles = Array.from({ length: 15 }, (_, i) => ({
+      filename: `src/file${i}.ts`,
+      additions: 1,
+      deletions: 0,
+    }));
+    const { blocks } = buildSlackBlocks({ ...params, allFiles: manyFiles });
+    const files = blocks[2].text!.text;
+    expect(files).toContain("`src/file0.ts`");
+    expect(files).toContain("`src/file9.ts`");
+    expect(files).not.toContain("`src/file10.ts`");
+    expect(files).toContain("and 5 more files");
   });
 
   it("has a plain text fallback", () => {

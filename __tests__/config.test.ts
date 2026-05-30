@@ -56,6 +56,7 @@ describe("getLabelForTeam", () => {
       "Needs Review: Applications"
     );
   });
+
 });
 
 describe("humanizeSlug", () => {

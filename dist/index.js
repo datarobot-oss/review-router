@@ -46766,8 +46766,15 @@ function loadTeamsConfigForOrg(org) {
     }
     return { teams: {} };
 }
+function resolveTeamConfig(config, teamSlug) {
+    if (config.teams[teamSlug])
+        return config.teams[teamSlug];
+    if (teamSlug.endsWith("-oss"))
+        return config.teams[teamSlug.slice(0, -4)];
+    return undefined;
+}
 function getLabelForTeam(config, teamSlug, prefix) {
-    const teamConfig = config.teams[teamSlug];
+    const teamConfig = resolveTeamConfig(config, teamSlug);
     if (teamConfig) {
         return teamConfig.label;
     }
@@ -46784,7 +46791,7 @@ function humanizeSlug(slug) {
         .join(" ");
 }
 function getSlackChannel(config, teamSlug) {
-    return config.teams[teamSlug]?.slack_channel ?? config.default_slack_channel;
+    return resolveTeamConfig(config, teamSlug)?.slack_channel ?? config.default_slack_channel;
 }
 
 
@@ -47209,26 +47216,51 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.buildSlackAttachment = buildSlackAttachment;
+exports.buildSlackBlocks = buildSlackBlocks;
 exports.sendSlackNotification = sendSlackNotification;
 const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
-function buildSlackAttachment(params) {
+function buildSlackBlocks(params) {
     const fileList = params.allFiles
-        .map((f) => `• ${f.filename} \`+${f.additions} -${f.deletions}\``)
+        .map((f) => f.filename)
         .join("\n");
-    const text = [
-        `PR by *${params.author}* needs a review: ` +
-            `\`+${params.additions} -${params.deletions}\` ` +
-            `<${params.prUrl}|${params.repoName}#${params.prNumber}: ${params.prTitle}>`,
-        `based on the following changes:`,
-        fileList,
-    ].join("\n");
-    return {
-        text,
-        color: "#1a7ccc",
-        fallback: `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`,
-    };
+    const blocks = [
+        {
+            type: "section",
+            text: {
+                type: "mrkdwn",
+                text: `:github: *<${params.prUrl}|${params.repoName}#${params.prNumber}>*\n${params.prTitle}`,
+            },
+        },
+        {
+            type: "context",
+            elements: [
+                {
+                    type: "mrkdwn",
+                    text: `*Author:* ${params.author}  ·  \`+${params.additions} -${params.deletions}\``,
+                },
+            ],
+        },
+        {
+            type: "section",
+            text: {
+                type: "mrkdwn",
+                text: `*Files:*\n${fileList}`,
+            },
+        },
+        {
+            type: "actions",
+            elements: [
+                {
+                    type: "button",
+                    text: { type: "plain_text", text: "View PR" },
+                    url: params.prUrl,
+                },
+            ],
+        },
+    ];
+    const fallback = `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
+    return { blocks, fallback };
 }
 async function sendSlackNotification(token, channel, params) {
     if (!token) {
@@ -47237,11 +47269,11 @@ async function sendSlackNotification(token, channel, params) {
     }
     try {
         const client = new web_api_1.WebClient(token);
-        const attachment = buildSlackAttachment(params);
+        const { blocks, fallback } = buildSlackBlocks(params);
         await client.chat.postMessage({
             channel,
-            text: "",
-            attachments: [attachment],
+            text: fallback,
+            blocks,
         });
         core.info(`Sent Slack notification to ${channel}`);
     }

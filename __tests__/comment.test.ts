@@ -5,13 +5,13 @@ describe("buildOwnershipComment", () => {
     const teamFiles = new Map<string, string[]>();
     teamFiles.set("customer-engineering", ["src/app.py", "src/utils.py"]);
     teamFiles.set("platform-team", ["infra/main.tf"]);
-    const comment = buildOwnershipComment({ teamFiles, unownedFiles: [] });
+    const comment = buildOwnershipComment({ teamFiles, unownedFiles: [] }, true);
     expect(comment).toContain(COMMENT_MARKER);
     expect(comment).toContain("## Code Ownership");
-    expect(comment).toContain("**customer-engineering**");
+    expect(comment).toContain("**Customer Engineering**");
     expect(comment).toContain("- `src/app.py`");
     expect(comment).toContain("- `src/utils.py`");
-    expect(comment).toContain("**platform-team**");
+    expect(comment).toContain("**Platform Team**");
     expect(comment).toContain("- `infra/main.tf`");
     expect(comment).not.toContain("Unowned files");
   });
@@ -19,16 +19,27 @@ describe("buildOwnershipComment", () => {
   it("includes unowned files section when present", () => {
     const teamFiles = new Map<string, string[]>();
     teamFiles.set("customer-engineering", ["src/app.py"]);
-    const comment = buildOwnershipComment({ teamFiles, unownedFiles: ["docs/README.md", "scripts/setup.sh"] });
+    const comment = buildOwnershipComment({ teamFiles, unownedFiles: ["docs/README.md", "scripts/setup.sh"] }, true);
     expect(comment).toContain("Unowned files");
     expect(comment).toContain("docs/README.md");
     expect(comment).toContain("scripts/setup.sh");
   });
 
   it("handles empty ownership map", () => {
-    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: ["file.txt"] });
+    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: ["file.txt"] }, true);
     expect(comment).toContain(COMMENT_MARKER);
     expect(comment).toContain("file.txt");
+  });
+
+  it("includes auto-removal note when hasOrgAccess is true", () => {
+    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: [] }, true);
+    expect(comment).toContain("Labels will be removed automatically upon approval");
+  });
+
+  it("omits auto-removal note when hasOrgAccess is false", () => {
+    const comment = buildOwnershipComment({ teamFiles: new Map(), unownedFiles: [] }, false);
+    expect(comment).not.toContain("Labels will be removed automatically");
+    expect(comment).toContain("Review requested from the teams above.");
   });
 });
 

@@ -12,9 +12,7 @@ import {
 } from "./comment";
 import { sendSlackNotification, FileStats } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
-import { ActionInputs, Capabilities, OrgConfig } from "./types";
-
-type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
+import { ActionInputs, Capabilities, OrgConfig, Octokit } from "./types";
 
 export interface LabeledContext {
   owner: string;
@@ -114,7 +112,7 @@ export async function handleLabeled(
       }
     } else {
       core.info(
-        `Skipping team review request for ${teamSlug} (PoC mode)`
+        `Skipping team review request for ${teamSlug} (no org access)`
       );
     }
 
@@ -133,7 +131,7 @@ export async function handleLabeled(
     }
   }
 
-  const commentBody = buildOwnershipComment(ownership);
+  const commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
 
   await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
@@ -145,7 +143,7 @@ export async function handleReviewSubmitted(
 ): Promise<void> {
   if (!ctx.capabilities.hasOrgAccess) {
     core.info(
-      "Skipping label removal on approval (PoC mode — no org access)"
+      "Skipping label removal on approval (no org access)"
     );
     return;
   }
@@ -170,7 +168,7 @@ export async function handleReviewSubmitted(
     if (!teamSlug) continue;
 
     try {
-      await octokit.rest.orgs.checkMembershipForUser({
+      await octokit.rest.teams.getMembershipForUserInOrg({
         org: ctx.owner,
         team_slug: teamSlug,
         username: ctx.reviewer,
@@ -194,7 +192,7 @@ export async function handleReviewSubmitted(
   }
 }
 
-function resolveTeamSlugFromLabel(
+export function resolveTeamSlugFromLabel(
   labelName: string,
   teamsConfig: OrgConfig,
   prefix: string
@@ -205,5 +203,6 @@ function resolveTeamSlugFromLabel(
     }
   }
   const suffix = labelName.replace(`${prefix}: `, "");
-  return suffix || undefined;
+  if (!suffix) return undefined;
+  return suffix.toLowerCase().replace(/\s+/g, "-");
 }

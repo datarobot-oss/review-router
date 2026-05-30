@@ -1,5 +1,5 @@
 import { parse, CodeOwnersEntry } from "codeowners-utils";
-import { OwnershipMap } from "./types";
+import { OwnershipMap, Octokit } from "./types";
 
 export function parseCodeowners(content: string): CodeOwnersEntry[] {
   return parse(content);
@@ -76,7 +76,7 @@ export function mapFilesToTeams(
 }
 
 export async function fetchCodeownersContent(
-  octokit: ReturnType<typeof import("@actions/github").getOctokit>,
+  octokit: Octokit,
   owner: string,
   repo: string,
   ref: string

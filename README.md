@@ -48,6 +48,16 @@ jobs:
           slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
+## Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `github-token` | Yes | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality. |
+| `slack-token` | No | — | Slack Bot token for sending notifications. |
+| `ready-label` | No | `Ready for Review` | Label name that triggers review routing. |
+| `needs-review-prefix` | No | `Needs Review` | Prefix for per-team review labels (e.g. "Needs Review: Platform"). |
+| `needs-review-label-color` | No | `fbca04` | Hex color for auto-created "Needs Review" labels. |
+
 ## CODEOWNERS
 
 Add a `.github/CODEOWNERS` file to your repo:

@@ -1,6 +1,5 @@
 import * as core from "@actions/core";
-
-type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
+import { Octokit } from "./types";
 
 export async function ensureLabel(octokit: Octokit, owner: string, repo: string, labelName: string, color: string): Promise<void> {
   try {

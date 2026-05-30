@@ -1,6 +1,5 @@
 import * as core from "@actions/core";
-
-type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
+import { Octokit } from "./types";
 
 export async function detectCapabilities(
   octokit: Octokit,
@@ -12,7 +11,7 @@ export async function detectCapabilities(
     return { hasOrgAccess: true };
   } catch {
     core.warning(
-      "PoC mode: token lacks org-level access. Team review requests and auto-label removal on approval will be skipped."
+      "Token lacks org-level access. Team review requests and auto-label removal on approval will be skipped."
     );
     return { hasOrgAccess: false };
   }

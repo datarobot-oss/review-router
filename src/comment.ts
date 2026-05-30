@@ -1,15 +1,14 @@
 import * as core from "@actions/core";
-import { OwnershipMap } from "./types";
+import { OwnershipMap, Octokit } from "./types";
+import { humanizeSlug } from "./config";
 
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
 
-type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
-
-export function buildOwnershipComment(ownership: OwnershipMap): string {
+export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
   const lines: string[] = [COMMENT_MARKER, "## Code Ownership", ""];
 
   for (const [team, files] of ownership.teamFiles) {
-    lines.push(`**${team}**`);
+    lines.push(`**${humanizeSlug(team)}**`);
     for (const file of files) {
       lines.push(`- \`${file}\``);
     }
@@ -29,9 +28,15 @@ export function buildOwnershipComment(ownership: OwnershipMap): string {
     lines.push("");
   }
 
-  lines.push(
-    "_Review requested from the teams above. Labels will be removed automatically upon approval._"
-  );
+  if (hasOrgAccess) {
+    lines.push(
+      "_Review requested from the teams above. Labels will be removed automatically upon approval._"
+    );
+  } else {
+    lines.push(
+      "_Review requested from the teams above._"
+    );
+  }
   return lines.join("\n");
 }
 

@@ -46766,8 +46766,15 @@ function loadTeamsConfigForOrg(org) {
     }
     return { teams: {} };
 }
+function resolveTeamConfig(config, teamSlug) {
+    if (config.teams[teamSlug])
+        return config.teams[teamSlug];
+    if (teamSlug.endsWith("-oss"))
+        return config.teams[teamSlug.slice(0, -4)];
+    return undefined;
+}
 function getLabelForTeam(config, teamSlug, prefix) {
-    const teamConfig = config.teams[teamSlug];
+    const teamConfig = resolveTeamConfig(config, teamSlug);
     if (teamConfig) {
         return teamConfig.label;
     }
@@ -46784,7 +46791,7 @@ function humanizeSlug(slug) {
         .join(" ");
 }
 function getSlackChannel(config, teamSlug) {
-    return config.teams[teamSlug]?.slack_channel ?? config.default_slack_channel;
+    return resolveTeamConfig(config, teamSlug)?.slack_channel ?? config.default_slack_channel;
 }
 
 

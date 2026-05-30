@@ -46483,7 +46483,7 @@ async function detectCapabilities(octokit, org) {
         return { hasOrgAccess: true };
     }
     catch {
-        core.warning("PoC mode: token lacks org-level access. Team review requests and auto-label removal on approval will be skipped.");
+        core.warning("Token lacks org-level access. Team review requests and auto-label removal on approval will be skipped.");
         return { hasOrgAccess: false };
     }
 }
@@ -46638,11 +46638,12 @@ exports.COMMENT_MARKER = void 0;
 exports.buildOwnershipComment = buildOwnershipComment;
 exports.upsertComment = upsertComment;
 const core = __importStar(__nccwpck_require__(7484));
+const config_1 = __nccwpck_require__(2973);
 exports.COMMENT_MARKER = "<!-- review-router-ownership -->";
-function buildOwnershipComment(ownership) {
+function buildOwnershipComment(ownership, hasOrgAccess) {
     const lines = [exports.COMMENT_MARKER, "## Code Ownership", ""];
     for (const [team, files] of ownership.teamFiles) {
-        lines.push(`**${team}**`);
+        lines.push(`**${(0, config_1.humanizeSlug)(team)}**`);
         for (const file of files) {
             lines.push(`- \`${file}\``);
         }
@@ -46658,7 +46659,12 @@ function buildOwnershipComment(ownership) {
         lines.push("</details>");
         lines.push("");
     }
-    lines.push("_Review requested from the teams above. Labels will be removed automatically upon approval._");
+    if (hasOrgAccess) {
+        lines.push("_Review requested from the teams above. Labels will be removed automatically upon approval._");
+    }
+    else {
+        lines.push("_Review requested from the teams above._");
+    }
     return lines.join("\n");
 }
 async function upsertComment(octokit, owner, repo, prNumber, body) {
@@ -47039,6 +47045,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
+exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
 const core = __importStar(__nccwpck_require__(7484));
 const codeowners_1 = __nccwpck_require__(3586);
 const labels_1 = __nccwpck_require__(4584);
@@ -47089,7 +47096,7 @@ async function handleLabeled(octokit, ctx) {
             }
         }
         else {
-            core.info(`Skipping team review request for ${teamSlug} (PoC mode)`);
+            core.info(`Skipping team review request for ${teamSlug} (no org access)`);
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
         if (slackChannel && ctx.inputs.slackToken) {
@@ -47105,13 +47112,13 @@ async function handleLabeled(octokit, ctx) {
             });
         }
     }
-    const commentBody = (0, comment_1.buildOwnershipComment)(ownership);
+    const commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
     await (0, labels_1.removeLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 async function handleReviewSubmitted(octokit, ctx) {
     if (!ctx.capabilities.hasOrgAccess) {
-        core.info("Skipping label removal on approval (PoC mode — no org access)");
+        core.info("Skipping label removal on approval (no org access)");
         return;
     }
     const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
@@ -47129,7 +47136,7 @@ async function handleReviewSubmitted(octokit, ctx) {
         if (!teamSlug)
             continue;
         try {
-            await octokit.rest.orgs.checkMembershipForUser({
+            await octokit.rest.teams.getMembershipForUserInOrg({
                 org: ctx.owner,
                 team_slug: teamSlug,
                 username: ctx.reviewer,
@@ -47155,7 +47162,9 @@ function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
         }
     }
     const suffix = labelName.replace(`${prefix}: `, "");
-    return suffix || undefined;
+    if (!suffix)
+        return undefined;
+    return suffix.toLowerCase().replace(/\s+/g, "-");
 }
 
 

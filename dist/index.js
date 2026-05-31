@@ -47279,7 +47279,7 @@ function buildSlackBlocks(params) {
             elements: [
                 {
                     type: "mrkdwn",
-                    text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\` · :rr-git-commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :rr-label: ${params.labels.join(", ")}` : ""}`,
+                    text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\` · :rr-git_commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :rr-label: ${params.labels.join(", ")}` : ""}`,
                 },
             ],
         },

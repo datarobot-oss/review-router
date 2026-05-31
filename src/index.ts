@@ -71,6 +71,8 @@ async function run(): Promise<void> {
       author: pr.user?.login ?? "",
       additions: pr.additions ?? 0,
       deletions: pr.deletions ?? 0,
+      commits: pr.commits ?? 0,
+      labels: (pr.labels ?? []).map((l: { name: string }) => l.name),
       inputs,
       capabilities,
       teamsConfig,

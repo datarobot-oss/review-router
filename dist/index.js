@@ -46892,6 +46892,8 @@ async function run() {
             author: pr.user?.login ?? "",
             additions: pr.additions ?? 0,
             deletions: pr.deletions ?? 0,
+            commits: pr.commits ?? 0,
+            labels: (pr.labels ?? []).map((l) => l.name),
             inputs,
             capabilities,
             teamsConfig,
@@ -47107,6 +47109,7 @@ async function handleLabeled(octokit, ctx) {
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
         if (slackChannel && ctx.inputs.slackToken) {
+            const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
             await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,
@@ -47117,6 +47120,8 @@ async function handleLabeled(octokit, ctx) {
                 author: ctx.author,
                 additions: ctx.additions,
                 deletions: ctx.deletions,
+                commits: ctx.commits,
+                labels: displayLabels,
                 allFiles: allFileStats,
             });
         }
@@ -47223,31 +47228,40 @@ exports.sendSlackNotification = sendSlackNotification;
 const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
 function buildSlackBlocks(params) {
-    const fileList = params.allFiles
+    const maxFiles = 10;
+    const visibleFiles = params.allFiles.slice(0, maxFiles);
+    const remaining = params.allFiles.length - visibleFiles.length;
+    let fileList = visibleFiles
         .map((f) => `• \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
         .join("\n");
+    if (remaining > 0) {
+        fileList += `\n_and ${remaining} more file${remaining === 1 ? "" : "s"}_`;
+    }
+    const repoFullName = `${params.orgName}/${params.repoName}`;
     const blocks = [
         {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `:pencil2: *<${params.prUrl}|${params.orgName}/${params.repoName}#${params.prNumber}>*  \`+${params.additions} -${params.deletions}\` to be merged in \`${params.baseBranch}\`\n${params.prTitle}`,
+                text: `:mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber}`,
             },
         },
         {
-            type: "context",
-            elements: [
-                {
-                    type: "mrkdwn",
-                    text: `*Author:* ${params.author}`,
-                },
+            type: "section",
+            fields: [
+                { type: "mrkdwn", text: `*Author*\n${params.author}` },
+                { type: "mrkdwn", text: `*Merging into*\n\`${params.baseBranch}\`` },
+                { type: "mrkdwn", text: `*Changes*\n\`+${params.additions} -${params.deletions}\`` },
+                { type: "mrkdwn", text: `*Commits*\n${params.commits}` },
+                { type: "mrkdwn", text: `*Files changed*\n${params.allFiles.length}` },
+                { type: "mrkdwn", text: `*Labels*\n${params.labels.length > 0 ? params.labels.join(" · ") : "—"}` },
             ],
         },
         {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `*Changes:*\n${fileList}`,
+                text: fileList,
             },
         },
         {
@@ -47255,13 +47269,22 @@ function buildSlackBlocks(params) {
             elements: [
                 {
                     type: "button",
-                    text: { type: "plain_text", text: "View PR" },
+                    text: { type: "plain_text", text: "View pull request" },
                     url: params.prUrl,
                 },
             ],
         },
+        {
+            type: "context",
+            elements: [
+                {
+                    type: "mrkdwn",
+                    text: `:twisted_rightwards_arrows: \`${params.baseBranch}\` · :git-commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :page_facing_up: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :label: ${params.labels.join(", ")}` : ""}`,
+                },
+            ],
+        },
     ];
-    const fallback = `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
+    const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${params.prTitle}`;
     return { blocks, fallback };
 }
 async function sendSlackNotification(token, channel, params) {

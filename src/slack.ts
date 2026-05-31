@@ -17,12 +17,15 @@ export interface SlackMessageParams {
   author: string;
   additions: number;
   deletions: number;
+  commits: number;
+  labels: string[];
   allFiles: FileStats[];
 }
 
 export interface SlackBlock {
   type: string;
   text?: { type: string; text: string };
+  fields?: Array<{ type: string; text: string }>;
   elements?: Array<{ type: string; text: string | { type: string; text: string }; url?: string }>;
 }
 
@@ -37,28 +40,32 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
     fileList += `\n_and ${remaining} more file${remaining === 1 ? "" : "s"}_`;
   }
 
+  const repoFullName = `${params.orgName}/${params.repoName}`;
+
   const blocks: SlackBlock[] = [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `:pencil2: *<${params.prUrl}|${params.orgName}/${params.repoName}#${params.prNumber}>*  \`+${params.additions} -${params.deletions}\` to be merged into \`${params.baseBranch}\`\n${params.prTitle}`,
+        text: `:mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber}`,
       },
     },
     {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: `*Author:* ${params.author}`,
-        },
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Author*\n${params.author}` },
+        { type: "mrkdwn", text: `*Merging into*\n\`${params.baseBranch}\`` },
+        { type: "mrkdwn", text: `*Changes*\n\`+${params.additions} -${params.deletions}\`` },
+        { type: "mrkdwn", text: `*Commits*\n${params.commits}` },
+        { type: "mrkdwn", text: `*Files changed*\n${params.allFiles.length}` },
+        { type: "mrkdwn", text: `*Labels*\n${params.labels.length > 0 ? params.labels.join(" · ") : "—"}` },
       ],
     },
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*Changes:*\n${fileList}`,
+        text: fileList,
       },
     },
     {
@@ -66,14 +73,23 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       elements: [
         {
           type: "button",
-          text: { type: "plain_text", text: "View PR" },
+          text: { type: "plain_text", text: "View pull request" },
           url: params.prUrl,
+        },
+      ],
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `:twisted_rightwards_arrows: \`${params.baseBranch}\` · :git-commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :page_facing_up: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :label: ${params.labels.join(", ")}` : ""}`,
         },
       ],
     },
   ];
 
-  const fallback = `PR by ${params.author} needs a review: ${params.repoName}#${params.prNumber}: ${params.prTitle}`;
+  const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${params.prTitle}`;
 
   return { blocks, fallback };
 }

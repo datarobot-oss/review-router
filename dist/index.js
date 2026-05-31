@@ -47238,19 +47238,34 @@ function buildSlackBlocks(params) {
         fileList += `\n_and ${remaining} more file${remaining === 1 ? "" : "s"}_`;
     }
     const repoFullName = `${params.orgName}/${params.repoName}`;
+    const avatarUrl = `https://github.com/${params.author}.png?size=24`;
     const blocks = [
         {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `:rr-mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber} \`+${params.additions} -${params.deletions}\``,
+                text: `:rr-mag: *Review requested* · <${params.prUrl}|${repoFullName} #${params.prNumber}> \`+${params.additions} -${params.deletions}\``,
             },
         },
         {
             type: "section",
-            fields: [
-                { type: "mrkdwn", text: `*Author*\n${params.author}` },
-                { type: "mrkdwn", text: `*Merging into*\n\`${params.baseBranch}\`` },
+            text: {
+                type: "mrkdwn",
+                text: `*${params.prTitle}*`,
+            },
+        },
+        {
+            type: "context",
+            elements: [
+                {
+                    type: "image",
+                    image_url: avatarUrl,
+                    alt_text: params.author,
+                },
+                {
+                    type: "mrkdwn",
+                    text: `*${params.author}* wants to merge into \`${params.baseBranch}\``,
+                },
             ],
         },
         {
@@ -47264,21 +47279,21 @@ function buildSlackBlocks(params) {
             },
         },
         {
+            type: "context",
+            elements: [
+                {
+                    type: "mrkdwn",
+                    text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\` • :rr-git_commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} • :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` • :rr-label: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
+                },
+            ],
+        },
+        {
             type: "actions",
             elements: [
                 {
                     type: "button",
                     text: { type: "plain_text", text: "View pull request" },
                     url: params.prUrl,
-                },
-            ],
-        },
-        {
-            type: "context",
-            elements: [
-                {
-                    type: "mrkdwn",
-                    text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\`  · :rr-git_commit: ${params.commits} commit${params.commits === 1 ? "" : "s"}  · :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :rr-label: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
                 },
             ],
         },
@@ -47297,7 +47312,7 @@ async function sendSlackNotification(token, channel, params) {
         await client.chat.postMessage({
             channel,
             text: fallback,
-            blocks,
+            blocks: blocks,
         });
         core.info(`Sent Slack notification to ${channel}`);
     }

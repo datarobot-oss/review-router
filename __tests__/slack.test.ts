@@ -19,36 +19,46 @@ const params = {
 };
 
 describe("buildSlackBlocks", () => {
-  it("builds 6-block structure: header, fields, divider, files, button, footer", () => {
+  it("builds 7-block structure: header, title, author context, divider, files, footer, button", () => {
     const { blocks } = buildSlackBlocks(params);
-    expect(blocks).toHaveLength(6);
+    expect(blocks).toHaveLength(7);
     expect(blocks[0].type).toBe("section");
     expect(blocks[1].type).toBe("section");
-    expect(blocks[2].type).toBe("divider");
-    expect(blocks[3].type).toBe("section");
-    expect(blocks[4].type).toBe("actions");
+    expect(blocks[2].type).toBe("context");
+    expect(blocks[3].type).toBe("divider");
+    expect(blocks[4].type).toBe("section");
     expect(blocks[5].type).toBe("context");
+    expect(blocks[6].type).toBe("actions");
   });
 
-  it("includes PR title, repo info, and diff stats in header", () => {
+  it("has review requested header with PR link and diff stats", () => {
     const { blocks } = buildSlackBlocks(params);
-    const header = blocks[0].text!.text;
+    const header = blocks[0].text.text;
     expect(header).toContain(":rr-mag:");
-    expect(header).toContain("<https://github.com/org/repo/pull/1|Add feature X>");
-    expect(header).toContain("org/repo #1 `+15 -3`");
+    expect(header).toContain("Review requested");
+    expect(header).toContain("<https://github.com/org/repo/pull/1|org/repo #1>");
+    expect(header).toContain("`+15 -3`");
   });
 
-  it("has author and merging-into fields only", () => {
+  it("has bold PR title", () => {
     const { blocks } = buildSlackBlocks(params);
-    const fields = blocks[1].fields!;
-    expect(fields).toHaveLength(2);
-    expect(fields[0].text).toContain("alice");
-    expect(fields[1].text).toContain("`main`");
+    expect(blocks[1].text.text).toBe("*Add feature X*");
+  });
+
+  it("has author context with avatar and merge target", () => {
+    const { blocks } = buildSlackBlocks(params);
+    const elements = blocks[2].elements;
+    expect(elements).toHaveLength(2);
+    expect(elements[0].type).toBe("image");
+    expect(elements[0].image_url).toBe("https://github.com/alice.png?size=24");
+    expect(elements[0].alt_text).toBe("alice");
+    expect(elements[1].text).toContain("*alice*");
+    expect(elements[1].text).toContain("wants to merge into `main`");
   });
 
   it("lists files with header and per-file stats", () => {
     const { blocks } = buildSlackBlocks(params);
-    const files = blocks[3].text!.text;
+    const files = blocks[4].text.text;
     expect(files).toContain("*Files changed:*");
     expect(files).toContain("• `src/app.py` `+10 -2`");
     expect(files).toContain("• `src/utils.py` `+5 -1`");
@@ -61,22 +71,15 @@ describe("buildSlackBlocks", () => {
       deletions: 0,
     }));
     const { blocks } = buildSlackBlocks({ ...params, allFiles: manyFiles });
-    const files = blocks[3].text!.text;
+    const files = blocks[4].text.text;
     expect(files).toContain("`src/file9.ts`");
     expect(files).not.toContain("`src/file10.ts`");
     expect(files).toContain("and 5 more files");
   });
 
-  it("has a View pull request button", () => {
-    const { blocks } = buildSlackBlocks(params);
-    const button = blocks[4].elements![0];
-    expect((button.text as { text: string }).text).toBe("View pull request");
-    expect(button.url).toBe("https://github.com/org/repo/pull/1");
-  });
-
   it("has a footer with branch, commits, files, and labels in backticks", () => {
     const { blocks } = buildSlackBlocks(params);
-    const footer = blocks[5].elements![0].text as string;
+    const footer = blocks[5].elements[0].text;
     expect(footer).toContain("`main`");
     expect(footer).toContain("3 commits");
     expect(footer).toContain("2 files");
@@ -85,8 +88,15 @@ describe("buildSlackBlocks", () => {
 
   it("omits labels from footer when none present", () => {
     const { blocks } = buildSlackBlocks({ ...params, labels: [] });
-    const footer = blocks[5].elements![0].text as string;
+    const footer = blocks[5].elements[0].text;
     expect(footer).not.toContain(":rr-label:");
+  });
+
+  it("has View pull request button after footer", () => {
+    const { blocks } = buildSlackBlocks(params);
+    const button = blocks[6].elements[0];
+    expect(button.text.text).toBe("View pull request");
+    expect(button.url).toBe("https://github.com/org/repo/pull/1");
   });
 
   it("has a plain text fallback", () => {

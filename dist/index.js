@@ -47243,7 +47243,7 @@ function buildSlackBlocks(params) {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `:mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber}`,
+                text: `:rr-mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber}`,
             },
         },
         {
@@ -47279,7 +47279,7 @@ function buildSlackBlocks(params) {
             elements: [
                 {
                     type: "mrkdwn",
-                    text: `:twisted_rightwards_arrows: \`${params.baseBranch}\` · :git-commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :page_facing_up: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :label: ${params.labels.join(", ")}` : ""}`,
+                    text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\` · :rr-git-commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :rr-label: ${params.labels.join(", ")}` : ""}`,
                 },
             ],
         },

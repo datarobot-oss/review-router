@@ -32,7 +32,7 @@ describe("buildSlackBlocks", () => {
   it("includes PR title as link and repo info in header", () => {
     const { blocks } = buildSlackBlocks(params);
     const header = blocks[0].text!.text;
-    expect(header).toContain(":mag:");
+    expect(header).toContain(":rr-mag:");
     expect(header).toContain("Pull request ready for review");
     expect(header).toContain("<https://github.com/org/repo/pull/1|Add feature X>");
     expect(header).toContain("org/repo #1");
@@ -96,7 +96,7 @@ describe("buildSlackBlocks", () => {
   it("omits labels from footer when none present", () => {
     const { blocks } = buildSlackBlocks({ ...params, labels: [] });
     const footer = blocks[4].elements![0].text as string;
-    expect(footer).not.toContain(":label:");
+    expect(footer).not.toContain(":rr-label:");
   });
 
   it("has a plain text fallback", () => {

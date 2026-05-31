@@ -24,6 +24,8 @@ export interface LabeledContext {
   author: string;
   additions: number;
   deletions: number;
+  commits: number;
+  labels: string[];
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
@@ -118,6 +120,9 @@ export async function handleLabeled(
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
     if (slackChannel && ctx.inputs.slackToken) {
+      const displayLabels = ctx.labels.filter(
+        (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
+      );
       await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
@@ -128,6 +133,8 @@ export async function handleLabeled(
         author: ctx.author,
         additions: ctx.additions,
         deletions: ctx.deletions,
+        commits: ctx.commits,
+        labels: displayLabels,
         allFiles: allFileStats,
       });
     }

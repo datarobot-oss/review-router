@@ -75,6 +75,8 @@ describe("handleLabeled", () => {
       author: "alice",
       additions: 10,
       deletions: 5,
+      commits: 1,
+      labels: [],
       inputs: {
         githubToken: "token",
         slackToken: "",
@@ -106,6 +108,8 @@ describe("handleLabeled", () => {
       author: "alice",
       additions: 10,
       deletions: 5,
+      commits: 1,
+      labels: [],
       inputs: {
         githubToken: "token",
         slackToken: "",

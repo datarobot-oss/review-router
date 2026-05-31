@@ -10,6 +10,8 @@ const params = {
   author: "alice",
   additions: 15,
   deletions: 3,
+  commits: 3,
+  labels: ["enhancement", "ci/cd"],
   allFiles: [
     { filename: "src/app.py", additions: 10, deletions: 2 },
     { filename: "src/utils.py", additions: 5, deletions: 1 },
@@ -17,45 +19,43 @@ const params = {
 };
 
 describe("buildSlackBlocks", () => {
-  it("builds Block Kit structure with header, context, files, and button", () => {
+  it("builds 5-block structure: header, fields, files, button, footer", () => {
     const { blocks } = buildSlackBlocks(params);
-    expect(blocks).toHaveLength(4);
+    expect(blocks).toHaveLength(5);
     expect(blocks[0].type).toBe("section");
-    expect(blocks[1].type).toBe("context");
+    expect(blocks[1].type).toBe("section");
     expect(blocks[2].type).toBe("section");
     expect(blocks[3].type).toBe("actions");
+    expect(blocks[4].type).toBe("context");
   });
 
-  it("includes PR link with org, diff stats, base branch, and title", () => {
+  it("includes PR title as link and repo info in header", () => {
     const { blocks } = buildSlackBlocks(params);
     const header = blocks[0].text!.text;
-    expect(header).toContain(":pencil2:");
-    expect(header).toContain("<https://github.com/org/repo/pull/1|org/repo#1>");
-    expect(header).toContain("`+15 -3`");
-    expect(header).toContain("to be merged into `main`");
-    expect(header).toContain("Add feature X");
+    expect(header).toContain(":mag:");
+    expect(header).toContain("Pull request ready for review");
+    expect(header).toContain("<https://github.com/org/repo/pull/1|Add feature X>");
+    expect(header).toContain("org/repo #1");
   });
 
-  it("includes author without diff stats in context", () => {
+  it("has scannable fields with author, branch, changes, commits, files, labels", () => {
     const { blocks } = buildSlackBlocks(params);
-    const context = blocks[1].elements![0].text as string;
-    expect(context).toContain("alice");
-    expect(context).not.toContain("+15");
+    const fields = blocks[1].fields!;
+    expect(fields).toHaveLength(6);
+    expect(fields[0].text).toContain("alice");
+    expect(fields[1].text).toContain("`main`");
+    expect(fields[2].text).toContain("`+15 -3`");
+    expect(fields[3].text).toContain("3");
+    expect(fields[4].text).toContain("2");
+    expect(fields[5].text).toContain("enhancement");
+    expect(fields[5].text).toContain("ci/cd");
   });
 
-  it("lists files as code with per-file stats", () => {
+  it("lists files with per-file stats", () => {
     const { blocks } = buildSlackBlocks(params);
     const files = blocks[2].text!.text;
-    expect(files).toContain("*Changes:*");
     expect(files).toContain("• `src/app.py` `+10 -2`");
     expect(files).toContain("• `src/utils.py` `+5 -1`");
-  });
-
-  it("has a View PR button with correct URL", () => {
-    const { blocks } = buildSlackBlocks(params);
-    const button = blocks[3].elements![0];
-    expect((button.text as { text: string }).text).toBe("View PR");
-    expect(button.url).toBe("https://github.com/org/repo/pull/1");
   });
 
   it("truncates file list beyond 10 files", () => {
@@ -66,15 +66,42 @@ describe("buildSlackBlocks", () => {
     }));
     const { blocks } = buildSlackBlocks({ ...params, allFiles: manyFiles });
     const files = blocks[2].text!.text;
-    expect(files).toContain("`src/file0.ts`");
     expect(files).toContain("`src/file9.ts`");
     expect(files).not.toContain("`src/file10.ts`");
     expect(files).toContain("and 5 more files");
   });
 
+  it("has a View pull request button", () => {
+    const { blocks } = buildSlackBlocks(params);
+    const button = blocks[3].elements![0];
+    expect((button.text as { text: string }).text).toBe("View pull request");
+    expect(button.url).toBe("https://github.com/org/repo/pull/1");
+  });
+
+  it("has a footer with branch, commits, files, and labels", () => {
+    const { blocks } = buildSlackBlocks(params);
+    const footer = blocks[4].elements![0].text as string;
+    expect(footer).toContain("`main`");
+    expect(footer).toContain("3 commits");
+    expect(footer).toContain("2 files");
+    expect(footer).toContain("enhancement, ci/cd");
+  });
+
+  it("shows dash for labels when none present", () => {
+    const { blocks } = buildSlackBlocks({ ...params, labels: [] });
+    const fields = blocks[1].fields!;
+    expect(fields[5].text).toContain("—");
+  });
+
+  it("omits labels from footer when none present", () => {
+    const { blocks } = buildSlackBlocks({ ...params, labels: [] });
+    const footer = blocks[4].elements![0].text as string;
+    expect(footer).not.toContain(":label:");
+  });
+
   it("has a plain text fallback", () => {
     const { fallback } = buildSlackBlocks(params);
-    expect(fallback).toContain("repo#1");
+    expect(fallback).toContain("org/repo#1");
     expect(fallback).toContain("alice");
     expect(fallback).not.toContain("*");
   });

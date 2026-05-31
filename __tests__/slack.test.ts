@@ -19,41 +19,37 @@ const params = {
 };
 
 describe("buildSlackBlocks", () => {
-  it("builds 5-block structure: header, fields, files, button, footer", () => {
+  it("builds 6-block structure: header, fields, divider, files, button, footer", () => {
     const { blocks } = buildSlackBlocks(params);
-    expect(blocks).toHaveLength(5);
+    expect(blocks).toHaveLength(6);
     expect(blocks[0].type).toBe("section");
     expect(blocks[1].type).toBe("section");
-    expect(blocks[2].type).toBe("section");
-    expect(blocks[3].type).toBe("actions");
-    expect(blocks[4].type).toBe("context");
+    expect(blocks[2].type).toBe("divider");
+    expect(blocks[3].type).toBe("section");
+    expect(blocks[4].type).toBe("actions");
+    expect(blocks[5].type).toBe("context");
   });
 
-  it("includes PR title as link and repo info in header", () => {
+  it("includes PR title, repo info, and diff stats in header", () => {
     const { blocks } = buildSlackBlocks(params);
     const header = blocks[0].text!.text;
     expect(header).toContain(":rr-mag:");
-    expect(header).toContain("Pull request ready for review");
     expect(header).toContain("<https://github.com/org/repo/pull/1|Add feature X>");
-    expect(header).toContain("org/repo #1");
+    expect(header).toContain("org/repo #1 `+15 -3`");
   });
 
-  it("has scannable fields with author, branch, changes, commits, files, labels", () => {
+  it("has author and merging-into fields only", () => {
     const { blocks } = buildSlackBlocks(params);
     const fields = blocks[1].fields!;
-    expect(fields).toHaveLength(6);
+    expect(fields).toHaveLength(2);
     expect(fields[0].text).toContain("alice");
     expect(fields[1].text).toContain("`main`");
-    expect(fields[2].text).toContain("`+15 -3`");
-    expect(fields[3].text).toContain("3");
-    expect(fields[4].text).toContain("2");
-    expect(fields[5].text).toContain("enhancement");
-    expect(fields[5].text).toContain("ci/cd");
   });
 
-  it("lists files with per-file stats", () => {
+  it("lists files with header and per-file stats", () => {
     const { blocks } = buildSlackBlocks(params);
-    const files = blocks[2].text!.text;
+    const files = blocks[3].text!.text;
+    expect(files).toContain("*Files changed:*");
     expect(files).toContain("• `src/app.py` `+10 -2`");
     expect(files).toContain("• `src/utils.py` `+5 -1`");
   });
@@ -65,7 +61,7 @@ describe("buildSlackBlocks", () => {
       deletions: 0,
     }));
     const { blocks } = buildSlackBlocks({ ...params, allFiles: manyFiles });
-    const files = blocks[2].text!.text;
+    const files = blocks[3].text!.text;
     expect(files).toContain("`src/file9.ts`");
     expect(files).not.toContain("`src/file10.ts`");
     expect(files).toContain("and 5 more files");
@@ -73,29 +69,23 @@ describe("buildSlackBlocks", () => {
 
   it("has a View pull request button", () => {
     const { blocks } = buildSlackBlocks(params);
-    const button = blocks[3].elements![0];
+    const button = blocks[4].elements![0];
     expect((button.text as { text: string }).text).toBe("View pull request");
     expect(button.url).toBe("https://github.com/org/repo/pull/1");
   });
 
-  it("has a footer with branch, commits, files, and labels", () => {
+  it("has a footer with branch, commits, files, and labels in backticks", () => {
     const { blocks } = buildSlackBlocks(params);
-    const footer = blocks[4].elements![0].text as string;
+    const footer = blocks[5].elements![0].text as string;
     expect(footer).toContain("`main`");
     expect(footer).toContain("3 commits");
     expect(footer).toContain("2 files");
-    expect(footer).toContain("enhancement, ci/cd");
-  });
-
-  it("shows dash for labels when none present", () => {
-    const { blocks } = buildSlackBlocks({ ...params, labels: [] });
-    const fields = blocks[1].fields!;
-    expect(fields[5].text).toContain("—");
+    expect(footer).toContain("`enhancement` · `ci/cd`");
   });
 
   it("omits labels from footer when none present", () => {
     const { blocks } = buildSlackBlocks({ ...params, labels: [] });
-    const footer = blocks[4].elements![0].text as string;
+    const footer = blocks[5].elements![0].text as string;
     expect(footer).not.toContain(":rr-label:");
   });
 

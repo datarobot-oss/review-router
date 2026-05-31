@@ -47,7 +47,7 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `:rr-mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber}`,
+        text: `:rr-mag: *Pull request ready for review*\n<${params.prUrl}|${params.prTitle}>\n${repoFullName} #${params.prNumber} \`+${params.additions} -${params.deletions}\``,
       },
     },
     {
@@ -55,17 +55,16 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       fields: [
         { type: "mrkdwn", text: `*Author*\n${params.author}` },
         { type: "mrkdwn", text: `*Merging into*\n\`${params.baseBranch}\`` },
-        { type: "mrkdwn", text: `*Changes*\n\`+${params.additions} -${params.deletions}\`` },
-        { type: "mrkdwn", text: `*Commits*\n${params.commits}` },
-        { type: "mrkdwn", text: `*Files changed*\n${params.allFiles.length}` },
-        { type: "mrkdwn", text: `*Labels*\n${params.labels.length > 0 ? params.labels.join(" · ") : "—"}` },
       ],
+    },
+    {
+      type: "divider",
     },
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: fileList,
+        text: `*Files changed:*\n${fileList}`,
       },
     },
     {
@@ -83,7 +82,7 @@ export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlo
       elements: [
         {
           type: "mrkdwn",
-          text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\` · :rr-git_commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :rr-label: ${params.labels.join(", ")}` : ""}`,
+          text: `:rr-twisted_rightwards_arrows: \`${params.baseBranch}\` · :rr-git_commit: ${params.commits} commit${params.commits === 1 ? "" : "s"} · :rr-file: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :rr-label: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
         },
       ],
     },

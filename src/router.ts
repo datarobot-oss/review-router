@@ -82,6 +82,8 @@ export async function handleLabeled(
     `Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`
   );
 
+  const notifiedChannels = new Set<string>();
+
   for (const [teamSlug] of ownership.teamFiles) {
     const labelName = getLabelForTeam(
       ctx.teamsConfig,
@@ -119,7 +121,8 @@ export async function handleLabeled(
     }
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
-    if (slackChannel && ctx.inputs.slackToken) {
+    if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
+      notifiedChannels.add(slackChannel);
       const displayLabels = ctx.labels.filter(
         (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
       );

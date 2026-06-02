@@ -47100,6 +47100,7 @@ async function handleLabeled(octokit, ctx) {
         .map((f) => fileStatsMap.get(f))
         .filter((s) => s !== undefined);
     core.info(`Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`);
+    const notifiedChannels = new Set();
     for (const [teamSlug] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
         await (0, labels_1.ensureLabel)(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
@@ -47122,7 +47123,8 @@ async function handleLabeled(octokit, ctx) {
             core.info(`Skipping team review request for ${teamSlug} (no org access)`);
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
-        if (slackChannel && ctx.inputs.slackToken) {
+        if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
+            notifiedChannels.add(slackChannel);
             const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
             await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
                 prUrl: ctx.prUrl,

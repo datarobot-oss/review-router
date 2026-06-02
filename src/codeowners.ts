@@ -65,6 +65,7 @@ export function mapFilesToTeams(
 ): OwnershipMap {
   const teamFiles = new Map<string, string[]>();
   const unownedFiles: string[] = [];
+  const defaultedFiles = new Map<string, string[]>();
   const defaultTeamSlugs = getDefaultTeamSlugs(entries);
 
   for (const file of files) {
@@ -75,6 +76,9 @@ export function mapFilesToTeams(
 
     if (teamSlugs.length === 0 && owners.length > 0) {
       teamSlugs = defaultTeamSlugs;
+      if (teamSlugs.length > 0) {
+        defaultedFiles.set(file, owners);
+      }
     }
 
     if (teamSlugs.length === 0) {
@@ -88,7 +92,7 @@ export function mapFilesToTeams(
     }
   }
 
-  return { teamFiles, unownedFiles };
+  return { teamFiles, unownedFiles, defaultedFiles };
 }
 
 export async function fetchCodeownersContent(

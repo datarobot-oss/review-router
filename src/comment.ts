@@ -10,7 +10,12 @@ export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boo
   for (const [team, files] of ownership.teamFiles) {
     lines.push(`**${humanizeSlug(team)}**`);
     for (const file of files) {
-      lines.push(`- \`${file}\``);
+      const originalOwners = ownership.defaultedFiles.get(file);
+      if (originalOwners) {
+        lines.push(`- \`${file}\` _(default — owned by ${originalOwners.join(", ")})_`);
+      } else {
+        lines.push(`- \`${file}\``);
+      }
     }
     lines.push("");
   }

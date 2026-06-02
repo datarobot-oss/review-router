@@ -4,7 +4,7 @@
 # Infrastructure
 infra/ @datarobot-community/platform-team
 
-# Docs — individual user, should be ignored for labels
+# Docs — individual user, should fall back to default team
 docs/ @johndoe
 
 # Multiple owners

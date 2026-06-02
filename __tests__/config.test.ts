@@ -10,7 +10,7 @@ describe("loadTeamsConfigForOrg", () => {
 
   it("loads different config for different org", () => {
     const config = loadTeamsConfigForOrg("datarobot-community");
-    expect(config.teams["customer-engineering"]).toBeDefined();
+    expect(config.teams["applications"]).toBeDefined();
     expect(config.teams["datarobot-agent-skills"]).toBeUndefined();
   });
 

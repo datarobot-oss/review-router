@@ -31,8 +31,25 @@ describe("mapFilesToTeams", () => {
     expect(allTeams).not.toContain("johndoe");
   });
 
-  it("reports unowned files (only individual owners)", () => {
+  it("falls back to default team when file has only individual owners", () => {
     const result = mapFilesToTeams(["docs/readme.md"], entries);
+    expect(result.teamFiles.get("customer-engineering")).toContain("docs/readme.md");
+    expect(result.unownedFiles).not.toContain("docs/readme.md");
+  });
+
+  it("reports unowned files when no CODEOWNERS pattern matches", () => {
+    const noDefaultEntries = parseCodeowners(
+      "/src/ @datarobot-community/platform-team\n"
+    );
+    const result = mapFilesToTeams(["unmatched/file.txt"], noDefaultEntries);
+    expect(result.unownedFiles).toContain("unmatched/file.txt");
+  });
+
+  it("reports unowned files when default owner is also an individual", () => {
+    const individualDefaultEntries = parseCodeowners(
+      "* @johndoe\ndocs/ @janedoe\n"
+    );
+    const result = mapFilesToTeams(["docs/readme.md"], individualDefaultEntries);
     expect(result.unownedFiles).toContain("docs/readme.md");
   });
 

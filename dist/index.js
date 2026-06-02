@@ -46549,14 +46549,28 @@ function extractTeamSlug(owner) {
     const match = owner.match(/^@[^/]+\/(.+)$/);
     return match ? match[1] : undefined;
 }
+function getDefaultTeamSlugs(entries) {
+    for (const entry of entries) {
+        if (entry.pattern === "*") {
+            return entry.owners
+                .map((o) => extractTeamSlug(o))
+                .filter((slug) => slug !== undefined);
+        }
+    }
+    return [];
+}
 function mapFilesToTeams(files, entries) {
     const teamFiles = new Map();
     const unownedFiles = [];
+    const defaultTeamSlugs = getDefaultTeamSlugs(entries);
     for (const file of files) {
         const owners = matchFileToOwners(file, entries);
-        const teamSlugs = owners
+        let teamSlugs = owners
             .map((o) => extractTeamSlug(o))
             .filter((slug) => slug !== undefined);
+        if (teamSlugs.length === 0 && owners.length > 0) {
+            teamSlugs = defaultTeamSlugs;
+        }
         if (teamSlugs.length === 0) {
             unownedFiles.push(file);
         }

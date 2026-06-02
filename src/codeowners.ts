@@ -48,18 +48,34 @@ function extractTeamSlug(owner: string): string | undefined {
   return match ? match[1] : undefined;
 }
 
+function getDefaultTeamSlugs(entries: CodeOwnersEntry[]): string[] {
+  for (const entry of entries) {
+    if (entry.pattern === "*") {
+      return entry.owners
+        .map((o) => extractTeamSlug(o))
+        .filter((slug): slug is string => slug !== undefined);
+    }
+  }
+  return [];
+}
+
 export function mapFilesToTeams(
   files: string[],
   entries: CodeOwnersEntry[]
 ): OwnershipMap {
   const teamFiles = new Map<string, string[]>();
   const unownedFiles: string[] = [];
+  const defaultTeamSlugs = getDefaultTeamSlugs(entries);
 
   for (const file of files) {
     const owners = matchFileToOwners(file, entries);
-    const teamSlugs = owners
+    let teamSlugs = owners
       .map((o) => extractTeamSlug(o))
       .filter((slug): slug is string => slug !== undefined);
+
+    if (teamSlugs.length === 0 && owners.length > 0) {
+      teamSlugs = defaultTeamSlugs;
+    }
 
     if (teamSlugs.length === 0) {
       unownedFiles.push(file);

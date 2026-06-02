@@ -35,6 +35,7 @@ describe("mapFilesToTeams", () => {
     const result = mapFilesToTeams(["docs/readme.md"], entries);
     expect(result.teamFiles.get("customer-engineering")).toContain("docs/readme.md");
     expect(result.unownedFiles).not.toContain("docs/readme.md");
+    expect(result.defaultedFiles.get("docs/readme.md")).toEqual(["@johndoe"]);
   });
 
   it("reports unowned files when no CODEOWNERS pattern matches", () => {

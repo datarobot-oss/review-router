@@ -46562,6 +46562,7 @@ function getDefaultTeamSlugs(entries) {
 function mapFilesToTeams(files, entries) {
     const teamFiles = new Map();
     const unownedFiles = [];
+    const defaultedFiles = new Map();
     const defaultTeamSlugs = getDefaultTeamSlugs(entries);
     for (const file of files) {
         const owners = matchFileToOwners(file, entries);
@@ -46570,6 +46571,9 @@ function mapFilesToTeams(files, entries) {
             .filter((slug) => slug !== undefined);
         if (teamSlugs.length === 0 && owners.length > 0) {
             teamSlugs = defaultTeamSlugs;
+            if (teamSlugs.length > 0) {
+                defaultedFiles.set(file, owners);
+            }
         }
         if (teamSlugs.length === 0) {
             unownedFiles.push(file);
@@ -46582,7 +46586,7 @@ function mapFilesToTeams(files, entries) {
             }
         }
     }
-    return { teamFiles, unownedFiles };
+    return { teamFiles, unownedFiles, defaultedFiles };
 }
 async function fetchCodeownersContent(octokit, owner, repo, ref) {
     try {
@@ -46659,7 +46663,13 @@ function buildOwnershipComment(ownership, hasOrgAccess) {
     for (const [team, files] of ownership.teamFiles) {
         lines.push(`**${(0, config_1.humanizeSlug)(team)}**`);
         for (const file of files) {
-            lines.push(`- \`${file}\``);
+            const originalOwners = ownership.defaultedFiles.get(file);
+            if (originalOwners) {
+                lines.push(`- \`${file}\` _(default — owned by ${originalOwners.join(", ")})_`);
+            }
+            else {
+                lines.push(`- \`${file}\``);
+            }
         }
         lines.push("");
     }

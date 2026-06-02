@@ -93,6 +93,130 @@ describe("handleLabeled", () => {
     expect(comment.upsertComment).toHaveBeenCalled();
   });
 
+  it("requests team review when hasOrgAccess is true", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    mockOctokit.rest.pulls.requestReviewers.mockResolvedValue({});
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+      },
+      capabilities: { hasOrgAccess: true },
+      teamsConfig,
+    });
+
+    expect(mockOctokit.rest.pulls.requestReviewers).toHaveBeenCalledWith({
+      owner: "datarobot-community",
+      repo: "test-repo",
+      pull_number: 1,
+      team_reviewers: ["customer-engineering"],
+    });
+  });
+
+  it("warns but does not fail when requestReviewers throws", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    mockOctokit.rest.pulls.requestReviewers.mockRejectedValue(new Error("Not Found"));
+
+    await expect(handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+      },
+      capabilities: { hasOrgAccess: true },
+      teamsConfig,
+    })).resolves.not.toThrow();
+  });
+
+  it("sends Slack notification when token and channel are configured", async () => {
+    mockOctokit.paginate.mockResolvedValue([
+      { filename: "src/app.py", additions: 5, deletions: 2 },
+    ]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (slack.sendSlackNotification as jest.Mock).mockResolvedValue(undefined);
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 5,
+      deletions: 2,
+      commits: 1,
+      labels: ["bug", "Ready for Review"],
+      inputs: {
+        githubToken: "token",
+        slackToken: "xoxb-slack-token",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+      },
+      capabilities: { hasOrgAccess: false },
+      teamsConfig,
+    });
+
+    expect(slack.sendSlackNotification).toHaveBeenCalledWith(
+      "xoxb-slack-token",
+      "#app-templates-tests",
+      expect.objectContaining({
+        prNumber: 1,
+        author: "alice",
+        labels: ["bug"],
+      })
+    );
+  });
+
   it("posts warning comment when CODEOWNERS is missing", async () => {
     mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
     jest.spyOn(codeowners, "fetchCodeownersContent").mockResolvedValue(null);
@@ -193,6 +317,20 @@ describe("handleReviewSubmitted", () => {
       ...baseCtx,
       capabilities: { hasOrgAccess: true },
     });
+
+    expect(labels.removeLabel).not.toHaveBeenCalled();
+  });
+
+  it("warns on non-404 team membership errors", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockRejectedValue(new Error("Server Error"));
+
+    await expect(handleReviewSubmitted(mockOctokit as any, {
+      ...baseCtx,
+      capabilities: { hasOrgAccess: true },
+    })).resolves.not.toThrow();
 
     expect(labels.removeLabel).not.toHaveBeenCalled();
   });

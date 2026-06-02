@@ -15,6 +15,7 @@ export interface TeamsConfig {
 export interface OwnershipMap {
   teamFiles: Map<string, string[]>;
   unownedFiles: string[];
+  defaultedFiles: Map<string, string[]>;
 }
 
 export type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;

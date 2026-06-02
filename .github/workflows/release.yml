@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read major version from package.json
+        id: version
+        run: |
+          FULL=$(jq -r .version package.json)
+          MAJOR="v$(echo "$FULL" | cut -d. -f1)"
+          echo "tag=$MAJOR" >> "$GITHUB_OUTPUT"
+          echo "Floating tag: $MAJOR (from $FULL)"
+
+      - name: Force-update floating tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}" --force

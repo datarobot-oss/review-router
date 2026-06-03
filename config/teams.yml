@@ -13,7 +13,7 @@ orgs:
         slack_channel: "C03AUH9KWG4"
       agentic-assistant:
         label: "Needs Review: Agentic Assistant"
-        slack_channel: "C03AUH9KWG4"
+        slack_channel: "C0AAA8Y9UH5"
       core-modeling:
         label: "Needs Review: Core Modeling"
         slack_channel: "C08E1SD3MUP"

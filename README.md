@@ -74,7 +74,7 @@ jobs:
   trigger:
     if: >-
       github.event.issue.pull_request
-      && contains(github.event.comment.body, '/review')
+      && github.event.comment.body == '/review'
     runs-on: ubuntu-latest
     steps:
       - name: Add Ready for Review label

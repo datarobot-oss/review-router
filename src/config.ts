@@ -101,14 +101,19 @@ export async function loadTeamsConfigForOrg(
   }
 
   if (content) {
-    const config = parseTeamsConfig(content);
-    const orgConfig = config.orgs[org];
-    if (orgConfig) {
-      core.info(`Loaded team config for org "${org}"`);
-      return orgConfig;
+    try {
+      const config = parseTeamsConfig(content);
+      const orgConfig = config.orgs[org];
+      if (orgConfig) {
+        core.info(`Loaded team config for org "${org}"`);
+        return orgConfig;
+      }
+      core.warning(`No config section found for org "${org}" in external config`);
+    } catch (error) {
+      core.warning(
+        `Failed to parse external config: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-    core.warning(`No config section found for org "${org}" in external config`);
-    return { teams: {} };
   }
 
   return loadBundledConfig(org);

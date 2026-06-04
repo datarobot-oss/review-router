@@ -72908,14 +72908,18 @@ async function loadTeamsConfigForOrg(org, octokit, configRepo, configS3) {
         content = await fetchConfigFromS3(configS3);
     }
     if (content) {
-        const config = parseTeamsConfig(content);
-        const orgConfig = config.orgs[org];
-        if (orgConfig) {
-            core.info(`Loaded team config for org "${org}"`);
-            return orgConfig;
+        try {
+            const config = parseTeamsConfig(content);
+            const orgConfig = config.orgs[org];
+            if (orgConfig) {
+                core.info(`Loaded team config for org "${org}"`);
+                return orgConfig;
+            }
+            core.warning(`No config section found for org "${org}" in external config`);
         }
-        core.warning(`No config section found for org "${org}" in external config`);
-        return { teams: {} };
+        catch (error) {
+            core.warning(`Failed to parse external config: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
     return loadBundledConfig(org);
 }

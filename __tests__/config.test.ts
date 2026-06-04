@@ -143,6 +143,35 @@ describe("loadTeamsConfigForOrg with external config", () => {
     expect(config.teams["bar"].label).toBe("Bar");
   });
 
+  it("falls back to bundled config when external config has no matching org", async () => {
+    const yamlContent = "orgs:\n  other-org:\n    teams:\n      bar:\n        label: Bar\n        slack_channel: '#bar'\n";
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getContent: jest.fn().mockResolvedValue({
+            data: { content: Buffer.from(yamlContent).toString("base64") },
+          }),
+        },
+      },
+    };
+    const config = await loadTeamsConfigForOrg("datarobot-oss", mockOctokit as any, "owner/config-repo");
+    expect(config.teams["applications"]).toBeDefined();
+  });
+
+  it("falls back to bundled config when external YAML is malformed", async () => {
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getContent: jest.fn().mockResolvedValue({
+            data: { content: Buffer.from("not: [valid: yaml: {").toString("base64") },
+          }),
+        },
+      },
+    };
+    const config = await loadTeamsConfigForOrg("datarobot-oss", mockOctokit as any, "owner/config-repo");
+    expect(config.teams["applications"]).toBeDefined();
+  });
+
   it("falls back to bundled config when repo fetch fails", async () => {
     const mockOctokit = {
       rest: { repos: { getContent: jest.fn().mockRejectedValue({ status: 404 }) } },

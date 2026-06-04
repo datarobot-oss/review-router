@@ -14,12 +14,7 @@ When the **"Ready for Review"** label is added to a PR, this action:
 
 ## Setup
 
-Add two workflow files to your repo:
-
-### Review routing — `.github/workflows/review-router.yml`
-
-Uses `pull_request_target` so that fork PRs can be routed (the workflow always runs
-from the base branch, so external contributors cannot modify it or access secrets).
+Add a single workflow to your repo at `.github/workflows/review-router.yml`:
 
 ```yaml
 ---
@@ -30,6 +25,8 @@ on:
     types: [labeled]
   pull_request_review:
     types: [submitted]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -37,6 +34,9 @@ permissions:
 
 jobs:
   route:
+    if: >-
+      github.event_name != 'issue_comment'
+      || contains(github.event.comment.body, '/review')
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token
@@ -53,50 +53,13 @@ jobs:
           slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
-### Comment trigger — `.github/workflows/review-router-comment.yml`
+The action handles three event types:
+- **`pull_request_target: labeled`** — routes review when "Ready for Review" is added
+- **`pull_request_review: submitted`** — removes team labels on approval
+- **`issue_comment: created`** — when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
 
-Lets contributors (including external fork authors who cannot add labels) type
-`/review` in a PR comment to request a review. This adds the "Ready for Review"
-label, which triggers the main workflow above.
-
-```yaml
----
-name: Review Router — Comment Trigger
-
-on:
-  issue_comment:
-    types: [created]
-
-permissions:
-  pull-requests: write
-
-jobs:
-  trigger:
-    if: >-
-      github.event.issue.pull_request
-      && (github.event.comment.body == '/review'
-        || startsWith(github.event.comment.body, '/review\n')
-        || startsWith(github.event.comment.body, '/review\r')
-        || startsWith(github.event.comment.body, '/review '))
-    runs-on: ubuntu-latest
-    steps:
-      - name: Add Ready for Review label
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['Ready for Review']
-            });
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'rocket'
-            });
-```
+Uses `pull_request_target` so fork PRs work — the workflow always runs from the base
+branch, so external contributors cannot modify it or access secrets.
 
 ## Inputs
 
@@ -118,10 +81,10 @@ Add a `.github/CODEOWNERS` file to your repo:
 
 ```
 # Default
-* @datarobot/applications
+* @acme-copr/core-team
 
 # Infrastructure
-infra/ @datarobot/platform-team
+infra/ @acme-corp/infra-team
 ```
 
 ## Adding a new team

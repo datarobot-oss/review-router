@@ -78889,10 +78889,40 @@ async function run() {
     const context = github.context;
     const { owner, repo } = context.repo;
     const octokit = github.getOctokit(inputs.githubToken);
-    const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configS3);
-    const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     const eventName = context.eventName;
     const action = context.payload.action;
+    if (eventName === "issue_comment" && action === "created") {
+        const comment = context.payload.comment;
+        const issue = context.payload.issue;
+        if (!comment || !issue || !issue.pull_request) {
+            core.info("Ignoring non-PR comment");
+            return;
+        }
+        if (context.payload.sender?.type === "Bot") {
+            core.info("Ignoring bot comment");
+            return;
+        }
+        if ((comment.body ?? "").trim() !== "/review") {
+            core.info("Ignoring comment (not /review)");
+            return;
+        }
+        await octokit.rest.issues.addLabels({
+            owner,
+            repo,
+            issue_number: issue.number,
+            labels: [inputs.readyLabel],
+        });
+        await octokit.rest.reactions.createForIssueComment({
+            owner,
+            repo,
+            comment_id: comment.id,
+            content: "rocket",
+        });
+        core.info(`Added "${inputs.readyLabel}" label to PR #${issue.number} via /review comment`);
+        return;
+    }
+    const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configS3);
+    const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         action === "labeled") {
         const pr = context.payload.pull_request;

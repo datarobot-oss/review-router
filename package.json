@@ -5,7 +5,7 @@
   "description": "GitHub Action that routes code reviews based on CODEOWNERS",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "build": "ncc build src/index.ts -o dist --license licenses.txt",
     "test": "jest --coverage",
     "lint": "eslint src/ __tests__/",
     "all": "npm run lint && npm run test && npm run build"
@@ -18,7 +18,9 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
+    "@aws-sdk/client-s3": "^3.1062.0",
     "@slack/web-api": "^7.16.0",
+    "ajv": "^8.20.0",
     "codeowners-utils": "^1.0.2",
     "js-yaml": "^4.1.1"
   },

@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { handleLabeled, handleReviewSubmitted } from "./router";
-import { detectCapabilities, isOrgMember } from "./auth";
+import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 
@@ -9,6 +9,8 @@ async function run(): Promise<void> {
   const inputs: ActionInputs = {
     githubToken: core.getInput("github-token", { required: true }),
     slackToken: core.getInput("slack-token"),
+    configRepo: core.getInput("config-repo"),
+    configS3: core.getInput("config-s3"),
     readyLabel: core.getInput("ready-label"),
     needsReviewPrefix: core.getInput("needs-review-prefix"),
     needsReviewLabelColor: core.getInput("needs-review-label-color"),
@@ -16,31 +18,24 @@ async function run(): Promise<void> {
 
   const context = github.context;
   const { owner, repo } = context.repo;
-
-  if (context.eventName === "pull_request_target") {
-    core.setFailed(
-      "This action must not be used with pull_request_target. Use pull_request instead."
-    );
-    return;
-  }
-
-  const pr = context.payload.pull_request;
-  const isFork = pr && pr.head?.repo?.full_name !== `${owner}/${repo}`;
-  if (isFork) {
-    core.info("Skipping fork PR");
-    return;
-  }
-
   const octokit = github.getOctokit(inputs.githubToken);
 
-  const teamsConfig = loadTeamsConfigForOrg(owner);
+  const teamsConfig = await loadTeamsConfigForOrg(
+    owner,
+    octokit,
+    inputs.configRepo,
+    inputs.configS3
+  );
 
   const capabilities = await detectCapabilities(octokit, owner);
 
   const eventName = context.eventName;
   const action = context.payload.action;
 
-  if (eventName === "pull_request" && action === "labeled") {
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "labeled"
+  ) {
     const pr = context.payload.pull_request;
     if (!pr) {
       core.setFailed("No pull_request in payload");
@@ -50,14 +45,6 @@ async function run(): Promise<void> {
     const labelName = context.payload.label?.name;
     if (labelName !== inputs.readyLabel) {
       core.info(`Ignoring label "${labelName}" (not "${inputs.readyLabel}")`);
-      return;
-    }
-
-    const author = pr.user?.login ?? "";
-    if (capabilities.hasOrgAccess && author && !(await isOrgMember(octokit, owner, author))) {
-      core.info(
-        `Skipping review routing — PR author "${author}" is not a member of the ${owner} org`
-      );
       return;
     }
 

@@ -80,6 +80,8 @@ describe("handleLabeled", () => {
       inputs: {
         githubToken: "token",
         slackToken: "",
+        configRepo: "",
+        configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
@@ -119,6 +121,8 @@ describe("handleLabeled", () => {
       inputs: {
         githubToken: "token",
         slackToken: "",
+        configRepo: "",
+        configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
@@ -161,6 +165,8 @@ describe("handleLabeled", () => {
       inputs: {
         githubToken: "token",
         slackToken: "",
+        configRepo: "",
+        configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
@@ -198,6 +204,8 @@ describe("handleLabeled", () => {
       inputs: {
         githubToken: "token",
         slackToken: "xoxb-slack-token",
+        configRepo: "",
+        configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
@@ -237,6 +245,8 @@ describe("handleLabeled", () => {
       inputs: {
         githubToken: "token",
         slackToken: "",
+        configRepo: "",
+        configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
@@ -265,6 +275,8 @@ describe("handleReviewSubmitted", () => {
     inputs: {
       githubToken: "token",
       slackToken: "",
+      configRepo: "",
+      configS3: "",
       readyLabel: "Ready for Review",
       needsReviewPrefix: "Needs Review",
       needsReviewLabelColor: "fbca04",

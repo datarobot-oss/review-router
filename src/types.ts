@@ -23,6 +23,8 @@ export type Octokit = ReturnType<typeof import("@actions/github").getOctokit>;
 export interface ActionInputs {
   githubToken: string;
   slackToken: string;
+  configRepo: string;
+  configS3: string;
   readyLabel: string;
   needsReviewPrefix: string;
   needsReviewLabelColor: string;

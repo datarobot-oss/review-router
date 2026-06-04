@@ -14,14 +14,19 @@ When the **"Ready for Review"** label is added to a PR, this action:
 
 ## Setup
 
-Add this workflow to your repo at `.github/workflows/review-router.yml`:
+Add two workflow files to your repo:
+
+### Review routing — `.github/workflows/review-router.yml`
+
+Uses `pull_request_target` so that fork PRs can be routed (the workflow always runs
+from the base branch, so external contributors cannot modify it or access secrets).
 
 ```yaml
 ---
 name: Review Router
 
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled]
   pull_request_review:
     types: [submitted]
@@ -48,15 +53,60 @@ jobs:
           slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
+### Comment trigger — `.github/workflows/review-router-comment.yml`
+
+Lets contributors (including external fork authors who cannot add labels) type
+`/review` in a PR comment to trigger review routing.
+
+```yaml
+---
+name: Review Router — Comment Trigger
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  trigger:
+    if: >-
+      github.event.issue.pull_request
+      && contains(github.event.comment.body, '/review')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add Ready for Review label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['Ready for Review']
+            });
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+```
+
 ## Inputs
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `github-token` | Yes | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality. |
 | `slack-token` | No | — | Slack Bot token for sending notifications. |
+| `config-repo` | No | — | Fetch teams config from a GitHub repo (e.g. `datarobot/.review-router`). Reads `teams.yml` from the repo root. |
+| `config-s3` | No | — | Fetch teams config from S3 (e.g. `s3://bucket/path/teams.yml`). Requires AWS credentials in the environment. |
 | `ready-label` | No | `Ready for Review` | Label name that triggers review routing. |
 | `needs-review-prefix` | No | `Needs Review` | Prefix for per-team review labels (e.g. "Needs Review: Platform"). |
 | `needs-review-label-color` | No | `fbca04` | Hex color for auto-created "Needs Review" labels. |
+
+Config priority: `config-repo` > `config-s3` > bundled `config/teams.yml`.
 
 ## CODEOWNERS
 

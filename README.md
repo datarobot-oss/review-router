@@ -74,7 +74,10 @@ jobs:
   trigger:
     if: >-
       github.event.issue.pull_request
-      && github.event.comment.body == '/review'
+      && (github.event.comment.body == '/review'
+        || startsWith(github.event.comment.body, '/review\n')
+        || startsWith(github.event.comment.body, '/review\r')
+        || startsWith(github.event.comment.body, '/review '))
     runs-on: ubuntu-latest
     steps:
       - name: Add Ready for Review label

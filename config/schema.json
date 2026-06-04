@@ -1,0 +1,63 @@
+{
+  "$id": "https://github.com/datarobot-oss/review-router/config/schema.json",
+  "title": "Review Router Config",
+  "description": "Team routing configuration for the review-router GitHub Action.",
+  "type": "object",
+  "required": ["orgs"],
+  "additionalProperties": false,
+  "properties": {
+    "orgs": {
+      "type": "object",
+      "description": "Org-specific config sections. The action selects the section matching the repo's GitHub org at runtime.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/OrgConfig"
+      }
+    },
+    "users": {
+      "type": "object",
+      "description": "GitHub username to Slack user ID mapping.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^U[A-Z0-9]+$",
+        "description": "Slack user ID (e.g. U01ABC123)."
+      }
+    }
+  },
+  "$defs": {
+    "OrgConfig": {
+      "type": "object",
+      "required": ["teams"],
+      "additionalProperties": false,
+      "properties": {
+        "default_slack_channel": {
+          "type": "string",
+          "description": "Fallback Slack channel ID used when a team has no channel configured."
+        },
+        "teams": {
+          "type": "object",
+          "description": "Team slug to config mapping. Slugs must match the GitHub team name used in CODEOWNERS.",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/TeamConfig"
+          }
+        }
+      }
+    },
+    "TeamConfig": {
+      "type": "object",
+      "required": ["label", "slack_channel"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "GitHub label name applied to the PR (e.g. 'Needs Review: Applications')."
+        },
+        "slack_channel": {
+          "type": "string",
+          "description": "Slack channel ID for notifications. Empty string to skip."
+        }
+      }
+    }
+  }
+}

@@ -9,7 +9,7 @@ exports.modules = {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.checkUrl = void 0;
-const config_1 = __webpack_require__(7291);
+const config_1 = __webpack_require__(47291);
 const LOOPBACK_CIDR_IPv4 = "127.0.0.0/8";
 const LOOPBACK_CIDR_IPv6 = "::1/128";
 const ECS_CONTAINER_HOST = "169.254.170.2";
@@ -56,20 +56,20 @@ exports.checkUrl = checkUrl;
 
 /***/ }),
 
-/***/ 8712:
+/***/ 68712:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.fromHttp = void 0;
-const tslib_1 = __webpack_require__(1860);
+const tslib_1 = __webpack_require__(61860);
 const client_1 = __webpack_require__(5152);
-const config_1 = __webpack_require__(7291);
-const node_http_handler_1 = __webpack_require__(1279);
-const promises_1 = tslib_1.__importDefault(__webpack_require__(1455));
+const config_1 = __webpack_require__(47291);
+const node_http_handler_1 = __webpack_require__(61279);
+const promises_1 = tslib_1.__importDefault(__webpack_require__(51455));
 const checkUrl_1 = __webpack_require__(1509);
-const requestHelpers_1 = __webpack_require__(8914);
-const retry_wrapper_1 = __webpack_require__(1122);
+const requestHelpers_1 = __webpack_require__(78914);
+const retry_wrapper_1 = __webpack_require__(51122);
 const AWS_CONTAINER_CREDENTIALS_RELATIVE_URI = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI";
 const DEFAULT_LINK_LOCAL_HOST = "http://169.254.170.2";
 const AWS_CONTAINER_CREDENTIALS_FULL_URI = "AWS_CONTAINER_CREDENTIALS_FULL_URI";
@@ -139,17 +139,17 @@ exports.fromHttp = fromHttp;
 
 /***/ }),
 
-/***/ 8914:
+/***/ 78914:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createGetRequest = createGetRequest;
 exports.getCredentials = getCredentials;
-const config_1 = __webpack_require__(7291);
-const protocols_1 = __webpack_require__(3422);
-const serde_1 = __webpack_require__(2430);
-const serde_2 = __webpack_require__(2430);
+const config_1 = __webpack_require__(47291);
+const protocols_1 = __webpack_require__(93422);
+const serde_1 = __webpack_require__(92430);
+const serde_2 = __webpack_require__(92430);
 function createGetRequest(url) {
     return new protocols_1.HttpRequest({
         protocol: url.protocol,
@@ -199,7 +199,7 @@ async function getCredentials(response, logger) {
 
 /***/ }),
 
-/***/ 1122:
+/***/ 51122:
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -223,12 +223,12 @@ exports.retryWrapper = retryWrapper;
 
 /***/ }),
 
-/***/ 8605:
+/***/ 98605:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
-var fromHttp = __webpack_require__(8712);
+var fromHttp = __webpack_require__(68712);
 
 
 

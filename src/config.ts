@@ -2,12 +2,23 @@ import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
 import * as core from "@actions/core";
+import Ajv from "ajv";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { TeamsConfig, OrgConfig, TeamConfig, Octokit } from "./types";
 
+const configSchema = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "..", "config", "schema.json"), "utf8")
+);
+const ajv = new Ajv();
+const validateConfig = ajv.compile(configSchema);
+
 export function parseTeamsConfig(content: string): TeamsConfig {
-  const parsed = yaml.load(content) as TeamsConfig;
-  return parsed && parsed.orgs ? parsed : { orgs: {} };
+  const parsed = yaml.load(content);
+  if (!validateConfig(parsed)) {
+    const errors = validateConfig.errors?.map((e) => `${e.instancePath} ${e.message}`).join("; ");
+    throw new Error(`Config validation failed: ${errors}`);
+  }
+  return parsed as TeamsConfig;
 }
 
 function loadBundledConfig(org: string): OrgConfig {
@@ -37,11 +48,13 @@ export async function fetchConfigFromRepo(
     return null;
   }
   try {
+    const { data: repoData } = await octokit.rest.repos.get({ owner, repo });
+    const ref = repoData.default_branch;
     const response = await octokit.rest.repos.getContent({
       owner,
       repo,
       path: "teams.yml",
-      ref: "main",
+      ref,
     });
     if ("content" in response.data && response.data.content) {
       core.info(`Fetched config from ${configRepo}/teams.yml`);

@@ -10,18 +10,18 @@ var __webpack_unused_export__;
 
 
 var client$1 = __webpack_require__(5152);
-var core = __webpack_require__(402);
-var client = __webpack_require__(2658);
-var config = __webpack_require__(7291);
-var endpoints = __webpack_require__(2085);
-var protocols = __webpack_require__(3422);
-var retry = __webpack_require__(3609);
-var schema = __webpack_require__(6890);
-var httpAuthSchemes = __webpack_require__(7523);
+var core = __webpack_require__(90402);
+var client = __webpack_require__(92658);
+var config = __webpack_require__(47291);
+var endpoints = __webpack_require__(62085);
+var protocols = __webpack_require__(93422);
+var retry = __webpack_require__(23609);
+var schema = __webpack_require__(26890);
+var httpAuthSchemes = __webpack_require__(97523);
 var signatureV4MultiRegion = __webpack_require__(5785);
-var serde = __webpack_require__(2430);
-var nodeHttpHandler = __webpack_require__(1279);
-var protocols$1 = __webpack_require__(7288);
+var serde = __webpack_require__(92430);
+var nodeHttpHandler = __webpack_require__(61279);
+var protocols$1 = __webpack_require__(37288);
 
 const q = "ref";
 const a = -1, b = true, c = "isSet", d = "PartitionResult", e = "booleanEquals", f = "stringEquals", g = "getAttr", h = "us-east-1", i = "sigv4", j = "sts", k = "https://sts.{Region}.{PartitionResult#dnsSuffix}", l = { [q]: "Endpoint" }, m = { [q]: "Region" }, n = { [q]: d }, o = {}, p = [m];

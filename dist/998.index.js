@@ -3,15 +3,15 @@ exports.id = 998;
 exports.ids = [998];
 exports.modules = {
 
-/***/ 998:
+/***/ 60998:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 var __webpack_unused_export__;
 
 
-var config = __webpack_require__(7291);
+var config = __webpack_require__(47291);
 var client = __webpack_require__(5152);
-var tokenProviders = __webpack_require__(5433);
+var tokenProviders = __webpack_require__(75433);
 
 const isSsoProfile = (arg) => arg &&
     (typeof arg.sso_start_url === "string" ||
@@ -62,7 +62,7 @@ const resolveSSOCredentials = async ({ ssoStartUrl, ssoSession, ssoAccountId, ss
         });
     }
     const { accessToken } = token;
-    const { SSOClient, GetRoleCredentialsCommand } = await Promise.resolve().then(function () { return __webpack_require__(1853); });
+    const { SSOClient, GetRoleCredentialsCommand } = await Promise.resolve().then(function () { return __webpack_require__(91853); });
     const sso = ssoClient ||
         new SSOClient(Object.assign({}, clientConfig ?? {}, {
             logger: clientConfig?.logger ?? callerClientConfig?.logger ?? parentClientConfig?.logger,
@@ -202,12 +202,12 @@ __webpack_unused_export__ = validateSsoProfile;
 
 /***/ }),
 
-/***/ 1853:
+/***/ 91853:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
-var sso = __webpack_require__(2579);
+var sso = __webpack_require__(32579);
 
 
 
@@ -217,23 +217,23 @@ exports.SSOClient = sso.SSOClient;
 
 /***/ }),
 
-/***/ 2579:
+/***/ 32579:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
 var client$1 = __webpack_require__(5152);
-var core = __webpack_require__(402);
-var client = __webpack_require__(2658);
-var config = __webpack_require__(7291);
-var endpoints = __webpack_require__(2085);
-var protocols = __webpack_require__(3422);
-var retry = __webpack_require__(3609);
-var schema = __webpack_require__(6890);
-var httpAuthSchemes = __webpack_require__(7523);
-var serde = __webpack_require__(2430);
-var nodeHttpHandler = __webpack_require__(1279);
-var protocols$1 = __webpack_require__(7288);
+var core = __webpack_require__(90402);
+var client = __webpack_require__(92658);
+var config = __webpack_require__(47291);
+var endpoints = __webpack_require__(62085);
+var protocols = __webpack_require__(93422);
+var retry = __webpack_require__(23609);
+var schema = __webpack_require__(26890);
+var httpAuthSchemes = __webpack_require__(97523);
+var serde = __webpack_require__(92430);
+var nodeHttpHandler = __webpack_require__(61279);
+var protocols$1 = __webpack_require__(37288);
 
 const defaultSSOHttpAuthSchemeParametersProvider = async (config, context, input) => {
     return {
@@ -696,15 +696,15 @@ exports.errorTypeRegistries = errorTypeRegistries;
 
 /***/ }),
 
-/***/ 5433:
+/***/ 75433:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
 var client = __webpack_require__(5152);
-var httpAuthSchemes = __webpack_require__(7523);
-var config = __webpack_require__(7291);
-var node_fs = __webpack_require__(3024);
+var httpAuthSchemes = __webpack_require__(97523);
+var config = __webpack_require__(47291);
+var node_fs = __webpack_require__(73024);
 
 const fromEnvSigningName = ({ logger, signingName } = {}) => async () => {
     logger?.debug?.("@aws-sdk/token-providers - fromEnvSigningName");
@@ -724,7 +724,7 @@ const EXPIRE_WINDOW_MS = 5 * 60 * 1000;
 const REFRESH_MESSAGE = `To refresh this SSO session run 'aws sso login' with the corresponding profile.`;
 
 const getSsoOidcClient = async (ssoRegion, init = {}, callerClientConfig) => {
-    const { SSOOIDCClient } = await __webpack_require__.e(/* import() */ 443).then(__webpack_require__.t.bind(__webpack_require__, 9443, 19));
+    const { SSOOIDCClient } = await __webpack_require__.e(/* import() */ 443).then(__webpack_require__.t.bind(__webpack_require__, 89443, 19));
     const coalesce = (prop) => init.clientConfig?.[prop] ?? init.parentClientConfig?.[prop] ?? callerClientConfig?.[prop];
     const ssoOidcClient = new SSOOIDCClient(Object.assign({}, init.clientConfig ?? {}, {
         region: ssoRegion ?? init.clientConfig?.region,
@@ -735,7 +735,7 @@ const getSsoOidcClient = async (ssoRegion, init = {}, callerClientConfig) => {
 };
 
 const getNewSsoOidcToken = async (ssoToken, ssoRegion, init = {}, callerClientConfig) => {
-    const { CreateTokenCommand } = await __webpack_require__.e(/* import() */ 443).then(__webpack_require__.t.bind(__webpack_require__, 9443, 19));
+    const { CreateTokenCommand } = await __webpack_require__.e(/* import() */ 443).then(__webpack_require__.t.bind(__webpack_require__, 89443, 19));
     const ssoOidcClient = await getSsoOidcClient(ssoRegion, init, callerClientConfig);
     return ssoOidcClient.send(new CreateTokenCommand({
         clientId: ssoToken.clientId,

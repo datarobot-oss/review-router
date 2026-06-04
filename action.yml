@@ -3,14 +3,14 @@ description: "Routes code reviews based on CODEOWNERS when Ready for Review labe
 
 inputs:
   github-token:
-    description: "GitHub token for API calls. Use a GitHub App installation token for full functionality, or GITHUB_TOKEN for PoC mode."
+    description: "GitHub token for API calls. Use a GitHub App installation token for full functionality."
     required: true
     default: ${{ github.token }}
   slack-token:
     description: "Slack Bot token for sending notifications (optional)"
     required: false
   config-repo:
-    description: "Fetch teams config from this GitHub repo (e.g. 'datarobot/.review-router'). Reads teams.yml from the repo root."
+    description: "Fetch teams config from this GitHub repo (e.g. 'acme-inc/.review-router'). Reads teams.yml from the repo root."
     required: false
   config-s3:
     description: "Fetch teams config from S3 (e.g. 's3://bucket-name/path/to/teams.yml'). Requires AWS credentials in the environment."

@@ -56,7 +56,8 @@ jobs:
 ### Comment trigger — `.github/workflows/review-router-comment.yml`
 
 Lets contributors (including external fork authors who cannot add labels) type
-`/review` in a PR comment to trigger review routing.
+`/review` in a PR comment to request a review. This adds the "Ready for Review"
+label, which triggers the main workflow above.
 
 ```yaml
 ---

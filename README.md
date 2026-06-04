@@ -81,7 +81,7 @@ Add a `.github/CODEOWNERS` file to your repo:
 
 ```
 # Default
-* @acme-copr/core-name
+* @acme-copr/core-team
 
 # Infrastructure
 infra/ @acme-corp/infra-team

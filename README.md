@@ -87,11 +87,18 @@ Add a `.github/CODEOWNERS` file to your repo:
 infra/ @acme-corp/infra-team
 ```
 
+## Guides
+
+- [Basic setup](docs/setup/basic.md): single-repo setup with step-by-step instructions
+- [External config](docs/setup/external-config.md): store team config in a GitHub repo or S3
+- [Reusable workflows](docs/setup/reusable-workflows.md): centralize the setup for an entire org
+- [Troubleshooting](docs/setup/troubleshooting.md): common issues and fixes
+
 ## Adding a new team
 
-1. Create the GitHub team in the your GitHub organization
+1. Create the GitHub team in your GitHub organization
 2. Add the team to repos' `.github/CODEOWNERS` files
-3. Add an entry to `config/teams.yml` in this [review-router](https://github.com/datarobot-oss/review-router)
+3. Add an entry to `config/teams.yml` (bundled or external)
 4. Invite the Slack bot to the team's channel
 
 ## Contributing

@@ -24,6 +24,7 @@ export interface ActionInputs {
   githubToken: string;
   slackToken: string;
   configRepo: string;
+  configToken: string;
   configS3: string;
   readyLabel: string;
   needsReviewPrefix: string;

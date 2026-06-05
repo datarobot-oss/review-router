@@ -102,12 +102,16 @@ export async function loadTeamsConfigForOrg(
   org: string,
   octokit?: Octokit,
   configRepo?: string,
+  configToken?: string,
   configS3?: string
 ): Promise<OrgConfig> {
   let content: string | null = null;
 
   if (configRepo && octokit) {
-    content = await fetchConfigFromRepo(octokit, configRepo);
+    const configOctokit = configToken
+      ? (await import("@actions/github")).getOctokit(configToken)
+      : octokit;
+    content = await fetchConfigFromRepo(configOctokit, configRepo);
   }
   if (!content && configS3) {
     content = await fetchConfigFromS3(configS3);

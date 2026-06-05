@@ -12,6 +12,9 @@ inputs:
   config-repo:
     description: "Fetch teams config from this GitHub repo (e.g. 'acme-inc/.review-router'). Reads teams.yml from the repo root."
     required: false
+  config-token:
+    description: "GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to github-token."
+    required: false
   config-s3:
     description: "Fetch teams config from S3 (e.g. 's3://bucket-name/path/to/teams.yml'). Requires AWS credentials in the environment."
     required: false

@@ -78777,10 +78777,13 @@ async function fetchConfigFromS3(s3Uri) {
         return null;
     }
 }
-async function loadTeamsConfigForOrg(org, octokit, configRepo, configS3) {
+async function loadTeamsConfigForOrg(org, octokit, configRepo, configToken, configS3) {
     let content = null;
     if (configRepo && octokit) {
-        content = await fetchConfigFromRepo(octokit, configRepo);
+        const configOctokit = configToken
+            ? (await Promise.resolve().then(() => __importStar(__nccwpck_require__(93228)))).getOctokit(configToken)
+            : octokit;
+        content = await fetchConfigFromRepo(configOctokit, configRepo);
     }
     if (!content && configS3) {
         content = await fetchConfigFromS3(configS3);
@@ -78881,6 +78884,7 @@ async function run() {
         githubToken: core.getInput("github-token", { required: true }),
         slackToken: core.getInput("slack-token"),
         configRepo: core.getInput("config-repo"),
+        configToken: core.getInput("config-token"),
         configS3: core.getInput("config-s3"),
         readyLabel: core.getInput("ready-label"),
         needsReviewPrefix: core.getInput("needs-review-prefix"),
@@ -78921,7 +78925,7 @@ async function run() {
         core.info(`Added "${inputs.readyLabel}" label to PR #${issue.number} via /review comment`);
         return;
     }
-    const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configS3);
+    const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configS3);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         action === "labeled") {

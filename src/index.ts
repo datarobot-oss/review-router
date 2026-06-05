@@ -10,6 +10,7 @@ async function run(): Promise<void> {
     githubToken: core.getInput("github-token", { required: true }),
     slackToken: core.getInput("slack-token"),
     configRepo: core.getInput("config-repo"),
+    configToken: core.getInput("config-token"),
     configS3: core.getInput("config-s3"),
     readyLabel: core.getInput("ready-label"),
     needsReviewPrefix: core.getInput("needs-review-prefix"),
@@ -61,6 +62,7 @@ async function run(): Promise<void> {
     owner,
     octokit,
     inputs.configRepo,
+    inputs.configToken,
     inputs.configS3
   );
 

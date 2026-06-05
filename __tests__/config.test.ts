@@ -3,15 +3,9 @@ import { OrgConfig } from "../src/types";
 
 describe("loadTeamsConfigForOrg", () => {
   it("loads org-specific config section from bundled config", async () => {
-    const config = await loadTeamsConfigForOrg("datarobot-oss");
-    expect(config.teams["applications"].label).toBe("Needs Review: Applications");
-    expect(config.teams["applications"]).toBeDefined();
-  });
-
-  it("loads different config for different org", async () => {
-    const config = await loadTeamsConfigForOrg("datarobot-community");
-    expect(config.teams["applications"]).toBeDefined();
-    expect(config.teams["datarobot-agent-skills"]).toBeUndefined();
+    const config = await loadTeamsConfigForOrg("acme-corp");
+    expect(config.teams["frontend"].label).toBe("Needs Review: Frontend");
+    expect(config.teams["backend"]).toBeDefined();
   });
 
   it("returns empty teams for unknown org", async () => {
@@ -61,12 +55,12 @@ orgs:
 describe("getLabelForTeam", () => {
   let config: OrgConfig;
   beforeAll(async () => {
-    config = await loadTeamsConfigForOrg("datarobot-oss");
+    config = await loadTeamsConfigForOrg("acme-corp");
   });
 
   it("returns configured label for known team", () => {
-    expect(getLabelForTeam(config, "applications", "Needs Review")).toBe(
-      "Needs Review: Applications"
+    expect(getLabelForTeam(config, "frontend", "Needs Review")).toBe(
+      "Needs Review: Frontend"
     );
   });
 
@@ -77,8 +71,8 @@ describe("getLabelForTeam", () => {
   });
 
   it("resolves -oss suffixed slug to base team config", () => {
-    expect(getLabelForTeam(config, "applications-oss", "Needs Review")).toBe(
-      "Needs Review: Applications"
+    expect(getLabelForTeam(config, "frontend-oss", "Needs Review")).toBe(
+      "Needs Review: Frontend"
     );
   });
 
@@ -201,8 +195,8 @@ describe("loadTeamsConfigForOrg with external config", () => {
         },
       },
     };
-    const config = await loadTeamsConfigForOrg("datarobot-oss", mockOctokit as any, "owner/config-repo");
-    expect(config.teams["applications"]).toBeDefined();
+    const config = await loadTeamsConfigForOrg("acme-corp", mockOctokit as any, "owner/config-repo");
+    expect(config.teams["frontend"]).toBeDefined();
   });
 
   it("falls back to bundled config when external YAML is malformed", async () => {
@@ -216,16 +210,16 @@ describe("loadTeamsConfigForOrg with external config", () => {
         },
       },
     };
-    const config = await loadTeamsConfigForOrg("datarobot-oss", mockOctokit as any, "owner/config-repo");
-    expect(config.teams["applications"]).toBeDefined();
+    const config = await loadTeamsConfigForOrg("acme-corp", mockOctokit as any, "owner/config-repo");
+    expect(config.teams["frontend"]).toBeDefined();
   });
 
   it("falls back to bundled config when repo fetch fails", async () => {
     const mockOctokit = {
       rest: { repos: { get: mockReposGet, getContent: jest.fn().mockRejectedValue({ status: 404 }) } },
     };
-    const config = await loadTeamsConfigForOrg("datarobot-oss", mockOctokit as any, "owner/missing-repo");
-    expect(config.teams["applications"]).toBeDefined();
+    const config = await loadTeamsConfigForOrg("acme-corp", mockOctokit as any, "owner/missing-repo");
+    expect(config.teams["frontend"]).toBeDefined();
   });
 });
 

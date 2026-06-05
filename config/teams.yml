@@ -1,8 +1,20 @@
-# Example team config for review-router.
-# The action selects the section matching the repo's GitHub org at runtime.
+# Review Router team configuration.
 #
-# For production use, store your config in a private repo and set the
-# config-repo input. See docs/setup/external-config.md for details.
+# Two ways to use this:
+#
+# 1. External config repo (recommended for organizations):
+#    Store teams.yml in a separate repo (private or public) and point
+#    to it with the config-repo input. This keeps sensitive data like
+#    Slack channel IDs out of the public action repo, and lets you
+#    update team mappings without rebuilding the action.
+#    See docs/setup/external-config.md for details.
+#
+# 2. Fork and edit (quick start for individuals/small teams):
+#    Fork this repo, edit this file with your org and teams, and
+#    reference your fork in the workflow: uses: your-org/review-router@v1
+#
+# The action selects the org section matching the repo's GitHub org at runtime.
+# Schema: config/schema.json
 
 orgs:
   acme-corp:
@@ -16,3 +28,8 @@ orgs:
       platform:
         label: "Needs Review: Platform"
         slack_channel: ""
+
+# Optional: map GitHub usernames to Slack user IDs for mentions.
+# users:
+#   johndoe: U01ABC123
+#   janedoe: U02DEF456

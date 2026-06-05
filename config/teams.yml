@@ -1,52 +1,18 @@
-# Team config per org.
-# The action selects the section matching the repo's org at runtime.
-# Slack channels: set per-team to enable notifications, omit to skip.
+# Example team config for review-router.
+# The action selects the section matching the repo's GitHub org at runtime.
+#
+# For production use, store your config in a private repo and set the
+# config-repo input. See docs/setup/external-config.md for details.
 
 orgs:
-  datarobot-oss:
+  acme-corp:
     teams:
-      applications:
-        label: "Needs Review: Applications"
-        slack_channel: "C03AUH9KWG4"
-      datarobot-agent-skills:
-        label: "Needs Review: Agent Skills"
-        slack_channel: "C03AUH9KWG4"
-      agentic-assistant:
-        label: "Needs Review: Agentic Assistant"
-        slack_channel: "C0AAA8Y9UH5"
-      core-modeling:
-        label: "Needs Review: Core Modeling"
-        slack_channel: "C08E1SD3MUP"
-      buzok:
-        label: "Needs Review: Buzok"
-        slack_channel: "C05EDSV3VGQ"
-      mcp:
-        label: "Needs Review: MCP"
-        slack_channel: "C0AT8NH77PB"
-      api-docs:
-        label: "Needs Review: API Docs"
-        slack_channel: "C0CNXJJFL"
-      docs:
-        label: "Needs Review: Docs"
-        slack_channel: "C0CNXJJFL"
-
-  datarobot-community:
-    teams:
-      applications:
-        label: "Needs Review: Applications"
-        slack_channel: "C03AUH9KWG4"
-      buzok:
-        label: "Needs Review: Buzok"
-        slack_channel: "C05EDSV3VGQ"
-      mcp:
-        label: "Needs Review: MCP"
-        slack_channel: "C0AT8NH77PB"
-      dsx:
-        label: "Needs Review: DSX"
-        slack_channel: "C053QK4M33R"
-      api-docs:
-        label: "Needs Review: API Docs"
-        slack_channel: "C0CNXJJFL"
-      docs:
-        label: "Needs Review: Docs"
-        slack_channel: "C0CNXJJFL"
+      frontend:
+        label: "Needs Review: Frontend"
+        slack_channel: ""
+      backend:
+        label: "Needs Review: Backend"
+        slack_channel: ""
+      platform:
+        label: "Needs Review: Platform"
+        slack_channel: ""

@@ -15,6 +15,11 @@ to the right teams based on your CODEOWNERS file.
 The action works best with a GitHub App installation token. This gives it
 the permissions it needs without using a personal account.
 
+DataRobot organizations can install the existing app:
+https://github.com/apps/datarobot-pr-review-router
+
+For other organizations, create a new GitHub App:
+
 1. Go to your org settings > Developer settings > GitHub Apps > New GitHub App
 2. Set the following permissions:
    - **Contents**: Read

@@ -75,9 +75,25 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     `Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`
   );
 
+  const channelIndividualOwners = new Map<string, Set<string>>();
+  for (const [teamSlug, teamFileList] of ownership.teamFiles) {
+    const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
+    if (!slackChannel) continue;
+    const teamFiles = new Set(teamFileList);
+    const owners = [...ownership.defaultedFiles.entries()]
+      .filter(([file]) => teamFiles.has(file))
+      .flatMap(([, o]) => o);
+    if (!channelIndividualOwners.has(slackChannel)) {
+      channelIndividualOwners.set(slackChannel, new Set());
+    }
+    for (const owner of owners) {
+      channelIndividualOwners.get(slackChannel)!.add(owner);
+    }
+  }
+
   const notifiedChannels = new Set<string>();
 
-  for (const [teamSlug, teamFileList] of ownership.teamFiles) {
+  for (const [teamSlug] of ownership.teamFiles) {
     const labelName = getLabelForTeam(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
 
     await ensureLabel(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
@@ -107,14 +123,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
       const displayLabels = ctx.labels.filter(
         (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
       );
-      const teamFiles = new Set(teamFileList);
-      const individualOwners = [
-        ...new Set(
-          [...ownership.defaultedFiles.entries()]
-            .filter(([file]) => teamFiles.has(file))
-            .flatMap(([, owners]) => owners)
-        ),
-      ];
+      const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
       await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,

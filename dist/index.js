@@ -79327,8 +79327,24 @@ async function handleLabeled(octokit, ctx) {
         .map((f) => fileStatsMap.get(f))
         .filter((s) => s !== undefined);
     core.info(`Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`);
-    const notifiedChannels = new Set();
+    const channelIndividualOwners = new Map();
     for (const [teamSlug, teamFileList] of ownership.teamFiles) {
+        const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
+        if (!slackChannel)
+            continue;
+        const teamFiles = new Set(teamFileList);
+        const owners = [...ownership.defaultedFiles.entries()]
+            .filter(([file]) => teamFiles.has(file))
+            .flatMap(([, o]) => o);
+        if (!channelIndividualOwners.has(slackChannel)) {
+            channelIndividualOwners.set(slackChannel, new Set());
+        }
+        for (const owner of owners) {
+            channelIndividualOwners.get(slackChannel).add(owner);
+        }
+    }
+    const notifiedChannels = new Set();
+    for (const [teamSlug] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
         await (0, labels_1.ensureLabel)(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
         await (0, labels_1.applyLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, labelName);
@@ -79353,12 +79369,7 @@ async function handleLabeled(octokit, ctx) {
         if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
             notifiedChannels.add(slackChannel);
             const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
-            const teamFiles = new Set(teamFileList);
-            const individualOwners = [
-                ...new Set([...ownership.defaultedFiles.entries()]
-                    .filter(([file]) => teamFiles.has(file))
-                    .flatMap(([, owners]) => owners)),
-            ];
+            const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
             await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,

@@ -1,4 +1,9 @@
-import { buildSlackBlocks, sendSlackNotification } from "../src/slack";
+import {
+  buildSlackBlocks,
+  buildSlackReminderBlocks,
+  sendSlackNotification,
+  sendSlackReminder,
+} from "../src/slack";
 
 const params = {
   prUrl: "https://github.com/org/repo/pull/1",
@@ -105,10 +110,121 @@ describe("buildSlackBlocks", () => {
     expect(fallback).toContain("alice");
     expect(fallback).not.toContain("*");
   });
+
+  it("adds cc block with Slack mentions for individual owners", () => {
+    const { blocks } = buildSlackBlocks({
+      ...params,
+      individualOwners: ["@johndoe", "@janedoe"],
+      users: { johndoe: "U123ABC", janedoe: "U456DEF" },
+    });
+    const ccBlock = blocks.find(
+      (b) => b.type === "context" && b.elements?.[0]?.text?.includes("cc")
+    );
+    expect(ccBlock).toBeDefined();
+    expect(ccBlock!.elements[0].text).toContain("<@U123ABC>");
+    expect(ccBlock!.elements[0].text).toContain("<@U456DEF>");
+  });
+
+  it("skips cc block when no Slack mapping exists for owners", () => {
+    const { blocks } = buildSlackBlocks({
+      ...params,
+      individualOwners: ["@johndoe"],
+      users: {},
+    });
+    const ccBlock = blocks.find(
+      (b) => b.type === "context" && b.elements?.[0]?.text?.includes("cc")
+    );
+    expect(ccBlock).toBeUndefined();
+  });
+
+  it("skips cc block when no individual owners", () => {
+    const { blocks } = buildSlackBlocks(params);
+    const ccBlock = blocks.find(
+      (b) => b.type === "context" && b.elements?.[0]?.text?.includes("cc")
+    );
+    expect(ccBlock).toBeUndefined();
+  });
+
+  it("skips cc block when users config is undefined", () => {
+    const { blocks } = buildSlackBlocks({
+      ...params,
+      individualOwners: ["@johndoe"],
+    });
+    const ccBlock = blocks.find(
+      (b) => b.type === "context" && b.elements?.[0]?.text?.includes("cc")
+    );
+    expect(ccBlock).toBeUndefined();
+  });
+});
+
+describe("buildSlackReminderBlocks", () => {
+  const reminderParams = {
+    prUrl: "https://github.com/org/repo/pull/10",
+    prTitle: "Stale PR",
+    prNumber: 10,
+    orgName: "org",
+    repoName: "repo",
+    teamName: "Frontend",
+    ageDisplay: "2 days",
+  };
+
+  it("builds 4-block structure: header, title, context, button", () => {
+    const { blocks } = buildSlackReminderBlocks(reminderParams);
+    expect(blocks).toHaveLength(4);
+    expect(blocks[0].type).toBe("section");
+    expect(blocks[1].type).toBe("section");
+    expect(blocks[2].type).toBe("context");
+    expect(blocks[3].type).toBe("actions");
+  });
+
+  it("has reminder header with PR link", () => {
+    const { blocks } = buildSlackReminderBlocks(reminderParams);
+    const header = blocks[0].text.text;
+    expect(header).toContain("Reminder");
+    expect(header).toContain("still needs review");
+    expect(header).toContain("<https://github.com/org/repo/pull/10|org/repo #10>");
+  });
+
+  it("shows age and team name in context", () => {
+    const { blocks } = buildSlackReminderBlocks(reminderParams);
+    const context = blocks[2].elements[0].text;
+    expect(context).toContain("2 days");
+    expect(context).toContain("Frontend");
+  });
+
+  it("has view PR button", () => {
+    const { blocks } = buildSlackReminderBlocks(reminderParams);
+    const button = blocks[3].elements[0];
+    expect(button.text.text).toBe("View pull request");
+    expect(button.url).toBe("https://github.com/org/repo/pull/10");
+  });
+
+  it("has plain text fallback", () => {
+    const { fallback } = buildSlackReminderBlocks(reminderParams);
+    expect(fallback).toContain("Reminder");
+    expect(fallback).toContain("org/repo#10");
+    expect(fallback).toContain("2 days");
+  });
 });
 
 describe("sendSlackNotification", () => {
   it("returns early when no token is provided", async () => {
     await expect(sendSlackNotification("", "#channel", params)).resolves.not.toThrow();
+  });
+});
+
+describe("sendSlackReminder", () => {
+  it("returns early when no token is provided", async () => {
+    await expect(
+      sendSlackReminder("", "#channel", {
+        prUrl: "https://github.com/org/repo/pull/1",
+        prTitle: "Test",
+        prNumber: 1,
+        orgName: "org",
+        repoName: "repo",
+        teamName: "Frontend",
+        ageDisplay: "1 day",
+      })
+    ).resolves.not.toThrow();
   });
 });

@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { handleLabeled, handleReviewSubmitted } from "./router";
+import { handleLabeled, handleReviewSubmitted, handleOpened } from "./router";
+import { handleSchedule } from "./reminders";
 import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
@@ -67,6 +68,37 @@ async function run(): Promise<void> {
   );
 
   const capabilities = await detectCapabilities(octokit, owner);
+
+  if (eventName === "schedule") {
+    await handleSchedule(octokit, {
+      owner,
+      repo,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "opened"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    await handleOpened(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      author: pr.user?.login ?? "",
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
 
   if (
     (eventName === "pull_request" || eventName === "pull_request_target") &&

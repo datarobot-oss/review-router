@@ -75,6 +75,22 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     `Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`
   );
 
+  const channelIndividualOwners = new Map<string, Set<string>>();
+  for (const [teamSlug, teamFileList] of ownership.teamFiles) {
+    const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
+    if (!slackChannel) continue;
+    const teamFiles = new Set(teamFileList);
+    const owners = [...ownership.defaultedFiles.entries()]
+      .filter(([file]) => teamFiles.has(file))
+      .flatMap(([, o]) => o);
+    if (!channelIndividualOwners.has(slackChannel)) {
+      channelIndividualOwners.set(slackChannel, new Set());
+    }
+    for (const owner of owners) {
+      channelIndividualOwners.get(slackChannel)!.add(owner);
+    }
+  }
+
   const notifiedChannels = new Set<string>();
 
   for (const [teamSlug] of ownership.teamFiles) {
@@ -107,6 +123,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
       const displayLabels = ctx.labels.filter(
         (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
       );
+      const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
       await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
@@ -120,14 +137,14 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
         commits: ctx.commits,
         labels: displayLabels,
         allFiles: allFileStats,
+        individualOwners,
+        users: ctx.teamsConfig.users,
       });
     }
   }
 
   const commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
-
-  await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 
 export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext): Promise<void> {
@@ -193,4 +210,39 @@ export function resolveTeamSlugFromLabel(
   const suffix = labelName.replace(`${prefix}: `, "");
   if (!suffix) return undefined;
   return suffix.toLowerCase().replace(/\s+/g, "-");
+}
+
+export interface OpenedContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  author: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promise<void> {
+  if (!ctx.teamsConfig.dependabot?.auto_label) {
+    core.info("Dependabot auto-label is disabled or not configured");
+    return;
+  }
+
+  if (ctx.author !== "dependabot[bot]") {
+    core.info(`PR author "${ctx.author}" is not dependabot[bot], skipping auto-label`);
+    return;
+  }
+
+  core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+  try {
+    await octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: ctx.prNumber,
+      labels: [ctx.inputs.readyLabel],
+    });
+  } catch (error) {
+    core.warning(
+      `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

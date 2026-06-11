@@ -31,6 +31,10 @@ inputs:
     required: false
     default: "fbca04"
 
+branding:
+  icon: "user-check"
+  color: "green"
+
 runs:
   using: "node20"
   main: "dist/index.js"

@@ -3,13 +3,26 @@ export interface TeamConfig {
   slack_channel: string;
 }
 
+export interface RemindersConfig {
+  enabled: boolean;
+  stale_hours?: number;
+}
+
+export interface DependabotConfig {
+  auto_label: boolean;
+}
+
 export interface OrgConfig {
   default_slack_channel?: string;
+  reminders?: RemindersConfig;
+  dependabot?: DependabotConfig;
   teams: Record<string, TeamConfig>;
+  users?: Record<string, string>;
 }
 
 export interface TeamsConfig {
   orgs: Record<string, OrgConfig>;
+  users?: Record<string, string>;
 }
 
 export interface OwnershipMap {

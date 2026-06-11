@@ -1,4 +1,9 @@
-import { handleLabeled, handleReviewSubmitted, resolveTeamSlugFromLabel } from "../src/router";
+import {
+  handleLabeled,
+  handleReviewSubmitted,
+  handleOpened,
+  resolveTeamSlugFromLabel,
+} from "../src/router";
 import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
 import * as comment from "../src/comment";
@@ -27,6 +32,7 @@ const mockOctokit = {
     issues: {
       listLabelsOnIssue: jest.fn(),
       removeLabel: jest.fn(),
+      addLabels: jest.fn(),
     },
   },
   paginate: jest.fn(),
@@ -387,5 +393,77 @@ describe("resolveTeamSlugFromLabel", () => {
 
   it("returns undefined for empty suffix", () => {
     expect(resolveTeamSlugFromLabel("Needs Review: ", teamsConfig, "Needs Review")).toBeUndefined();
+  });
+});
+
+describe("handleOpened", () => {
+  const baseInputs = {
+    githubToken: "token",
+    slackToken: "",
+    configRepo: "",
+    configToken: "",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+  };
+
+  it("skips when dependabot config is absent", async () => {
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      author: "dependabot[bot]",
+      inputs: baseInputs,
+      teamsConfig,
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("skips when auto_label is false", async () => {
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      author: "dependabot[bot]",
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, dependabot: { auto_label: false } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("skips non-dependabot authors", async () => {
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      author: "alice",
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, dependabot: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("adds ready label for dependabot PRs", async () => {
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 42,
+      author: "dependabot[bot]",
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, dependabot: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      issue_number: 42,
+      labels: ["Ready for Review"],
+    });
   });
 });

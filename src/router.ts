@@ -76,9 +76,8 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   );
 
   const notifiedChannels = new Set<string>();
-  const individualOwners = [...new Set([...ownership.defaultedFiles.values()].flat())];
 
-  for (const [teamSlug] of ownership.teamFiles) {
+  for (const [teamSlug, teamFileList] of ownership.teamFiles) {
     const labelName = getLabelForTeam(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
 
     await ensureLabel(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
@@ -108,6 +107,14 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
       const displayLabels = ctx.labels.filter(
         (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
       );
+      const teamFiles = new Set(teamFileList);
+      const individualOwners = [
+        ...new Set(
+          [...ownership.defaultedFiles.entries()]
+            .filter(([file]) => teamFiles.has(file))
+            .flatMap(([, owners]) => owners)
+        ),
+      ];
       await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,

@@ -119,9 +119,10 @@ on:
 
 ### Stale PR Reminders
 
-When `reminders.enabled` is `true`, a scheduled run scans open PRs for stale
-"Needs Review" labels and re-sends Slack notifications. Only PRs where the label
-has been present for at least `stale_hours` (default 24) are reminded.
+When `reminders.enabled` is `true`, a scheduled run scans open PRs that still
+have the "Ready for Review" label and any "Needs Review" team labels, then
+re-sends Slack notifications. Only PRs where the "Ready for Review" label was
+added at least `stale_hours` (default 24) ago are reminded.
 
 Add a `schedule` trigger to your workflow:
 

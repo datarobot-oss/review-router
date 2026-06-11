@@ -25,7 +25,10 @@ export interface SlackMessageParams {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SlackBlock = Record<string, any>;
 
-export function buildSlackBlocks(params: SlackMessageParams): { blocks: SlackBlock[]; fallback: string } {
+export function buildSlackBlocks(params: SlackMessageParams): {
+  blocks: SlackBlock[];
+  fallback: string;
+} {
   const maxFiles = 10;
   const visibleFiles = params.allFiles.slice(0, maxFiles);
   const remaining = params.allFiles.length - visibleFiles.length;

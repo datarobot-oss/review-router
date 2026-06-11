@@ -142,11 +142,7 @@ function resolveTeamConfig(config: OrgConfig, teamSlug: string): TeamConfig | un
   return undefined;
 }
 
-export function getLabelForTeam(
-  config: OrgConfig,
-  teamSlug: string,
-  prefix: string
-): string {
+export function getLabelForTeam(config: OrgConfig, teamSlug: string, prefix: string): string {
   const teamConfig = resolveTeamConfig(config, teamSlug);
   if (teamConfig) {
     return teamConfig.label;
@@ -164,9 +160,6 @@ export function humanizeSlug(slug: string): string {
     .join(" ");
 }
 
-export function getSlackChannel(
-  config: OrgConfig,
-  teamSlug: string
-): string | undefined {
+export function getSlackChannel(config: OrgConfig, teamSlug: string): string | undefined {
   return resolveTeamConfig(config, teamSlug)?.slack_channel ?? config.default_slack_channel;
 }

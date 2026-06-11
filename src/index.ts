@@ -100,10 +100,7 @@ async function run(): Promise<void> {
       capabilities,
       teamsConfig,
     });
-  } else if (
-    eventName === "pull_request_review" &&
-    action === "submitted"
-  ) {
+  } else if (eventName === "pull_request_review" && action === "submitted") {
     const pr = context.payload.pull_request;
     const review = context.payload.review;
     if (!pr || !review) {

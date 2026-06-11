@@ -1,15 +1,7 @@
 import * as core from "@actions/core";
-import {
-  fetchCodeownersContent,
-  parseCodeowners,
-  mapFilesToTeams,
-} from "./codeowners";
+import { fetchCodeownersContent, parseCodeowners, mapFilesToTeams } from "./codeowners";
 import { ensureLabel, applyLabel, removeLabel } from "./labels";
-import {
-  buildOwnershipComment,
-  upsertComment,
-  COMMENT_MARKER,
-} from "./comment";
+import { buildOwnershipComment, upsertComment, COMMENT_MARKER } from "./comment";
 import { sendSlackNotification, FileStats } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
 import { ActionInputs, Capabilities, OrgConfig, Octokit } from "./types";
@@ -41,10 +33,7 @@ export interface ReviewContext {
   teamsConfig: OrgConfig;
 }
 
-export async function handleLabeled(
-  octokit: Octokit,
-  ctx: LabeledContext
-): Promise<void> {
+export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Promise<void> {
   const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
     owner: ctx.owner,
     repo: ctx.repo,
@@ -53,7 +42,11 @@ export async function handleLabeled(
   const filenames = files.map((f: { filename: string }) => f.filename);
   const fileStatsMap = new Map<string, FileStats>();
   for (const f of files as Array<{ filename: string; additions: number; deletions: number }>) {
-    fileStatsMap.set(f.filename, { filename: f.filename, additions: f.additions, deletions: f.deletions });
+    fileStatsMap.set(f.filename, {
+      filename: f.filename,
+      additions: f.additions,
+      deletions: f.deletions,
+    });
   }
   core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
 
@@ -85,19 +78,9 @@ export async function handleLabeled(
   const notifiedChannels = new Set<string>();
 
   for (const [teamSlug] of ownership.teamFiles) {
-    const labelName = getLabelForTeam(
-      ctx.teamsConfig,
-      teamSlug,
-      ctx.inputs.needsReviewPrefix
-    );
+    const labelName = getLabelForTeam(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
 
-    await ensureLabel(
-      octokit,
-      ctx.owner,
-      ctx.repo,
-      labelName,
-      ctx.inputs.needsReviewLabelColor
-    );
+    await ensureLabel(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
     await applyLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, labelName);
 
     if (ctx.capabilities.hasOrgAccess) {
@@ -115,9 +98,7 @@ export async function handleLabeled(
         );
       }
     } else {
-      core.info(
-        `Skipping team review request for ${teamSlug} (no org access)`
-      );
+      core.info(`Skipping team review request for ${teamSlug} (no org access)`);
     }
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
@@ -149,14 +130,9 @@ export async function handleLabeled(
   await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 
-export async function handleReviewSubmitted(
-  octokit: Octokit,
-  ctx: ReviewContext
-): Promise<void> {
+export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext): Promise<void> {
   if (!ctx.capabilities.hasOrgAccess) {
-    core.info(
-      "Skipping label removal on approval (no org access)"
-    );
+    core.info("Skipping label removal on approval (no org access)");
     return;
   }
 
@@ -176,7 +152,11 @@ export async function handleReviewSubmitted(
   }
 
   for (const label of needsReviewLabels) {
-    const teamSlug = resolveTeamSlugFromLabel(label.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix);
+    const teamSlug = resolveTeamSlugFromLabel(
+      label.name,
+      ctx.teamsConfig,
+      ctx.inputs.needsReviewPrefix
+    );
     if (!teamSlug) continue;
 
     try {
@@ -186,15 +166,11 @@ export async function handleReviewSubmitted(
         username: ctx.reviewer,
       });
       await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, label.name);
-      core.info(
-        `Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`
-      );
+      core.info(`Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`);
     } catch (error: unknown) {
       const httpError = error as { status?: number };
       if (httpError.status === 404) {
-        core.debug(
-          `Reviewer ${ctx.reviewer} is not a member of team ${teamSlug}`
-        );
+        core.debug(`Reviewer ${ctx.reviewer} is not a member of team ${teamSlug}`);
       } else {
         core.warning(
           `Error checking team membership for ${ctx.reviewer} in ${teamSlug}: ${error instanceof Error ? error.message : String(error)}`

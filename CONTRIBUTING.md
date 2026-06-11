@@ -6,7 +6,6 @@ Guidelines for developing and contributing to this project.
 
 - [Andrii Kislitsyn](https://github.com/andriykislitsyn)
 
-
 ## Opening new issues
 
 - Before opening a new issue check if there are any existing FAQ entries (if one exists), issues or pull requests that match your case
@@ -16,9 +15,9 @@ Guidelines for developing and contributing to this project.
 ## Did you find a bug?
 
 - Do not open up a GitHub issue if the bug is a security
-vulnerability, instead email the maintainers directly or email
-oss-community-management@datarobot.com if they do not respond within
-seven days
+  vulnerability, instead email the maintainers directly or email
+  oss-community-management@datarobot.com if they do not respond within
+  seven days
 - Ensure the bug was not already reported in the projects Issues section
 - Open an issue as described above
 

@@ -70,8 +70,13 @@ The action handles three event types:
 - **`pull_request_review: submitted`** — removes team labels on approval
 - **`issue_comment: created`** — when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
 
-Uses `pull_request_target` so fork PRs work — the workflow always runs from the base
+Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
 branch, so external contributors cannot modify it or access secrets.
+
+Routing runs once when the "Ready for Review" label is added. The label stays
+on the PR after routing. To re-route (e.g. after the file list changes
+significantly), remove the label and re-add it, or have a contributor comment
+`/review` again after a maintainer removes the label.
 
 ## Inputs
 
@@ -116,6 +121,9 @@ on:
   pull_request_target:
     types: [labeled, opened]
 ```
+
+Repos that don't want dependabot auto-labeling can simply omit `opened` from
+their trigger types. The org-level config flag is a second layer of control.
 
 ### Stale PR Reminders
 

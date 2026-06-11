@@ -22,6 +22,15 @@ Add a single workflow to your repo at `.github/workflows/review-router.yml`:
 ---
 name: Review Router
 
+# SECURITY: This workflow intentionally uses pull_request_target (not
+# pull_request) because review-router never checks out or executes PR code.
+# Do NOT add actions/checkout or shell run: blocks here.
+#
+# If you need to build or test PR code, use a separate workflow with the
+# pull_request trigger instead.
+#
+# See: https://github.com/datarobot-oss/review-router/blob/main/docs/security/pull-request-target.md
+
 on:
   pull_request_target:
     types: [labeled]

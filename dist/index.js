@@ -79572,8 +79572,9 @@ function buildSlackBlocks(params) {
             .map((owner) => {
             const username = owner.replace(/^@/, "");
             const slackId = params.users?.[username];
-            return slackId ? `<@${slackId}>` : `@${username}`;
+            return slackId ? `<@${slackId}>` : null;
         })
+            .filter((v) => v !== null)
             .filter((v, i, a) => a.indexOf(v) === i);
         if (mentions.length > 0) {
             blocks.splice(-1, 0, {

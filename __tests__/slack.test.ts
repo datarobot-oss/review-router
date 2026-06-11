@@ -125,7 +125,7 @@ describe("buildSlackBlocks", () => {
     expect(ccBlock!.elements[0].text).toContain("<@U456DEF>");
   });
 
-  it("falls back to @username when no Slack mapping exists", () => {
+  it("skips cc block when no Slack mapping exists for owners", () => {
     const { blocks } = buildSlackBlocks({
       ...params,
       individualOwners: ["@johndoe"],
@@ -134,8 +134,7 @@ describe("buildSlackBlocks", () => {
     const ccBlock = blocks.find(
       (b) => b.type === "context" && b.elements?.[0]?.text?.includes("cc")
     );
-    expect(ccBlock).toBeDefined();
-    expect(ccBlock!.elements[0].text).toContain("@johndoe");
+    expect(ccBlock).toBeUndefined();
   });
 
   it("skips cc block when no individual owners", () => {
@@ -146,7 +145,7 @@ describe("buildSlackBlocks", () => {
     expect(ccBlock).toBeUndefined();
   });
 
-  it("falls back to @username when users config is undefined", () => {
+  it("skips cc block when users config is undefined", () => {
     const { blocks } = buildSlackBlocks({
       ...params,
       individualOwners: ["@johndoe"],
@@ -154,8 +153,7 @@ describe("buildSlackBlocks", () => {
     const ccBlock = blocks.find(
       (b) => b.type === "context" && b.elements?.[0]?.text?.includes("cc")
     );
-    expect(ccBlock).toBeDefined();
-    expect(ccBlock!.elements[0].text).toContain("@johndoe");
+    expect(ccBlock).toBeUndefined();
   });
 });
 

@@ -109,8 +109,6 @@ describe("buildSlackBlocks", () => {
 
 describe("sendSlackNotification", () => {
   it("returns early when no token is provided", async () => {
-    await expect(
-      sendSlackNotification("", "#channel", params)
-    ).resolves.not.toThrow();
+    await expect(sendSlackNotification("", "#channel", params)).resolves.not.toThrow();
   });
 });

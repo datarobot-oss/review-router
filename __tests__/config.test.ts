@@ -1,4 +1,12 @@
-import { loadTeamsConfigForOrg, getLabelForTeam, getSlackChannel, parseTeamsConfig, humanizeSlug, fetchConfigFromRepo, fetchConfigFromS3 } from "../src/config";
+import {
+  loadTeamsConfigForOrg,
+  getLabelForTeam,
+  getSlackChannel,
+  parseTeamsConfig,
+  humanizeSlug,
+  fetchConfigFromRepo,
+  fetchConfigFromS3,
+} from "../src/config";
 import { OrgConfig } from "../src/types";
 
 describe("loadTeamsConfigForOrg", () => {
@@ -30,17 +38,20 @@ orgs:
   });
 
   it("throws on config missing required fields", () => {
-    expect(() => parseTeamsConfig(`
+    expect(() =>
+      parseTeamsConfig(`
 orgs:
   my-org:
     teams:
       foo:
         label: "L"
-`)).toThrow("Config validation failed");
+`)
+    ).toThrow("Config validation failed");
   });
 
   it("throws on config with unexpected fields", () => {
-    expect(() => parseTeamsConfig(`
+    expect(() =>
+      parseTeamsConfig(`
 orgs:
   my-org:
     teams:
@@ -48,7 +59,8 @@ orgs:
         label: "L"
         slack_channel: "#foo"
         unknown_field: "x"
-`)).toThrow("Config validation failed");
+`)
+    ).toThrow("Config validation failed");
   });
 });
 
@@ -59,9 +71,7 @@ describe("getLabelForTeam", () => {
   });
 
   it("returns configured label for known team", () => {
-    expect(getLabelForTeam(config, "frontend", "Needs Review")).toBe(
-      "Needs Review: Frontend"
-    );
+    expect(getLabelForTeam(config, "frontend", "Needs Review")).toBe("Needs Review: Frontend");
   });
 
   it("generates humanized label from slug for unknown team", () => {
@@ -71,11 +81,8 @@ describe("getLabelForTeam", () => {
   });
 
   it("resolves -oss suffixed slug to base team config", () => {
-    expect(getLabelForTeam(config, "frontend-oss", "Needs Review")).toBe(
-      "Needs Review: Frontend"
-    );
+    expect(getLabelForTeam(config, "frontend-oss", "Needs Review")).toBe("Needs Review: Frontend");
   });
-
 });
 
 describe("humanizeSlug", () => {
@@ -96,7 +103,8 @@ describe("fetchConfigFromRepo", () => {
   const mockReposGet = jest.fn().mockResolvedValue({ data: { default_branch: "main" } });
 
   it("fetches and decodes teams.yml from a GitHub repo", async () => {
-    const yamlContent = "orgs:\n  my-org:\n    teams:\n      foo:\n        label: L\n        slack_channel: '#foo'\n";
+    const yamlContent =
+      "orgs:\n  my-org:\n    teams:\n      foo:\n        label: L\n        slack_channel: '#foo'\n";
     const mockOctokit = {
       rest: {
         repos: {
@@ -118,7 +126,8 @@ describe("fetchConfigFromRepo", () => {
   });
 
   it("uses the repo default branch, not hardcoded main", async () => {
-    const yamlContent = "orgs:\n  my-org:\n    teams:\n      foo:\n        label: L\n        slack_channel: '#foo'\n";
+    const yamlContent =
+      "orgs:\n  my-org:\n    teams:\n      foo:\n        label: L\n        slack_channel: '#foo'\n";
     const mockOctokit = {
       rest: {
         repos: {
@@ -142,7 +151,9 @@ describe("fetchConfigFromRepo", () => {
 
   it("returns null when repo returns 404", async () => {
     const mockOctokit = {
-      rest: { repos: { get: mockReposGet, getContent: jest.fn().mockRejectedValue({ status: 404 }) } },
+      rest: {
+        repos: { get: mockReposGet, getContent: jest.fn().mockRejectedValue({ status: 404 }) },
+      },
     };
     const result = await fetchConfigFromRepo(mockOctokit as any, "owner/repo");
     expect(result).toBeNull();
@@ -150,7 +161,12 @@ describe("fetchConfigFromRepo", () => {
 
   it("returns null on other API errors", async () => {
     const mockOctokit = {
-      rest: { repos: { get: mockReposGet, getContent: jest.fn().mockRejectedValue(new Error("Server Error")) } },
+      rest: {
+        repos: {
+          get: mockReposGet,
+          getContent: jest.fn().mockRejectedValue(new Error("Server Error")),
+        },
+      },
     };
     const result = await fetchConfigFromRepo(mockOctokit as any, "owner/repo");
     expect(result).toBeNull();
@@ -168,7 +184,8 @@ describe("loadTeamsConfigForOrg with external config", () => {
   const mockReposGet = jest.fn().mockResolvedValue({ data: { default_branch: "main" } });
 
   it("uses config-repo when provided", async () => {
-    const yamlContent = "orgs:\n  test-org:\n    teams:\n      bar:\n        label: Bar\n        slack_channel: '#bar'\n";
+    const yamlContent =
+      "orgs:\n  test-org:\n    teams:\n      bar:\n        label: Bar\n        slack_channel: '#bar'\n";
     const mockOctokit = {
       rest: {
         repos: {
@@ -184,7 +201,8 @@ describe("loadTeamsConfigForOrg with external config", () => {
   });
 
   it("falls back to bundled config when external config has no matching org", async () => {
-    const yamlContent = "orgs:\n  other-org:\n    teams:\n      bar:\n        label: Bar\n        slack_channel: '#bar'\n";
+    const yamlContent =
+      "orgs:\n  other-org:\n    teams:\n      bar:\n        label: Bar\n        slack_channel: '#bar'\n";
     const mockOctokit = {
       rest: {
         repos: {
@@ -195,7 +213,11 @@ describe("loadTeamsConfigForOrg with external config", () => {
         },
       },
     };
-    const config = await loadTeamsConfigForOrg("acme-corp", mockOctokit as any, "owner/config-repo");
+    const config = await loadTeamsConfigForOrg(
+      "acme-corp",
+      mockOctokit as any,
+      "owner/config-repo"
+    );
     expect(config.teams["frontend"]).toBeDefined();
   });
 
@@ -210,15 +232,25 @@ describe("loadTeamsConfigForOrg with external config", () => {
         },
       },
     };
-    const config = await loadTeamsConfigForOrg("acme-corp", mockOctokit as any, "owner/config-repo");
+    const config = await loadTeamsConfigForOrg(
+      "acme-corp",
+      mockOctokit as any,
+      "owner/config-repo"
+    );
     expect(config.teams["frontend"]).toBeDefined();
   });
 
   it("falls back to bundled config when repo fetch fails", async () => {
     const mockOctokit = {
-      rest: { repos: { get: mockReposGet, getContent: jest.fn().mockRejectedValue({ status: 404 }) } },
+      rest: {
+        repos: { get: mockReposGet, getContent: jest.fn().mockRejectedValue({ status: 404 }) },
+      },
     };
-    const config = await loadTeamsConfigForOrg("acme-corp", mockOctokit as any, "owner/missing-repo");
+    const config = await loadTeamsConfigForOrg(
+      "acme-corp",
+      mockOctokit as any,
+      "owner/missing-repo"
+    );
     expect(config.teams["frontend"]).toBeDefined();
   });
 });

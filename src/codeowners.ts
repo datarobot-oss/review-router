@@ -5,10 +5,7 @@ export function parseCodeowners(content: string): CodeOwnersEntry[] {
   return parse(content);
 }
 
-export function matchFileToOwners(
-  filePath: string,
-  entries: CodeOwnersEntry[]
-): string[] {
+export function matchFileToOwners(filePath: string, entries: CodeOwnersEntry[]): string[] {
   // codeowners-utils parse() returns entries in reverse file order (last entry first).
   // For last-match-wins semantics we take the first matching entry in this reversed array.
   const normalizedFile = filePath.replace(/^\//, "");
@@ -59,10 +56,7 @@ function getDefaultTeamSlugs(entries: CodeOwnersEntry[]): string[] {
   return [];
 }
 
-export function mapFilesToTeams(
-  files: string[],
-  entries: CodeOwnersEntry[]
-): OwnershipMap {
+export function mapFilesToTeams(files: string[], entries: CodeOwnersEntry[]): OwnershipMap {
   const teamFiles = new Map<string, string[]>();
   const unownedFiles: string[] = [];
   const defaultedFiles = new Map<string, string[]>();

@@ -152,31 +152,33 @@ describe("handleLabeled", () => {
     (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
     mockOctokit.rest.pulls.requestReviewers.mockRejectedValue(new Error("Not Found"));
 
-    await expect(handleLabeled(mockOctokit as any, {
-      owner: "datarobot-community",
-      repo: "test-repo",
-      prNumber: 1,
-      baseBranch: "main",
-      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
-      prTitle: "Test PR",
-      author: "alice",
-      additions: 10,
-      deletions: 5,
-      commits: 1,
-      labels: [],
-      inputs: {
-        githubToken: "token",
-        slackToken: "",
-        configRepo: "",
-        configToken: "",
-        configS3: "",
-        readyLabel: "Ready for Review",
-        needsReviewPrefix: "Needs Review",
-        needsReviewLabelColor: "fbca04",
-      },
-      capabilities: { hasOrgAccess: true },
-      teamsConfig,
-    })).resolves.not.toThrow();
+    await expect(
+      handleLabeled(mockOctokit as any, {
+        owner: "datarobot-community",
+        repo: "test-repo",
+        prNumber: 1,
+        baseBranch: "main",
+        prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+        prTitle: "Test PR",
+        author: "alice",
+        additions: 10,
+        deletions: 5,
+        commits: 1,
+        labels: [],
+        inputs: {
+          githubToken: "token",
+          slackToken: "",
+          configRepo: "",
+          configToken: "",
+          configS3: "",
+          readyLabel: "Ready for Review",
+          needsReviewPrefix: "Needs Review",
+          needsReviewLabelColor: "fbca04",
+        },
+        capabilities: { hasOrgAccess: true },
+        teamsConfig,
+      })
+    ).resolves.not.toThrow();
   });
 
   it("sends Slack notification when token and channel are configured", async () => {
@@ -345,10 +347,12 @@ describe("handleReviewSubmitted", () => {
     });
     mockOctokit.rest.teams.getMembershipForUserInOrg.mockRejectedValue(new Error("Server Error"));
 
-    await expect(handleReviewSubmitted(mockOctokit as any, {
-      ...baseCtx,
-      capabilities: { hasOrgAccess: true },
-    })).resolves.not.toThrow();
+    await expect(
+      handleReviewSubmitted(mockOctokit as any, {
+        ...baseCtx,
+        capabilities: { hasOrgAccess: true },
+      })
+    ).resolves.not.toThrow();
 
     expect(labels.removeLabel).not.toHaveBeenCalled();
   });
@@ -370,20 +374,18 @@ describe("handleReviewSubmitted", () => {
 
 describe("resolveTeamSlugFromLabel", () => {
   it("returns slug from config when label matches", () => {
-    expect(resolveTeamSlugFromLabel(
-      "Needs Review: Customer Engineering", teamsConfig, "Needs Review"
-    )).toBe("customer-engineering");
+    expect(
+      resolveTeamSlugFromLabel("Needs Review: Customer Engineering", teamsConfig, "Needs Review")
+    ).toBe("customer-engineering");
   });
 
   it("derives slug from label suffix when not in config", () => {
-    expect(resolveTeamSlugFromLabel(
-      "Needs Review: Some New Team", teamsConfig, "Needs Review"
-    )).toBe("some-new-team");
+    expect(
+      resolveTeamSlugFromLabel("Needs Review: Some New Team", teamsConfig, "Needs Review")
+    ).toBe("some-new-team");
   });
 
   it("returns undefined for empty suffix", () => {
-    expect(resolveTeamSlugFromLabel(
-      "Needs Review: ", teamsConfig, "Needs Review"
-    )).toBeUndefined();
+    expect(resolveTeamSlugFromLabel("Needs Review: ", teamsConfig, "Needs Review")).toBeUndefined();
   });
 });

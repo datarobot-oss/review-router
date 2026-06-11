@@ -21,9 +21,7 @@ export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boo
   }
 
   if (ownership.unownedFiles.length > 0) {
-    lines.push(
-      "<details><summary>Unowned files (no CODEOWNERS match)</summary>"
-    );
+    lines.push("<details><summary>Unowned files (no CODEOWNERS match)</summary>");
     lines.push("");
     for (const file of ownership.unownedFiles) {
       lines.push(`- \`${file}\``);
@@ -38,9 +36,7 @@ export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boo
       "_Review requested from the teams above. Labels will be removed automatically upon approval._"
     );
   } else {
-    lines.push(
-      "_Review requested from the teams above._"
-    );
+    lines.push("_Review requested from the teams above._");
   }
   return lines.join("\n");
 }
@@ -57,9 +53,7 @@ export async function upsertComment(
     repo,
     issue_number: prNumber,
   });
-  const existing = comments.find(
-    (c) => c.body && c.body.includes(COMMENT_MARKER)
-  );
+  const existing = comments.find((c) => c.body && c.body.includes(COMMENT_MARKER));
   if (existing) {
     await octokit.rest.issues.updateComment({
       owner,

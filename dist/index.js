@@ -78956,8 +78956,7 @@ async function run() {
             teamsConfig,
         });
     }
-    else if (eventName === "pull_request_review" &&
-        action === "submitted") {
+    else if (eventName === "pull_request_review" && action === "submitted") {
         const pr = context.payload.pull_request;
         const review = context.payload.review;
         if (!pr || !review) {
@@ -79127,7 +79126,11 @@ async function handleLabeled(octokit, ctx) {
     const filenames = files.map((f) => f.filename);
     const fileStatsMap = new Map();
     for (const f of files) {
-        fileStatsMap.set(f.filename, { filename: f.filename, additions: f.additions, deletions: f.deletions });
+        fileStatsMap.set(f.filename, {
+            filename: f.filename,
+            additions: f.additions,
+            deletions: f.deletions,
+        });
     }
     core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
     const codeownersContent = await (0, codeowners_1.fetchCodeownersContent)(octokit, ctx.owner, ctx.repo, ctx.baseBranch);

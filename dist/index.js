@@ -79146,7 +79146,6 @@ const core = __importStar(__nccwpck_require__(37484));
 const config_1 = __nccwpck_require__(22973);
 const router_1 = __nccwpck_require__(98954);
 const slack_1 = __nccwpck_require__(16691);
-const config_2 = __nccwpck_require__(22973);
 async function handleSchedule(octokit, ctx) {
     const remindersConfig = ctx.teamsConfig.reminders;
     if (!remindersConfig?.enabled) {
@@ -79176,21 +79175,23 @@ async function handleSchedule(octokit, ctx) {
     for (const issue of openIssues) {
         if (!issue.pull_request)
             continue;
-        const needsReviewLabels = (issue.labels ?? [])
-            .filter((l) => typeof l === "object" && l !== null && "name" in l)
-            .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
+        const issueLabels = (issue.labels ?? []).filter((l) => typeof l === "object" && l !== null && "name" in l);
+        const hasReadyLabel = issueLabels.some((l) => l.name === ctx.inputs.readyLabel);
+        if (!hasReadyLabel)
+            continue;
+        const needsReviewLabels = issueLabels.filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
         if (needsReviewLabels.length === 0)
             continue;
-        const labelAddedAt = await getOldestNeedsReviewLabelTime(octokit, ctx.owner, ctx.repo, issue.number, needsReviewLabels.map((l) => l.name));
-        if (labelAddedAt === null) {
-            core.info(`PR #${issue.number}: Could not determine label age, skipping reminder`);
+        const readyAt = await getReadyForReviewTime(octokit, ctx.owner, ctx.repo, issue.number, ctx.inputs.readyLabel);
+        if (readyAt === null) {
+            core.info(`PR #${issue.number}: Could not determine review request time, skipping reminder`);
             continue;
         }
-        if (labelAddedAt > staleThreshold) {
-            core.debug(`PR #${issue.number}: Needs Review label is fresh (${labelAddedAt.toISOString()}), skipping`);
+        if (readyAt > staleThreshold) {
+            core.debug(`PR #${issue.number}: Review requested recently (${readyAt.toISOString()}), skipping`);
             continue;
         }
-        const ageMs = Date.now() - labelAddedAt.getTime();
+        const ageMs = Date.now() - readyAt.getTime();
         const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
         const ageHours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const ageDisplay = ageDays > 0
@@ -79210,7 +79211,7 @@ async function handleSchedule(octokit, ctx) {
                     prNumber: issue.number,
                     orgName: ctx.owner,
                     repoName: ctx.repo,
-                    teamName: (0, config_2.humanizeSlug)(teamSlug),
+                    teamName: (0, config_1.humanizeSlug)(teamSlug),
                     ageDisplay,
                 });
                 remindedCount++;
@@ -79219,7 +79220,7 @@ async function handleSchedule(octokit, ctx) {
     }
     core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
 }
-async function getOldestNeedsReviewLabelTime(octokit, owner, repo, issueNumber, labelNames) {
+async function getReadyForReviewTime(octokit, owner, repo, issueNumber, readyLabel) {
     try {
         const events = await octokit.paginate(octokit.rest.issues.listEvents, {
             owner,
@@ -79227,17 +79228,17 @@ async function getOldestNeedsReviewLabelTime(octokit, owner, repo, issueNumber, 
             issue_number: issueNumber,
             per_page: 100,
         });
-        let oldest = null;
+        let latest = null;
         for (const event of events) {
             const label = "label" in event ? event.label : undefined;
-            if (event.event === "labeled" && label?.name && labelNames.includes(label.name)) {
+            if (event.event === "labeled" && label?.name === readyLabel) {
                 const eventDate = new Date(event.created_at);
-                if (!oldest || eventDate < oldest) {
-                    oldest = eventDate;
+                if (!latest || eventDate > latest) {
+                    latest = eventDate;
                 }
             }
         }
-        return oldest;
+        return latest;
     }
     catch (error) {
         core.warning(`Failed to fetch label events for PR #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
@@ -79373,7 +79374,6 @@ async function handleLabeled(octokit, ctx) {
     }
     const commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
-    await (0, labels_1.removeLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 async function handleReviewSubmitted(octokit, ctx) {
     if (!ctx.capabilities.hasOrgAccess) {

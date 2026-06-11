@@ -129,8 +129,6 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
 
   const commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
-
-  await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.inputs.readyLabel);
 }
 
 export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext): Promise<void> {

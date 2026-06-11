@@ -1,8 +1,7 @@
 import * as core from "@actions/core";
-import { getSlackChannel } from "./config";
+import { getSlackChannel, humanizeSlug } from "./config";
 import { resolveTeamSlugFromLabel } from "./router";
 import { sendSlackReminder } from "./slack";
-import { humanizeSlug } from "./config";
 import { ActionInputs, OrgConfig, Octokit } from "./types";
 
 export interface ReminderContext {
@@ -49,33 +48,39 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
   for (const issue of openIssues) {
     if (!issue.pull_request) continue;
 
-    const needsReviewLabels = (issue.labels ?? [])
-      .filter((l): l is { name: string } => typeof l === "object" && l !== null && "name" in l)
-      .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
+    const issueLabels = (issue.labels ?? []).filter(
+      (l): l is { name: string } => typeof l === "object" && l !== null && "name" in l
+    );
 
+    const hasReadyLabel = issueLabels.some((l) => l.name === ctx.inputs.readyLabel);
+    if (!hasReadyLabel) continue;
+
+    const needsReviewLabels = issueLabels.filter((l) =>
+      l.name.startsWith(ctx.inputs.needsReviewPrefix + ":")
+    );
     if (needsReviewLabels.length === 0) continue;
 
-    const labelAddedAt = await getOldestNeedsReviewLabelTime(
+    const readyAt = await getReadyForReviewTime(
       octokit,
       ctx.owner,
       ctx.repo,
       issue.number,
-      needsReviewLabels.map((l) => l.name)
+      ctx.inputs.readyLabel
     );
 
-    if (labelAddedAt === null) {
-      core.info(`PR #${issue.number}: Could not determine label age, skipping reminder`);
+    if (readyAt === null) {
+      core.info(`PR #${issue.number}: Could not determine review request time, skipping reminder`);
       continue;
     }
 
-    if (labelAddedAt > staleThreshold) {
+    if (readyAt > staleThreshold) {
       core.debug(
-        `PR #${issue.number}: Needs Review label is fresh (${labelAddedAt.toISOString()}), skipping`
+        `PR #${issue.number}: Review requested recently (${readyAt.toISOString()}), skipping`
       );
       continue;
     }
 
-    const ageMs = Date.now() - labelAddedAt.getTime();
+    const ageMs = Date.now() - readyAt.getTime();
     const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
     const ageHours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const ageDisplay =
@@ -112,12 +117,12 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
   core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
 }
 
-async function getOldestNeedsReviewLabelTime(
+async function getReadyForReviewTime(
   octokit: Octokit,
   owner: string,
   repo: string,
   issueNumber: number,
-  labelNames: string[]
+  readyLabel: string
 ): Promise<Date | null> {
   try {
     const events = await octokit.paginate(octokit.rest.issues.listEvents, {
@@ -127,17 +132,17 @@ async function getOldestNeedsReviewLabelTime(
       per_page: 100,
     });
 
-    let oldest: Date | null = null;
+    let latest: Date | null = null;
     for (const event of events) {
       const label = "label" in event ? event.label : undefined;
-      if (event.event === "labeled" && label?.name && labelNames.includes(label.name)) {
+      if (event.event === "labeled" && label?.name === readyLabel) {
         const eventDate = new Date(event.created_at);
-        if (!oldest || eventDate < oldest) {
-          oldest = eventDate;
+        if (!latest || eventDate > latest) {
+          latest = eventDate;
         }
       }
     }
-    return oldest;
+    return latest;
   } catch (error) {
     core.warning(
       `Failed to fetch label events for PR #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`

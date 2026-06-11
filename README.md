@@ -69,7 +69,8 @@ branch, so external contributors cannot modify it or access secrets.
 |-------|----------|---------|-------------|
 | `github-token` | Yes | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality. |
 | `slack-token` | No | — | Slack Bot token for sending notifications. |
-| `config-repo` | No | — | Fetch teams config from a GitHub repo (e.g. `datarobot/.review-router`). Reads `teams.yml` from the repo root. |
+| `config-repo` | No | — | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `teams.yml` from the repo root. |
+| `config-token` | No | — | GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to `github-token`. |
 | `config-s3` | No | — | Fetch teams config from S3 (e.g. `s3://bucket/path/teams.yml`). Requires AWS credentials in the environment. |
 | `ready-label` | No | `Ready for Review` | Label name that triggers review routing. |
 | `needs-review-prefix` | No | `Needs Review` | Prefix for per-team review labels (e.g. "Needs Review: Platform"). |

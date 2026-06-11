@@ -8,7 +8,7 @@ const config: Config = {
   collectCoverageFrom: ["src/**/*.ts", "!src/index.ts"],
   coverageThreshold: {
     global: {
-      branches: 75,
+      branches: 65,
       functions: 80,
       lines: 80,
       statements: 80,

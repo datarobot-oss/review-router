@@ -34,6 +34,12 @@
           "type": "string",
           "description": "Fallback Slack channel ID used when a team has no channel configured."
         },
+        "reminders": {
+          "$ref": "#/$defs/RemindersConfig"
+        },
+        "dependabot": {
+          "$ref": "#/$defs/DependabotConfig"
+        },
         "teams": {
           "type": "object",
           "description": "Team slug to config mapping. Slugs must match the GitHub team name used in CODEOWNERS.",
@@ -41,6 +47,33 @@
           "additionalProperties": {
             "$ref": "#/$defs/TeamConfig"
           }
+        }
+      }
+    },
+    "RemindersConfig": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable stale-PR Slack reminders on schedule events."
+        },
+        "stale_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Only remind for PRs where the Needs Review label has been present for at least this many hours. Default: 24."
+        }
+      }
+    },
+    "DependabotConfig": {
+      "type": "object",
+      "required": ["auto_label"],
+      "additionalProperties": false,
+      "properties": {
+        "auto_label": {
+          "type": "boolean",
+          "description": "Automatically add the ready-label to PRs opened by dependabot[bot]."
         }
       }
     },

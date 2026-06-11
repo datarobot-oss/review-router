@@ -62,6 +62,101 @@ orgs:
 `)
     ).toThrow("Config validation failed");
   });
+
+  it("accepts config with reminders enabled", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      stale_hours: 48
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].reminders?.enabled).toBe(true);
+    expect(config.orgs["my-org"].reminders?.stale_hours).toBe(48);
+  });
+
+  it("accepts config with dependabot auto_label", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    dependabot:
+      auto_label: true
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].dependabot?.auto_label).toBe(true);
+  });
+
+  it("accepts config with both features", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+    dependabot:
+      auto_label: true
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].reminders?.enabled).toBe(true);
+    expect(config.orgs["my-org"].dependabot?.auto_label).toBe(true);
+  });
+
+  it("rejects invalid stale_hours", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      stale_hours: 0
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
+
+  it("rejects unknown fields in reminders", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      unknown: true
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
+
+  it("rejects unknown fields in dependabot", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    dependabot:
+      auto_label: true
+      unknown: true
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
 });
 
 describe("getLabelForTeam", () => {

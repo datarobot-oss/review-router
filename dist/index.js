@@ -78714,6 +78714,9 @@ function loadBundledConfig(org) {
         const orgConfig = config.orgs[org];
         if (orgConfig) {
             core.info(`Loaded team config for org "${org}" from bundled config`);
+            if (config.users) {
+                orgConfig.users = config.users;
+            }
             return orgConfig;
         }
         core.warning(`No config section found for org "${org}" in bundled teams.yml`);
@@ -78794,6 +78797,9 @@ async function loadTeamsConfigForOrg(org, octokit, configRepo, configToken, conf
             const orgConfig = config.orgs[org];
             if (orgConfig) {
                 core.info(`Loaded team config for org "${org}"`);
+                if (config.users) {
+                    orgConfig.users = config.users;
+                }
                 return orgConfig;
             }
             core.warning(`No config section found for org "${org}" in external config`);
@@ -78877,6 +78883,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(37484));
 const github = __importStar(__nccwpck_require__(93228));
 const router_1 = __nccwpck_require__(98954);
+const reminders_1 = __nccwpck_require__(99924);
 const auth_1 = __nccwpck_require__(29081);
 const config_1 = __nccwpck_require__(22973);
 async function run() {
@@ -78927,6 +78934,32 @@ async function run() {
     }
     const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configS3);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
+    if (eventName === "schedule") {
+        await (0, reminders_1.handleSchedule)(octokit, {
+            owner,
+            repo,
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        action === "opened") {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        await (0, router_1.handleOpened)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            author: pr.user?.login ?? "",
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         action === "labeled") {
         const pr = context.payload.pull_request;
@@ -79069,6 +79102,152 @@ async function removeLabel(octokit, owner, repo, prNumber, labelName) {
 
 /***/ }),
 
+/***/ 99924:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.handleSchedule = handleSchedule;
+const core = __importStar(__nccwpck_require__(37484));
+const config_1 = __nccwpck_require__(22973);
+const router_1 = __nccwpck_require__(98954);
+const slack_1 = __nccwpck_require__(16691);
+const config_2 = __nccwpck_require__(22973);
+async function handleSchedule(octokit, ctx) {
+    const remindersConfig = ctx.teamsConfig.reminders;
+    if (!remindersConfig?.enabled) {
+        core.info("Reminders are disabled or not configured, skipping");
+        return;
+    }
+    if (!ctx.inputs.slackToken) {
+        core.warning("Reminders are enabled but no Slack token is configured -- no reminders will be sent");
+        return;
+    }
+    const staleHours = remindersConfig.stale_hours ?? 24;
+    const staleThreshold = new Date(Date.now() - staleHours * 60 * 60 * 1000);
+    let openIssues;
+    try {
+        openIssues = await octokit.paginate(octokit.rest.issues.listForRepo, {
+            owner: ctx.owner,
+            repo: ctx.repo,
+            state: "open",
+            per_page: 100,
+        });
+    }
+    catch (error) {
+        core.warning(`Failed to list open issues for reminders: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
+    let remindedCount = 0;
+    for (const issue of openIssues) {
+        if (!issue.pull_request)
+            continue;
+        const needsReviewLabels = (issue.labels ?? [])
+            .filter((l) => typeof l === "object" && l !== null && "name" in l)
+            .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
+        if (needsReviewLabels.length === 0)
+            continue;
+        const labelAddedAt = await getOldestNeedsReviewLabelTime(octokit, ctx.owner, ctx.repo, issue.number, needsReviewLabels.map((l) => l.name));
+        if (labelAddedAt === null) {
+            core.info(`PR #${issue.number}: Could not determine label age, skipping reminder`);
+            continue;
+        }
+        if (labelAddedAt > staleThreshold) {
+            core.debug(`PR #${issue.number}: Needs Review label is fresh (${labelAddedAt.toISOString()}), skipping`);
+            continue;
+        }
+        const ageMs = Date.now() - labelAddedAt.getTime();
+        const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+        const ageHours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const ageDisplay = ageDays > 0
+            ? `${ageDays} day${ageDays === 1 ? "" : "s"}`
+            : `${ageHours} hour${ageHours === 1 ? "" : "s"}`;
+        const notifiedChannels = new Set();
+        for (const label of needsReviewLabels) {
+            const teamSlug = (0, router_1.resolveTeamSlugFromLabel)(label.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix);
+            if (!teamSlug)
+                continue;
+            const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
+            if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
+                notifiedChannels.add(slackChannel);
+                await (0, slack_1.sendSlackReminder)(ctx.inputs.slackToken, slackChannel, {
+                    prUrl: issue.html_url ?? "",
+                    prTitle: issue.title ?? "",
+                    prNumber: issue.number,
+                    orgName: ctx.owner,
+                    repoName: ctx.repo,
+                    teamName: (0, config_2.humanizeSlug)(teamSlug),
+                    ageDisplay,
+                });
+                remindedCount++;
+            }
+        }
+    }
+    core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
+}
+async function getOldestNeedsReviewLabelTime(octokit, owner, repo, issueNumber, labelNames) {
+    try {
+        const events = await octokit.paginate(octokit.rest.issues.listEvents, {
+            owner,
+            repo,
+            issue_number: issueNumber,
+            per_page: 100,
+        });
+        let oldest = null;
+        for (const event of events) {
+            const label = "label" in event ? event.label : undefined;
+            if (event.event === "labeled" && label?.name && labelNames.includes(label.name)) {
+                const eventDate = new Date(event.created_at);
+                if (!oldest || eventDate < oldest) {
+                    oldest = eventDate;
+                }
+            }
+        }
+        return oldest;
+    }
+    catch (error) {
+        core.warning(`Failed to fetch label events for PR #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+    }
+}
+
+
+/***/ }),
+
 /***/ 98954:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -79111,6 +79290,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
+exports.handleOpened = handleOpened;
 const core = __importStar(__nccwpck_require__(37484));
 const codeowners_1 = __nccwpck_require__(83586);
 const labels_1 = __nccwpck_require__(94584);
@@ -79147,6 +79327,7 @@ async function handleLabeled(octokit, ctx) {
         .filter((s) => s !== undefined);
     core.info(`Found ${ownership.teamFiles.size} team(s), ${ownership.unownedFiles.length} unowned file(s)`);
     const notifiedChannels = new Set();
+    const individualOwners = [...new Set([...ownership.defaultedFiles.values()].flat())];
     for (const [teamSlug] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
         await (0, labels_1.ensureLabel)(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
@@ -79185,6 +79366,8 @@ async function handleLabeled(octokit, ctx) {
                 commits: ctx.commits,
                 labels: displayLabels,
                 allFiles: allFileStats,
+                individualOwners,
+                users: ctx.teamsConfig.users,
             });
         }
     }
@@ -79242,6 +79425,28 @@ function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
         return undefined;
     return suffix.toLowerCase().replace(/\s+/g, "-");
 }
+async function handleOpened(octokit, ctx) {
+    if (!ctx.teamsConfig.dependabot?.auto_label) {
+        core.info("Dependabot auto-label is disabled or not configured");
+        return;
+    }
+    if (ctx.author !== "dependabot[bot]") {
+        core.info(`PR author "${ctx.author}" is not dependabot[bot], skipping auto-label`);
+        return;
+    }
+    core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+    try {
+        await octokit.rest.issues.addLabels({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            issue_number: ctx.prNumber,
+            labels: [ctx.inputs.readyLabel],
+        });
+    }
+    catch (error) {
+        core.warning(`Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
 
 
 /***/ }),
@@ -79286,6 +79491,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildSlackBlocks = buildSlackBlocks;
+exports.buildSlackReminderBlocks = buildSlackReminderBlocks;
+exports.sendSlackReminder = sendSlackReminder;
 exports.sendSlackNotification = sendSlackNotification;
 const core = __importStar(__nccwpck_require__(37484));
 const web_api_1 = __nccwpck_require__(85105);
@@ -79360,8 +79567,87 @@ function buildSlackBlocks(params) {
             ],
         },
     ];
+    if (params.individualOwners?.length) {
+        const mentions = params.individualOwners
+            .map((owner) => {
+            const username = owner.replace(/^@/, "");
+            const slackId = params.users?.[username];
+            return slackId ? `<@${slackId}>` : `@${username}`;
+        })
+            .filter((v, i, a) => a.indexOf(v) === i);
+        if (mentions.length > 0) {
+            blocks.splice(-1, 0, {
+                type: "context",
+                elements: [
+                    {
+                        type: "mrkdwn",
+                        text: `:bust_in_silhouette: cc ${mentions.join(" ")}`,
+                    },
+                ],
+            });
+        }
+    }
     const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${params.prTitle}`;
     return { blocks, fallback };
+}
+function buildSlackReminderBlocks(params) {
+    const repoFullName = `${params.orgName}/${params.repoName}`;
+    const blocks = [
+        {
+            type: "section",
+            text: {
+                type: "mrkdwn",
+                text: `:rr-mag: *Reminder* — <${params.prUrl}|${repoFullName} #${params.prNumber}> still needs review`,
+            },
+        },
+        {
+            type: "section",
+            text: {
+                type: "mrkdwn",
+                text: `*${params.prTitle}*`,
+            },
+        },
+        {
+            type: "context",
+            elements: [
+                {
+                    type: "mrkdwn",
+                    text: `:hourglass: Open for *${params.ageDisplay}* · Waiting on *${params.teamName}*`,
+                },
+            ],
+        },
+        {
+            type: "actions",
+            elements: [
+                {
+                    type: "button",
+                    text: { type: "plain_text", text: "View pull request" },
+                    url: params.prUrl,
+                },
+            ],
+        },
+    ];
+    const fallback = `Reminder: ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
+    return { blocks, fallback };
+}
+async function sendSlackReminder(token, channel, params) {
+    if (!token) {
+        core.debug("No Slack token provided, skipping reminder");
+        return;
+    }
+    try {
+        const client = new web_api_1.WebClient(token);
+        const { blocks, fallback } = buildSlackReminderBlocks(params);
+        await client.chat.postMessage({
+            channel,
+            text: fallback,
+            blocks: blocks,
+        });
+        core.info(`Sent Slack reminder to ${channel} for PR #${params.prNumber}`);
+    }
+    catch (error) {
+        core.warning(`Failed to send Slack reminder to ${channel}: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 async function sendSlackNotification(token, channel, params) {
     if (!token) {

@@ -29,6 +29,9 @@ function loadBundledConfig(org: string): OrgConfig {
     const orgConfig = config.orgs[org];
     if (orgConfig) {
       core.info(`Loaded team config for org "${org}" from bundled config`);
+      if (config.users) {
+        orgConfig.users = config.users;
+      }
       return orgConfig;
     }
     core.warning(`No config section found for org "${org}" in bundled teams.yml`);
@@ -123,6 +126,9 @@ export async function loadTeamsConfigForOrg(
       const orgConfig = config.orgs[org];
       if (orgConfig) {
         core.info(`Loaded team config for org "${org}"`);
+        if (config.users) {
+          orgConfig.users = config.users;
+        }
         return orgConfig;
       }
       core.warning(`No config section found for org "${org}" in external config`);

@@ -76,6 +76,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   );
 
   const notifiedChannels = new Set<string>();
+  const individualOwners = [...new Set([...ownership.defaultedFiles.values()].flat())];
 
   for (const [teamSlug] of ownership.teamFiles) {
     const labelName = getLabelForTeam(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
@@ -120,6 +121,8 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
         commits: ctx.commits,
         labels: displayLabels,
         allFiles: allFileStats,
+        individualOwners,
+        users: ctx.teamsConfig.users,
       });
     }
   }
@@ -193,4 +196,39 @@ export function resolveTeamSlugFromLabel(
   const suffix = labelName.replace(`${prefix}: `, "");
   if (!suffix) return undefined;
   return suffix.toLowerCase().replace(/\s+/g, "-");
+}
+
+export interface OpenedContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  author: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promise<void> {
+  if (!ctx.teamsConfig.dependabot?.auto_label) {
+    core.info("Dependabot auto-label is disabled or not configured");
+    return;
+  }
+
+  if (ctx.author !== "dependabot[bot]") {
+    core.info(`PR author "${ctx.author}" is not dependabot[bot], skipping auto-label`);
+    return;
+  }
+
+  core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+  try {
+    await octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: ctx.prNumber,
+      labels: [ctx.inputs.readyLabel],
+    });
+  } catch (error) {
+    core.warning(
+      `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

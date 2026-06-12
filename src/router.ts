@@ -6,6 +6,7 @@ import {
   upsertComment,
   COMMENT_MARKER,
   embedSlackRefs,
+  mergeSlackRefs,
   findExistingComment,
   extractSlackRefs,
 } from "./comment";
@@ -158,8 +159,12 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     }
   }
 
+  const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+  const oldRefs = existing ? extractSlackRefs(existing.body) : [];
+  const mergedRefs = mergeSlackRefs(oldRefs, slackRefs);
+
   let commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
-  commentBody = embedSlackRefs(commentBody, slackRefs);
+  commentBody = embedSlackRefs(commentBody, mergedRefs);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
 }
 
@@ -184,7 +189,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
     return;
   }
 
-  let labelsRemoved = 0;
+  const approvedChannels = new Set<string>();
   for (const label of needsReviewLabels) {
     const teamSlug = resolveTeamSlugFromLabel(
       label.name,
@@ -201,7 +206,8 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
       });
       await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, label.name);
       core.info(`Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`);
-      labelsRemoved++;
+      const channel = getSlackChannel(ctx.teamsConfig, teamSlug);
+      if (channel) approvedChannels.add(channel);
     } catch (error: unknown) {
       const httpError = error as { status?: number };
       if (httpError.status === 404) {
@@ -214,7 +220,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
     }
   }
 
-  if (labelsRemoved > 0 && ctx.inputs.slackToken) {
+  if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
     try {
       const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
       if (existing) {
@@ -222,7 +228,9 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
         if (emoji) {
           for (const ref of refs) {
-            await addSlackReactions(ctx.inputs.slackToken, ref, [emoji]);
+            if (approvedChannels.has(ref.channel)) {
+              await addSlackReactions(ctx.inputs.slackToken, ref, [emoji]);
+            }
           }
         }
       }

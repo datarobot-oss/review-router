@@ -49,6 +49,16 @@ export function embedSlackRefs(body: string, refs: SlackMessageRef[]): string {
   return `${body}\n${tags}`;
 }
 
+export function mergeSlackRefs(
+  oldRefs: SlackMessageRef[],
+  newRefs: SlackMessageRef[]
+): SlackMessageRef[] {
+  const byChannel = new Map<string, SlackMessageRef>();
+  for (const ref of oldRefs) byChannel.set(ref.channel, ref);
+  for (const ref of newRefs) byChannel.set(ref.channel, ref);
+  return [...byChannel.values()];
+}
+
 export function extractSlackRefs(body: string): SlackMessageRef[] {
   return [...body.matchAll(new RegExp(SLACK_REF_PATTERN, "g"))].map((m) => ({
     channel: m[1],

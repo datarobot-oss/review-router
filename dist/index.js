@@ -78574,6 +78574,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.COMMENT_MARKER = void 0;
 exports.buildOwnershipComment = buildOwnershipComment;
 exports.embedSlackRefs = embedSlackRefs;
+exports.mergeSlackRefs = mergeSlackRefs;
 exports.extractSlackRefs = extractSlackRefs;
 exports.findExistingComment = findExistingComment;
 exports.upsertComment = upsertComment;
@@ -78619,6 +78620,14 @@ function embedSlackRefs(body, refs) {
         return body;
     const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`).join("\n");
     return `${body}\n${tags}`;
+}
+function mergeSlackRefs(oldRefs, newRefs) {
+    const byChannel = new Map();
+    for (const ref of oldRefs)
+        byChannel.set(ref.channel, ref);
+    for (const ref of newRefs)
+        byChannel.set(ref.channel, ref);
+    return [...byChannel.values()];
 }
 function extractSlackRefs(body) {
     return [...body.matchAll(new RegExp(SLACK_REF_PATTERN, "g"))].map((m) => ({
@@ -79469,8 +79478,11 @@ async function handleLabeled(octokit, ctx) {
             }
         }
     }
+    const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+    const oldRefs = existing ? (0, comment_1.extractSlackRefs)(existing.body) : [];
+    const mergedRefs = (0, comment_1.mergeSlackRefs)(oldRefs, slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
-    commentBody = (0, comment_1.embedSlackRefs)(commentBody, slackRefs);
+    commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
 }
 async function handleReviewSubmitted(octokit, ctx) {
@@ -79488,7 +79500,7 @@ async function handleReviewSubmitted(octokit, ctx) {
         core.info("No 'Needs Review' labels found on PR, nothing to remove");
         return;
     }
-    let labelsRemoved = 0;
+    const approvedChannels = new Set();
     for (const label of needsReviewLabels) {
         const teamSlug = resolveTeamSlugFromLabel(label.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix);
         if (!teamSlug)
@@ -79501,7 +79513,9 @@ async function handleReviewSubmitted(octokit, ctx) {
             });
             await (0, labels_1.removeLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, label.name);
             core.info(`Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`);
-            labelsRemoved++;
+            const channel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
+            if (channel)
+                approvedChannels.add(channel);
         }
         catch (error) {
             const httpError = error;
@@ -79513,7 +79527,7 @@ async function handleReviewSubmitted(octokit, ctx) {
             }
         }
     }
-    if (labelsRemoved > 0 && ctx.inputs.slackToken) {
+    if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
         try {
             const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
             if (existing) {
@@ -79521,7 +79535,9 @@ async function handleReviewSubmitted(octokit, ctx) {
                 const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
                 if (emoji) {
                     for (const ref of refs) {
-                        await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
+                        if (approvedChannels.has(ref.channel)) {
+                            await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
+                        }
                     }
                 }
             }

@@ -40,6 +40,9 @@
         "dependabot": {
           "$ref": "#/$defs/DependabotConfig"
         },
+        "reactions": {
+          "$ref": "#/$defs/ReactionsConfig"
+        },
         "teams": {
           "type": "object",
           "description": "Team slug to config mapping. Slugs must match the GitHub team name used in CODEOWNERS.",
@@ -63,6 +66,66 @@
           "type": "integer",
           "minimum": 1,
           "description": "Only remind for PRs where the Ready for Review label was added at least this many hours ago. Default: 24."
+        }
+      }
+    },
+    "ReactionsConfig": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Slack reactions on notifications. When false or absent, no reactions are added."
+        },
+        "approved": {
+          "type": "string",
+          "description": "Slack emoji name added when a team member approves. Default: white_check_mark."
+        },
+        "merged": {
+          "type": "string",
+          "description": "Slack emoji name added when the PR is merged. Default: heavy_check_mark."
+        },
+        "closed": {
+          "type": "string",
+          "description": "Slack emoji name added when the PR is closed without merging. Default: no_entry_sign."
+        },
+        "icons": {
+          "$ref": "#/$defs/NotificationIcons"
+        },
+        "file_types": {
+          "type": "object",
+          "description": "File extension to Slack emoji name mapping. Keys are extensions (e.g. 'py', 'ts') or special names ('dockerfile', 'github-actions').",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "NotificationIcons": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Custom Slack emoji names used in notification messages. Defaults use standard Slack emojis. Override with custom emojis (see assets/slack-emojis/).",
+      "properties": {
+        "header": {
+          "type": "string",
+          "description": "Header icon for notifications. Default: mag."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch icon in footer. Default: twisted_rightwards_arrows."
+        },
+        "commits": {
+          "type": "string",
+          "description": "Commits icon in footer. Default: arrow_heading_up."
+        },
+        "files": {
+          "type": "string",
+          "description": "Files icon in footer. Default: page_facing_up."
+        },
+        "labels": {
+          "type": "string",
+          "description": "Labels icon in footer. Default: label."
         }
       }
     },

@@ -108,6 +108,7 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
           repoName: ctx.repo,
           teamName: humanizeSlug(teamSlug),
           ageDisplay,
+          icons: ctx.teamsConfig.reactions?.icons,
         });
         remindedCount++;
       }

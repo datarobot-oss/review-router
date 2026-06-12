@@ -33,7 +33,7 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled]
+    types: [labeled, closed]
   pull_request_review:
     types: [submitted]
   issue_comment:
@@ -64,11 +64,12 @@ jobs:
           slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
-The action handles three event types:
+The action handles these event types:
 
-- **`pull_request_target: labeled`** — routes review when "Ready for Review" is added
-- **`pull_request_review: submitted`** — removes team labels on approval
-- **`issue_comment: created`** — when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
+- **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added
+- **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
+- **`pull_request_review: submitted`** -- removes team labels on approval
+- **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
 
 Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
 branch, so external contributors cannot modify it or access secrets.
@@ -84,18 +85,19 @@ significantly), remove the label and re-add it, or have a contributor comment
 | -------------------------- | -------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `github-token`             | Yes      | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality.                                 |
 | `slack-token`              | No       | —                     | Slack Bot token for sending notifications.                                                                              |
-| `config-repo`              | No       | —                     | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `teams.yml` from the repo root.           |
+| `config-repo`              | No       | —                     | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `config.yml` from the repo root.          |
 | `config-token`             | No       | —                     | GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to `github-token`. |
-| `config-s3`                | No       | —                     | Fetch teams config from S3 (e.g. `s3://bucket/path/teams.yml`). Requires AWS credentials in the environment.            |
+| `config-path`              | No       | `config.yml`          | Filename to look for in the config repo. Use if your config file has a different name.                                  |
+| `config-s3`                | No       | —                     | Fetch teams config from S3 (e.g. `s3://bucket/path/config.yml`). Requires AWS credentials in the environment.           |
 | `ready-label`              | No       | `Ready for Review`    | Label name that triggers review routing.                                                                                |
 | `needs-review-prefix`      | No       | `Needs Review`        | Prefix for per-team review labels (e.g. "Needs Review: Platform").                                                      |
 | `needs-review-label-color` | No       | `fbca04`              | Hex color for auto-created "Needs Review" labels.                                                                       |
 
-Config priority: `config-repo` > `config-s3` > bundled `config/teams.yml`.
+Config priority: `config-repo` > `config-s3` > bundled `config/config.yml`.
 
 ## Feature Flags
 
-Optional features can be enabled per-org in `teams.yml`:
+Optional features can be enabled per-org in `config.yml`:
 
 ```yaml
 orgs:
@@ -119,7 +121,7 @@ Add `opened` to the trigger types in your workflow:
 ```yaml
 on:
   pull_request_target:
-    types: [labeled, opened]
+    types: [labeled, opened, closed]
 ```
 
 Repos that don't want dependabot auto-labeling can simply omit `opened` from
@@ -139,7 +141,57 @@ on:
   schedule:
     - cron: "0 9 * * 1-5" # weekdays at 9 AM UTC
   pull_request_target:
-    types: [labeled]
+    types: [labeled, closed]
+  # ...
+```
+
+## Feature Flags
+
+Optional features can be enabled per-org in `config.yml`:
+
+```yaml
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      stale_hours: 24 # optional, default 24
+    dependabot:
+      auto_label: true
+    teams:
+      # ...
+```
+
+### Dependabot Auto-Label
+
+When `dependabot.auto_label` is `true`, PRs opened by `dependabot[bot]` automatically
+get the "Ready for Review" label, triggering the normal routing flow.
+
+Add `opened` to the trigger types in your workflow:
+
+```yaml
+on:
+  pull_request_target:
+    types: [labeled, opened, closed]
+```
+
+Repos that don't want dependabot auto-labeling can simply omit `opened` from
+their trigger types. The org-level config flag is a second layer of control.
+
+### Stale PR Reminders
+
+When `reminders.enabled` is `true`, a scheduled run scans open PRs that still
+have the "Ready for Review" label and any "Needs Review" team labels, then
+re-sends Slack notifications. Only PRs where the "Ready for Review" label was
+added at least `stale_hours` (default 24) ago are reminded.
+
+Add a `schedule` trigger to your workflow:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1-5" # weekdays at 9 AM UTC
+  pull_request_target:
+    types: [labeled, closed]
   # ...
 ```
 
@@ -166,7 +218,7 @@ infra/ @acme-corp/infra-team
 
 1. Create the GitHub team in your GitHub organization
 2. Add the team to repos' `.github/CODEOWNERS` files
-3. Add an entry to `config/teams.yml` (bundled or external)
+3. Add an entry to `config/config.yml` (bundled or external)
 4. Invite the Slack bot to the team's channel
 
 ## Contributing

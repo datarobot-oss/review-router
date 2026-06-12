@@ -1,10 +1,18 @@
 import * as core from "@actions/core";
 import { fetchCodeownersContent, parseCodeowners, mapFilesToTeams } from "./codeowners";
 import { ensureLabel, applyLabel, removeLabel } from "./labels";
-import { buildOwnershipComment, upsertComment, COMMENT_MARKER } from "./comment";
-import { sendSlackNotification, FileStats } from "./slack";
+import {
+  buildOwnershipComment,
+  upsertComment,
+  COMMENT_MARKER,
+  embedSlackRefs,
+  mergeSlackRefs,
+  findExistingComment,
+  extractSlackRefs,
+} from "./comment";
+import { sendSlackNotification, addSlackReactions, FileStats, SlackMessageRef } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
-import { ActionInputs, Capabilities, OrgConfig, Octokit } from "./types";
+import { ActionInputs, Capabilities, ReactionsConfig, OrgConfig, Octokit } from "./types";
 
 export interface LabeledContext {
   owner: string;
@@ -92,6 +100,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   }
 
   const notifiedChannels = new Set<string>();
+  const slackRefs: SlackMessageRef[] = [];
 
   for (const [teamSlug] of ownership.teamFiles) {
     const labelName = getLabelForTeam(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
@@ -124,7 +133,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
         (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
       );
       const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
-      await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
+      const ref = await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
         prNumber: ctx.prNumber,
@@ -139,11 +148,23 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
         allFiles: allFileStats,
         individualOwners,
         users: ctx.teamsConfig.users,
+        icons: ctx.teamsConfig.reactions?.icons,
       });
+      if (ref) {
+        slackRefs.push(ref);
+        const filenames = allFileStats.map((f) => f.filename);
+        const emojis = getFileTypeEmojis(filenames, ctx.teamsConfig.reactions);
+        await addSlackReactions(ctx.inputs.slackToken, ref, emojis);
+      }
     }
   }
 
-  const commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
+  const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+  const oldRefs = existing ? extractSlackRefs(existing.body) : [];
+  const mergedRefs = mergeSlackRefs(oldRefs, slackRefs);
+
+  let commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
+  commentBody = embedSlackRefs(commentBody, mergedRefs);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
 }
 
@@ -168,6 +189,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
     return;
   }
 
+  const approvedChannels = new Set<string>();
   for (const label of needsReviewLabels) {
     const teamSlug = resolveTeamSlugFromLabel(
       label.name,
@@ -184,6 +206,8 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
       });
       await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, label.name);
       core.info(`Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`);
+      const channel = getSlackChannel(ctx.teamsConfig, teamSlug);
+      if (channel) approvedChannels.add(channel);
     } catch (error: unknown) {
       const httpError = error as { status?: number };
       if (httpError.status === 404) {
@@ -193,6 +217,27 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
           `Error checking team membership for ${ctx.reviewer} in ${teamSlug}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
+    }
+  }
+
+  if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
+    try {
+      const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+      if (existing) {
+        const refs = extractSlackRefs(existing.body);
+        const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
+        if (emoji) {
+          for (const ref of refs) {
+            if (approvedChannels.has(ref.channel)) {
+              await addSlackReactions(ctx.inputs.slackToken, ref, [emoji]);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      core.warning(
+        `Failed to add approval reaction: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }
@@ -245,4 +290,134 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
       `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+}
+
+export interface ClosedContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  merged: boolean;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
+  if (!ctx.merged) {
+    core.info("PR was closed without merging, skipping label cleanup");
+    if (ctx.inputs.slackToken) {
+      try {
+        const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+        if (existing) {
+          const emoji = getStatusEmoji("closed", ctx.teamsConfig.reactions);
+          if (emoji) {
+            const refs = extractSlackRefs(existing.body);
+            for (const ref of refs) {
+              await addSlackReactions(ctx.inputs.slackToken, ref, [emoji]);
+            }
+          }
+        }
+      } catch (error) {
+        core.warning(
+          `Failed to add closed reaction: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    return;
+  }
+
+  const { data: labels } = await octokit.rest.issues.listLabelsOnIssue({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: ctx.prNumber,
+  });
+
+  const configuredLabels = new Set(Object.values(ctx.teamsConfig.teams).map((t) => t.label));
+  const labelsToRemove = labels
+    .filter(
+      (l) =>
+        l.name === ctx.inputs.readyLabel ||
+        l.name.startsWith(ctx.inputs.needsReviewPrefix + ":") ||
+        configuredLabels.has(l.name)
+    )
+    .map((l) => l.name);
+
+  for (const labelName of labelsToRemove) {
+    try {
+      await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, labelName);
+    } catch (error: unknown) {
+      const httpError = error as { status?: number };
+      if (httpError.status === 404) {
+        core.debug(`Label "${labelName}" already removed`);
+      } else {
+        core.warning(
+          `Failed to remove label "${labelName}": ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  }
+
+  if (labelsToRemove.length > 0) {
+    core.info(`Cleaned up ${labelsToRemove.length} label(s) from merged PR #${ctx.prNumber}`);
+  }
+
+  if (ctx.inputs.slackToken) {
+    try {
+      const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+      if (existing) {
+        const emoji = getStatusEmoji("merged", ctx.teamsConfig.reactions);
+        if (emoji) {
+          const refs = extractSlackRefs(existing.body);
+          for (const ref of refs) {
+            await addSlackReactions(ctx.inputs.slackToken, ref, [emoji]);
+          }
+        }
+      }
+    } catch (error) {
+      core.warning(
+        `Failed to add merged reaction: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+}
+
+export function getFileTypeEmojis(filenames: string[], config?: ReactionsConfig): string[] {
+  if (!config?.enabled || !config.file_types) return [];
+
+  const fileTypeMap = config.file_types;
+  const emojis = new Set<string>();
+  for (const filename of filenames) {
+    const lower = filename.toLowerCase();
+    if (lower.includes(".github/workflows/")) {
+      const emoji = fileTypeMap["github-actions"];
+      if (emoji) emojis.add(emoji);
+      continue;
+    }
+    if (lower.endsWith("dockerfile") || lower.endsWith(".dockerignore")) {
+      const emoji = fileTypeMap["dockerfile"];
+      if (emoji) emojis.add(emoji);
+      continue;
+    }
+    if (lower.endsWith("makefile")) {
+      const emoji = fileTypeMap["makefile"];
+      if (emoji) emojis.add(emoji);
+      continue;
+    }
+    const ext = lower.split(".").pop() ?? "";
+    const emoji = fileTypeMap[ext];
+    if (emoji) emojis.add(emoji);
+  }
+  return [...emojis];
+}
+
+export function getStatusEmoji(
+  name: "approved" | "merged" | "closed",
+  config?: ReactionsConfig
+): string | null {
+  if (!config?.enabled) return null;
+  const defaults: Record<string, string> = {
+    approved: "white_check_mark",
+    merged: "heavy_check_mark",
+    closed: "no_entry_sign",
+  };
+  return config[name] ?? defaults[name];
 }

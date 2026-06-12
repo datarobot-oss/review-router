@@ -86,7 +86,7 @@ if one exists.
 Config validation failed: /orgs/your-org/teams/foo must have required property 'slack_channel'
 ```
 
-**Cause**: The `teams.yml` file doesn't match the expected schema.
+**Cause**: The `config.yml` file doesn't match the expected schema.
 
 **Fix**: Check your config against the schema at
 [config/schema.json](../../config/schema.json). Every team entry
@@ -108,7 +108,7 @@ or `config-s3` is set.
    (e.g. `your-org/.review-router`).
 
 3. **Wrong S3 URI format**: `config-s3` must be in `s3://bucket/key`
-   format (e.g. `s3://my-bucket/review-router/teams.yml`).
+   format (e.g. `s3://my-bucket/review-router/config.yml`).
 
 4. **Missing org section**: The config file exists but doesn't have a
    section for the current org. The action logs a warning and falls

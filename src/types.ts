@@ -12,10 +12,28 @@ export interface DependabotConfig {
   auto_label: boolean;
 }
 
+export interface NotificationIcons {
+  header?: string;
+  branch?: string;
+  commits?: string;
+  files?: string;
+  labels?: string;
+}
+
+export interface ReactionsConfig {
+  enabled: boolean;
+  approved?: string;
+  merged?: string;
+  closed?: string;
+  icons?: NotificationIcons;
+  file_types?: Record<string, string>;
+}
+
 export interface OrgConfig {
   default_slack_channel?: string;
   reminders?: RemindersConfig;
   dependabot?: DependabotConfig;
+  reactions?: ReactionsConfig;
   teams: Record<string, TeamConfig>;
   users?: Record<string, string>;
 }
@@ -38,6 +56,7 @@ export interface ActionInputs {
   slackToken: string;
   configRepo: string;
   configToken: string;
+  configPath: string;
   configS3: string;
   readyLabel: string;
   needsReviewPrefix: string;

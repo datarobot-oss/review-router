@@ -3,7 +3,7 @@
 # Two ways to use this:
 #
 # 1. External config repo (recommended for organizations):
-#    Store teams.yml in a separate repo (private or public) and point
+#    Store config.yml in a separate repo (private or public) and point
 #    to it with the config-repo input. This keeps sensitive data like
 #    Slack channel IDs out of the public action repo, and lets you
 #    update team mappings without rebuilding the action.

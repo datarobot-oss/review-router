@@ -197,7 +197,7 @@ describe("humanizeSlug", () => {
 describe("fetchConfigFromRepo", () => {
   const mockReposGet = jest.fn().mockResolvedValue({ data: { default_branch: "main" } });
 
-  it("fetches and decodes teams.yml from a GitHub repo", async () => {
+  it("fetches and decodes config.yml from a GitHub repo", async () => {
     const yamlContent =
       "orgs:\n  my-org:\n    teams:\n      foo:\n        label: L\n        slack_channel: '#foo'\n";
     const mockOctokit = {
@@ -215,7 +215,7 @@ describe("fetchConfigFromRepo", () => {
     expect(mockOctokit.rest.repos.getContent).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
-      path: "teams.yml",
+      path: "config.yml",
       ref: "main",
     });
   });

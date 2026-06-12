@@ -1,4 +1,10 @@
-import { buildOwnershipComment, upsertComment, COMMENT_MARKER } from "../src/comment";
+import {
+  buildOwnershipComment,
+  upsertComment,
+  embedSlackRefs,
+  extractSlackRefs,
+  COMMENT_MARKER,
+} from "../src/comment";
 
 describe("buildOwnershipComment", () => {
   it("builds a comment with team ownership list", () => {
@@ -105,5 +111,42 @@ describe("upsertComment", () => {
       body: `${COMMENT_MARKER}\nnew`,
     });
     expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+});
+
+describe("embedSlackRefs", () => {
+  it("appends slack ref tags to body", () => {
+    const body = "## Code Ownership\ncontent";
+    const result = embedSlackRefs(body, [{ channel: "C123", ts: "1234.5678" }]);
+    expect(result).toContain("<!-- rr:slack:C123:1234.5678 -->");
+    expect(result).toContain("## Code Ownership");
+  });
+
+  it("appends multiple refs", () => {
+    const result = embedSlackRefs("body", [
+      { channel: "C123", ts: "1234.5678" },
+      { channel: "C456", ts: "9012.3456" },
+    ]);
+    expect(result).toContain("<!-- rr:slack:C123:1234.5678 -->");
+    expect(result).toContain("<!-- rr:slack:C456:9012.3456 -->");
+  });
+
+  it("returns body unchanged when no refs", () => {
+    expect(embedSlackRefs("body", [])).toBe("body");
+  });
+});
+
+describe("extractSlackRefs", () => {
+  it("extracts slack refs from comment body", () => {
+    const body = "content\n<!-- rr:slack:C123:1234.5678 -->\n<!-- rr:slack:C456:9012.3456 -->";
+    const refs = extractSlackRefs(body);
+    expect(refs).toEqual([
+      { channel: "C123", ts: "1234.5678" },
+      { channel: "C456", ts: "9012.3456" },
+    ]);
+  });
+
+  it("returns empty array when no refs", () => {
+    expect(extractSlackRefs("no refs here")).toEqual([]);
   });
 });

@@ -1,8 +1,10 @@
 import * as core from "@actions/core";
 import { OwnershipMap, Octokit } from "./types";
 import { humanizeSlug } from "./config";
+import { SlackMessageRef } from "./slack";
 
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
+const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 
 export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
   const lines: string[] = [COMMENT_MARKER, "## Code Ownership", ""];
@@ -39,6 +41,34 @@ export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boo
     lines.push("_Review requested from the teams above._");
   }
   return lines.join("\n");
+}
+
+export function embedSlackRefs(body: string, refs: SlackMessageRef[]): string {
+  if (refs.length === 0) return body;
+  const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`).join("\n");
+  return `${body}\n${tags}`;
+}
+
+export function extractSlackRefs(body: string): SlackMessageRef[] {
+  return [...body.matchAll(new RegExp(SLACK_REF_PATTERN, "g"))].map((m) => ({
+    channel: m[1],
+    ts: m[2],
+  }));
+}
+
+export async function findExistingComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<{ id: number; body: string } | null> {
+  const { data: comments } = await octokit.rest.issues.listComments({
+    owner,
+    repo,
+    issue_number: prNumber,
+  });
+  const existing = comments.find((c) => c.body && c.body.includes(COMMENT_MARKER));
+  return existing ? { id: existing.id, body: existing.body ?? "" } : null;
 }
 
 export async function upsertComment(

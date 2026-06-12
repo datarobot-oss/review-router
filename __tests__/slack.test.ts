@@ -39,7 +39,7 @@ describe("buildSlackBlocks", () => {
   it("has review requested header with PR link and diff stats", () => {
     const { blocks } = buildSlackBlocks(params);
     const header = blocks[0].text.text;
-    expect(header).toContain(":rr-mag:");
+    expect(header).toContain(":mag:");
     expect(header).toContain("Review requested");
     expect(header).toContain("<https://github.com/org/repo/pull/1|org/repo #1>");
     expect(header).toContain("`+15 -3`");

@@ -10,13 +10,17 @@ inputs:
     description: "Slack Bot token for sending notifications (optional)"
     required: false
   config-repo:
-    description: "Fetch teams config from this GitHub repo (e.g. 'acme-inc/.review-router'). Reads teams.yml from the repo root."
+    description: "Fetch teams config from this GitHub repo (e.g. 'acme-inc/.review-router'). Reads config.yml from the repo root."
     required: false
   config-token:
     description: "GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to github-token."
     required: false
+  config-path:
+    description: "Filename to look for in the config repo. Default: config.yml. Use this if your config repo has a different filename (e.g. teams.yml)."
+    required: false
+    default: "config.yml"
   config-s3:
-    description: "Fetch teams config from S3 (e.g. 's3://bucket-name/path/to/teams.yml'). Requires AWS credentials in the environment."
+    description: "Fetch teams config from S3 (e.g. 's3://bucket-name/path/to/config.yml'). Requires AWS credentials in the environment."
     required: false
   ready-label:
     description: "Label name that triggers review routing"

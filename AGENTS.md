@@ -24,7 +24,7 @@ npm run all           # lint + test + build
   - `auth.ts` -- capability detection
   - `types.ts` -- shared interfaces
 - `__tests__/` -- Jest tests (mirrors src/ structure)
-- `config/` -- bundled team config (`teams.yml`) and JSON Schema (`schema.json`)
+- `config/` -- bundled team config (`config.yml`) and JSON Schema (`schema.json`)
 - `dist/` -- ncc output (committed, required by GitHub Actions)
 - `docs/` -- setup guides and security docs
 - `action.yml` -- GitHub Action definition
@@ -50,7 +50,7 @@ The action handles three GitHub event types:
 2. **`pull_request_review: submitted`** -- removes team labels when a member of that team approves
 3. **`issue_comment: created`** -- on `/review` comment, adds "Ready for Review" label to trigger routing
 
-Config loading priority: `config-repo` > `config-s3` > bundled `config/teams.yml`. External config is validated against `config/schema.json` using Ajv.
+Config loading priority: `config-repo` > `config-s3` > bundled `config/config.yml`. External config is validated against `config/schema.json` using Ajv.
 
 ## Security
 

@@ -2,7 +2,9 @@ import {
   handleLabeled,
   handleReviewSubmitted,
   handleOpened,
+  handleClosed,
   resolveTeamSlugFromLabel,
+  getFileTypeEmojis,
 } from "../src/router";
 import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
@@ -31,6 +33,7 @@ const mockOctokit = {
     },
     issues: {
       listLabelsOnIssue: jest.fn(),
+      listComments: jest.fn(),
       removeLabel: jest.fn(),
       addLabels: jest.fn(),
     },
@@ -88,6 +91,7 @@ describe("handleLabeled", () => {
         slackToken: "",
         configRepo: "",
         configToken: "",
+        configPath: "config.yml",
         configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
@@ -130,6 +134,7 @@ describe("handleLabeled", () => {
         slackToken: "",
         configRepo: "",
         configToken: "",
+        configPath: "config.yml",
         configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
@@ -176,6 +181,7 @@ describe("handleLabeled", () => {
           slackToken: "",
           configRepo: "",
           configToken: "",
+          configPath: "config.yml",
           configS3: "",
           readyLabel: "Ready for Review",
           needsReviewPrefix: "Needs Review",
@@ -217,6 +223,7 @@ describe("handleLabeled", () => {
         slackToken: "xoxb-slack-token",
         configRepo: "",
         configToken: "",
+        configPath: "config.yml",
         configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
@@ -259,6 +266,7 @@ describe("handleLabeled", () => {
         slackToken: "",
         configRepo: "",
         configToken: "",
+        configPath: "config.yml",
         configS3: "",
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
@@ -290,6 +298,7 @@ describe("handleReviewSubmitted", () => {
       slackToken: "",
       configRepo: "",
       configToken: "",
+      configPath: "config.yml",
       configS3: "",
       readyLabel: "Ready for Review",
       needsReviewPrefix: "Needs Review",
@@ -402,6 +411,7 @@ describe("handleOpened", () => {
     slackToken: "",
     configRepo: "",
     configToken: "",
+    configPath: "config.yml",
     configS3: "",
     readyLabel: "Ready for Review",
     needsReviewPrefix: "Needs Review",
@@ -465,5 +475,141 @@ describe("handleOpened", () => {
       issue_number: 42,
       labels: ["Ready for Review"],
     });
+  });
+});
+
+describe("handleClosed", () => {
+  const baseInputs = {
+    githubToken: "token",
+    slackToken: "xoxb-slack-token",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+  };
+
+  it("skips when PR was closed without merging", async () => {
+    await handleClosed(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      merged: false,
+      inputs: baseInputs,
+      teamsConfig,
+    });
+
+    expect(mockOctokit.rest.issues.listLabelsOnIssue).not.toHaveBeenCalled();
+  });
+
+  it("removes review labels on merge", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Ready for Review" }, { name: "Needs Review: Frontend" }, { name: "bug" }],
+    });
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+
+    await handleClosed(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      merged: true,
+      inputs: baseInputs,
+      teamsConfig,
+    });
+
+    expect(labels.removeLabel).toHaveBeenCalledTimes(2);
+    expect(labels.removeLabel).toHaveBeenCalledWith(
+      expect.anything(),
+      "org",
+      "repo",
+      1,
+      "Ready for Review"
+    );
+    expect(labels.removeLabel).toHaveBeenCalledWith(
+      expect.anything(),
+      "org",
+      "repo",
+      1,
+      "Needs Review: Frontend"
+    );
+  });
+
+  it("adds merged reaction to Slack messages", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Ready for Review" }],
+    });
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue({
+      id: 1,
+      body: "<!-- review-router-ownership -->\nContent\n<!-- rr:slack:C123:1234.5678 -->",
+    });
+    (comment.extractSlackRefs as jest.Mock).mockReturnValue([{ channel: "C123", ts: "1234.5678" }]);
+    (slack.addSlackReactions as jest.Mock).mockResolvedValue(undefined);
+
+    await handleClosed(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      merged: true,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, reactions: { enabled: true } },
+    });
+
+    expect(slack.addSlackReactions).toHaveBeenCalledWith(
+      "xoxb-slack-token",
+      { channel: "C123", ts: "1234.5678" },
+      ["heavy_check_mark"]
+    );
+  });
+});
+
+describe("getFileTypeEmojis", () => {
+  const config = {
+    enabled: true,
+    file_types: {
+      py: "python",
+      ts: "typescript",
+      tsx: "typescript",
+      yml: "yaml",
+      dockerfile: "docker",
+      "github-actions": "github-actions",
+    },
+  };
+
+  it("returns empty when reactions disabled", () => {
+    expect(getFileTypeEmojis(["src/app.py"])).toEqual([]);
+    expect(getFileTypeEmojis(["src/app.py"], { enabled: false })).toEqual([]);
+  });
+
+  it("returns empty when file_types not configured", () => {
+    expect(getFileTypeEmojis(["src/app.py"], { enabled: true })).toEqual([]);
+  });
+
+  it("maps Python files", () => {
+    expect(getFileTypeEmojis(["src/app.py"], config)).toContain("python");
+  });
+
+  it("maps TypeScript files", () => {
+    expect(getFileTypeEmojis(["src/index.ts", "src/types.tsx"], config)).toEqual(["typescript"]);
+  });
+
+  it("maps GitHub Actions workflows", () => {
+    expect(getFileTypeEmojis([".github/workflows/ci.yml"], config)).toContain("github-actions");
+  });
+
+  it("maps Dockerfile", () => {
+    expect(getFileTypeEmojis(["Dockerfile"], config)).toContain("docker");
+  });
+
+  it("deduplicates emojis", () => {
+    const emojis = getFileTypeEmojis(["a.py", "b.py", "c.ts"], config);
+    expect(emojis).toEqual(["python", "typescript"]);
+  });
+
+  it("returns empty for unknown extensions", () => {
+    expect(getFileTypeEmojis(["file.xyz", "data.bin"], config)).toEqual([]);
   });
 });

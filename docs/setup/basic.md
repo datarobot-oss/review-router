@@ -142,7 +142,7 @@ important because:
 
 By default, the action generates labels like "Needs Review: Core Team"
 from the CODEOWNERS team slug. To customize labels or add Slack channels,
-edit `config/teams.yml` in the review-router repository:
+edit `config/config.yml` in the review-router repository:
 
 ```yaml
 orgs:

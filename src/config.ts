@@ -22,7 +22,7 @@ export function parseTeamsConfig(content: string): TeamsConfig {
 }
 
 function loadBundledConfig(org: string): OrgConfig {
-  const configPath = path.join(__dirname, "..", "config", "teams.yml");
+  const configPath = path.join(__dirname, "..", "config", "config.yml");
   try {
     const content = fs.readFileSync(configPath, "utf8");
     const config = parseTeamsConfig(content);
@@ -34,7 +34,7 @@ function loadBundledConfig(org: string): OrgConfig {
       }
       return orgConfig;
     }
-    core.warning(`No config section found for org "${org}" in bundled teams.yml`);
+    core.warning(`No config section found for org "${org}" in bundled config.yml`);
   } catch {
     core.warning(`Could not load bundled teams config from ${configPath}`);
   }
@@ -43,7 +43,8 @@ function loadBundledConfig(org: string): OrgConfig {
 
 export async function fetchConfigFromRepo(
   octokit: Octokit,
-  configRepo: string
+  configRepo: string,
+  configPath = "config.yml"
 ): Promise<string | null> {
   const [owner, repo] = configRepo.split("/");
   if (!owner || !repo) {
@@ -56,18 +57,18 @@ export async function fetchConfigFromRepo(
     const response = await octokit.rest.repos.getContent({
       owner,
       repo,
-      path: "teams.yml",
+      path: configPath,
       ref,
     });
     if ("content" in response.data && response.data.content) {
-      core.info(`Fetched config from ${configRepo}/teams.yml`);
+      core.info(`Fetched config from ${configRepo}/${configPath}`);
       return Buffer.from(response.data.content, "base64").toString("utf8");
     }
     return null;
   } catch (error: unknown) {
     const httpError = error as { status?: number };
     if (httpError.status === 404) {
-      core.warning(`No teams.yml found in ${configRepo}`);
+      core.warning(`No ${configPath} found in ${configRepo}`);
     } else {
       core.warning(
         `Failed to fetch config from ${configRepo}: ${error instanceof Error ? error.message : String(error)}`
@@ -106,6 +107,7 @@ export async function loadTeamsConfigForOrg(
   octokit?: Octokit,
   configRepo?: string,
   configToken?: string,
+  configPath?: string,
   configS3?: string
 ): Promise<OrgConfig> {
   let content: string | null = null;
@@ -114,7 +116,7 @@ export async function loadTeamsConfigForOrg(
     const configOctokit = configToken
       ? (await import("@actions/github")).getOctokit(configToken)
       : octokit;
-    content = await fetchConfigFromRepo(configOctokit, configRepo);
+    content = await fetchConfigFromRepo(configOctokit, configRepo, configPath);
   }
   if (!content && configS3) {
     content = await fetchConfigFromS3(configS3);

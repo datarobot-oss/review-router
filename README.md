@@ -84,18 +84,19 @@ significantly), remove the label and re-add it, or have a contributor comment
 | -------------------------- | -------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `github-token`             | Yes      | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality.                                 |
 | `slack-token`              | No       | —                     | Slack Bot token for sending notifications.                                                                              |
-| `config-repo`              | No       | —                     | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `teams.yml` from the repo root.           |
+| `config-repo`              | No       | —                     | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `config.yml` from the repo root.          |
 | `config-token`             | No       | —                     | GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to `github-token`. |
-| `config-s3`                | No       | —                     | Fetch teams config from S3 (e.g. `s3://bucket/path/teams.yml`). Requires AWS credentials in the environment.            |
+| `config-path`              | No       | `config.yml`          | Filename to look for in the config repo. Use if your config file has a different name.                                  |
+| `config-s3`                | No       | —                     | Fetch teams config from S3 (e.g. `s3://bucket/path/config.yml`). Requires AWS credentials in the environment.           |
 | `ready-label`              | No       | `Ready for Review`    | Label name that triggers review routing.                                                                                |
 | `needs-review-prefix`      | No       | `Needs Review`        | Prefix for per-team review labels (e.g. "Needs Review: Platform").                                                      |
 | `needs-review-label-color` | No       | `fbca04`              | Hex color for auto-created "Needs Review" labels.                                                                       |
 
-Config priority: `config-repo` > `config-s3` > bundled `config/teams.yml`.
+Config priority: `config-repo` > `config-s3` > bundled `config/config.yml`.
 
 ## Feature Flags
 
-Optional features can be enabled per-org in `teams.yml`:
+Optional features can be enabled per-org in `config.yml`:
 
 ```yaml
 orgs:
@@ -166,7 +167,7 @@ infra/ @acme-corp/infra-team
 
 1. Create the GitHub team in your GitHub organization
 2. Add the team to repos' `.github/CODEOWNERS` files
-3. Add an entry to `config/teams.yml` (bundled or external)
+3. Add an entry to `config/config.yml` (bundled or external)
 4. Invite the Slack bot to the team's channel
 
 ## Contributing

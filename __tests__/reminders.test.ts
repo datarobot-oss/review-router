@@ -17,6 +17,7 @@ const baseInputs = {
   slackToken: "xoxb-slack-token",
   configRepo: "",
   configToken: "",
+  configPath: "config.yml",
   configS3: "",
   readyLabel: "Ready for Review",
   needsReviewPrefix: "Needs Review",

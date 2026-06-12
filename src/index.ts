@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { handleLabeled, handleReviewSubmitted, handleOpened } from "./router";
+import { handleLabeled, handleReviewSubmitted, handleOpened, handleClosed } from "./router";
 import { handleSchedule } from "./reminders";
 import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
@@ -12,6 +12,7 @@ async function run(): Promise<void> {
     slackToken: core.getInput("slack-token"),
     configRepo: core.getInput("config-repo"),
     configToken: core.getInput("config-token"),
+    configPath: core.getInput("config-path"),
     configS3: core.getInput("config-s3"),
     readyLabel: core.getInput("ready-label"),
     needsReviewPrefix: core.getInput("needs-review-prefix"),
@@ -64,10 +65,32 @@ async function run(): Promise<void> {
     octokit,
     inputs.configRepo,
     inputs.configToken,
+    inputs.configPath,
     inputs.configS3
   );
 
   const capabilities = await detectCapabilities(octokit, owner);
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "closed"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    await handleClosed(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      merged: pr.merged ?? false,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
 
   if (eventName === "schedule") {
     await handleSchedule(octokit, {

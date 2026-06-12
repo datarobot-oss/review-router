@@ -33,7 +33,7 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled]
+    types: [labeled, closed]
   pull_request_review:
     types: [submitted]
   issue_comment:
@@ -64,11 +64,12 @@ jobs:
           slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
 ```
 
-The action handles three event types:
+The action handles these event types:
 
-- **`pull_request_target: labeled`** — routes review when "Ready for Review" is added
-- **`pull_request_review: submitted`** — removes team labels on approval
-- **`issue_comment: created`** — when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
+- **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added
+- **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
+- **`pull_request_review: submitted`** -- removes team labels on approval
+- **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
 
 Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
 branch, so external contributors cannot modify it or access secrets.
@@ -120,7 +121,7 @@ Add `opened` to the trigger types in your workflow:
 ```yaml
 on:
   pull_request_target:
-    types: [labeled, opened]
+    types: [labeled, opened, closed]
 ```
 
 Repos that don't want dependabot auto-labeling can simply omit `opened` from
@@ -140,13 +141,13 @@ on:
   schedule:
     - cron: "0 9 * * 1-5" # weekdays at 9 AM UTC
   pull_request_target:
-    types: [labeled]
+    types: [labeled, closed]
   # ...
 ```
 
 ## Feature Flags
 
-Optional features can be enabled per-org in `teams.yml`:
+Optional features can be enabled per-org in `config.yml`:
 
 ```yaml
 orgs:
@@ -170,7 +171,7 @@ Add `opened` to the trigger types in your workflow:
 ```yaml
 on:
   pull_request_target:
-    types: [labeled, opened]
+    types: [labeled, opened, closed]
 ```
 
 Repos that don't want dependabot auto-labeling can simply omit `opened` from
@@ -190,7 +191,7 @@ on:
   schedule:
     - cron: "0 9 * * 1-5" # weekdays at 9 AM UTC
   pull_request_target:
-    types: [labeled]
+    types: [labeled, closed]
   # ...
 ```
 

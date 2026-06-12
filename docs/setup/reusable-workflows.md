@@ -116,7 +116,7 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled]
+    types: [labeled, closed]
   pull_request_review:
     types: [submitted]
   issue_comment:

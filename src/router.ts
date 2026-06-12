@@ -331,10 +331,13 @@ export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promis
     issue_number: ctx.prNumber,
   });
 
+  const configuredLabels = new Set(Object.values(ctx.teamsConfig.teams).map((t) => t.label));
   const labelsToRemove = labels
     .filter(
       (l) =>
-        l.name === ctx.inputs.readyLabel || l.name.startsWith(ctx.inputs.needsReviewPrefix + ":")
+        l.name === ctx.inputs.readyLabel ||
+        l.name.startsWith(ctx.inputs.needsReviewPrefix + ":") ||
+        configuredLabels.has(l.name)
     )
     .map((l) => l.name);
 

@@ -79581,8 +79581,11 @@ async function handleClosed(octokit, ctx) {
         repo: ctx.repo,
         issue_number: ctx.prNumber,
     });
+    const configuredLabels = new Set(Object.values(ctx.teamsConfig.teams).map((t) => t.label));
     const labelsToRemove = labels
-        .filter((l) => l.name === ctx.inputs.readyLabel || l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
+        .filter((l) => l.name === ctx.inputs.readyLabel ||
+        l.name.startsWith(ctx.inputs.needsReviewPrefix + ":") ||
+        configuredLabels.has(l.name))
         .map((l) => l.name);
     for (const labelName of labelsToRemove) {
         try {

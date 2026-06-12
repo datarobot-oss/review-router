@@ -78960,6 +78960,32 @@ async function run() {
     }
     const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configPath, inputs.configS3);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
+    if (eventName === "schedule") {
+        await (0, reminders_1.handleSchedule)(octokit, {
+            owner,
+            repo,
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        action === "opened") {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        await (0, router_1.handleOpened)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            author: pr.user?.login ?? "",
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         action === "closed") {
         const pr = context.payload.pull_request;

@@ -144,6 +144,56 @@ on:
   # ...
 ```
 
+## Feature Flags
+
+Optional features can be enabled per-org in `teams.yml`:
+
+```yaml
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      stale_hours: 24 # optional, default 24
+    dependabot:
+      auto_label: true
+    teams:
+      # ...
+```
+
+### Dependabot Auto-Label
+
+When `dependabot.auto_label` is `true`, PRs opened by `dependabot[bot]` automatically
+get the "Ready for Review" label, triggering the normal routing flow.
+
+Add `opened` to the trigger types in your workflow:
+
+```yaml
+on:
+  pull_request_target:
+    types: [labeled, opened]
+```
+
+Repos that don't want dependabot auto-labeling can simply omit `opened` from
+their trigger types. The org-level config flag is a second layer of control.
+
+### Stale PR Reminders
+
+When `reminders.enabled` is `true`, a scheduled run scans open PRs that still
+have the "Ready for Review" label and any "Needs Review" team labels, then
+re-sends Slack notifications. Only PRs where the "Ready for Review" label was
+added at least `stale_hours` (default 24) ago are reminded.
+
+Add a `schedule` trigger to your workflow:
+
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1-5" # weekdays at 9 AM UTC
+  pull_request_target:
+    types: [labeled]
+  # ...
+```
+
 ## CODEOWNERS
 
 Add a `.github/CODEOWNERS` file to your repo:

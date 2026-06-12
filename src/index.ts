@@ -71,6 +71,37 @@ async function run(): Promise<void> {
 
   const capabilities = await detectCapabilities(octokit, owner);
 
+  if (eventName === "schedule") {
+    await handleSchedule(octokit, {
+      owner,
+      repo,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "opened"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    await handleOpened(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      author: pr.user?.login ?? "",
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
   if (
     (eventName === "pull_request" || eventName === "pull_request_target") &&
     action === "closed"

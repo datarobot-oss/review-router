@@ -3,6 +3,8 @@ import {
   upsertComment,
   embedSlackRefs,
   extractSlackRefs,
+  embedSlackRefsInDescription,
+  extractSlackRefsFromDescription,
   COMMENT_MARKER,
 } from "../src/comment";
 
@@ -112,6 +114,28 @@ describe("upsertComment", () => {
     });
     expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
+
+  it("uses pre-fetched comment when provided", async () => {
+    mockOctokit.rest.issues.updateComment.mockResolvedValue({});
+    await upsertComment(mockOctokit as any, "owner", "repo", 1, "new body", {
+      id: 99,
+      body: "old body",
+    });
+    expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      comment_id: 99,
+      body: "new body",
+    });
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+  });
+
+  it("creates comment when pre-fetched is explicitly null", async () => {
+    mockOctokit.rest.issues.createComment.mockResolvedValue({});
+    await upsertComment(mockOctokit as any, "owner", "repo", 1, "body", null);
+    expect(mockOctokit.rest.issues.createComment).toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+  });
 });
 
 describe("embedSlackRefs", () => {
@@ -148,5 +172,73 @@ describe("extractSlackRefs", () => {
 
   it("returns empty array when no refs", () => {
     expect(extractSlackRefs("no refs here")).toEqual([]);
+  });
+});
+
+describe("embedSlackRefsInDescription", () => {
+  it("appends refs block to empty description", () => {
+    const result = embedSlackRefsInDescription("", [{ channel: "C123", ts: "1.2" }]);
+    expect(result).toBe(
+      "\n<!-- rr:slack:start -->\n<!-- rr:slack:C123:1.2 -->\n<!-- rr:slack:end -->"
+    );
+  });
+
+  it("appends refs block to description without Cursor summary", () => {
+    const result = embedSlackRefsInDescription("Some PR description", [
+      { channel: "C123", ts: "1.2" },
+    ]);
+    expect(result).toBe(
+      "Some PR description\n<!-- rr:slack:start -->\n<!-- rr:slack:C123:1.2 -->\n<!-- rr:slack:end -->"
+    );
+  });
+
+  it("inserts refs before CURSOR_SUMMARY marker", () => {
+    const desc = "My PR\n<!-- CURSOR_SUMMARY -->\nAuto-generated summary";
+    const result = embedSlackRefsInDescription(desc, [{ channel: "C123", ts: "1.2" }]);
+    expect(result).toBe(
+      "My PR\n<!-- rr:slack:start -->\n<!-- rr:slack:C123:1.2 -->\n<!-- rr:slack:end -->\n<!-- CURSOR_SUMMARY -->\nAuto-generated summary"
+    );
+  });
+
+  it("replaces existing refs block", () => {
+    const desc =
+      "My PR\n<!-- rr:slack:start -->\n<!-- rr:slack:OLD:0.0 -->\n<!-- rr:slack:end -->\nMore text";
+    const result = embedSlackRefsInDescription(desc, [{ channel: "C999", ts: "9.9" }]);
+    expect(result).toBe(
+      "My PR\n<!-- rr:slack:start -->\n<!-- rr:slack:C999:9.9 -->\n<!-- rr:slack:end -->\nMore text"
+    );
+  });
+
+  it("handles multiple refs", () => {
+    const result = embedSlackRefsInDescription("desc", [
+      { channel: "C1", ts: "1.0" },
+      { channel: "C2", ts: "2.0" },
+    ]);
+    expect(result).toContain("<!-- rr:slack:C1:1.0 -->");
+    expect(result).toContain("<!-- rr:slack:C2:2.0 -->");
+  });
+
+  it("returns description unchanged when no refs", () => {
+    expect(embedSlackRefsInDescription("desc", [])).toBe("desc");
+  });
+});
+
+describe("extractSlackRefsFromDescription", () => {
+  it("extracts refs from description with block markers", () => {
+    const desc =
+      "My PR\n<!-- rr:slack:start -->\n<!-- rr:slack:C123:1.2 -->\n<!-- rr:slack:C456:3.4 -->\n<!-- rr:slack:end -->";
+    expect(extractSlackRefsFromDescription(desc)).toEqual([
+      { channel: "C123", ts: "1.2" },
+      { channel: "C456", ts: "3.4" },
+    ]);
+  });
+
+  it("returns empty when no refs block", () => {
+    expect(extractSlackRefsFromDescription("Just a description")).toEqual([]);
+  });
+
+  it("returns empty for null/undefined body", () => {
+    expect(extractSlackRefsFromDescription(null as any)).toEqual([]);
+    expect(extractSlackRefsFromDescription(undefined as any)).toEqual([]);
   });
 });

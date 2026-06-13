@@ -78576,6 +78576,8 @@ exports.buildOwnershipComment = buildOwnershipComment;
 exports.embedSlackRefs = embedSlackRefs;
 exports.mergeSlackRefs = mergeSlackRefs;
 exports.extractSlackRefs = extractSlackRefs;
+exports.embedSlackRefsInDescription = embedSlackRefsInDescription;
+exports.extractSlackRefsFromDescription = extractSlackRefsFromDescription;
 exports.findExistingComment = findExistingComment;
 exports.upsertComment = upsertComment;
 const core = __importStar(__nccwpck_require__(37484));
@@ -78635,6 +78637,40 @@ function extractSlackRefs(body) {
         ts: m[2],
     }));
 }
+const SLACK_DESC_START = "<!-- rr:slack:start -->";
+const SLACK_DESC_END = "<!-- rr:slack:end -->";
+const CURSOR_SUMMARY = "<!-- CURSOR_SUMMARY -->";
+const SLACK_DESC_BLOCK_PATTERN = new RegExp(`\\n?${SLACK_DESC_START}[\\s\\S]*?${SLACK_DESC_END}`, "");
+function embedSlackRefsInDescription(body, refs) {
+    if (refs.length === 0)
+        return body;
+    const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`);
+    const block = `\n${SLACK_DESC_START}\n${tags.join("\n")}\n${SLACK_DESC_END}`;
+    // Replace existing block if present
+    if (body.includes(SLACK_DESC_START)) {
+        return body.replace(SLACK_DESC_BLOCK_PATTERN, block);
+    }
+    // Insert before Cursor summary if present
+    const cursorIdx = body.indexOf(CURSOR_SUMMARY);
+    if (cursorIdx !== -1) {
+        const prefix = body.slice(0, cursorIdx).replace(/\n$/, "");
+        return prefix + block + "\n" + body.slice(cursorIdx);
+    }
+    return body + block;
+}
+function extractSlackRefsFromDescription(body) {
+    if (!body)
+        return [];
+    const startIdx = body.indexOf(SLACK_DESC_START);
+    const endIdx = body.indexOf(SLACK_DESC_END);
+    if (startIdx === -1 || endIdx === -1)
+        return [];
+    const block = body.slice(startIdx + SLACK_DESC_START.length, endIdx);
+    return [...block.matchAll(new RegExp(SLACK_REF_PATTERN, "g"))].map((m) => ({
+        channel: m[1],
+        ts: m[2],
+    }));
+}
 async function findExistingComment(octokit, owner, repo, prNumber) {
     const { data: comments } = await octokit.rest.issues.listComments({
         owner,
@@ -78644,13 +78680,10 @@ async function findExistingComment(octokit, owner, repo, prNumber) {
     const existing = comments.find((c) => c.body && c.body.includes(exports.COMMENT_MARKER));
     return existing ? { id: existing.id, body: existing.body ?? "" } : null;
 }
-async function upsertComment(octokit, owner, repo, prNumber, body) {
-    const { data: comments } = await octokit.rest.issues.listComments({
-        owner,
-        repo,
-        issue_number: prNumber,
-    });
-    const existing = comments.find((c) => c.body && c.body.includes(exports.COMMENT_MARKER));
+async function upsertComment(octokit, owner, repo, prNumber, body, existingComment) {
+    const existing = existingComment !== undefined
+        ? existingComment
+        : await findExistingComment(octokit, owner, repo, prNumber);
     if (existing) {
         await octokit.rest.issues.updateComment({
             owner,

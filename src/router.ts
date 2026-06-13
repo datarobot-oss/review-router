@@ -523,20 +523,38 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     return;
   }
 
-  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-  if (!authorSlackId) {
-    core.debug(`No Slack ID found for PR author ${ctx.author}, skipping thread notification`);
-    return;
-  }
-
   const client = new WebClient(ctx.inputs.slackToken);
   const kindLabel =
     ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
   const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
-  const text =
-    ctx.kind === "review" && ctx.commentUrl === ""
-      ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
-      : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+
+  const recipients: Array<{ slackId: string; text: string }> = [];
+
+  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+  if (authorSlackId) {
+    const text =
+      ctx.kind === "review" && ctx.commentUrl === ""
+        ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
+        : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+    recipients.push({ slackId: authorSlackId, text });
+  }
+
+  if (ctx.kind !== "review") {
+    for (const assignee of ctx.assignees) {
+      if (assignee === ctx.commenter || assignee === ctx.author) continue;
+      const slackId = ctx.teamsConfig.users?.[assignee];
+      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
+      recipients.push({
+        slackId,
+        text: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+      });
+    }
+  }
+
+  if (recipients.length === 0) {
+    core.debug("No recipients with Slack IDs found, skipping thread notifications");
+    return;
+  }
 
   for (const ref of refs) {
     try {
@@ -545,8 +563,12 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
         core.debug(`Slack message in ${ref.channel} is muted, skipping thread reply`);
         continue;
       }
-      await postSlackThreadReply(client, ref.channel, ref.ts, text);
-      core.info(`Posted thread reply in ${ref.channel} for PR #${ctx.prNumber}`);
+      for (const { text } of recipients) {
+        await postSlackThreadReply(client, ref.channel, ref.ts, text);
+      }
+      core.info(
+        `Posted ${recipients.length} thread reply(s) in ${ref.channel} for PR #${ctx.prNumber}`
+      );
     } catch (error) {
       core.warning(
         `Failed to post thread reply in ${ref.channel}: ${error instanceof Error ? error.message : String(error)}`

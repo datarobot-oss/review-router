@@ -681,6 +681,7 @@ describe("handleComment", () => {
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: [],
       kind: "comment",
       inputs: baseInputs,
       teamsConfig: configWithUsers,
@@ -711,6 +712,7 @@ describe("handleComment", () => {
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: [],
       kind: "comment",
       inputs: baseInputs,
       teamsConfig: configWithUsers,
@@ -734,6 +736,7 @@ describe("handleComment", () => {
       author: "unknown-user",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: [],
       kind: "comment",
       inputs: baseInputs,
       teamsConfig: configWithUsers,
@@ -754,6 +757,7 @@ describe("handleComment", () => {
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: [],
       kind: "comment",
       inputs: { ...baseInputs, slackToken: "" },
       teamsConfig: configWithUsers,
@@ -780,11 +784,128 @@ describe("handleComment", () => {
       author: "alice",
       commenter: "bob",
       commentUrl: "",
+      assignees: [],
       kind: "review",
       inputs: baseInputs,
       teamsConfig: configWithUsers,
     });
 
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("approved by *bob*")
+    );
+  });
+  it("notifies assignees on comments", async () => {
+    const configWithMultipleUsers: OrgConfig = {
+      ...teamsConfig,
+      users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
+    };
+
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      kind: "comment",
+      inputs: baseInputs,
+      teamsConfig: configWithMultipleUsers,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(2);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U_ALICE>")
+    );
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U_CHARLIE>")
+    );
+  });
+
+  it("skips assignee who is the commenter", async () => {
+    const configWithMultipleUsers: OrgConfig = {
+      ...teamsConfig,
+      users: { alice: "U_ALICE", bob: "U_BOB" },
+    };
+
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["bob"],
+      kind: "comment",
+      inputs: baseInputs,
+      teamsConfig: configWithMultipleUsers,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U_ALICE>")
+    );
+  });
+
+  it("skips assignees on approval (review kind)", async () => {
+    const configWithMultipleUsers: OrgConfig = {
+      ...teamsConfig,
+      users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
+    };
+
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "",
+      assignees: ["charlie"],
+      kind: "review",
+      inputs: baseInputs,
+      teamsConfig: configWithMultipleUsers,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
     expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
       expect.anything(),
       "C111",

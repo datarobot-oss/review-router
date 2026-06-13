@@ -76,6 +76,7 @@ export interface CommentContext {
   author: string;
   commenter: string;
   commentUrl: string;
+  assignees: string[];
   kind: "comment" | "review" | "review_comment";
   inputs: ActionInputs;
   teamsConfig: OrgConfig;

@@ -79030,6 +79030,7 @@ async function run() {
             author: prAuthor,
             commenter: commenterLogin,
             commentUrl: comment.html_url ?? "",
+            assignees: (pr.assignees ?? []).map((a) => a.login),
             kind: "comment",
             inputs,
             teamsConfig,
@@ -79144,6 +79145,7 @@ async function run() {
                     author: prAuthor,
                     commenter: reviewer,
                     commentUrl: "",
+                    assignees: [],
                     kind: "review",
                     inputs,
                     teamsConfig,
@@ -79166,6 +79168,7 @@ async function run() {
                     author: prAuthor,
                     commenter: reviewer,
                     commentUrl: review.html_url ?? "",
+                    assignees: (pr.assignees ?? []).map((a) => a.login),
                     kind: "review",
                     inputs,
                     teamsConfig,
@@ -79198,6 +79201,7 @@ async function run() {
             author: prAuthor,
             commenter,
             commentUrl: reviewComment.html_url ?? "",
+            assignees: (pr.assignees ?? []).map((a) => a.login),
             kind: "review_comment",
             inputs,
             teamsConfig,
@@ -79857,17 +79861,34 @@ async function handleComment(octokit, ctx) {
         core.debug("No Slack refs found, skipping thread notification");
         return;
     }
-    const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-    if (!authorSlackId) {
-        core.debug(`No Slack ID found for PR author ${ctx.author}, skipping thread notification`);
-        return;
-    }
     const client = new web_api_1.WebClient(ctx.inputs.slackToken);
     const kindLabel = ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
     const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
-    const text = ctx.kind === "review" && ctx.commentUrl === ""
-        ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
-        : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+    const recipients = [];
+    const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+    if (authorSlackId) {
+        const text = ctx.kind === "review" && ctx.commentUrl === ""
+            ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
+            : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+        recipients.push({ slackId: authorSlackId, text });
+    }
+    if (ctx.kind !== "review") {
+        for (const assignee of ctx.assignees) {
+            if (assignee === ctx.commenter || assignee === ctx.author)
+                continue;
+            const slackId = ctx.teamsConfig.users?.[assignee];
+            if (!slackId || recipients.some((r) => r.slackId === slackId))
+                continue;
+            recipients.push({
+                slackId,
+                text: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+            });
+        }
+    }
+    if (recipients.length === 0) {
+        core.debug("No recipients with Slack IDs found, skipping thread notifications");
+        return;
+    }
     for (const ref of refs) {
         try {
             const muted = await (0, slack_1.isSlackMessageMuted)(client, ref.channel, ref.ts);
@@ -79875,8 +79896,10 @@ async function handleComment(octokit, ctx) {
                 core.debug(`Slack message in ${ref.channel} is muted, skipping thread reply`);
                 continue;
             }
-            await (0, slack_1.postSlackThreadReply)(client, ref.channel, ref.ts, text);
-            core.info(`Posted thread reply in ${ref.channel} for PR #${ctx.prNumber}`);
+            for (const { text } of recipients) {
+                await (0, slack_1.postSlackThreadReply)(client, ref.channel, ref.ts, text);
+            }
+            core.info(`Posted ${recipients.length} thread reply(s) in ${ref.channel} for PR #${ctx.prNumber}`);
         }
         catch (error) {
             core.warning(`Failed to post thread reply in ${ref.channel}: ${error instanceof Error ? error.message : String(error)}`);

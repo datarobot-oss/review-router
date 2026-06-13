@@ -84,9 +84,11 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, closed]
+    types: [labeled, opened, closed]
   pull_request_review:
     types: [submitted]
+  pull_request_review_comment:
+    types: [created]
   issue_comment:
     types: [created]
 
@@ -96,9 +98,6 @@ permissions:
 
 jobs:
   route:
-    if: >-
-      github.event_name != 'issue_comment'
-      || contains(github.event.comment.body, '/review')
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token
@@ -119,13 +118,15 @@ jobs:
 
 - `pull_request_target: labeled` runs the review routing when someone
   adds the "Ready for Review" label to a PR.
+- `pull_request_target: opened` triggers dependabot auto-labeling when
+  enabled in config.
 - `pull_request_review: submitted` removes team labels when a team
   member approves the PR.
+- `pull_request_review_comment: created` notifies the PR author in the
+  Slack thread when someone leaves an inline review comment.
 - `issue_comment: created` lets contributors type `/review` on a PR
-  to trigger routing (useful for fork contributors who cannot add labels).
-
-The `if` condition skips the runner for comments that don't contain
-`/review`. The action itself does a strict exact match on the comment body.
+  to trigger routing (useful for fork contributors who cannot add labels);
+  also notifies the PR author in Slack thread on general PR comments.
 
 ### Why `pull_request_target`?
 

@@ -116,17 +116,16 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, closed]
+    types: [labeled, opened, closed]
   pull_request_review:
     types: [submitted]
+  pull_request_review_comment:
+    types: [created]
   issue_comment:
     types: [created]
 
 jobs:
   route:
-    if: >-
-      github.event_name != 'issue_comment'
-      || contains(github.event.comment.body, '/review')
     uses: your-org/.github/.github/workflows/review-router.yml@main
     secrets: inherit
 ```

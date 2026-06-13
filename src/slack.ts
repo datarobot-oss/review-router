@@ -260,6 +260,38 @@ export async function sendSlackNotification(
   }
 }
 
+const MUTE_REACTIONS = ["mute", "no_bell"];
+
+export async function isSlackMessageMuted(
+  client: WebClient,
+  channel: string,
+  ts: string
+): Promise<boolean> {
+  try {
+    const result = await client.reactions.get({ channel, timestamp: ts, full: true });
+    const reactions = (result.message as { reactions?: Array<{ name: string }> })?.reactions ?? [];
+    return reactions.some((r) => MUTE_REACTIONS.includes(r.name));
+  } catch (error) {
+    core.warning(
+      `Failed to check mute status: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return false;
+  }
+}
+
+export async function postSlackThreadReply(
+  client: WebClient,
+  channel: string,
+  threadTs: string,
+  text: string
+): Promise<void> {
+  await client.chat.postMessage({
+    channel,
+    thread_ts: threadTs,
+    text,
+  });
+}
+
 export async function addSlackReactions(
   token: string,
   ref: SlackMessageRef,

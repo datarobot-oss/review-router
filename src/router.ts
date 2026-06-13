@@ -158,10 +158,9 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     }
   }
 
-  const notifiedChannels = new Set<string>();
-  const slackRefs: SlackMessageRef[] = [];
   const allLabelNames: string[] = [];
   const allTeamSlugs: string[] = [];
+  const slackChannelsToNotify: Array<{ channel: string; individualOwners: string[] }> = [];
 
   for (const [teamSlug] of ownership.teamFiles) {
     const labelName = getLabelForTeam(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
@@ -176,35 +175,13 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     }
 
     const slackChannel = getSlackChannel(ctx.teamsConfig, teamSlug);
-    if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
-      notifiedChannels.add(slackChannel);
-      const displayLabels = ctx.labels.filter(
-        (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
-      );
+    if (
+      slackChannel &&
+      ctx.inputs.slackToken &&
+      !slackChannelsToNotify.some((c) => c.channel === slackChannel)
+    ) {
       const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
-      const ref = await sendSlackNotification(ctx.inputs.slackToken, slackChannel, {
-        prUrl: ctx.prUrl,
-        prTitle: ctx.prTitle,
-        prNumber: ctx.prNumber,
-        orgName: ctx.owner,
-        repoName: ctx.repo,
-        baseBranch: ctx.baseBranch,
-        author: ctx.author,
-        additions: ctx.additions,
-        deletions: ctx.deletions,
-        commits: ctx.commits,
-        labels: displayLabels,
-        allFiles: allFileStats,
-        individualOwners,
-        users: ctx.teamsConfig.users,
-        icons: ctx.teamsConfig.reactions?.icons,
-      });
-      if (ref) {
-        slackRefs.push(ref);
-        const filenames = allFileStats.map((f) => f.filename);
-        const emojis = getFileTypeEmojis(filenames, ctx.teamsConfig.reactions);
-        await addSlackReactions(ctx.inputs.slackToken, ref, emojis);
-      }
+      slackChannelsToNotify.push({ channel: slackChannel, individualOwners });
     }
   }
 
@@ -244,6 +221,37 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     }
   }
 
+  const slackRefs: SlackMessageRef[] = [];
+  const displayLabels = ctx.labels.filter(
+    (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
+  );
+
+  for (const { channel, individualOwners } of slackChannelsToNotify) {
+    const ref = await sendSlackNotification(ctx.inputs.slackToken, channel, {
+      prUrl: ctx.prUrl,
+      prTitle: ctx.prTitle,
+      prNumber: ctx.prNumber,
+      orgName: ctx.owner,
+      repoName: ctx.repo,
+      baseBranch: ctx.baseBranch,
+      author: ctx.author,
+      additions: ctx.additions,
+      deletions: ctx.deletions,
+      commits: ctx.commits,
+      labels: displayLabels,
+      allFiles: allFileStats,
+      individualOwners,
+      users: ctx.teamsConfig.users,
+      icons: ctx.teamsConfig.reactions?.icons,
+    });
+    if (ref) {
+      slackRefs.push(ref);
+      const fnames = allFileStats.map((f) => f.filename);
+      const emojis = getFileTypeEmojis(fnames, ctx.teamsConfig.reactions);
+      await addSlackReactions(ctx.inputs.slackToken, ref, emojis);
+    }
+  }
+
   const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
   const commentRefs = existing ? extractSlackRefs(existing.body) : [];
   const { data: currentPr } = await octokit.rest.pulls.get({
@@ -259,13 +267,19 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
 
   if (mergedRefs.length > 0) {
-    const updatedBody = embedSlackRefsInDescription(currentPr.body ?? "", mergedRefs);
-    await octokit.rest.pulls.update({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      pull_number: ctx.prNumber,
-      body: updatedBody,
-    });
+    try {
+      const updatedBody = embedSlackRefsInDescription(currentPr.body ?? "", mergedRefs);
+      await octokit.rest.pulls.update({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        pull_number: ctx.prNumber,
+        body: updatedBody,
+      });
+    } catch (error) {
+      core.warning(
+        `Failed to update PR description with Slack refs: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 }
 

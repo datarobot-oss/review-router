@@ -79581,10 +79581,9 @@ async function handleLabeled(octokit, ctx) {
             channelIndividualOwners.get(slackChannel).add(owner);
         }
     }
-    const notifiedChannels = new Set();
-    const slackRefs = [];
     const allLabelNames = [];
     const allTeamSlugs = [];
+    const slackChannelsToNotify = [];
     for (const [teamSlug] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
         await (0, labels_1.ensureLabel)(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
@@ -79596,33 +79595,11 @@ async function handleLabeled(octokit, ctx) {
             core.info(`Skipping team review request for ${teamSlug} (no org access)`);
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
-        if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
-            notifiedChannels.add(slackChannel);
-            const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
+        if (slackChannel &&
+            ctx.inputs.slackToken &&
+            !slackChannelsToNotify.some((c) => c.channel === slackChannel)) {
             const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
-            const ref = await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
-                prUrl: ctx.prUrl,
-                prTitle: ctx.prTitle,
-                prNumber: ctx.prNumber,
-                orgName: ctx.owner,
-                repoName: ctx.repo,
-                baseBranch: ctx.baseBranch,
-                author: ctx.author,
-                additions: ctx.additions,
-                deletions: ctx.deletions,
-                commits: ctx.commits,
-                labels: displayLabels,
-                allFiles: allFileStats,
-                individualOwners,
-                users: ctx.teamsConfig.users,
-                icons: ctx.teamsConfig.reactions?.icons,
-            });
-            if (ref) {
-                slackRefs.push(ref);
-                const filenames = allFileStats.map((f) => f.filename);
-                const emojis = getFileTypeEmojis(filenames, ctx.teamsConfig.reactions);
-                await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, emojis);
-            }
+            slackChannelsToNotify.push({ channel: slackChannel, individualOwners });
         }
     }
     try {
@@ -79658,6 +79635,33 @@ async function handleLabeled(octokit, ctx) {
             }
         }
     }
+    const slackRefs = [];
+    const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
+    for (const { channel, individualOwners } of slackChannelsToNotify) {
+        const ref = await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, channel, {
+            prUrl: ctx.prUrl,
+            prTitle: ctx.prTitle,
+            prNumber: ctx.prNumber,
+            orgName: ctx.owner,
+            repoName: ctx.repo,
+            baseBranch: ctx.baseBranch,
+            author: ctx.author,
+            additions: ctx.additions,
+            deletions: ctx.deletions,
+            commits: ctx.commits,
+            labels: displayLabels,
+            allFiles: allFileStats,
+            individualOwners,
+            users: ctx.teamsConfig.users,
+            icons: ctx.teamsConfig.reactions?.icons,
+        });
+        if (ref) {
+            slackRefs.push(ref);
+            const fnames = allFileStats.map((f) => f.filename);
+            const emojis = getFileTypeEmojis(fnames, ctx.teamsConfig.reactions);
+            await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, emojis);
+        }
+    }
     const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
     const commentRefs = existing ? (0, comment_1.extractSlackRefs)(existing.body) : [];
     const { data: currentPr } = await octokit.rest.pulls.get({
@@ -79671,13 +79675,18 @@ async function handleLabeled(octokit, ctx) {
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
     if (mergedRefs.length > 0) {
-        const updatedBody = (0, comment_1.embedSlackRefsInDescription)(currentPr.body ?? "", mergedRefs);
-        await octokit.rest.pulls.update({
-            owner: ctx.owner,
-            repo: ctx.repo,
-            pull_number: ctx.prNumber,
-            body: updatedBody,
-        });
+        try {
+            const updatedBody = (0, comment_1.embedSlackRefsInDescription)(currentPr.body ?? "", mergedRefs);
+            await octokit.rest.pulls.update({
+                owner: ctx.owner,
+                repo: ctx.repo,
+                pull_number: ctx.prNumber,
+                body: updatedBody,
+            });
+        }
+        catch (error) {
+            core.warning(`Failed to update PR description with Slack refs: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 }
 async function handleReviewSubmitted(octokit, ctx) {

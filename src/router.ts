@@ -35,6 +35,9 @@ export interface ReviewContext {
   owner: string;
   repo: string;
   prNumber: number;
+  prBody: string;
+  prUrl: string;
+  author: string;
   reviewer: string;
   inputs: ActionInputs;
   capabilities: Capabilities;
@@ -296,6 +299,7 @@ export interface ClosedContext {
   owner: string;
   repo: string;
   prNumber: number;
+  prBody: string;
   merged: boolean;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;

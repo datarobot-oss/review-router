@@ -509,7 +509,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   }
 
   const client = new WebClient(ctx.inputs.slackToken);
-  const kindLabel = ctx.kind === "review" ? "review" : "comment";
+  const kindLabel =
+    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
   const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
   const text =
     ctx.kind === "review" && ctx.commentUrl === ""

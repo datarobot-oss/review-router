@@ -79022,7 +79022,7 @@ async function run() {
             repo,
             prNumber: issue.number,
             prBody: pr.body ?? "",
-            prUrl: issue.html_url ?? "",
+            prUrl: pr.html_url ?? "",
             author: prAuthor,
             commenter: commenterLogin,
             commentUrl: comment.html_url ?? "",
@@ -79151,7 +79151,8 @@ async function run() {
             const reviewer = review.user?.login ?? "";
             if (reviewer !== prAuthor &&
                 context.payload.sender?.type !== "Bot" &&
-                !(review.body ?? "").includes(comment_1.COMMENT_MARKER)) {
+                !(review.body ?? "").includes(comment_1.COMMENT_MARKER) &&
+                (review.body ?? "").trim().length > 0) {
                 await (0, router_1.handleComment)(octokit, {
                     owner,
                     repo,
@@ -79843,7 +79844,7 @@ async function handleComment(octokit, ctx) {
         return;
     }
     const client = new web_api_1.WebClient(ctx.inputs.slackToken);
-    const kindLabel = ctx.kind === "review" ? "review" : "comment";
+    const kindLabel = ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
     const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
     const text = ctx.kind === "review" && ctx.commentUrl === ""
         ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`

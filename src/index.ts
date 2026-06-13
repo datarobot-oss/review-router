@@ -1,6 +1,13 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { handleLabeled, handleReviewSubmitted, handleOpened, handleClosed } from "./router";
+import {
+  handleLabeled,
+  handleReviewSubmitted,
+  handleOpened,
+  handleClosed,
+  handleComment,
+} from "./router";
+import { COMMENT_MARKER } from "./comment";
 import { handleSchedule } from "./reminders";
 import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
@@ -39,24 +46,66 @@ async function run(): Promise<void> {
       return;
     }
 
-    if ((comment.body ?? "").trim() !== "/review") {
-      core.info("Ignoring comment (not /review)");
+    // /review command — handle and return (no thread notification)
+    if ((comment.body ?? "").trim() === "/review") {
+      await octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: issue.number,
+        labels: [inputs.readyLabel],
+      });
+      await octokit.rest.reactions.createForIssueComment({
+        owner,
+        repo,
+        comment_id: comment.id,
+        content: "rocket",
+      });
+      core.info(`Added "${inputs.readyLabel}" label to PR #${issue.number} via /review comment`);
       return;
     }
 
-    await octokit.rest.issues.addLabels({
+    // Thread notification for general comments
+    if (comment.body?.includes(COMMENT_MARKER)) {
+      core.info("Ignoring review-router's own comment");
+      return;
+    }
+
+    const prAuthor = issue.user?.login ?? "";
+    const commenterLogin = comment.user?.login ?? "";
+    if (commenterLogin === prAuthor) {
+      core.info("Ignoring comment from PR author");
+      return;
+    }
+
+    const teamsConfig = await loadTeamsConfigForOrg(
+      owner,
+      octokit,
+      inputs.configRepo,
+      inputs.configToken,
+      inputs.configPath,
+      inputs.configS3
+    );
+
+    // issue_comment payload doesn't include PR body — fetch it
+    const { data: pr } = await octokit.rest.pulls.get({
       owner,
       repo,
-      issue_number: issue.number,
-      labels: [inputs.readyLabel],
+      pull_number: issue.number,
     });
-    await octokit.rest.reactions.createForIssueComment({
+
+    await handleComment(octokit, {
       owner,
       repo,
-      comment_id: comment.id,
-      content: "rocket",
+      prNumber: issue.number,
+      prBody: pr.body ?? "",
+      prUrl: issue.html_url ?? "",
+      author: prAuthor,
+      commenter: commenterLogin,
+      commentUrl: comment.html_url ?? "",
+      kind: "comment",
+      inputs,
+      teamsConfig,
     });
-    core.info(`Added "${inputs.readyLabel}" label to PR #${issue.number} via /review comment`);
     return;
   }
 
@@ -116,6 +165,7 @@ async function run(): Promise<void> {
       owner,
       repo,
       prNumber: pr.number,
+      prBody: pr.body ?? "",
       merged: pr.merged ?? false,
       inputs,
       teamsConfig,
@@ -163,18 +213,91 @@ async function run(): Promise<void> {
       return;
     }
 
-    if (review.state !== "approved") {
-      core.info(`Ignoring review with state "${review.state}" (not "approved")`);
+    if (review.state === "approved") {
+      await handleReviewSubmitted(octokit, {
+        owner,
+        repo,
+        prNumber: pr.number,
+        prBody: pr.body ?? "",
+        prUrl: pr.html_url ?? "",
+        author: pr.user?.login ?? "",
+        reviewer: review.user.login,
+        inputs,
+        capabilities,
+        teamsConfig,
+      });
+
+      // Thread notification for approval
+      const prAuthor = pr.user?.login ?? "";
+      const reviewer = review.user?.login ?? "";
+      if (reviewer !== prAuthor && context.payload.sender?.type !== "Bot") {
+        await handleComment(octokit, {
+          owner,
+          repo,
+          prNumber: pr.number,
+          prBody: pr.body ?? "",
+          prUrl: pr.html_url ?? "",
+          author: prAuthor,
+          commenter: reviewer,
+          commentUrl: "",
+          kind: "review",
+          inputs,
+          teamsConfig,
+        });
+      }
+    } else if (review.state === "commented") {
+      const prAuthor = pr.user?.login ?? "";
+      const reviewer = review.user?.login ?? "";
+
+      if (
+        reviewer !== prAuthor &&
+        context.payload.sender?.type !== "Bot" &&
+        !(review.body ?? "").includes(COMMENT_MARKER)
+      ) {
+        await handleComment(octokit, {
+          owner,
+          repo,
+          prNumber: pr.number,
+          prBody: pr.body ?? "",
+          prUrl: pr.html_url ?? "",
+          author: prAuthor,
+          commenter: reviewer,
+          commentUrl: review.html_url ?? "",
+          kind: "review",
+          inputs,
+          teamsConfig,
+        });
+      }
+    } else {
+      core.info(`Ignoring review with state "${review.state}"`);
+    }
+  } else if (eventName === "pull_request_review_comment" && action === "created") {
+    const pr = context.payload.pull_request;
+    const reviewComment = context.payload.comment;
+    if (!pr || !reviewComment) {
+      core.setFailed("Missing pull_request or comment in payload");
       return;
     }
 
-    await handleReviewSubmitted(octokit, {
+    const prAuthor = pr.user?.login ?? "";
+    const commenter = reviewComment.user?.login ?? "";
+
+    if (context.payload.sender?.type === "Bot" || commenter === prAuthor) {
+      core.info("Ignoring bot or self review comment");
+      return;
+    }
+
+    await handleComment(octokit, {
       owner,
       repo,
       prNumber: pr.number,
-      reviewer: review.user.login,
+      prBody: pr.body ?? "",
+      prUrl: pr.html_url ?? "",
+      author: prAuthor,
+      commenter,
+      commentUrl: reviewComment.html_url ?? "",
+      kind: "review_comment",
       inputs,
-      capabilities,
       teamsConfig,
     });
   } else {

@@ -78646,8 +78646,8 @@ function embedSlackRefsInDescription(body, refs) {
         return body;
     const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`);
     const block = `\n${SLACK_DESC_START}\n${tags.join("\n")}\n${SLACK_DESC_END}`;
-    // Replace existing block if present
-    if (body.includes(SLACK_DESC_START)) {
+    // Replace existing block if both markers present
+    if (body.includes(SLACK_DESC_START) && body.includes(SLACK_DESC_END)) {
         return body.replace(SLACK_DESC_BLOCK_PATTERN, block);
     }
     // Insert before Cursor summary if present
@@ -79002,6 +79002,10 @@ async function run() {
         // Thread notification for general comments
         if (comment.body?.includes(comment_1.COMMENT_MARKER)) {
             core.info("Ignoring review-router's own comment");
+            return;
+        }
+        if (!inputs.slackToken) {
+            core.debug("No Slack token provided, skipping thread notification for comment");
             return;
         }
         const prAuthor = issue.user?.login ?? "";

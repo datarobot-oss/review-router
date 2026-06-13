@@ -70,6 +70,11 @@ async function run(): Promise<void> {
       return;
     }
 
+    if (!inputs.slackToken) {
+      core.debug("No Slack token provided, skipping thread notification for comment");
+      return;
+    }
+
     const prAuthor = issue.user?.login ?? "";
     const commenterLogin = comment.user?.login ?? "";
     if (commenterLogin === prAuthor) {

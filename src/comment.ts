@@ -80,8 +80,8 @@ export function embedSlackRefsInDescription(body: string, refs: SlackMessageRef[
   const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`);
   const block = `\n${SLACK_DESC_START}\n${tags.join("\n")}\n${SLACK_DESC_END}`;
 
-  // Replace existing block if present
-  if (body.includes(SLACK_DESC_START)) {
+  // Replace existing block if both markers present
+  if (body.includes(SLACK_DESC_START) && body.includes(SLACK_DESC_END)) {
     return body.replace(SLACK_DESC_BLOCK_PATTERN, block);
   }
 

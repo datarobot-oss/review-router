@@ -78662,7 +78662,7 @@ function extractSlackRefsFromDescription(body) {
     if (!body)
         return [];
     const startIdx = body.indexOf(SLACK_DESC_START);
-    const endIdx = body.indexOf(SLACK_DESC_END);
+    const endIdx = body.indexOf(SLACK_DESC_END, startIdx);
     if (startIdx === -1 || endIdx === -1)
         return [];
     const block = body.slice(startIdx + SLACK_DESC_START.length, endIdx);

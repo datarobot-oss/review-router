@@ -32,6 +32,23 @@ export async function applyLabel(
   core.info(`Applied label "${labelName}" to PR #${prNumber}`);
 }
 
+export async function applyLabels(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  labelNames: string[]
+): Promise<void> {
+  if (labelNames.length === 0) return;
+  await octokit.rest.issues.addLabels({
+    owner,
+    repo,
+    issue_number: prNumber,
+    labels: labelNames,
+  });
+  core.info(`Applied ${labelNames.length} label(s) to PR #${prNumber}`);
+}
+
 export async function removeLabel(
   octokit: Octokit,
   owner: string,

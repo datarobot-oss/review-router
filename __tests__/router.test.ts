@@ -3,6 +3,7 @@ import {
   handleReviewSubmitted,
   handleOpened,
   handleClosed,
+  handleComment,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
 } from "../src/router";
@@ -21,6 +22,8 @@ const mockOctokit = {
     pulls: {
       listFiles: jest.fn(),
       requestReviewers: jest.fn(),
+      get: jest.fn(),
+      update: jest.fn(),
     },
     repos: {
       getContent: jest.fn(),
@@ -70,8 +73,10 @@ describe("handleLabeled", () => {
       );
 
     (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
-    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
     (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
     (slack.sendSlackNotification as jest.Mock).mockResolvedValue(undefined);
 
     await handleLabeled(mockOctokit as any, {
@@ -102,7 +107,7 @@ describe("handleLabeled", () => {
     });
 
     expect(labels.ensureLabel).toHaveBeenCalled();
-    expect(labels.applyLabel).toHaveBeenCalled();
+    expect(labels.applyLabels).toHaveBeenCalled();
     expect(comment.upsertComment).toHaveBeenCalled();
   });
 
@@ -112,9 +117,11 @@ describe("handleLabeled", () => {
       .spyOn(codeowners, "fetchCodeownersContent")
       .mockResolvedValue("* @datarobot-community/customer-engineering\n");
     (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
-    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
     (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
     (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
     mockOctokit.rest.pulls.requestReviewers.mockResolvedValue({});
 
     await handleLabeled(mockOctokit as any, {
@@ -152,15 +159,73 @@ describe("handleLabeled", () => {
     });
   });
 
+  it("falls back to per-team requestReviewers on batch failure", async () => {
+    mockOctokit.paginate.mockResolvedValue([
+      { filename: "src/app.py" },
+      { filename: "infra/main.tf" },
+    ]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue(
+        "* @datarobot-community/customer-engineering\ninfra/ @datarobot-community/platform-team\n"
+      );
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+    mockOctokit.rest.pulls.requestReviewers
+      .mockRejectedValueOnce(new Error("Batch failed"))
+      .mockResolvedValue({});
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        configRepo: "",
+        configToken: "",
+        configPath: "config.yml",
+        configS3: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+      },
+      capabilities: { hasOrgAccess: true },
+      teamsConfig,
+    });
+
+    // First call is batched (fails), then two per-team fallback calls
+    expect(mockOctokit.rest.pulls.requestReviewers).toHaveBeenCalledTimes(3);
+    expect(mockOctokit.rest.pulls.requestReviewers).toHaveBeenNthCalledWith(1, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      pull_number: 1,
+      team_reviewers: ["customer-engineering", "platform-team"],
+    });
+  });
+
   it("warns but does not fail when requestReviewers throws", async () => {
     mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
     jest
       .spyOn(codeowners, "fetchCodeownersContent")
       .mockResolvedValue("* @datarobot-community/customer-engineering\n");
     (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
-    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
     (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
     (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
     mockOctokit.rest.pulls.requestReviewers.mockRejectedValue(new Error("Not Found"));
 
     await expect(
@@ -201,9 +266,11 @@ describe("handleLabeled", () => {
       .spyOn(codeowners, "fetchCodeownersContent")
       .mockResolvedValue("* @datarobot-community/customer-engineering\n");
     (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
-    (labels.applyLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
     (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
     (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
     (slack.sendSlackNotification as jest.Mock).mockResolvedValue(undefined);
 
     await handleLabeled(mockOctokit as any, {
@@ -292,6 +359,9 @@ describe("handleReviewSubmitted", () => {
     owner: "datarobot-oss",
     repo: "test-repo",
     prNumber: 1,
+    prBody: "",
+    prUrl: "https://github.com/datarobot-oss/test-repo/pull/1",
+    author: "alice",
     reviewer: "bob",
     inputs: {
       githubToken: "token",
@@ -492,10 +562,13 @@ describe("handleClosed", () => {
   };
 
   it("skips when PR was closed without merging", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+
     await handleClosed(mockOctokit as any, {
       owner: "org",
       repo: "repo",
       prNumber: 1,
+      prBody: "",
       merged: false,
       inputs: baseInputs,
       teamsConfig,
@@ -509,12 +582,13 @@ describe("handleClosed", () => {
       data: [{ name: "Ready for Review" }, { name: "Needs Review: Frontend" }, { name: "bug" }],
     });
     (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
-    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
 
     await handleClosed(mockOctokit as any, {
       owner: "org",
       repo: "repo",
       prNumber: 1,
+      prBody: "",
       merged: true,
       inputs: baseInputs,
       teamsConfig,
@@ -538,21 +612,22 @@ describe("handleClosed", () => {
   });
 
   it("adds merged reaction to Slack messages", async () => {
+    const prBody =
+      "PR description\n<!-- rr:slack:start -->\n<!-- rr:slack:C123:1234.5678 -->\n<!-- rr:slack:end -->";
     mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
       data: [{ name: "Ready for Review" }],
     });
     (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
-    (comment.findExistingComment as jest.Mock).mockResolvedValue({
-      id: 1,
-      body: "<!-- review-router-ownership -->\nContent\n<!-- rr:slack:C123:1234.5678 -->",
-    });
-    (comment.extractSlackRefs as jest.Mock).mockReturnValue([{ channel: "C123", ts: "1234.5678" }]);
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C123", ts: "1234.5678" },
+    ]);
     (slack.addSlackReactions as jest.Mock).mockResolvedValue(undefined);
 
     await handleClosed(mockOctokit as any, {
       owner: "org",
       repo: "repo",
       prNumber: 1,
+      prBody,
       merged: true,
       inputs: baseInputs,
       teamsConfig: { ...teamsConfig, reactions: { enabled: true } },
@@ -562,6 +637,155 @@ describe("handleClosed", () => {
       "xoxb-slack-token",
       { channel: "C123", ts: "1234.5678" },
       ["heavy_check_mark"]
+    );
+  });
+});
+
+describe("handleComment", () => {
+  const baseInputs = {
+    githubToken: "token",
+    slackToken: "xoxb-slack-token",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+  };
+
+  const configWithUsers: OrgConfig = {
+    ...teamsConfig,
+    users: { alice: "U12345" },
+  };
+
+  it("posts thread reply to all Slack refs", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+      { channel: "C222", ts: "2222.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:C222:2222.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      kind: "comment",
+      inputs: baseInputs,
+      teamsConfig: configWithUsers,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(2);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("new comment from *bob*")
+    );
+  });
+
+  it("skips when message is muted", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      kind: "comment",
+      inputs: baseInputs,
+      teamsConfig: configWithUsers,
+    });
+
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+  });
+
+  it("skips when no Slack ID for author", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "unknown-user",
+      commenter: "bob",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      kind: "comment",
+      inputs: baseInputs,
+      teamsConfig: configWithUsers,
+    });
+
+    expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+  });
+
+  it("skips when no Slack token", async () => {
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      kind: "comment",
+      inputs: { ...baseInputs, slackToken: "" },
+      teamsConfig: configWithUsers,
+    });
+
+    expect(comment.extractSlackRefsFromDescription).not.toHaveBeenCalled();
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+  });
+
+  it("sends approval message for review kind with empty commentUrl", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+
+    await handleComment(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody:
+        "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
+      prUrl: "https://github.com/org/repo/pull/1",
+      author: "alice",
+      commenter: "bob",
+      commentUrl: "",
+      kind: "review",
+      inputs: baseInputs,
+      teamsConfig: configWithUsers,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("approved by *bob*")
     );
   });
 });

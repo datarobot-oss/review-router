@@ -167,6 +167,7 @@ on:
 ```
 
 Thread notifications are filtered automatically:
+
 - Bot comments are ignored
 - The PR author's own comments don't trigger notifications
 - Review-router's own comments are skipped

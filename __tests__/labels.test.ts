@@ -1,4 +1,4 @@
-import { ensureLabel, applyLabel, removeLabel } from "../src/labels";
+import { ensureLabel, applyLabel, applyLabels, removeLabel } from "../src/labels";
 
 const mockOctokit = {
   rest: {
@@ -44,6 +44,28 @@ describe("applyLabel", () => {
       issue_number: 1,
       labels: ["Needs Review: Team"],
     });
+  });
+});
+
+describe("applyLabels", () => {
+  it("adds multiple labels in a single call", async () => {
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+    await applyLabels(mockOctokit as any, "owner", "repo", 1, [
+      "Needs Review: Team A",
+      "Needs Review: Team B",
+    ]);
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledTimes(1);
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: 1,
+      labels: ["Needs Review: Team A", "Needs Review: Team B"],
+    });
+  });
+
+  it("skips call when labels array is empty", async () => {
+    await applyLabels(mockOctokit as any, "owner", "repo", 1, []);
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
   });
 });
 

@@ -33,9 +33,11 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, closed]
+    types: [labeled, opened, closed]
   pull_request_review:
     types: [submitted]
+  pull_request_review_comment:
+    types: [created]
   issue_comment:
     types: [created]
 
@@ -45,9 +47,6 @@ permissions:
 
 jobs:
   route:
-    if: >-
-      github.event_name != 'issue_comment'
-      || contains(github.event.comment.body, '/review')
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token
@@ -67,9 +66,11 @@ jobs:
 The action handles these event types:
 
 - **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added
+- **`pull_request_target: opened`** -- triggers dependabot auto-labeling when enabled in config
 - **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
 - **`pull_request_review: submitted`** -- removes team labels on approval
-- **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing
+- **`pull_request_review_comment: created`** -- notifies PR author in Slack thread on inline review comments
+- **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing; also notifies PR author in Slack thread on general PR comments
 
 Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
 branch, so external contributors cannot modify it or access secrets.
@@ -145,55 +146,37 @@ on:
   # ...
 ```
 
-## Feature Flags
+### Thread Notifications
 
-Optional features can be enabled per-org in `config.yml`:
+When someone comments on or approves a PR that was routed by review-router,
+the PR author receives an @-mention in the Slack thread of the original
+notification. This requires the `users` mapping in the config.
 
-```yaml
-orgs:
-  my-org:
-    reminders:
-      enabled: true
-      stale_hours: 24 # optional, default 24
-    dependabot:
-      auto_label: true
-    teams:
-      # ...
-```
-
-### Dependabot Auto-Label
-
-When `dependabot.auto_label` is `true`, PRs opened by `dependabot[bot]` automatically
-get the "Ready for Review" label, triggering the normal routing flow.
-
-Add `opened` to the trigger types in your workflow:
+Add these trigger types to your workflow:
 
 ```yaml
 on:
   pull_request_target:
     types: [labeled, opened, closed]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
 ```
 
-Repos that don't want dependabot auto-labeling can simply omit `opened` from
-their trigger types. The org-level config flag is a second layer of control.
+Thread notifications are filtered automatically:
 
-### Stale PR Reminders
+- Bot comments are ignored
+- The PR author's own comments don't trigger notifications
+- Review-router's own comments are skipped
 
-When `reminders.enabled` is `true`, a scheduled run scans open PRs that still
-have the "Ready for Review" label and any "Needs Review" team labels, then
-re-sends Slack notifications. Only PRs where the "Ready for Review" label was
-added at least `stale_hours` (default 24) ago are reminded.
+**Muting:** Add a `:mute:` or `:no_bell:` reaction to the Slack message to
+suppress thread notifications for that PR.
 
-Add a `schedule` trigger to your workflow:
-
-```yaml
-on:
-  schedule:
-    - cron: "0 9 * * 1-5" # weekdays at 9 AM UTC
-  pull_request_target:
-    types: [labeled, closed]
-  # ...
-```
+**Note:** The PR author must be a member of the Slack channel to receive
+@-mention notifications. This is a Slack limitation for private channels.
 
 ## CODEOWNERS
 
@@ -212,6 +195,7 @@ infra/ @acme-corp/infra-team
 - [Basic setup](docs/setup/basic.md): single-repo setup with step-by-step instructions
 - [External config](docs/setup/external-config.md): store team config in a GitHub repo or S3
 - [Reusable workflows](docs/setup/reusable-workflows.md): centralize the setup for an entire org
+- [Dependabot auto-merge](docs/setup/auto-merge.md): automatically merge approved dependabot PRs
 - [Troubleshooting](docs/setup/troubleshooting.md): common issues and fixes
 
 ## Adding a new team

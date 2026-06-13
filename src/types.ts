@@ -66,3 +66,17 @@ export interface ActionInputs {
 export interface Capabilities {
   hasOrgAccess: boolean;
 }
+
+export interface CommentContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prBody: string;
+  prUrl: string;
+  author: string;
+  commenter: string;
+  commentUrl: string;
+  kind: "comment" | "review" | "review_comment";
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}

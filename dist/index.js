@@ -78576,6 +78576,8 @@ exports.buildOwnershipComment = buildOwnershipComment;
 exports.embedSlackRefs = embedSlackRefs;
 exports.mergeSlackRefs = mergeSlackRefs;
 exports.extractSlackRefs = extractSlackRefs;
+exports.embedSlackRefsInDescription = embedSlackRefsInDescription;
+exports.extractSlackRefsFromDescription = extractSlackRefsFromDescription;
 exports.findExistingComment = findExistingComment;
 exports.upsertComment = upsertComment;
 const core = __importStar(__nccwpck_require__(37484));
@@ -78635,6 +78637,40 @@ function extractSlackRefs(body) {
         ts: m[2],
     }));
 }
+const SLACK_DESC_START = "<!-- rr:slack:start -->";
+const SLACK_DESC_END = "<!-- rr:slack:end -->";
+const CURSOR_SUMMARY = "<!-- CURSOR_SUMMARY -->";
+const SLACK_DESC_BLOCK_PATTERN = new RegExp(`\\n?${SLACK_DESC_START}[\\s\\S]*?${SLACK_DESC_END}`, "");
+function embedSlackRefsInDescription(body, refs) {
+    if (refs.length === 0)
+        return body;
+    const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`);
+    const block = `\n${SLACK_DESC_START}\n${tags.join("\n")}\n${SLACK_DESC_END}`;
+    // Replace existing block if both markers present
+    if (body.includes(SLACK_DESC_START) && body.includes(SLACK_DESC_END)) {
+        return body.replace(SLACK_DESC_BLOCK_PATTERN, block);
+    }
+    // Insert before Cursor summary if present
+    const cursorIdx = body.indexOf(CURSOR_SUMMARY);
+    if (cursorIdx !== -1) {
+        const prefix = body.slice(0, cursorIdx).replace(/\n$/, "");
+        return prefix + block + "\n" + body.slice(cursorIdx);
+    }
+    return body + block;
+}
+function extractSlackRefsFromDescription(body) {
+    if (!body)
+        return [];
+    const startIdx = body.indexOf(SLACK_DESC_START);
+    const endIdx = body.indexOf(SLACK_DESC_END, startIdx);
+    if (startIdx === -1 || endIdx === -1)
+        return [];
+    const block = body.slice(startIdx + SLACK_DESC_START.length, endIdx);
+    return [...block.matchAll(new RegExp(SLACK_REF_PATTERN, "g"))].map((m) => ({
+        channel: m[1],
+        ts: m[2],
+    }));
+}
 async function findExistingComment(octokit, owner, repo, prNumber) {
     const { data: comments } = await octokit.rest.issues.listComments({
         owner,
@@ -78644,13 +78680,10 @@ async function findExistingComment(octokit, owner, repo, prNumber) {
     const existing = comments.find((c) => c.body && c.body.includes(exports.COMMENT_MARKER));
     return existing ? { id: existing.id, body: existing.body ?? "" } : null;
 }
-async function upsertComment(octokit, owner, repo, prNumber, body) {
-    const { data: comments } = await octokit.rest.issues.listComments({
-        owner,
-        repo,
-        issue_number: prNumber,
-    });
-    const existing = comments.find((c) => c.body && c.body.includes(exports.COMMENT_MARKER));
+async function upsertComment(octokit, owner, repo, prNumber, body, existingComment) {
+    const existing = existingComment !== undefined
+        ? existingComment
+        : await findExistingComment(octokit, owner, repo, prNumber);
     if (existing) {
         await octokit.rest.issues.updateComment({
             owner,
@@ -78917,6 +78950,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(37484));
 const github = __importStar(__nccwpck_require__(93228));
 const router_1 = __nccwpck_require__(98954);
+const comment_1 = __nccwpck_require__(62246);
 const reminders_1 = __nccwpck_require__(99924);
 const auth_1 = __nccwpck_require__(29081);
 const config_1 = __nccwpck_require__(22973);
@@ -78948,23 +78982,58 @@ async function run() {
             core.info("Ignoring bot comment");
             return;
         }
-        if ((comment.body ?? "").trim() !== "/review") {
-            core.info("Ignoring comment (not /review)");
+        // /review command — handle and return (no thread notification)
+        if ((comment.body ?? "").trim() === "/review") {
+            await octokit.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issue.number,
+                labels: [inputs.readyLabel],
+            });
+            await octokit.rest.reactions.createForIssueComment({
+                owner,
+                repo,
+                comment_id: comment.id,
+                content: "rocket",
+            });
+            core.info(`Added "${inputs.readyLabel}" label to PR #${issue.number} via /review comment`);
             return;
         }
-        await octokit.rest.issues.addLabels({
+        // Thread notification for general comments
+        if (comment.body?.includes(comment_1.COMMENT_MARKER)) {
+            core.info("Ignoring review-router's own comment");
+            return;
+        }
+        if (!inputs.slackToken) {
+            core.debug("No Slack token provided, skipping thread notification for comment");
+            return;
+        }
+        const prAuthor = issue.user?.login ?? "";
+        const commenterLogin = comment.user?.login ?? "";
+        if (commenterLogin === prAuthor) {
+            core.info("Ignoring comment from PR author");
+            return;
+        }
+        const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configPath, inputs.configS3);
+        // issue_comment payload doesn't include PR body — fetch it
+        const { data: pr } = await octokit.rest.pulls.get({
             owner,
             repo,
-            issue_number: issue.number,
-            labels: [inputs.readyLabel],
+            pull_number: issue.number,
         });
-        await octokit.rest.reactions.createForIssueComment({
+        await (0, router_1.handleComment)(octokit, {
             owner,
             repo,
-            comment_id: comment.id,
-            content: "rocket",
+            prNumber: issue.number,
+            prBody: pr.body ?? "",
+            prUrl: pr.html_url ?? "",
+            author: prAuthor,
+            commenter: commenterLogin,
+            commentUrl: comment.html_url ?? "",
+            kind: "comment",
+            inputs,
+            teamsConfig,
         });
-        core.info(`Added "${inputs.readyLabel}" label to PR #${issue.number} via /review comment`);
         return;
     }
     const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configPath, inputs.configS3);
@@ -79006,6 +79075,7 @@ async function run() {
             owner,
             repo,
             prNumber: pr.number,
+            prBody: pr.body ?? "",
             merged: pr.merged ?? false,
             inputs,
             teamsConfig,
@@ -79048,17 +79118,88 @@ async function run() {
             core.setFailed("Missing pull_request or review in payload");
             return;
         }
-        if (review.state !== "approved") {
-            core.info(`Ignoring review with state "${review.state}" (not "approved")`);
+        if (review.state === "approved") {
+            await (0, router_1.handleReviewSubmitted)(octokit, {
+                owner,
+                repo,
+                prNumber: pr.number,
+                prBody: pr.body ?? "",
+                prUrl: pr.html_url ?? "",
+                author: pr.user?.login ?? "",
+                reviewer: review.user.login,
+                inputs,
+                capabilities,
+                teamsConfig,
+            });
+            // Thread notification for approval
+            const prAuthor = pr.user?.login ?? "";
+            const reviewer = review.user?.login ?? "";
+            if (reviewer !== prAuthor && context.payload.sender?.type !== "Bot") {
+                await (0, router_1.handleComment)(octokit, {
+                    owner,
+                    repo,
+                    prNumber: pr.number,
+                    prBody: pr.body ?? "",
+                    prUrl: pr.html_url ?? "",
+                    author: prAuthor,
+                    commenter: reviewer,
+                    commentUrl: "",
+                    kind: "review",
+                    inputs,
+                    teamsConfig,
+                });
+            }
+        }
+        else if (review.state === "commented") {
+            const prAuthor = pr.user?.login ?? "";
+            const reviewer = review.user?.login ?? "";
+            if (reviewer !== prAuthor &&
+                context.payload.sender?.type !== "Bot" &&
+                !(review.body ?? "").includes(comment_1.COMMENT_MARKER) &&
+                (review.body ?? "").trim().length > 0) {
+                await (0, router_1.handleComment)(octokit, {
+                    owner,
+                    repo,
+                    prNumber: pr.number,
+                    prBody: pr.body ?? "",
+                    prUrl: pr.html_url ?? "",
+                    author: prAuthor,
+                    commenter: reviewer,
+                    commentUrl: review.html_url ?? "",
+                    kind: "review",
+                    inputs,
+                    teamsConfig,
+                });
+            }
+        }
+        else {
+            core.info(`Ignoring review with state "${review.state}"`);
+        }
+    }
+    else if (eventName === "pull_request_review_comment" && action === "created") {
+        const pr = context.payload.pull_request;
+        const reviewComment = context.payload.comment;
+        if (!pr || !reviewComment) {
+            core.setFailed("Missing pull_request or comment in payload");
             return;
         }
-        await (0, router_1.handleReviewSubmitted)(octokit, {
+        const prAuthor = pr.user?.login ?? "";
+        const commenter = reviewComment.user?.login ?? "";
+        if (context.payload.sender?.type === "Bot" || commenter === prAuthor) {
+            core.info("Ignoring bot or self review comment");
+            return;
+        }
+        await (0, router_1.handleComment)(octokit, {
             owner,
             repo,
             prNumber: pr.number,
-            reviewer: review.user.login,
+            prBody: pr.body ?? "",
+            prUrl: pr.html_url ?? "",
+            author: prAuthor,
+            commenter,
+            commentUrl: reviewComment.html_url ?? "",
+            kind: "review_comment",
             inputs,
-            capabilities,
             teamsConfig,
         });
     }
@@ -79114,6 +79255,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ensureLabel = ensureLabel;
 exports.applyLabel = applyLabel;
+exports.applyLabels = applyLabels;
 exports.removeLabel = removeLabel;
 const core = __importStar(__nccwpck_require__(37484));
 async function ensureLabel(octokit, owner, repo, labelName, color) {
@@ -79134,6 +79276,17 @@ async function ensureLabel(octokit, owner, repo, labelName, color) {
 async function applyLabel(octokit, owner, repo, prNumber, labelName) {
     await octokit.rest.issues.addLabels({ owner, repo, issue_number: prNumber, labels: [labelName] });
     core.info(`Applied label "${labelName}" to PR #${prNumber}`);
+}
+async function applyLabels(octokit, owner, repo, prNumber, labelNames) {
+    if (labelNames.length === 0)
+        return;
+    await octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: prNumber,
+        labels: labelNames,
+    });
+    core.info(`Applied ${labelNames.length} label(s) to PR #${prNumber}`);
 }
 async function removeLabel(octokit, owner, repo, prNumber, labelName) {
     try {
@@ -79346,14 +79499,47 @@ exports.handleReviewSubmitted = handleReviewSubmitted;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
 exports.handleOpened = handleOpened;
 exports.handleClosed = handleClosed;
+exports.handleComment = handleComment;
 exports.getFileTypeEmojis = getFileTypeEmojis;
 exports.getStatusEmoji = getStatusEmoji;
 const core = __importStar(__nccwpck_require__(37484));
+const web_api_1 = __nccwpck_require__(85105);
 const codeowners_1 = __nccwpck_require__(83586);
 const labels_1 = __nccwpck_require__(94584);
 const comment_1 = __nccwpck_require__(62246);
 const slack_1 = __nccwpck_require__(16691);
 const config_1 = __nccwpck_require__(22973);
+async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) {
+    const refs = (0, comment_1.extractSlackRefsFromDescription)(prBody);
+    if (refs.length > 0)
+        return refs;
+    // Self-healing: check bot comment for legacy refs
+    const existing = await (0, comment_1.findExistingComment)(octokit, owner, repo, prNumber);
+    if (!existing)
+        return [];
+    const legacyRefs = (0, comment_1.extractSlackRefs)(existing.body);
+    if (legacyRefs.length > 0) {
+        try {
+            const { data: freshPr } = await octokit.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: prNumber,
+            });
+            const updatedBody = (0, comment_1.embedSlackRefsInDescription)(freshPr.body ?? "", legacyRefs);
+            await octokit.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: prNumber,
+                body: updatedBody,
+            });
+            core.info("Self-healed: migrated Slack refs from comment to PR description");
+        }
+        catch (error) {
+            core.warning(`Failed to self-heal Slack refs: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    return legacyRefs;
+}
 async function handleLabeled(octokit, ctx) {
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: ctx.owner,
@@ -79399,65 +79585,113 @@ async function handleLabeled(octokit, ctx) {
             channelIndividualOwners.get(slackChannel).add(owner);
         }
     }
-    const notifiedChannels = new Set();
-    const slackRefs = [];
+    const allLabelNames = [];
+    const allTeamSlugs = [];
+    const slackChannelsToNotify = [];
     for (const [teamSlug] of ownership.teamFiles) {
         const labelName = (0, config_1.getLabelForTeam)(ctx.teamsConfig, teamSlug, ctx.inputs.needsReviewPrefix);
         await (0, labels_1.ensureLabel)(octokit, ctx.owner, ctx.repo, labelName, ctx.inputs.needsReviewLabelColor);
-        await (0, labels_1.applyLabel)(octokit, ctx.owner, ctx.repo, ctx.prNumber, labelName);
+        allLabelNames.push(labelName);
         if (ctx.capabilities.hasOrgAccess) {
-            try {
-                await octokit.rest.pulls.requestReviewers({
-                    owner: ctx.owner,
-                    repo: ctx.repo,
-                    pull_number: ctx.prNumber,
-                    team_reviewers: [teamSlug],
-                });
-                core.info(`Requested review from team ${teamSlug}`);
-            }
-            catch (error) {
-                core.warning(`Failed to request review from team ${teamSlug}: ${error instanceof Error ? error.message : String(error)}`);
-            }
+            allTeamSlugs.push(teamSlug);
         }
         else {
             core.info(`Skipping team review request for ${teamSlug} (no org access)`);
         }
         const slackChannel = (0, config_1.getSlackChannel)(ctx.teamsConfig, teamSlug);
-        if (slackChannel && ctx.inputs.slackToken && !notifiedChannels.has(slackChannel)) {
-            notifiedChannels.add(slackChannel);
-            const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
+        if (slackChannel &&
+            ctx.inputs.slackToken &&
+            !slackChannelsToNotify.some((c) => c.channel === slackChannel)) {
             const individualOwners = [...(channelIndividualOwners.get(slackChannel) ?? [])];
-            const ref = await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, slackChannel, {
-                prUrl: ctx.prUrl,
-                prTitle: ctx.prTitle,
-                prNumber: ctx.prNumber,
-                orgName: ctx.owner,
-                repoName: ctx.repo,
-                baseBranch: ctx.baseBranch,
-                author: ctx.author,
-                additions: ctx.additions,
-                deletions: ctx.deletions,
-                commits: ctx.commits,
-                labels: displayLabels,
-                allFiles: allFileStats,
-                individualOwners,
-                users: ctx.teamsConfig.users,
-                icons: ctx.teamsConfig.reactions?.icons,
+            slackChannelsToNotify.push({ channel: slackChannel, individualOwners });
+        }
+    }
+    try {
+        await (0, labels_1.applyLabels)(octokit, ctx.owner, ctx.repo, ctx.prNumber, allLabelNames);
+    }
+    catch (error) {
+        core.warning(`Failed to apply labels: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (allTeamSlugs.length > 0) {
+        try {
+            await octokit.rest.pulls.requestReviewers({
+                owner: ctx.owner,
+                repo: ctx.repo,
+                pull_number: ctx.prNumber,
+                team_reviewers: allTeamSlugs,
             });
-            if (ref) {
-                slackRefs.push(ref);
-                const filenames = allFileStats.map((f) => f.filename);
-                const emojis = getFileTypeEmojis(filenames, ctx.teamsConfig.reactions);
-                await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, emojis);
+            core.info(`Requested review from ${allTeamSlugs.length} team(s)`);
+        }
+        catch {
+            core.warning("Batched requestReviewers failed, falling back to per-team calls");
+            for (const slug of allTeamSlugs) {
+                try {
+                    await octokit.rest.pulls.requestReviewers({
+                        owner: ctx.owner,
+                        repo: ctx.repo,
+                        pull_number: ctx.prNumber,
+                        team_reviewers: [slug],
+                    });
+                }
+                catch (error) {
+                    core.warning(`Failed to request review from team ${slug}: ${error instanceof Error ? error.message : String(error)}`);
+                }
             }
         }
     }
+    const slackRefs = [];
+    const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
+    for (const { channel, individualOwners } of slackChannelsToNotify) {
+        const ref = await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, channel, {
+            prUrl: ctx.prUrl,
+            prTitle: ctx.prTitle,
+            prNumber: ctx.prNumber,
+            orgName: ctx.owner,
+            repoName: ctx.repo,
+            baseBranch: ctx.baseBranch,
+            author: ctx.author,
+            additions: ctx.additions,
+            deletions: ctx.deletions,
+            commits: ctx.commits,
+            labels: displayLabels,
+            allFiles: allFileStats,
+            individualOwners,
+            users: ctx.teamsConfig.users,
+            icons: ctx.teamsConfig.reactions?.icons,
+        });
+        if (ref) {
+            slackRefs.push(ref);
+            const fnames = allFileStats.map((f) => f.filename);
+            const emojis = getFileTypeEmojis(fnames, ctx.teamsConfig.reactions);
+            await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, emojis);
+        }
+    }
     const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
-    const oldRefs = existing ? (0, comment_1.extractSlackRefs)(existing.body) : [];
-    const mergedRefs = (0, comment_1.mergeSlackRefs)(oldRefs, slackRefs);
+    const commentRefs = existing ? (0, comment_1.extractSlackRefs)(existing.body) : [];
+    const { data: currentPr } = await octokit.rest.pulls.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        pull_number: ctx.prNumber,
+    });
+    const descriptionRefs = (0, comment_1.extractSlackRefsFromDescription)(currentPr.body ?? "");
+    const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
-    await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody);
+    await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
+    if (mergedRefs.length > 0) {
+        try {
+            const updatedBody = (0, comment_1.embedSlackRefsInDescription)(currentPr.body ?? "", mergedRefs);
+            await octokit.rest.pulls.update({
+                owner: ctx.owner,
+                repo: ctx.repo,
+                pull_number: ctx.prNumber,
+                body: updatedBody,
+            });
+        }
+        catch (error) {
+            core.warning(`Failed to update PR description with Slack refs: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
 }
 async function handleReviewSubmitted(octokit, ctx) {
     if (!ctx.capabilities.hasOrgAccess) {
@@ -79503,15 +79737,12 @@ async function handleReviewSubmitted(octokit, ctx) {
     }
     if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
         try {
-            const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
-            if (existing) {
-                const refs = (0, comment_1.extractSlackRefs)(existing.body);
-                const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
-                if (emoji) {
-                    for (const ref of refs) {
-                        if (approvedChannels.has(ref.channel)) {
-                            await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
-                        }
+            const refs = await getSlackRefsWithFallback(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prBody);
+            const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
+            if (emoji) {
+                for (const ref of refs) {
+                    if (approvedChannels.has(ref.channel)) {
+                        await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
                     }
                 }
             }
@@ -79559,14 +79790,11 @@ async function handleClosed(octokit, ctx) {
         core.info("PR was closed without merging, skipping label cleanup");
         if (ctx.inputs.slackToken) {
             try {
-                const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
-                if (existing) {
-                    const emoji = getStatusEmoji("closed", ctx.teamsConfig.reactions);
-                    if (emoji) {
-                        const refs = (0, comment_1.extractSlackRefs)(existing.body);
-                        for (const ref of refs) {
-                            await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
-                        }
+                const refs = await getSlackRefsWithFallback(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prBody);
+                const emoji = getStatusEmoji("closed", ctx.teamsConfig.reactions);
+                if (emoji) {
+                    for (const ref of refs) {
+                        await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
                     }
                 }
             }
@@ -79606,19 +79834,52 @@ async function handleClosed(octokit, ctx) {
     }
     if (ctx.inputs.slackToken) {
         try {
-            const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
-            if (existing) {
-                const emoji = getStatusEmoji("merged", ctx.teamsConfig.reactions);
-                if (emoji) {
-                    const refs = (0, comment_1.extractSlackRefs)(existing.body);
-                    for (const ref of refs) {
-                        await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
-                    }
+            const refs = await getSlackRefsWithFallback(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prBody);
+            const emoji = getStatusEmoji("merged", ctx.teamsConfig.reactions);
+            if (emoji) {
+                for (const ref of refs) {
+                    await (0, slack_1.addSlackReactions)(ctx.inputs.slackToken, ref, [emoji]);
                 }
             }
         }
         catch (error) {
             core.warning(`Failed to add merged reaction: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+}
+async function handleComment(octokit, ctx) {
+    if (!ctx.inputs.slackToken) {
+        core.debug("No Slack token provided, skipping thread notification");
+        return;
+    }
+    const refs = await getSlackRefsWithFallback(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prBody);
+    if (refs.length === 0) {
+        core.debug("No Slack refs found, skipping thread notification");
+        return;
+    }
+    const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+    if (!authorSlackId) {
+        core.debug(`No Slack ID found for PR author ${ctx.author}, skipping thread notification`);
+        return;
+    }
+    const client = new web_api_1.WebClient(ctx.inputs.slackToken);
+    const kindLabel = ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
+    const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
+    const text = ctx.kind === "review" && ctx.commentUrl === ""
+        ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
+        : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+    for (const ref of refs) {
+        try {
+            const muted = await (0, slack_1.isSlackMessageMuted)(client, ref.channel, ref.ts);
+            if (muted) {
+                core.debug(`Slack message in ${ref.channel} is muted, skipping thread reply`);
+                continue;
+            }
+            await (0, slack_1.postSlackThreadReply)(client, ref.channel, ref.ts, text);
+            core.info(`Posted thread reply in ${ref.channel} for PR #${ctx.prNumber}`);
+        }
+        catch (error) {
+            core.warning(`Failed to post thread reply in ${ref.channel}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
@@ -79711,6 +79972,8 @@ exports.buildSlackBlocks = buildSlackBlocks;
 exports.buildSlackReminderBlocks = buildSlackReminderBlocks;
 exports.sendSlackReminder = sendSlackReminder;
 exports.sendSlackNotification = sendSlackNotification;
+exports.isSlackMessageMuted = isSlackMessageMuted;
+exports.postSlackThreadReply = postSlackThreadReply;
 exports.addSlackReactions = addSlackReactions;
 const core = __importStar(__nccwpck_require__(37484));
 const web_api_1 = __nccwpck_require__(85105);
@@ -79897,6 +80160,25 @@ async function sendSlackNotification(token, channel, params) {
         core.warning(`Failed to send Slack notification to ${channel}: ${error instanceof Error ? error.message : String(error)}`);
         return null;
     }
+}
+const MUTE_REACTIONS = ["mute", "no_bell"];
+async function isSlackMessageMuted(client, channel, ts) {
+    try {
+        const result = await client.reactions.get({ channel, timestamp: ts, full: true });
+        const reactions = result.message?.reactions ?? [];
+        return reactions.some((r) => MUTE_REACTIONS.includes(r.name));
+    }
+    catch (error) {
+        core.warning(`Failed to check mute status: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+    }
+}
+async function postSlackThreadReply(client, channel, threadTs, text) {
+    await client.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text,
+    });
 }
 async function addSlackReactions(token, ref, emojis) {
     if (!token || emojis.length === 0)

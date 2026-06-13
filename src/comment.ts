@@ -66,6 +66,47 @@ export function extractSlackRefs(body: string): SlackMessageRef[] {
   }));
 }
 
+const SLACK_DESC_START = "<!-- rr:slack:start -->";
+const SLACK_DESC_END = "<!-- rr:slack:end -->";
+const CURSOR_SUMMARY = "<!-- CURSOR_SUMMARY -->";
+const SLACK_DESC_BLOCK_PATTERN = new RegExp(
+  `\\n?${SLACK_DESC_START}[\\s\\S]*?${SLACK_DESC_END}`,
+  ""
+);
+
+export function embedSlackRefsInDescription(body: string, refs: SlackMessageRef[]): string {
+  if (refs.length === 0) return body;
+
+  const tags = refs.map((r) => `<!-- rr:slack:${r.channel}:${r.ts} -->`);
+  const block = `\n${SLACK_DESC_START}\n${tags.join("\n")}\n${SLACK_DESC_END}`;
+
+  // Replace existing block if both markers present
+  if (body.includes(SLACK_DESC_START) && body.includes(SLACK_DESC_END)) {
+    return body.replace(SLACK_DESC_BLOCK_PATTERN, block);
+  }
+
+  // Insert before Cursor summary if present
+  const cursorIdx = body.indexOf(CURSOR_SUMMARY);
+  if (cursorIdx !== -1) {
+    const prefix = body.slice(0, cursorIdx).replace(/\n$/, "");
+    return prefix + block + "\n" + body.slice(cursorIdx);
+  }
+
+  return body + block;
+}
+
+export function extractSlackRefsFromDescription(body: string): SlackMessageRef[] {
+  if (!body) return [];
+  const startIdx = body.indexOf(SLACK_DESC_START);
+  const endIdx = body.indexOf(SLACK_DESC_END, startIdx);
+  if (startIdx === -1 || endIdx === -1) return [];
+  const block = body.slice(startIdx + SLACK_DESC_START.length, endIdx);
+  return [...block.matchAll(new RegExp(SLACK_REF_PATTERN, "g"))].map((m) => ({
+    channel: m[1],
+    ts: m[2],
+  }));
+}
+
 export async function findExistingComment(
   octokit: Octokit,
   owner: string,
@@ -86,14 +127,14 @@ export async function upsertComment(
   owner: string,
   repo: string,
   prNumber: number,
-  body: string
+  body: string,
+  existingComment?: { id: number; body: string } | null
 ): Promise<void> {
-  const { data: comments } = await octokit.rest.issues.listComments({
-    owner,
-    repo,
-    issue_number: prNumber,
-  });
-  const existing = comments.find((c) => c.body && c.body.includes(COMMENT_MARKER));
+  const existing =
+    existingComment !== undefined
+      ? existingComment
+      : await findExistingComment(octokit, owner, repo, prNumber);
+
   if (existing) {
     await octokit.rest.issues.updateComment({
       owner,

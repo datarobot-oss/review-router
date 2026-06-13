@@ -3,6 +3,8 @@ import {
   buildSlackReminderBlocks,
   sendSlackNotification,
   sendSlackReminder,
+  isSlackMessageMuted,
+  postSlackThreadReply,
 } from "../src/slack";
 
 const params = {
@@ -226,5 +228,64 @@ describe("sendSlackReminder", () => {
         ageDisplay: "1 day",
       })
     ).resolves.not.toThrow();
+  });
+});
+
+describe("isSlackMessageMuted", () => {
+  const mockReactionsGet = jest.fn();
+  const mockWebClient = { reactions: { get: mockReactionsGet } };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns true when :mute: reaction is present", async () => {
+    mockReactionsGet.mockResolvedValue({
+      message: { reactions: [{ name: "mute", users: ["U123"], count: 1 }] },
+    });
+    const result = await isSlackMessageMuted(mockWebClient as any, "C123", "1.0");
+    expect(result).toBe(true);
+  });
+
+  it("returns true when :no_bell: reaction is present", async () => {
+    mockReactionsGet.mockResolvedValue({
+      message: { reactions: [{ name: "no_bell", users: ["U123"], count: 1 }] },
+    });
+    const result = await isSlackMessageMuted(mockWebClient as any, "C123", "1.0");
+    expect(result).toBe(true);
+  });
+
+  it("returns false when no mute reactions", async () => {
+    mockReactionsGet.mockResolvedValue({
+      message: { reactions: [{ name: "thumbsup", users: ["U123"], count: 1 }] },
+    });
+    const result = await isSlackMessageMuted(mockWebClient as any, "C123", "1.0");
+    expect(result).toBe(false);
+  });
+
+  it("returns false when message has no reactions field", async () => {
+    mockReactionsGet.mockResolvedValue({ message: {} });
+    const result = await isSlackMessageMuted(mockWebClient as any, "C123", "1.0");
+    expect(result).toBe(false);
+  });
+
+  it("returns false (fail open) when reactions.get throws", async () => {
+    mockReactionsGet.mockRejectedValue(new Error("scope_missing"));
+    const result = await isSlackMessageMuted(mockWebClient as any, "C123", "1.0");
+    expect(result).toBe(false);
+  });
+});
+
+describe("postSlackThreadReply", () => {
+  const mockPostMessage = jest.fn().mockResolvedValue({ ok: true });
+  const mockWebClient = { chat: { postMessage: mockPostMessage } };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("posts a threaded message", async () => {
+    await postSlackThreadReply(mockWebClient as any, "C123", "1.0", "hello");
+    expect(mockPostMessage).toHaveBeenCalledWith({
+      channel: "C123",
+      thread_ts: "1.0",
+      text: "hello",
+    });
   });
 });

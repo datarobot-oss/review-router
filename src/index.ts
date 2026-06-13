@@ -98,7 +98,7 @@ async function run(): Promise<void> {
       repo,
       prNumber: issue.number,
       prBody: pr.body ?? "",
-      prUrl: issue.html_url ?? "",
+      prUrl: pr.html_url ?? "",
       author: prAuthor,
       commenter: commenterLogin,
       commentUrl: comment.html_url ?? "",
@@ -252,7 +252,8 @@ async function run(): Promise<void> {
       if (
         reviewer !== prAuthor &&
         context.payload.sender?.type !== "Bot" &&
-        !(review.body ?? "").includes(COMMENT_MARKER)
+        !(review.body ?? "").includes(COMMENT_MARKER) &&
+        (review.body ?? "").trim().length > 0
       ) {
         await handleComment(octokit, {
           owner,

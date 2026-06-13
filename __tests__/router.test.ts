@@ -57,7 +57,11 @@ const teamsConfig: OrgConfig = {
   },
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockOctokit.rest.pulls.get.mockResolvedValue({ data: { body: "" } });
+  mockOctokit.rest.pulls.update.mockResolvedValue({});
+});
 
 describe("handleLabeled", () => {
   it("applies labels and posts comment for owned files", async () => {

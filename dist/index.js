@@ -79625,7 +79625,12 @@ async function handleLabeled(octokit, ctx) {
             }
         }
     }
-    await (0, labels_1.applyLabels)(octokit, ctx.owner, ctx.repo, ctx.prNumber, allLabelNames);
+    try {
+        await (0, labels_1.applyLabels)(octokit, ctx.owner, ctx.repo, ctx.prNumber, allLabelNames);
+    }
+    catch (error) {
+        core.warning(`Failed to apply labels: ${error instanceof Error ? error.message : String(error)}`);
+    }
     if (allTeamSlugs.length > 0) {
         try {
             await octokit.rest.pulls.requestReviewers({
@@ -79654,18 +79659,19 @@ async function handleLabeled(octokit, ctx) {
         }
     }
     const existing = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
-    const oldRefs = existing ? (0, comment_1.extractSlackRefs)(existing.body) : [];
-    const mergedRefs = (0, comment_1.mergeSlackRefs)(oldRefs, slackRefs);
+    const commentRefs = existing ? (0, comment_1.extractSlackRefs)(existing.body) : [];
+    const { data: currentPr } = await octokit.rest.pulls.get({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        pull_number: ctx.prNumber,
+    });
+    const descriptionRefs = (0, comment_1.extractSlackRefsFromDescription)(currentPr.body ?? "");
+    const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
     await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
     if (mergedRefs.length > 0) {
-        const { data: freshPr } = await octokit.rest.pulls.get({
-            owner: ctx.owner,
-            repo: ctx.repo,
-            pull_number: ctx.prNumber,
-        });
-        const updatedBody = (0, comment_1.embedSlackRefsInDescription)(freshPr.body ?? "", mergedRefs);
+        const updatedBody = (0, comment_1.embedSlackRefsInDescription)(currentPr.body ?? "", mergedRefs);
         await octokit.rest.pulls.update({
             owner: ctx.owner,
             repo: ctx.repo,

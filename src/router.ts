@@ -208,7 +208,13 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     }
   }
 
-  await applyLabels(octokit, ctx.owner, ctx.repo, ctx.prNumber, allLabelNames);
+  try {
+    await applyLabels(octokit, ctx.owner, ctx.repo, ctx.prNumber, allLabelNames);
+  } catch (error) {
+    core.warning(
+      `Failed to apply labels: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 
   if (allTeamSlugs.length > 0) {
     try {
@@ -239,20 +245,21 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   }
 
   const existing = await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
-  const oldRefs = existing ? extractSlackRefs(existing.body) : [];
-  const mergedRefs = mergeSlackRefs(oldRefs, slackRefs);
+  const commentRefs = existing ? extractSlackRefs(existing.body) : [];
+  const { data: currentPr } = await octokit.rest.pulls.get({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    pull_number: ctx.prNumber,
+  });
+  const descriptionRefs = extractSlackRefsFromDescription(currentPr.body ?? "");
+  const mergedRefs = mergeSlackRefs(mergeSlackRefs(descriptionRefs, commentRefs), slackRefs);
 
   let commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
   commentBody = embedSlackRefs(commentBody, mergedRefs);
   await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
 
   if (mergedRefs.length > 0) {
-    const { data: freshPr } = await octokit.rest.pulls.get({
-      owner: ctx.owner,
-      repo: ctx.repo,
-      pull_number: ctx.prNumber,
-    });
-    const updatedBody = embedSlackRefsInDescription(freshPr.body ?? "", mergedRefs);
+    const updatedBody = embedSlackRefsInDescription(currentPr.body ?? "", mergedRefs);
     await octokit.rest.pulls.update({
       owner: ctx.owner,
       repo: ctx.repo,

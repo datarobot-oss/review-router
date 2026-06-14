@@ -80045,7 +80045,7 @@ function buildSlackBlocks(params) {
                 },
                 {
                     type: "mrkdwn",
-                    text: `*${params.author}* wants to merge into \`${params.baseBranch}\``,
+                    text: `*${params.author}* requested a review on a PR merging into \`${params.baseBranch}\``,
                 },
             ],
         },

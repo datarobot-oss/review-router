@@ -60,7 +60,7 @@ describe("buildSlackBlocks", () => {
     expect(elements[0].image_url).toBe("https://github.com/alice.png?size=24");
     expect(elements[0].alt_text).toBe("alice");
     expect(elements[1].text).toContain("*alice*");
-    expect(elements[1].text).toContain("wants to merge into `main`");
+    expect(elements[1].text).toContain("requested a review on a PR merging into `main`");
   });
 
   it("lists files with header and per-file stats", () => {

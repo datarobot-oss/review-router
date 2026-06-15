@@ -12,6 +12,10 @@ export interface DependabotConfig {
   auto_label: boolean;
 }
 
+export interface ExternalContributorsConfig {
+  auto_label: boolean;
+}
+
 export interface NotificationIcons {
   header?: string;
   branch?: string;
@@ -33,6 +37,7 @@ export interface OrgConfig {
   default_slack_channel?: string;
   reminders?: RemindersConfig;
   dependabot?: DependabotConfig;
+  external_contributors?: ExternalContributorsConfig;
   reactions?: ReactionsConfig;
   teams: Record<string, TeamConfig>;
   users?: Record<string, string>;

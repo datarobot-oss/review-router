@@ -175,6 +175,16 @@ export async function postExternalComment(
   prNumber: number
 ): Promise<void> {
   try {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+    });
+    if (comments.some((c) => c.body?.includes(EXTERNAL_COMMENT_MARKER))) {
+      core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);
+      return;
+    }
+
     await octokit.rest.issues.createComment({
       owner,
       repo,

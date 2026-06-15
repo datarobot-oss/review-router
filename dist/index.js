@@ -78719,6 +78719,15 @@ exports.EXTERNAL_CONTRIBUTOR_MESSAGE = [
 ].join("\n");
 async function postExternalComment(octokit, owner, repo, prNumber) {
     try {
+        const { data: comments } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+        });
+        if (comments.some((c) => c.body?.includes(exports.EXTERNAL_COMMENT_MARKER))) {
+            core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);
+            return;
+        }
         await octokit.rest.issues.createComment({
             owner,
             repo,

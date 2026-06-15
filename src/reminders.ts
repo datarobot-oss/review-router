@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { getSlackChannel, humanizeSlug } from "./config";
-import { resolveTeamSlugFromLabel } from "./router";
+import { EXTERNAL_CONTRIBUTION_LABEL, resolveTeamSlugFromLabel } from "./router";
 import { sendSlackReminder } from "./slack";
 import { ActionInputs, OrgConfig, Octokit } from "./types";
 
@@ -54,6 +54,12 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
 
     const hasReadyLabel = issueLabels.some((l) => l.name === ctx.inputs.readyLabel);
     if (!hasReadyLabel) continue;
+
+    const hasExternalLabel = issueLabels.some((l) => l.name === EXTERNAL_CONTRIBUTION_LABEL);
+    if (hasExternalLabel) {
+      core.info(`PR #${issue.number}: External contribution, skipping reminder`);
+      continue;
+    }
 
     const needsReviewLabels = issueLabels.filter((l) =>
       l.name.startsWith(ctx.inputs.needsReviewPrefix + ":")

@@ -45,7 +45,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
   const visibleFiles = params.allFiles.slice(0, maxFiles);
   const remaining = params.allFiles.length - visibleFiles.length;
   let fileList = visibleFiles
-    .map((f) => `• \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
+    .map((f) => `· \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
     .join("\n");
   if (remaining > 0) {
     fileList += `\n_and ${remaining} more file${remaining === 1 ? "" : "s"}_`;
@@ -99,7 +99,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
       elements: [
         {
           type: "mrkdwn",
-          text: `:${icons.branch}: \`${params.baseBranch}\` • :${icons.commits}: ${params.commits} commit${params.commits === 1 ? "" : "s"} • :${icons.files}: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` • :${icons.labels}: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
+          text: `:${icons.branch}: \`${params.baseBranch}\`  · :${icons.commits}: ${params.commits} commit${params.commits === 1 ? "" : "s"}  · :${icons.files}: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :${icons.labels}: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
         },
       ],
     },
@@ -165,7 +165,7 @@ export function buildSlackReminderBlocks(params: SlackReminderParams): {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `:${headerIcon}: *Reminder* — <${params.prUrl}|${repoFullName} #${params.prNumber}> still needs review`,
+        text: `:${headerIcon}: :info: *Reminder* · <${params.prUrl}|${repoFullName} #${params.prNumber}> still needs review`,
       },
     },
     {
@@ -196,7 +196,7 @@ export function buildSlackReminderBlocks(params: SlackReminderParams): {
     },
   ];
 
-  const fallback = `Reminder: ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
+  const fallback = `:info: Reminder · ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
 
   return { blocks, fallback };
 }

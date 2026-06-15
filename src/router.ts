@@ -534,8 +534,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   if (authorSlackId) {
     const text =
       ctx.kind === "review" && ctx.commentUrl === ""
-        ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
-        : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
+        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
     recipients.push({ slackId: authorSlackId, text });
   }
 

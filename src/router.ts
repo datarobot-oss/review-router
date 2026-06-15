@@ -436,6 +436,42 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
   }
 }
 
+export interface ReadyForReviewContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  author: string;
+  isFork: boolean;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export async function handleReadyForReview(octokit: Octokit, ctx: ReadyForReviewContext): Promise<void> {
+  if (!ctx.teamsConfig.external_contributors?.auto_label) {
+    core.info("External contributor auto-label is disabled or not configured");
+    return;
+  }
+
+  if (!ctx.isFork) {
+    core.info("PR is not from a fork, skipping external contributor auto-label");
+    return;
+  }
+
+  core.info(`Fork PR #${ctx.prNumber} marked ready, adding "${EXTERNAL_CONTRIBUTION_LABEL}" and "${ctx.inputs.readyLabel}" labels`);
+  try {
+    await octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: ctx.prNumber,
+      labels: [EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel],
+    });
+  } catch (error) {
+    core.warning(
+      `Failed to add labels to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
 export interface ClosedContext {
   owner: string;
   repo: string;

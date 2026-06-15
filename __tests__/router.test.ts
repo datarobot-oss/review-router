@@ -2,6 +2,7 @@ import {
   handleLabeled,
   handleReviewSubmitted,
   handleOpened,
+  handleReadyForReview,
   handleClosed,
   handleComment,
   resolveTeamSlugFromLabel,
@@ -619,6 +620,69 @@ describe("handleOpened", () => {
       author: "internal-user",
       isFork: false,
       isDraft: false,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleReadyForReview", () => {
+  const baseInputs = {
+    githubToken: "token",
+    slackToken: "",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+  };
+
+  it("adds labels for fork PRs marked ready", async () => {
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
+    await handleReadyForReview(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "external-user",
+      isFork: true,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      issue_number: 10,
+      labels: ["external-contribution", "Ready for Review"],
+    });
+  });
+
+  it("skips when external_contributors is disabled", async () => {
+    await handleReadyForReview(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "external-user",
+      isFork: true,
+      inputs: baseInputs,
+      teamsConfig,
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("skips non-fork PRs", async () => {
+    await handleReadyForReview(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "internal-user",
+      isFork: false,
       inputs: baseInputs,
       teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
     });

@@ -67,8 +67,8 @@ describe("buildSlackBlocks", () => {
     const { blocks } = buildSlackBlocks(params);
     const files = blocks[4].text.text;
     expect(files).toContain("*Files changed:*");
-    expect(files).toContain("• `src/app.py` `+10 -2`");
-    expect(files).toContain("• `src/utils.py` `+5 -1`");
+    expect(files).toContain("· `src/app.py` `+10 -2`");
+    expect(files).toContain("· `src/utils.py` `+5 -1`");
   });
 
   it("truncates file list beyond 10 files", () => {
@@ -182,7 +182,7 @@ describe("buildSlackReminderBlocks", () => {
   it("has reminder header with PR link", () => {
     const { blocks } = buildSlackReminderBlocks(reminderParams);
     const header = blocks[0].text.text;
-    expect(header).toContain("Reminder");
+    expect(header).toContain(":info: *Reminder*");
     expect(header).toContain("still needs review");
     expect(header).toContain("<https://github.com/org/repo/pull/10|org/repo #10>");
   });

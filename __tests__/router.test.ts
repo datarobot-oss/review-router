@@ -794,7 +794,7 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("approved by *bob*")
+      expect.stringContaining("your PR was approved by *bob*")
     );
   });
   it("notifies assignees on comments", async () => {
@@ -910,7 +910,7 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("approved by *bob*")
+      expect.stringContaining("your PR was approved by *bob*")
     );
   });
 });

@@ -79868,8 +79868,8 @@ async function handleComment(octokit, ctx) {
     const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
     if (authorSlackId) {
         const text = ctx.kind === "review" && ctx.commentUrl === ""
-            ? `:white_check_mark: <@${authorSlackId}> approved by *${ctx.commenter}*`
-            : `:speech_balloon: <@${authorSlackId}> new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
+            ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
+            : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
         recipients.push({ slackId: authorSlackId, text });
     }
     if (ctx.kind !== "review") {
@@ -80012,7 +80012,7 @@ function buildSlackBlocks(params) {
     const visibleFiles = params.allFiles.slice(0, maxFiles);
     const remaining = params.allFiles.length - visibleFiles.length;
     let fileList = visibleFiles
-        .map((f) => `• \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
+        .map((f) => `· \`${f.filename}\` \`+${f.additions} -${f.deletions}\``)
         .join("\n");
     if (remaining > 0) {
         fileList += `\n_and ${remaining} more file${remaining === 1 ? "" : "s"}_`;
@@ -80064,7 +80064,7 @@ function buildSlackBlocks(params) {
             elements: [
                 {
                     type: "mrkdwn",
-                    text: `:${icons.branch}: \`${params.baseBranch}\` • :${icons.commits}: ${params.commits} commit${params.commits === 1 ? "" : "s"} • :${icons.files}: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` • :${icons.labels}: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
+                    text: `:${icons.branch}: \`${params.baseBranch}\`  · :${icons.commits}: ${params.commits} commit${params.commits === 1 ? "" : "s"}  · :${icons.files}: ${params.allFiles.length} file${params.allFiles.length === 1 ? "" : "s"}${params.labels.length > 0 ? ` · :${icons.labels}: ${params.labels.map((l) => `\`${l}\``).join(" · ")}` : ""}`,
                 },
             ],
         },
@@ -80111,7 +80111,7 @@ function buildSlackReminderBlocks(params) {
             type: "section",
             text: {
                 type: "mrkdwn",
-                text: `:${headerIcon}: *Reminder* — <${params.prUrl}|${repoFullName} #${params.prNumber}> still needs review`,
+                text: `:${headerIcon}: :info: *Reminder* · <${params.prUrl}|${repoFullName} #${params.prNumber}> still needs review`,
             },
         },
         {
@@ -80141,7 +80141,7 @@ function buildSlackReminderBlocks(params) {
             ],
         },
     ];
-    const fallback = `Reminder: ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
+    const fallback = `:info: Reminder · ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
     return { blocks, fallback };
 }
 async function sendSlackReminder(token, channel, params) {

@@ -78571,7 +78571,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.COMMENT_MARKER = void 0;
+exports.EXTERNAL_COMMENT_MARKER = exports.COMMENT_MARKER = void 0;
 exports.buildOwnershipComment = buildOwnershipComment;
 exports.embedSlackRefs = embedSlackRefs;
 exports.mergeSlackRefs = mergeSlackRefs;
@@ -78580,9 +78580,11 @@ exports.embedSlackRefsInDescription = embedSlackRefsInDescription;
 exports.extractSlackRefsFromDescription = extractSlackRefsFromDescription;
 exports.findExistingComment = findExistingComment;
 exports.upsertComment = upsertComment;
+exports.postExternalComment = postExternalComment;
 const core = __importStar(__nccwpck_require__(37484));
 const config_1 = __nccwpck_require__(22973);
 exports.COMMENT_MARKER = "<!-- review-router-ownership -->";
+exports.EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 function buildOwnershipComment(ownership, hasOrgAccess) {
     const lines = [exports.COMMENT_MARKER, "## Code Ownership", ""];
@@ -78701,6 +78703,30 @@ async function upsertComment(octokit, owner, repo, prNumber, body, existingComme
             body,
         });
         core.info(`Posted ownership comment on PR #${prNumber}`);
+    }
+}
+async function postExternalComment(octokit, owner, repo, prNumber, message) {
+    const body = `${exports.EXTERNAL_COMMENT_MARKER}\n${message}`;
+    try {
+        const { data: comments } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+        });
+        if (comments.some((c) => c.body?.includes(exports.EXTERNAL_COMMENT_MARKER))) {
+            core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);
+            return;
+        }
+        await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: prNumber,
+            body,
+        });
+        core.info(`Posted external contributor comment on PR #${prNumber}`);
+    }
+    catch (error) {
+        core.warning(`Failed to post external contributor comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -78955,8 +78981,13 @@ const reminders_1 = __nccwpck_require__(99924);
 const auth_1 = __nccwpck_require__(29081);
 const config_1 = __nccwpck_require__(22973);
 async function run() {
+    const githubToken = core.getInput("github-token");
+    if (!githubToken) {
+        core.notice("No github-token provided — skipping. This is expected for fork PR events where secrets are unavailable.");
+        return;
+    }
     const inputs = {
-        githubToken: core.getInput("github-token", { required: true }),
+        githubToken,
         slackToken: core.getInput("slack-token"),
         configRepo: core.getInput("config-repo"),
         configToken: core.getInput("config-token"),
@@ -79060,6 +79091,26 @@ async function run() {
             repo,
             prNumber: pr.number,
             author: pr.user?.login ?? "",
+            isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
+            isDraft: pr.draft === true,
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        action === "ready_for_review") {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        await (0, router_1.handleReadyForReview)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            author: pr.user?.login ?? "",
+            isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
             inputs,
             teamsConfig,
         });
@@ -79388,6 +79439,11 @@ async function handleSchedule(octokit, ctx) {
         const hasReadyLabel = issueLabels.some((l) => l.name === ctx.inputs.readyLabel);
         if (!hasReadyLabel)
             continue;
+        const hasExternalLabel = issueLabels.some((l) => l.name === router_1.EXTERNAL_CONTRIBUTION_LABEL);
+        if (hasExternalLabel) {
+            core.info(`PR #${issue.number}: External contribution, skipping reminder`);
+            continue;
+        }
         const needsReviewLabels = issueLabels.filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
         if (needsReviewLabels.length === 0)
             continue;
@@ -79498,10 +79554,12 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EXTERNAL_CONTRIBUTION_LABEL = void 0;
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
 exports.handleOpened = handleOpened;
+exports.handleReadyForReview = handleReadyForReview;
 exports.handleClosed = handleClosed;
 exports.handleComment = handleComment;
 exports.getFileTypeEmojis = getFileTypeEmojis;
@@ -79767,16 +79825,61 @@ function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
         return undefined;
     return suffix.toLowerCase().replace(/\s+/g, "-");
 }
+exports.EXTERNAL_CONTRIBUTION_LABEL = "external-contribution";
 async function handleOpened(octokit, ctx) {
-    if (!ctx.teamsConfig.dependabot?.auto_label) {
-        core.info("Dependabot auto-label is disabled or not configured");
+    if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === "dependabot[bot]") {
+        core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+        try {
+            await octokit.rest.issues.addLabels({
+                owner: ctx.owner,
+                repo: ctx.repo,
+                issue_number: ctx.prNumber,
+                labels: [ctx.inputs.readyLabel],
+            });
+        }
+        catch (error) {
+            core.warning(`Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        }
         return;
     }
-    if (ctx.author !== "dependabot[bot]") {
-        core.info(`PR author "${ctx.author}" is not dependabot[bot], skipping auto-label`);
+    if (!ctx.teamsConfig.external_contributors?.auto_label) {
+        core.info("External contributor auto-label is disabled or not configured");
         return;
     }
-    core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+    if (!ctx.isFork) {
+        core.info("PR is not from a fork, skipping external contributor auto-label");
+        return;
+    }
+    const labels = ctx.isDraft
+        ? [exports.EXTERNAL_CONTRIBUTION_LABEL]
+        : [exports.EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel];
+    core.info(`Fork PR #${ctx.prNumber} detected (draft=${ctx.isDraft}), adding labels: ${labels.join(", ")}`);
+    try {
+        await octokit.rest.issues.addLabels({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            issue_number: ctx.prNumber,
+            labels,
+        });
+    }
+    catch (error) {
+        core.warning(`Failed to add labels to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const message = ctx.teamsConfig.external_contributors?.message;
+    if (message) {
+        await (0, comment_1.postExternalComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, message);
+    }
+}
+async function handleReadyForReview(octokit, ctx) {
+    if (!ctx.teamsConfig.external_contributors?.auto_label) {
+        core.info("External contributor auto-label is disabled or not configured");
+        return;
+    }
+    if (!ctx.isFork) {
+        core.info("PR is not from a fork, skipping external contributor auto-label");
+        return;
+    }
+    core.info(`Fork PR #${ctx.prNumber} marked ready, adding "${ctx.inputs.readyLabel}" label`);
     try {
         await octokit.rest.issues.addLabels({
             owner: ctx.owner,
@@ -79786,7 +79889,7 @@ async function handleOpened(octokit, ctx) {
         });
     }
     catch (error) {
-        core.warning(`Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        core.warning(`Failed to add label to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 async function handleClosed(octokit, ctx) {

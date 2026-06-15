@@ -12,6 +12,7 @@ import {
   mergeSlackRefs,
   findExistingComment,
   extractSlackRefs,
+  postExternalComment,
 } from "./comment";
 import {
   sendSlackNotification,
@@ -380,22 +381,93 @@ export interface OpenedContext {
   repo: string;
   prNumber: number;
   author: string;
+  isFork: boolean;
+  isDraft: boolean;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
 }
 
+export const EXTERNAL_CONTRIBUTION_LABEL = "external-contribution";
+
 export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promise<void> {
-  if (!ctx.teamsConfig.dependabot?.auto_label) {
-    core.info("Dependabot auto-label is disabled or not configured");
+  if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === "dependabot[bot]") {
+    core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+    try {
+      await octokit.rest.issues.addLabels({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: ctx.prNumber,
+        labels: [ctx.inputs.readyLabel],
+      });
+    } catch (error) {
+      core.warning(
+        `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     return;
   }
 
-  if (ctx.author !== "dependabot[bot]") {
-    core.info(`PR author "${ctx.author}" is not dependabot[bot], skipping auto-label`);
+  if (!ctx.teamsConfig.external_contributors?.auto_label) {
+    core.info("External contributor auto-label is disabled or not configured");
     return;
   }
 
-  core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
+  if (!ctx.isFork) {
+    core.info("PR is not from a fork, skipping external contributor auto-label");
+    return;
+  }
+
+  const labels = ctx.isDraft
+    ? [EXTERNAL_CONTRIBUTION_LABEL]
+    : [EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel];
+
+  core.info(
+    `Fork PR #${ctx.prNumber} detected (draft=${ctx.isDraft}), adding labels: ${labels.join(", ")}`
+  );
+  try {
+    await octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: ctx.prNumber,
+      labels,
+    });
+  } catch (error) {
+    core.warning(
+      `Failed to add labels to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  const message = ctx.teamsConfig.external_contributors?.message;
+  if (message) {
+    await postExternalComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, message);
+  }
+}
+
+export interface ReadyForReviewContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  author: string;
+  isFork: boolean;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export async function handleReadyForReview(
+  octokit: Octokit,
+  ctx: ReadyForReviewContext
+): Promise<void> {
+  if (!ctx.teamsConfig.external_contributors?.auto_label) {
+    core.info("External contributor auto-label is disabled or not configured");
+    return;
+  }
+
+  if (!ctx.isFork) {
+    core.info("PR is not from a fork, skipping external contributor auto-label");
+    return;
+  }
+
+  core.info(`Fork PR #${ctx.prNumber} marked ready, adding "${ctx.inputs.readyLabel}" label`);
   try {
     await octokit.rest.issues.addLabels({
       owner: ctx.owner,
@@ -405,7 +477,7 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
     });
   } catch (error) {
     core.warning(
-      `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to add label to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

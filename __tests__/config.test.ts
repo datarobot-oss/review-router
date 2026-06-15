@@ -157,6 +157,35 @@ orgs:
 `)
     ).toThrow("Config validation failed");
   });
+
+  it("accepts external_contributors config", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    external_contributors:
+      auto_label: true
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].external_contributors?.auto_label).toBe(true);
+  });
+
+  it("rejects invalid external_contributors config", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    external_contributors:
+      auto_label: "yes"
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
 });
 
 describe("getLabelForTeam", () => {

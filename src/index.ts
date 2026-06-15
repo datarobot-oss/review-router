@@ -4,6 +4,7 @@ import {
   handleLabeled,
   handleReviewSubmitted,
   handleOpened,
+  handleReadyForReview,
   handleClosed,
   handleComment,
 } from "./router";
@@ -14,8 +15,16 @@ import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 
 async function run(): Promise<void> {
+  const githubToken = core.getInput("github-token");
+  if (!githubToken) {
+    core.notice(
+      "No github-token provided — skipping. This is expected for fork PR events where secrets are unavailable."
+    );
+    return;
+  }
+
   const inputs: ActionInputs = {
-    githubToken: core.getInput("github-token", { required: true }),
+    githubToken,
     slackToken: core.getInput("slack-token"),
     configRepo: core.getInput("config-repo"),
     configToken: core.getInput("config-token"),
@@ -151,6 +160,30 @@ async function run(): Promise<void> {
       repo,
       prNumber: pr.number,
       author: pr.user?.login ?? "",
+      isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
+      isDraft: pr.draft === true,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "ready_for_review"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    await handleReadyForReview(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      author: pr.user?.login ?? "",
+      isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
       inputs,
       teamsConfig,
     });

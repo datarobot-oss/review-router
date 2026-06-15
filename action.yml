@@ -3,9 +3,8 @@ description: "Routes code reviews based on CODEOWNERS when Ready for Review labe
 
 inputs:
   github-token:
-    description: "GitHub token for API calls. Use a GitHub App installation token for full functionality."
-    required: true
-    default: ${{ github.token }}
+    description: "GitHub token for API calls. Use a GitHub App installation token for full functionality. When empty, the action exits gracefully (useful for fork PR events where secrets are unavailable)."
+    required: false
   slack-token:
     description: "Slack Bot token for sending notifications (optional)"
     required: false

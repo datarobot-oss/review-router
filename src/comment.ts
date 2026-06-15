@@ -4,6 +4,7 @@ import { humanizeSlug } from "./config";
 import { SlackMessageRef } from "./slack";
 
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
+export const EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 
 export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
@@ -151,5 +152,38 @@ export async function upsertComment(
       body,
     });
     core.info(`Posted ownership comment on PR #${prNumber}`);
+  }
+}
+
+export async function postExternalComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  message: string
+): Promise<void> {
+  const body = `${EXTERNAL_COMMENT_MARKER}\n${message}`;
+  try {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+    });
+    if (comments.some((c) => c.body?.includes(EXTERNAL_COMMENT_MARKER))) {
+      core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);
+      return;
+    }
+
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body,
+    });
+    core.info(`Posted external contributor comment on PR #${prNumber}`);
+  } catch (error) {
+    core.warning(
+      `Failed to post external contributor comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }

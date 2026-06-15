@@ -317,6 +317,38 @@ describe("handleSchedule", () => {
     expect(slack.sendSlackReminder).not.toHaveBeenCalled();
   });
 
+  it("skips PRs with external-contribution label", async () => {
+    const staleDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+    mockOctokit.paginate
+      .mockResolvedValueOnce([
+        {
+          number: 1,
+          pull_request: {},
+          html_url: "https://github.com/org/repo/pull/1",
+          title: "External fix",
+          user: { login: "external-user" },
+          labels: [
+            { name: "Ready for Review" },
+            { name: "Needs Review: Frontend" },
+            { name: "external-contribution" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([
+        { event: "labeled", label: { name: "Ready for Review" }, created_at: staleDate },
+      ]);
+
+    await handleSchedule(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      inputs: baseInputs,
+      teamsConfig,
+    });
+
+    expect(slack.sendSlackReminder).not.toHaveBeenCalled();
+  });
+
   it("skips non-PR issues", async () => {
     mockOctokit.paginate.mockResolvedValueOnce([
       {

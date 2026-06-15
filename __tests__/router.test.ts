@@ -498,6 +498,8 @@ describe("handleOpened", () => {
       repo: "repo",
       prNumber: 1,
       author: "dependabot[bot]",
+      isFork: false,
+      isDraft: false,
       inputs: baseInputs,
       teamsConfig,
     });
@@ -511,6 +513,8 @@ describe("handleOpened", () => {
       repo: "repo",
       prNumber: 1,
       author: "dependabot[bot]",
+      isFork: false,
+      isDraft: false,
       inputs: baseInputs,
       teamsConfig: { ...teamsConfig, dependabot: { auto_label: false } },
     });
@@ -524,6 +528,8 @@ describe("handleOpened", () => {
       repo: "repo",
       prNumber: 1,
       author: "alice",
+      isFork: false,
+      isDraft: false,
       inputs: baseInputs,
       teamsConfig: { ...teamsConfig, dependabot: { auto_label: true } },
     });
@@ -539,6 +545,8 @@ describe("handleOpened", () => {
       repo: "repo",
       prNumber: 42,
       author: "dependabot[bot]",
+      isFork: false,
+      isDraft: false,
       inputs: baseInputs,
       teamsConfig: { ...teamsConfig, dependabot: { auto_label: true } },
     });
@@ -549,6 +557,73 @@ describe("handleOpened", () => {
       issue_number: 42,
       labels: ["Ready for Review"],
     });
+  });
+
+  it("adds external-contribution and ready labels for fork PRs", async () => {
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "external-user",
+      isFork: true,
+      isDraft: false,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      issue_number: 10,
+      labels: ["external-contribution", "Ready for Review"],
+    });
+  });
+
+  it("skips fork PRs when external_contributors is disabled", async () => {
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "external-user",
+      isFork: true,
+      isDraft: false,
+      inputs: baseInputs,
+      teamsConfig,
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("skips draft fork PRs", async () => {
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "external-user",
+      isFork: true,
+      isDraft: true,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("skips non-fork PRs even when external_contributors is enabled", async () => {
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "internal-user",
+      isFork: false,
+      isDraft: false,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
   });
 });
 

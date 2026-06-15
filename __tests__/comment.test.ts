@@ -6,8 +6,6 @@ import {
   embedSlackRefsInDescription,
   extractSlackRefsFromDescription,
   COMMENT_MARKER,
-  EXTERNAL_COMMENT_MARKER,
-  EXTERNAL_CONTRIBUTOR_MESSAGE,
 } from "../src/comment";
 
 describe("buildOwnershipComment", () => {
@@ -242,14 +240,5 @@ describe("extractSlackRefsFromDescription", () => {
   it("returns empty for null/undefined body", () => {
     expect(extractSlackRefsFromDescription(null as any)).toEqual([]);
     expect(extractSlackRefsFromDescription(undefined as any)).toEqual([]);
-  });
-});
-
-describe("EXTERNAL_CONTRIBUTOR_MESSAGE", () => {
-  it("includes marker and review instructions", () => {
-    expect(EXTERNAL_CONTRIBUTOR_MESSAGE).toContain(EXTERNAL_COMMENT_MARKER);
-    expect(EXTERNAL_CONTRIBUTOR_MESSAGE).toContain("Draft PR");
-    expect(EXTERNAL_CONTRIBUTOR_MESSAGE).toContain("Ready for review");
-    expect(EXTERNAL_CONTRIBUTOR_MESSAGE).toContain("contributing to the DataRobot community");
   });
 });

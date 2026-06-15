@@ -155,25 +155,14 @@ export async function upsertComment(
   }
 }
 
-export const EXTERNAL_CONTRIBUTOR_MESSAGE = [
-  EXTERNAL_COMMENT_MARKER,
-  ":wave: Thanks so much for contributing to the DataRobot community!",
-  "",
-  "As a quick heads-up on how our team handles reviews: if you're still iterating on " +
-    "this code or running tests, please feel free to convert this to a **Draft PR**. " +
-    "We rely heavily on GitHub Drafts to give contributors a stress-free sandbox to experiment!",
-  "",
-  'Once everything is finalized and you\'re ready for feedback, just click **"Ready for review"** ' +
-    "and the maintainers will be notified to jump in. (And if this PR is already 100% ready " +
-    "to go — no action needed, we'll take a look soon!)",
-].join("\n");
-
 export async function postExternalComment(
   octokit: Octokit,
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  message: string
 ): Promise<void> {
+  const body = `${EXTERNAL_COMMENT_MARKER}\n${message}`;
   try {
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,
@@ -189,7 +178,7 @@ export async function postExternalComment(
       owner,
       repo,
       issue_number: prNumber,
-      body: EXTERNAL_CONTRIBUTOR_MESSAGE,
+      body,
     });
     core.info(`Posted external contributor comment on PR #${prNumber}`);
   } catch (error) {

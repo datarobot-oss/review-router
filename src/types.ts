@@ -14,6 +14,7 @@ export interface DependabotConfig {
 
 export interface ExternalContributorsConfig {
   auto_label: boolean;
+  message?: string;
 }
 
 export interface NotificationIcons {

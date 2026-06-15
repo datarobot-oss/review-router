@@ -151,6 +151,10 @@
         "auto_label": {
           "type": "boolean",
           "description": "Automatically add the ready-label and external-contribution label to PRs from forks."
+        },
+        "message": {
+          "type": "string",
+          "description": "Welcome message posted as a comment on fork PRs. Supports GitHub markdown. Omit to skip the comment."
         }
       }
     },

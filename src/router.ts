@@ -437,7 +437,10 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
     );
   }
 
-  await postExternalComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+  const message = ctx.teamsConfig.external_contributors?.message;
+  if (message) {
+    await postExternalComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, message);
+  }
 }
 
 export interface ReadyForReviewContext {

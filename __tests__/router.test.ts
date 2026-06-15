@@ -576,7 +576,10 @@ describe("handleOpened", () => {
       isFork: true,
       isDraft: false,
       inputs: baseInputs,
-      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+      teamsConfig: {
+        ...teamsConfig,
+        external_contributors: { auto_label: true, message: "Welcome!" },
+      },
     });
 
     expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
@@ -585,7 +588,31 @@ describe("handleOpened", () => {
       issue_number: 10,
       labels: ["external-contribution", "Ready for Review"],
     });
-    expect(mockPostExternalComment).toHaveBeenCalledWith(mockOctokit, "org", "repo", 10);
+    expect(mockPostExternalComment).toHaveBeenCalledWith(
+      mockOctokit,
+      "org",
+      "repo",
+      10,
+      "Welcome!"
+    );
+  });
+
+  it("skips comment when no message configured", async () => {
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "external-user",
+      isFork: true,
+      isDraft: false,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalled();
+    expect(mockPostExternalComment).not.toHaveBeenCalled();
   });
 
   it("skips fork PRs when external_contributors is disabled", async () => {
@@ -614,7 +641,10 @@ describe("handleOpened", () => {
       isFork: true,
       isDraft: true,
       inputs: baseInputs,
-      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+      teamsConfig: {
+        ...teamsConfig,
+        external_contributors: { auto_label: true, message: "Welcome!" },
+      },
     });
 
     expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
@@ -623,7 +653,13 @@ describe("handleOpened", () => {
       issue_number: 10,
       labels: ["external-contribution"],
     });
-    expect(mockPostExternalComment).toHaveBeenCalledWith(mockOctokit, "org", "repo", 10);
+    expect(mockPostExternalComment).toHaveBeenCalledWith(
+      mockOctokit,
+      "org",
+      "repo",
+      10,
+      "Welcome!"
+    );
   });
 
   it("skips non-fork PRs even when external_contributors is enabled", async () => {

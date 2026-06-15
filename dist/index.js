@@ -78571,7 +78571,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.EXTERNAL_CONTRIBUTOR_MESSAGE = exports.EXTERNAL_COMMENT_MARKER = exports.COMMENT_MARKER = void 0;
+exports.EXTERNAL_COMMENT_MARKER = exports.COMMENT_MARKER = void 0;
 exports.buildOwnershipComment = buildOwnershipComment;
 exports.embedSlackRefs = embedSlackRefs;
 exports.mergeSlackRefs = mergeSlackRefs;
@@ -78705,19 +78705,8 @@ async function upsertComment(octokit, owner, repo, prNumber, body, existingComme
         core.info(`Posted ownership comment on PR #${prNumber}`);
     }
 }
-exports.EXTERNAL_CONTRIBUTOR_MESSAGE = [
-    exports.EXTERNAL_COMMENT_MARKER,
-    ":wave: Thanks so much for contributing to the DataRobot community!",
-    "",
-    "As a quick heads-up on how our team handles reviews: if you're still iterating on " +
-        "this code or running tests, please feel free to convert this to a **Draft PR**. " +
-        "We rely heavily on GitHub Drafts to give contributors a stress-free sandbox to experiment!",
-    "",
-    'Once everything is finalized and you\'re ready for feedback, just click **"Ready for review"** ' +
-        "and the maintainers will be notified to jump in. (And if this PR is already 100% ready " +
-        "to go — no action needed, we'll take a look soon!)",
-].join("\n");
-async function postExternalComment(octokit, owner, repo, prNumber) {
+async function postExternalComment(octokit, owner, repo, prNumber, message) {
+    const body = `${exports.EXTERNAL_COMMENT_MARKER}\n${message}`;
     try {
         const { data: comments } = await octokit.rest.issues.listComments({
             owner,
@@ -78732,7 +78721,7 @@ async function postExternalComment(octokit, owner, repo, prNumber) {
             owner,
             repo,
             issue_number: prNumber,
-            body: exports.EXTERNAL_CONTRIBUTOR_MESSAGE,
+            body,
         });
         core.info(`Posted external contributor comment on PR #${prNumber}`);
     }
@@ -79871,7 +79860,10 @@ async function handleOpened(octokit, ctx) {
     catch (error) {
         core.warning(`Failed to add labels to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
-    await (0, comment_1.postExternalComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+    const message = ctx.teamsConfig.external_contributors?.message;
+    if (message) {
+        await (0, comment_1.postExternalComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, message);
+    }
 }
 async function handleReadyForReview(octokit, ctx) {
     if (!ctx.teamsConfig.external_contributors?.auto_label) {

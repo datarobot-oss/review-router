@@ -78981,8 +78981,13 @@ const reminders_1 = __nccwpck_require__(99924);
 const auth_1 = __nccwpck_require__(29081);
 const config_1 = __nccwpck_require__(22973);
 async function run() {
+    const githubToken = core.getInput("github-token");
+    if (!githubToken) {
+        core.notice("No github-token provided — skipping. This is expected for fork PR events where secrets are unavailable.");
+        return;
+    }
     const inputs = {
-        githubToken: core.getInput("github-token", { required: true }),
+        githubToken,
         slackToken: core.getInput("slack-token"),
         configRepo: core.getInput("config-repo"),
         configToken: core.getInput("config-token"),

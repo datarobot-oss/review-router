@@ -15,8 +15,16 @@ import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 
 async function run(): Promise<void> {
+  const githubToken = core.getInput("github-token");
+  if (!githubToken) {
+    core.notice(
+      "No github-token provided — skipping. This is expected for fork PR events where secrets are unavailable."
+    );
+    return;
+  }
+
   const inputs: ActionInputs = {
-    githubToken: core.getInput("github-token", { required: true }),
+    githubToken,
     slackToken: core.getInput("slack-token"),
     configRepo: core.getInput("config-repo"),
     configToken: core.getInput("config-token"),

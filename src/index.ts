@@ -4,6 +4,7 @@ import {
   handleLabeled,
   handleReviewSubmitted,
   handleOpened,
+  handleReadyForReview,
   handleClosed,
   handleComment,
 } from "./router";
@@ -151,6 +152,30 @@ async function run(): Promise<void> {
       repo,
       prNumber: pr.number,
       author: pr.user?.login ?? "",
+      isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
+      isDraft: pr.draft === true,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "ready_for_review"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    await handleReadyForReview(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      author: pr.user?.login ?? "",
+      isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
       inputs,
       teamsConfig,
     });

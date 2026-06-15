@@ -12,6 +12,7 @@ import {
   mergeSlackRefs,
   findExistingComment,
   extractSlackRefs,
+  postExternalComment,
 } from "./comment";
 import {
   sendSlackNotification,
@@ -416,24 +417,27 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
     return;
   }
 
-  if (ctx.isDraft) {
-    core.info(`Fork PR #${ctx.prNumber} is a draft, skipping auto-label`);
-    return;
-  }
+  const labels = ctx.isDraft
+    ? [EXTERNAL_CONTRIBUTION_LABEL]
+    : [EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel];
 
-  core.info(`Fork PR #${ctx.prNumber} detected, adding "${EXTERNAL_CONTRIBUTION_LABEL}" and "${ctx.inputs.readyLabel}" labels`);
+  core.info(
+    `Fork PR #${ctx.prNumber} detected (draft=${ctx.isDraft}), adding labels: ${labels.join(", ")}`
+  );
   try {
     await octokit.rest.issues.addLabels({
       owner: ctx.owner,
       repo: ctx.repo,
       issue_number: ctx.prNumber,
-      labels: [EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel],
+      labels,
     });
   } catch (error) {
     core.warning(
       `Failed to add labels to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+
+  await postExternalComment(octokit, ctx.owner, ctx.repo, ctx.prNumber);
 }
 
 export interface ReadyForReviewContext {
@@ -446,7 +450,10 @@ export interface ReadyForReviewContext {
   teamsConfig: OrgConfig;
 }
 
-export async function handleReadyForReview(octokit: Octokit, ctx: ReadyForReviewContext): Promise<void> {
+export async function handleReadyForReview(
+  octokit: Octokit,
+  ctx: ReadyForReviewContext
+): Promise<void> {
   if (!ctx.teamsConfig.external_contributors?.auto_label) {
     core.info("External contributor auto-label is disabled or not configured");
     return;
@@ -457,17 +464,17 @@ export async function handleReadyForReview(octokit: Octokit, ctx: ReadyForReview
     return;
   }
 
-  core.info(`Fork PR #${ctx.prNumber} marked ready, adding "${EXTERNAL_CONTRIBUTION_LABEL}" and "${ctx.inputs.readyLabel}" labels`);
+  core.info(`Fork PR #${ctx.prNumber} marked ready, adding "${ctx.inputs.readyLabel}" label`);
   try {
     await octokit.rest.issues.addLabels({
       owner: ctx.owner,
       repo: ctx.repo,
       issue_number: ctx.prNumber,
-      labels: [EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel],
+      labels: [ctx.inputs.readyLabel],
     });
   } catch (error) {
     core.warning(
-      `Failed to add labels to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to add label to fork PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

@@ -12,6 +12,10 @@ import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
 import * as comment from "../src/comment";
 import * as slack from "../src/slack";
+
+const mockPostExternalComment = comment.postExternalComment as jest.MockedFunction<
+  typeof comment.postExternalComment
+>;
 import { OrgConfig } from "../src/types";
 
 jest.mock("../src/labels");
@@ -38,6 +42,7 @@ const mockOctokit = {
     issues: {
       listLabelsOnIssue: jest.fn(),
       listComments: jest.fn(),
+      createComment: jest.fn(),
       removeLabel: jest.fn(),
       addLabels: jest.fn(),
     },
@@ -560,7 +565,7 @@ describe("handleOpened", () => {
     });
   });
 
-  it("adds external-contribution and ready labels for fork PRs", async () => {
+  it("adds external-contribution and ready labels for non-draft fork PRs", async () => {
     mockOctokit.rest.issues.addLabels.mockResolvedValue({});
 
     await handleOpened(mockOctokit as any, {
@@ -580,6 +585,7 @@ describe("handleOpened", () => {
       issue_number: 10,
       labels: ["external-contribution", "Ready for Review"],
     });
+    expect(mockPostExternalComment).toHaveBeenCalledWith(mockOctokit, "org", "repo", 10);
   });
 
   it("skips fork PRs when external_contributors is disabled", async () => {
@@ -597,7 +603,9 @@ describe("handleOpened", () => {
     expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
   });
 
-  it("skips draft fork PRs", async () => {
+  it("adds only external-contribution label for draft fork PRs", async () => {
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
     await handleOpened(mockOctokit as any, {
       owner: "org",
       repo: "repo",
@@ -609,7 +617,13 @@ describe("handleOpened", () => {
       teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
     });
 
-    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      issue_number: 10,
+      labels: ["external-contribution"],
+    });
+    expect(mockPostExternalComment).toHaveBeenCalledWith(mockOctokit, "org", "repo", 10);
   });
 
   it("skips non-fork PRs even when external_contributors is enabled", async () => {
@@ -641,7 +655,7 @@ describe("handleReadyForReview", () => {
     needsReviewLabelColor: "fbca04",
   };
 
-  it("adds labels for fork PRs marked ready", async () => {
+  it("adds ready label for fork PRs marked ready", async () => {
     mockOctokit.rest.issues.addLabels.mockResolvedValue({});
 
     await handleReadyForReview(mockOctokit as any, {
@@ -658,7 +672,7 @@ describe("handleReadyForReview", () => {
       owner: "org",
       repo: "repo",
       issue_number: 10,
-      labels: ["external-contribution", "Ready for Review"],
+      labels: ["Ready for Review"],
     });
   });
 

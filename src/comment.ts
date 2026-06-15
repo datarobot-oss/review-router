@@ -4,6 +4,7 @@ import { humanizeSlug } from "./config";
 import { SlackMessageRef } from "./slack";
 
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
+export const EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 
 export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
@@ -151,5 +152,39 @@ export async function upsertComment(
       body,
     });
     core.info(`Posted ownership comment on PR #${prNumber}`);
+  }
+}
+
+export const EXTERNAL_CONTRIBUTOR_MESSAGE = [
+  EXTERNAL_COMMENT_MARKER,
+  ":wave: Thanks so much for contributing to the DataRobot community!",
+  "",
+  "As a quick heads-up on how our team handles reviews: if you're still iterating on " +
+    "this code or running tests, please feel free to convert this to a **Draft PR**. " +
+    "We rely heavily on GitHub Drafts to give contributors a stress-free sandbox to experiment!",
+  "",
+  'Once everything is finalized and you\'re ready for feedback, just click **"Ready for review"** ' +
+    "and the maintainers will be notified to jump in. (And if this PR is already 100% ready " +
+    "to go — no action needed, we'll take a look soon!)",
+].join("\n");
+
+export async function postExternalComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<void> {
+  try {
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: EXTERNAL_CONTRIBUTOR_MESSAGE,
+    });
+    core.info(`Posted external contributor comment on PR #${prNumber}`);
+  } catch (error) {
+    core.warning(
+      `Failed to post external contributor comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }

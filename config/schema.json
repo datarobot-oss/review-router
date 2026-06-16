@@ -34,6 +34,11 @@
           "type": "string",
           "description": "Fallback Slack channel ID used when a team has no channel configured."
         },
+        "ready_label_aliases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional label names that trigger review routing, treated identically to the ready-label action input."
+        },
         "reminders": {
           "$ref": "#/$defs/RemindersConfig"
         },

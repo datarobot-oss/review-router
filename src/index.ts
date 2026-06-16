@@ -7,6 +7,7 @@ import {
   handleReadyForReview,
   handleClosed,
   handleComment,
+  isReadyLabel,
 } from "./router";
 import { COMMENT_MARKER } from "./comment";
 import { handleSchedule } from "./reminders";
@@ -223,8 +224,11 @@ async function run(): Promise<void> {
     }
 
     const labelName = context.payload.label?.name;
-    if (labelName !== inputs.readyLabel) {
-      core.info(`Ignoring label "${labelName}" (not "${inputs.readyLabel}")`);
+    if (
+      !labelName ||
+      !isReadyLabel(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases)
+    ) {
+      core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
       return;
     }
 

@@ -32,6 +32,24 @@ import {
   Octokit,
 } from "./types";
 
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, delayMs = 1000): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      if (attempt === maxAttempts || (status !== undefined && status < 500)) throw error;
+      await new Promise((r) => setTimeout(r, delayMs * attempt));
+      core.debug(`Retrying after transient error (attempt ${attempt + 1}/${maxAttempts})`);
+    }
+  }
+  throw new Error("unreachable");
+}
+
+export function isReadyLabel(name: string, readyLabel: string, aliases: string[] = []): boolean {
+  return name === readyLabel || aliases.includes(name);
+}
+
 export interface LabeledContext {
   owner: string;
   repo: string;
@@ -224,7 +242,9 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
 
   const slackRefs: SlackMessageRef[] = [];
   const displayLabels = ctx.labels.filter(
-    (l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel
+    (l) =>
+      !l.startsWith(ctx.inputs.needsReviewPrefix) &&
+      !isReadyLabel(l, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases)
   );
 
   for (const { channel, individualOwners } of slackChannelsToNotify) {
@@ -265,17 +285,21 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
 
   let commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
   commentBody = embedSlackRefs(commentBody, mergedRefs);
-  await upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
+  await withRetry(() =>
+    upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing)
+  );
 
   if (mergedRefs.length > 0) {
     try {
       const updatedBody = embedSlackRefsInDescription(currentPr.body ?? "", mergedRefs);
-      await octokit.rest.pulls.update({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        pull_number: ctx.prNumber,
-        body: updatedBody,
-      });
+      await withRetry(() =>
+        octokit.rest.pulls.update({
+          owner: ctx.owner,
+          repo: ctx.repo,
+          pull_number: ctx.prNumber,
+          body: updatedBody,
+        })
+      );
     } catch (error) {
       core.warning(
         `Failed to update PR description with Slack refs: ${error instanceof Error ? error.message : String(error)}`
@@ -345,6 +369,11 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         ctx.prNumber,
         ctx.prBody
       );
+      if (refs.length === 0) {
+        core.warning(
+          "No Slack refs found for this PR — approval reaction skipped. This can happen if the initial routing run failed before persisting the Slack message reference."
+        );
+      }
       const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
       if (emoji) {
         for (const ref of refs) {
@@ -529,7 +558,7 @@ export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promis
   const labelsToRemove = labels
     .filter(
       (l) =>
-        l.name === ctx.inputs.readyLabel ||
+        isReadyLabel(l.name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases) ||
         l.name.startsWith(ctx.inputs.needsReviewPrefix + ":") ||
         configuredLabels.has(l.name)
     )

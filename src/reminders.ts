@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { getSlackChannel, humanizeSlug } from "./config";
-import { EXTERNAL_CONTRIBUTION_LABEL, resolveTeamSlugFromLabel } from "./router";
+import { EXTERNAL_CONTRIBUTION_LABEL, resolveTeamSlugFromLabel, isReadyLabel } from "./router";
 import { sendSlackReminder } from "./slack";
 import { ActionInputs, OrgConfig, Octokit } from "./types";
 
@@ -52,7 +52,9 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
       (l): l is { name: string } => typeof l === "object" && l !== null && "name" in l
     );
 
-    const hasReadyLabel = issueLabels.some((l) => l.name === ctx.inputs.readyLabel);
+    const hasReadyLabel = issueLabels.some((l) =>
+      isReadyLabel(l.name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases)
+    );
     if (!hasReadyLabel) continue;
 
     const hasExternalLabel = issueLabels.some((l) => l.name === EXTERNAL_CONTRIBUTION_LABEL);
@@ -66,13 +68,10 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
     );
     if (needsReviewLabels.length === 0) continue;
 
-    const readyAt = await getReadyForReviewTime(
-      octokit,
-      ctx.owner,
-      ctx.repo,
-      issue.number,
-      ctx.inputs.readyLabel
-    );
+    const readyAt = await getReadyForReviewTime(octokit, ctx.owner, ctx.repo, issue.number, [
+      ctx.inputs.readyLabel,
+      ...(ctx.teamsConfig.ready_label_aliases ?? []),
+    ]);
 
     if (readyAt === null) {
       core.info(`PR #${issue.number}: Could not determine review request time, skipping reminder`);
@@ -129,7 +128,7 @@ async function getReadyForReviewTime(
   owner: string,
   repo: string,
   issueNumber: number,
-  readyLabel: string
+  readyLabels: string[]
 ): Promise<Date | null> {
   try {
     const events = await octokit.paginate(octokit.rest.issues.listEvents, {
@@ -142,7 +141,7 @@ async function getReadyForReviewTime(
     let latest: Date | null = null;
     for (const event of events) {
       const label = "label" in event ? event.label : undefined;
-      if (event.event === "labeled" && label?.name === readyLabel) {
+      if (event.event === "labeled" && label && readyLabels.includes(label.name)) {
         const eventDate = new Date(event.created_at);
         if (!latest || eventDate > latest) {
           latest = eventDate;

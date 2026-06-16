@@ -36,6 +36,7 @@ export interface ReactionsConfig {
 
 export interface OrgConfig {
   default_slack_channel?: string;
+  ready_label_aliases?: string[];
   reminders?: RemindersConfig;
   dependabot?: DependabotConfig;
   external_contributors?: ExternalContributorsConfig;

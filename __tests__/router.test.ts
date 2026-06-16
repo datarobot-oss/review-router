@@ -7,6 +7,7 @@ import {
   handleComment,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
+  isReadyLabel,
 } from "../src/router";
 import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
@@ -482,6 +483,35 @@ describe("resolveTeamSlugFromLabel", () => {
 
   it("returns undefined for empty suffix", () => {
     expect(resolveTeamSlugFromLabel("Needs Review: ", teamsConfig, "Needs Review")).toBeUndefined();
+  });
+});
+
+describe("isReadyLabel", () => {
+  it("matches the canonical ready label", () => {
+    expect(isReadyLabel("Ready for Review", "Ready for Review", ["00 - Ready for Review"])).toBe(
+      true
+    );
+  });
+
+  it("matches an alias", () => {
+    expect(
+      isReadyLabel("00 - Ready for Review", "Ready for Review", ["00 - Ready for Review"])
+    ).toBe(true);
+  });
+
+  it("rejects an unrelated label", () => {
+    expect(
+      isReadyLabel("Needs Review: Applications", "Ready for Review", ["00 - Ready for Review"])
+    ).toBe(false);
+  });
+
+  it("returns false when aliases is empty and label does not match canonical", () => {
+    expect(isReadyLabel("00 - Ready for Review", "Ready for Review", [])).toBe(false);
+  });
+
+  it("defaults aliases to empty when not provided", () => {
+    expect(isReadyLabel("Ready for Review", "Ready for Review")).toBe(true);
+    expect(isReadyLabel("00 - Ready for Review", "Ready for Review")).toBe(false);
   });
 });
 

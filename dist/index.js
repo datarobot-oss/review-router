@@ -79142,8 +79142,9 @@ async function run() {
             return;
         }
         const labelName = context.payload.label?.name;
-        if (labelName !== inputs.readyLabel) {
-            core.info(`Ignoring label "${labelName}" (not "${inputs.readyLabel}")`);
+        if (!labelName ||
+            !(0, router_1.isReadyLabel)(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases)) {
+            core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
             return;
         }
         await (0, router_1.handleLabeled)(octokit, {
@@ -79436,7 +79437,7 @@ async function handleSchedule(octokit, ctx) {
         if (!issue.pull_request)
             continue;
         const issueLabels = (issue.labels ?? []).filter((l) => typeof l === "object" && l !== null && "name" in l);
-        const hasReadyLabel = issueLabels.some((l) => l.name === ctx.inputs.readyLabel);
+        const hasReadyLabel = issueLabels.some((l) => (0, router_1.isReadyLabel)(l.name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases));
         if (!hasReadyLabel)
             continue;
         const hasExternalLabel = issueLabels.some((l) => l.name === router_1.EXTERNAL_CONTRIBUTION_LABEL);
@@ -79447,7 +79448,10 @@ async function handleSchedule(octokit, ctx) {
         const needsReviewLabels = issueLabels.filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
         if (needsReviewLabels.length === 0)
             continue;
-        const readyAt = await getReadyForReviewTime(octokit, ctx.owner, ctx.repo, issue.number, ctx.inputs.readyLabel);
+        const readyAt = await getReadyForReviewTime(octokit, ctx.owner, ctx.repo, issue.number, [
+            ctx.inputs.readyLabel,
+            ...(ctx.teamsConfig.ready_label_aliases ?? []),
+        ]);
         if (readyAt === null) {
             core.info(`PR #${issue.number}: Could not determine review request time, skipping reminder`);
             continue;
@@ -79486,7 +79490,7 @@ async function handleSchedule(octokit, ctx) {
     }
     core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
 }
-async function getReadyForReviewTime(octokit, owner, repo, issueNumber, readyLabel) {
+async function getReadyForReviewTime(octokit, owner, repo, issueNumber, readyLabels) {
     try {
         const events = await octokit.paginate(octokit.rest.issues.listEvents, {
             owner,
@@ -79497,7 +79501,7 @@ async function getReadyForReviewTime(octokit, owner, repo, issueNumber, readyLab
         let latest = null;
         for (const event of events) {
             const label = "label" in event ? event.label : undefined;
-            if (event.event === "labeled" && label?.name === readyLabel) {
+            if (event.event === "labeled" && label && readyLabels.includes(label.name)) {
                 const eventDate = new Date(event.created_at);
                 if (!latest || eventDate > latest) {
                     latest = eventDate;
@@ -79555,6 +79559,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EXTERNAL_CONTRIBUTION_LABEL = void 0;
+exports.isReadyLabel = isReadyLabel;
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
@@ -79571,6 +79576,24 @@ const labels_1 = __nccwpck_require__(94584);
 const comment_1 = __nccwpck_require__(62246);
 const slack_1 = __nccwpck_require__(16691);
 const config_1 = __nccwpck_require__(22973);
+async function withRetry(fn, maxAttempts = 3, delayMs = 1000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await fn();
+        }
+        catch (error) {
+            const status = error.status;
+            if (attempt === maxAttempts || (status !== undefined && status < 500))
+                throw error;
+            await new Promise((r) => setTimeout(r, delayMs * attempt));
+            core.debug(`Retrying after transient error (attempt ${attempt + 1}/${maxAttempts})`);
+        }
+    }
+    throw new Error("unreachable");
+}
+function isReadyLabel(name, readyLabel, aliases = []) {
+    return name === readyLabel || aliases.includes(name);
+}
 async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) {
     const refs = (0, comment_1.extractSlackRefsFromDescription)(prBody);
     if (refs.length > 0)
@@ -79702,7 +79725,8 @@ async function handleLabeled(octokit, ctx) {
         }
     }
     const slackRefs = [];
-    const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) && l !== ctx.inputs.readyLabel);
+    const displayLabels = ctx.labels.filter((l) => !l.startsWith(ctx.inputs.needsReviewPrefix) &&
+        !isReadyLabel(l, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases));
     for (const { channel, individualOwners } of slackChannelsToNotify) {
         const ref = await (0, slack_1.sendSlackNotification)(ctx.inputs.slackToken, channel, {
             prUrl: ctx.prUrl,
@@ -79739,16 +79763,16 @@ async function handleLabeled(octokit, ctx) {
     const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
-    await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing);
+    await withRetry(() => (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing));
     if (mergedRefs.length > 0) {
         try {
             const updatedBody = (0, comment_1.embedSlackRefsInDescription)(currentPr.body ?? "", mergedRefs);
-            await octokit.rest.pulls.update({
+            await withRetry(() => octokit.rest.pulls.update({
                 owner: ctx.owner,
                 repo: ctx.repo,
                 pull_number: ctx.prNumber,
                 body: updatedBody,
-            });
+            }));
         }
         catch (error) {
             core.warning(`Failed to update PR description with Slack refs: ${error instanceof Error ? error.message : String(error)}`);
@@ -79800,6 +79824,9 @@ async function handleReviewSubmitted(octokit, ctx) {
     if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
         try {
             const refs = await getSlackRefsWithFallback(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prBody);
+            if (refs.length === 0) {
+                core.warning("No Slack refs found for this PR — approval reaction skipped. This can happen if the initial routing run failed before persisting the Slack message reference.");
+            }
             const emoji = getStatusEmoji("approved", ctx.teamsConfig.reactions);
             if (emoji) {
                 for (const ref of refs) {
@@ -79918,7 +79945,7 @@ async function handleClosed(octokit, ctx) {
     });
     const configuredLabels = new Set(Object.values(ctx.teamsConfig.teams).map((t) => t.label));
     const labelsToRemove = labels
-        .filter((l) => l.name === ctx.inputs.readyLabel ||
+        .filter((l) => isReadyLabel(l.name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases) ||
         l.name.startsWith(ctx.inputs.needsReviewPrefix + ":") ||
         configuredLabels.has(l.name))
         .map((l) => l.name);

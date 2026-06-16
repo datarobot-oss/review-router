@@ -1,0 +1,25 @@
+---
+name: Review Router
+
+# SECURITY: This workflow intentionally uses pull_request_target (not
+# pull_request) because review-router never checks out or executes PR code.
+# Do NOT add actions/checkout or shell run: blocks here.
+
+on:
+  pull_request_target:
+    types: [labeled, opened, closed, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: "0 9,17 * * 1-5"
+
+permissions: {}
+
+jobs:
+  route:
+    uses: datarobot-oss/.github/.github/workflows/review-router.yml@main
+    secrets: inherit

@@ -7,6 +7,31 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    groups:
+      typescript-eslint:
+        patterns:
+          - "@typescript-eslint/*"
+          - "typescript-eslint"
+      eslint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+      aws-sdk:
+        patterns:
+          - "@aws-sdk/*"
+      types:
+        patterns:
+          - "@types/*"
+      slack:
+        patterns:
+          - "@slack/*"
+      build-tools:
+        patterns:
+          - "@vercel/*"
+          - "prettier"
+          - "jest"
+          - "ts-jest"
+          - "ts-node"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -15,3 +40,7 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      actions:
+        patterns:
+          - "actions/*"

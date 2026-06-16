@@ -38,7 +38,10 @@ const teamsConfig = {
   },
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockOctokit.paginate.mockReset();
+});
 
 describe("handleSchedule", () => {
   it("skips when reminders are disabled", async () => {
@@ -365,6 +368,98 @@ describe("handleSchedule", () => {
       repo: "repo",
       inputs: baseInputs,
       teamsConfig,
+    });
+
+    expect(slack.sendSlackReminder).not.toHaveBeenCalled();
+  });
+
+  it("sends reminder for PR with alias ready label", async () => {
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+
+    mockOctokit.paginate
+      .mockResolvedValueOnce([
+        {
+          number: 30,
+          pull_request: {},
+          labels: [{ name: "00 - Ready for Review" }, { name: "Needs Review: Frontend" }],
+          html_url: "https://github.com/org/repo/pull/30",
+          title: "Alias label PR",
+          created_at: twoDaysAgo,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          event: "labeled",
+          label: { name: "00 - Ready for Review" },
+          created_at: twoDaysAgo,
+        },
+      ]);
+
+    (slack.sendSlackReminder as jest.Mock).mockResolvedValue(undefined);
+
+    await handleSchedule(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, ready_label_aliases: ["00 - Ready for Review"] },
+    });
+
+    expect(slack.sendSlackReminder).toHaveBeenCalledWith(
+      "xoxb-slack-token",
+      "C_FRONTEND",
+      expect.objectContaining({ prNumber: 30 })
+    );
+  });
+
+  it("skips PR with alias ready label that was recently added", async () => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    mockOctokit.paginate
+      .mockResolvedValueOnce([
+        {
+          number: 31,
+          pull_request: {},
+          labels: [{ name: "00 - Ready for Review" }, { name: "Needs Review: Frontend" }],
+          html_url: "https://github.com/org/repo/pull/31",
+          title: "Fresh alias PR",
+          created_at: oneHourAgo,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          event: "labeled",
+          label: { name: "00 - Ready for Review" },
+          created_at: oneHourAgo,
+        },
+      ]);
+
+    await handleSchedule(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, ready_label_aliases: ["00 - Ready for Review"] },
+    });
+
+    expect(slack.sendSlackReminder).not.toHaveBeenCalled();
+  });
+
+  it("ignores alias ready label when not configured in ready_label_aliases", async () => {
+    mockOctokit.paginate.mockResolvedValueOnce([
+      {
+        number: 32,
+        pull_request: {},
+        labels: [{ name: "00 - Ready for Review" }, { name: "Needs Review: Frontend" }],
+        html_url: "https://github.com/org/repo/pull/32",
+        title: "Unconfigured alias PR",
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+
+    await handleSchedule(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      inputs: baseInputs,
+      teamsConfig, // no ready_label_aliases configured
     });
 
     expect(slack.sendSlackReminder).not.toHaveBeenCalled();

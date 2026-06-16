@@ -365,6 +365,89 @@ describe("handleLabeled", () => {
   });
 });
 
+describe("handleLabeled withRetry", () => {
+  const baseCtx = {
+    owner: "datarobot-community",
+    repo: "test-repo",
+    prNumber: 1,
+    baseBranch: "main",
+    prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+    prTitle: "Test PR",
+    author: "alice",
+    additions: 10,
+    deletions: 5,
+    commits: 1,
+    labels: [],
+    inputs: {
+      githubToken: "token",
+      slackToken: "",
+      configRepo: "",
+      configToken: "",
+      configPath: "config.yml",
+      configS3: "",
+      readyLabel: "Ready for Review",
+      needsReviewPrefix: "Needs Review",
+      needsReviewLabelColor: "fbca04",
+    },
+    capabilities: { hasOrgAccess: false },
+    teamsConfig,
+  };
+
+  beforeEach(() => {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+  });
+
+  it("retries upsertComment on transient 500 and succeeds", async () => {
+    jest.useFakeTimers();
+    const err500 = Object.assign(new Error("Internal Server Error"), { status: 500 });
+    (comment.upsertComment as jest.Mock).mockRejectedValueOnce(err500).mockResolvedValue(undefined);
+
+    const promise = handleLabeled(mockOctokit as any, baseCtx);
+    await jest.runAllTimersAsync();
+    await promise;
+
+    expect(comment.upsertComment).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+
+  it("does not retry upsertComment on 422 client error", async () => {
+    const err422 = Object.assign(new Error("Unprocessable Entity"), { status: 422 });
+    (comment.upsertComment as jest.Mock).mockRejectedValue(err422);
+
+    await expect(handleLabeled(mockOctokit as any, baseCtx)).rejects.toMatchObject({
+      status: 422,
+    });
+
+    expect(comment.upsertComment).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries pulls.update on 500 and succeeds", async () => {
+    jest.useFakeTimers();
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    // Return a non-empty refs list so the description update is attempted
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([
+      { channel: "C123", ts: "1234567890.000001" },
+    ]);
+    (comment.embedSlackRefsInDescription as jest.Mock).mockReturnValue("updated body");
+    const err500 = Object.assign(new Error("Internal Server Error"), { status: 500 });
+    mockOctokit.rest.pulls.update.mockRejectedValueOnce(err500).mockResolvedValue({});
+
+    const promise = handleLabeled(mockOctokit as any, baseCtx);
+    await jest.runAllTimersAsync();
+    await promise;
+
+    expect(mockOctokit.rest.pulls.update).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+});
+
 describe("handleReviewSubmitted", () => {
   const baseCtx = {
     owner: "datarobot-oss",

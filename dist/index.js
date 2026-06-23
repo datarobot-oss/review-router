@@ -5376,7 +5376,7 @@ const { getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig, g
 const { resolveRetryConfig, getRetryPlugin } = __nccwpck_require__(23609);
 const { getSchemaSerdePlugin } = __nccwpck_require__(26890);
 const { resolveHttpAuthSchemeConfig, defaultS3HttpAuthSchemeParametersProvider } = __nccwpck_require__(7168);
-const { CreateSession$, AbortMultipartUpload$, CompleteMultipartUpload$, CopyObject$, CreateBucket$, CreateBucketMetadataConfiguration$, CreateBucketMetadataTableConfiguration$, CreateMultipartUpload$, DeleteBucketAnalyticsConfiguration$, DeleteBucket$, DeleteBucketCors$, DeleteBucketEncryption$, DeleteBucketIntelligentTieringConfiguration$, DeleteBucketInventoryConfiguration$, DeleteBucketLifecycle$, DeleteBucketMetadataConfiguration$, DeleteBucketMetadataTableConfiguration$, DeleteBucketMetricsConfiguration$, DeleteBucketOwnershipControls$, DeleteBucketPolicy$, DeleteBucketReplication$, DeleteBucketTagging$, DeleteBucketWebsite$, DeleteObject$, DeleteObjects$, DeleteObjectTagging$, DeletePublicAccessBlock$, GetBucketAbac$, GetBucketAccelerateConfiguration$, GetBucketAcl$, GetBucketAnalyticsConfiguration$, GetBucketCors$, GetBucketEncryption$, GetBucketIntelligentTieringConfiguration$, GetBucketInventoryConfiguration$, GetBucketLifecycleConfiguration$, GetBucketLocation$, GetBucketLogging$, GetBucketMetadataConfiguration$, GetBucketMetadataTableConfiguration$, GetBucketMetricsConfiguration$, GetBucketNotificationConfiguration$, GetBucketOwnershipControls$, GetBucketPolicy$, GetBucketPolicyStatus$, GetBucketReplication$, GetBucketRequestPayment$, GetBucketTagging$, GetBucketVersioning$, GetBucketWebsite$, GetObjectAcl$, GetObjectAttributes$, GetObject$, GetObjectLegalHold$, GetObjectLockConfiguration$, GetObjectRetention$, GetObjectTagging$, GetObjectTorrent$, GetPublicAccessBlock$, HeadBucket$, HeadObject$, ListBucketAnalyticsConfigurations$, ListBucketIntelligentTieringConfigurations$, ListBucketInventoryConfigurations$, ListBucketMetricsConfigurations$, ListBuckets$, ListDirectoryBuckets$, ListMultipartUploads$, ListObjects$, ListObjectsV2$, ListObjectVersions$, ListParts$, PutBucketAbac$, PutBucketAccelerateConfiguration$, PutBucketAcl$, PutBucketAnalyticsConfiguration$, PutBucketCors$, PutBucketEncryption$, PutBucketIntelligentTieringConfiguration$, PutBucketInventoryConfiguration$, PutBucketLifecycleConfiguration$, PutBucketLogging$, PutBucketMetricsConfiguration$, PutBucketNotificationConfiguration$, PutBucketOwnershipControls$, PutBucketPolicy$, PutBucketReplication$, PutBucketRequestPayment$, PutBucketTagging$, PutBucketVersioning$, PutBucketWebsite$, PutObjectAcl$, PutObject$, PutObjectLegalHold$, PutObjectLockConfiguration$, PutObjectRetention$, PutObjectTagging$, PutPublicAccessBlock$, RenameObject$, RestoreObject$, SelectObjectContent$, UpdateBucketMetadataInventoryTableConfiguration$, UpdateBucketMetadataJournalTableConfiguration$, UpdateObjectEncryption$, UploadPart$, UploadPartCopy$, WriteGetObjectResponse$ } = __nccwpck_require__(20091);
+const { CreateSession$, AbortMultipartUpload$, CompleteMultipartUpload$, CopyObject$, CreateBucket$, CreateBucketMetadataConfiguration$, CreateBucketMetadataTableConfiguration$, CreateMultipartUpload$, DeleteBucketAnalyticsConfiguration$, DeleteBucket$, DeleteBucketCors$, DeleteBucketEncryption$, DeleteBucketIntelligentTieringConfiguration$, DeleteBucketInventoryConfiguration$, DeleteBucketLifecycle$, DeleteBucketMetadataConfiguration$, DeleteBucketMetadataTableConfiguration$, DeleteBucketMetricsConfiguration$, DeleteBucketOwnershipControls$, DeleteBucketPolicy$, DeleteBucketReplication$, DeleteBucketTagging$, DeleteBucketWebsite$, DeleteObjectAnnotation$, DeleteObject$, DeleteObjects$, DeleteObjectTagging$, DeletePublicAccessBlock$, GetBucketAbac$, GetBucketAccelerateConfiguration$, GetBucketAcl$, GetBucketAnalyticsConfiguration$, GetBucketCors$, GetBucketEncryption$, GetBucketIntelligentTieringConfiguration$, GetBucketInventoryConfiguration$, GetBucketLifecycleConfiguration$, GetBucketLocation$, GetBucketLogging$, GetBucketMetadataConfiguration$, GetBucketMetadataTableConfiguration$, GetBucketMetricsConfiguration$, GetBucketNotificationConfiguration$, GetBucketOwnershipControls$, GetBucketPolicy$, GetBucketPolicyStatus$, GetBucketReplication$, GetBucketRequestPayment$, GetBucketTagging$, GetBucketVersioning$, GetBucketWebsite$, GetObjectAcl$, GetObjectAnnotation$, GetObjectAttributes$, GetObject$, GetObjectLegalHold$, GetObjectLockConfiguration$, GetObjectRetention$, GetObjectTagging$, GetObjectTorrent$, GetPublicAccessBlock$, HeadBucket$, HeadObject$, ListBucketAnalyticsConfigurations$, ListBucketIntelligentTieringConfigurations$, ListBucketInventoryConfigurations$, ListBucketMetricsConfigurations$, ListBuckets$, ListDirectoryBuckets$, ListMultipartUploads$, ListObjectAnnotations$, ListObjects$, ListObjectsV2$, ListObjectVersions$, ListParts$, PutBucketAbac$, PutBucketAccelerateConfiguration$, PutBucketAcl$, PutBucketAnalyticsConfiguration$, PutBucketCors$, PutBucketEncryption$, PutBucketIntelligentTieringConfiguration$, PutBucketInventoryConfiguration$, PutBucketLifecycleConfiguration$, PutBucketLogging$, PutBucketMetricsConfiguration$, PutBucketNotificationConfiguration$, PutBucketOwnershipControls$, PutBucketPolicy$, PutBucketReplication$, PutBucketRequestPayment$, PutBucketTagging$, PutBucketVersioning$, PutBucketWebsite$, PutObjectAcl$, PutObjectAnnotation$, PutObject$, PutObjectLegalHold$, PutObjectLockConfiguration$, PutObjectRetention$, PutObjectTagging$, PutPublicAccessBlock$, RenameObject$, RestoreObject$, SelectObjectContent$, UpdateBucketMetadataAnnotationTableConfiguration$, UpdateBucketMetadataInventoryTableConfiguration$, UpdateBucketMetadataJournalTableConfiguration$, UpdateObjectEncryption$, UploadPart$, UploadPartCopy$, WriteGetObjectResponse$ } = __nccwpck_require__(20091);
 __exportStar(__nccwpck_require__(20091), exports);
 const { getRuntimeConfig } = __nccwpck_require__(35745);
 __exportStar(__nccwpck_require__(80631), exports);
@@ -5899,6 +5899,24 @@ class DeleteBucketWebsiteCommand extends Command
     .s("AmazonS3", "DeleteBucketWebsite", {})
     .n("S3Client", "DeleteBucketWebsiteCommand")
     .sc(DeleteBucketWebsite$)
+    .build() {
+}
+
+class DeleteObjectAnnotationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getThrow200ExceptionsPlugin(config),
+    ];
+})
+    .s("AmazonS3", "DeleteObjectAnnotation", {})
+    .n("S3Client", "DeleteObjectAnnotationCommand")
+    .sc(DeleteObjectAnnotation$)
     .build() {
 }
 
@@ -6429,6 +6447,29 @@ class GetObjectAclCommand extends Command
     .build() {
 }
 
+class GetObjectAnnotationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+    Key: { type: "contextParams", name: "Key" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getFlexibleChecksumsPlugin(config, {
+            requestChecksumRequired: false,
+            requestValidationModeMember: 'ChecksumMode',
+            'responseAlgorithms': ['CRC64NVME', 'CRC32', 'CRC32C', 'SHA256', 'SHA1', 'SHA512', 'MD5', 'XXHASH64', 'XXHASH3', 'XXHASH128'],
+        }),
+    ];
+})
+    .s("AmazonS3", "GetObjectAnnotation", {})
+    .n("S3Client", "GetObjectAnnotationCommand")
+    .sc(GetObjectAnnotation$)
+    .build() {
+}
+
 class GetObjectAttributesCommand extends Command
     .classBuilder()
     .ep({
@@ -6743,6 +6784,24 @@ class ListMultipartUploadsCommand extends Command
     .s("AmazonS3", "ListMultipartUploads", {})
     .n("S3Client", "ListMultipartUploadsCommand")
     .sc(ListMultipartUploads$)
+    .build() {
+}
+
+class ListObjectAnnotationsCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getThrow200ExceptionsPlugin(config),
+    ];
+})
+    .s("AmazonS3", "ListObjectAnnotations", {})
+    .n("S3Client", "ListObjectAnnotationsCommand")
+    .sc(ListObjectAnnotations$)
     .build() {
 }
 
@@ -7234,6 +7293,29 @@ class PutObjectAclCommand extends Command
     .build() {
 }
 
+class PutObjectAnnotationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+    Key: { type: "contextParams", name: "Key" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getFlexibleChecksumsPlugin(config, {
+            requestAlgorithmMember: { 'httpHeader': 'x-amz-sdk-checksum-algorithm', 'name': 'ChecksumAlgorithm' },
+            requestChecksumRequired: false,
+        }),
+        getThrow200ExceptionsPlugin(config),
+    ];
+})
+    .s("AmazonS3", "PutObjectAnnotation", {})
+    .n("S3Client", "PutObjectAnnotationCommand")
+    .sc(PutObjectAnnotation$)
+    .build() {
+}
+
 class PutObjectCommand extends Command
     .classBuilder()
     .ep({
@@ -7432,6 +7514,28 @@ class SelectObjectContentCommand extends Command
     .build() {
 }
 
+class UpdateBucketMetadataAnnotationTableConfigurationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    UseS3ExpressControlEndpoint: { type: "staticContextParams", value: true },
+    Bucket: { type: "contextParams", name: "Bucket" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getFlexibleChecksumsPlugin(config, {
+            requestAlgorithmMember: { 'httpHeader': 'x-amz-sdk-checksum-algorithm', 'name': 'ChecksumAlgorithm' },
+            requestChecksumRequired: true,
+        }),
+    ];
+})
+    .s("AmazonS3", "UpdateBucketMetadataAnnotationTableConfiguration", {})
+    .n("S3Client", "UpdateBucketMetadataAnnotationTableConfigurationCommand")
+    .sc(UpdateBucketMetadataAnnotationTableConfiguration$)
+    .build() {
+}
+
 class UpdateBucketMetadataInventoryTableConfigurationCommand extends Command
     .classBuilder()
     .ep({
@@ -7561,6 +7665,8 @@ const paginateListBuckets = createPaginator(S3Client, ListBucketsCommand, "Conti
 
 const paginateListDirectoryBuckets = createPaginator(S3Client, ListDirectoryBucketsCommand, "ContinuationToken", "ContinuationToken", "MaxDirectoryBuckets");
 
+const paginateListObjectAnnotations = createPaginator(S3Client, ListObjectAnnotationsCommand, "ContinuationToken", "NextContinuationToken", "MaxAnnotationResults");
+
 const paginateListObjectsV2 = createPaginator(S3Client, ListObjectsV2Command, "ContinuationToken", "NextContinuationToken", "MaxKeys");
 
 const paginateListParts = createPaginator(S3Client, ListPartsCommand, "PartNumberMarker", "NextPartNumberMarker", "MaxParts");
@@ -7688,6 +7794,7 @@ const commands = {
     DeleteBucketTaggingCommand,
     DeleteBucketWebsiteCommand,
     DeleteObjectCommand,
+    DeleteObjectAnnotationCommand,
     DeleteObjectsCommand,
     DeleteObjectTaggingCommand,
     DeletePublicAccessBlockCommand,
@@ -7716,6 +7823,7 @@ const commands = {
     GetBucketWebsiteCommand,
     GetObjectCommand,
     GetObjectAclCommand,
+    GetObjectAnnotationCommand,
     GetObjectAttributesCommand,
     GetObjectLegalHoldCommand,
     GetObjectLockConfigurationCommand,
@@ -7732,6 +7840,7 @@ const commands = {
     ListBucketsCommand,
     ListDirectoryBucketsCommand,
     ListMultipartUploadsCommand,
+    ListObjectAnnotationsCommand,
     ListObjectsCommand,
     ListObjectsV2Command,
     ListObjectVersionsCommand,
@@ -7757,6 +7866,7 @@ const commands = {
     PutBucketWebsiteCommand,
     PutObjectCommand,
     PutObjectAclCommand,
+    PutObjectAnnotationCommand,
     PutObjectLegalHoldCommand,
     PutObjectLockConfigurationCommand,
     PutObjectRetentionCommand,
@@ -7765,6 +7875,7 @@ const commands = {
     RenameObjectCommand,
     RestoreObjectCommand,
     SelectObjectContentCommand,
+    UpdateBucketMetadataAnnotationTableConfigurationCommand,
     UpdateBucketMetadataInventoryTableConfigurationCommand,
     UpdateBucketMetadataJournalTableConfigurationCommand,
     UpdateObjectEncryptionCommand,
@@ -7775,6 +7886,7 @@ const commands = {
 const paginators = {
     paginateListBuckets,
     paginateListDirectoryBuckets,
+    paginateListObjectAnnotations,
     paginateListObjectsV2,
     paginateListParts,
 };
@@ -7835,6 +7947,10 @@ const ObjectCannedACL = {
     private: "private",
     public_read: "public-read",
     public_read_write: "public-read-write",
+};
+const AnnotationDirective = {
+    COPY: "COPY",
+    EXCLUDE: "EXCLUDE",
 };
 const ChecksumAlgorithm = {
     CRC32: "CRC32",
@@ -7945,13 +8061,17 @@ const ObjectOwnership = {
     BucketOwnerPreferred: "BucketOwnerPreferred",
     ObjectWriter: "ObjectWriter",
 };
-const InventoryConfigurationState = {
+const AnnotationConfigurationState = {
     DISABLED: "DISABLED",
     ENABLED: "ENABLED",
 };
 const TableSseAlgorithm = {
     AES256: "AES256",
     aws_kms: "aws:kms",
+};
+const InventoryConfigurationState = {
+    DISABLED: "DISABLED",
+    ENABLED: "ENABLED",
 };
 const ExpirationState = {
     DISABLED: "DISABLED",
@@ -8046,6 +8166,9 @@ const Event = {
     s3_LifecycleExpiration_DeleteMarkerCreated: "s3:LifecycleExpiration:DeleteMarkerCreated",
     s3_LifecycleTransition: "s3:LifecycleTransition",
     s3_ObjectAcl_Put: "s3:ObjectAcl:Put",
+    s3_ObjectAnnotation_: "s3:ObjectAnnotation:*",
+    s3_ObjectAnnotation_Delete: "s3:ObjectAnnotation:Delete",
+    s3_ObjectAnnotation_Put: "s3:ObjectAnnotation:Put",
     s3_ObjectCreated_: "s3:ObjectCreated:*",
     s3_ObjectCreated_CompleteMultipartUpload: "s3:ObjectCreated:CompleteMultipartUpload",
     s3_ObjectCreated_Copy: "s3:ObjectCreated:Copy",
@@ -8204,6 +8327,8 @@ const RestoreRequestType = {
 
 exports.AbortMultipartUploadCommand = AbortMultipartUploadCommand;
 exports.AnalyticsS3ExportFileFormat = AnalyticsS3ExportFileFormat;
+exports.AnnotationConfigurationState = AnnotationConfigurationState;
+exports.AnnotationDirective = AnnotationDirective;
 exports.ArchiveStatus = ArchiveStatus;
 exports.BucketAbacStatus = BucketAbacStatus;
 exports.BucketAccelerateStatus = BucketAccelerateStatus;
@@ -8241,6 +8366,7 @@ exports.DeleteBucketReplicationCommand = DeleteBucketReplicationCommand;
 exports.DeleteBucketTaggingCommand = DeleteBucketTaggingCommand;
 exports.DeleteBucketWebsiteCommand = DeleteBucketWebsiteCommand;
 exports.DeleteMarkerReplicationStatus = DeleteMarkerReplicationStatus;
+exports.DeleteObjectAnnotationCommand = DeleteObjectAnnotationCommand;
 exports.DeleteObjectCommand = DeleteObjectCommand;
 exports.DeleteObjectTaggingCommand = DeleteObjectTaggingCommand;
 exports.DeleteObjectsCommand = DeleteObjectsCommand;
@@ -8278,6 +8404,7 @@ exports.GetBucketTaggingCommand = GetBucketTaggingCommand;
 exports.GetBucketVersioningCommand = GetBucketVersioningCommand;
 exports.GetBucketWebsiteCommand = GetBucketWebsiteCommand;
 exports.GetObjectAclCommand = GetObjectAclCommand;
+exports.GetObjectAnnotationCommand = GetObjectAnnotationCommand;
 exports.GetObjectAttributesCommand = GetObjectAttributesCommand;
 exports.GetObjectCommand = GetObjectCommand;
 exports.GetObjectLegalHoldCommand = GetObjectLegalHoldCommand;
@@ -8303,6 +8430,7 @@ exports.ListBucketMetricsConfigurationsCommand = ListBucketMetricsConfigurations
 exports.ListBucketsCommand = ListBucketsCommand;
 exports.ListDirectoryBucketsCommand = ListDirectoryBucketsCommand;
 exports.ListMultipartUploadsCommand = ListMultipartUploadsCommand;
+exports.ListObjectAnnotationsCommand = ListObjectAnnotationsCommand;
 exports.ListObjectVersionsCommand = ListObjectVersionsCommand;
 exports.ListObjectsCommand = ListObjectsCommand;
 exports.ListObjectsV2Command = ListObjectsV2Command;
@@ -8347,6 +8475,7 @@ exports.PutBucketTaggingCommand = PutBucketTaggingCommand;
 exports.PutBucketVersioningCommand = PutBucketVersioningCommand;
 exports.PutBucketWebsiteCommand = PutBucketWebsiteCommand;
 exports.PutObjectAclCommand = PutObjectAclCommand;
+exports.PutObjectAnnotationCommand = PutObjectAnnotationCommand;
 exports.PutObjectCommand = PutObjectCommand;
 exports.PutObjectLegalHoldCommand = PutObjectLegalHoldCommand;
 exports.PutObjectLockConfigurationCommand = PutObjectLockConfigurationCommand;
@@ -8378,6 +8507,7 @@ exports.Tier = Tier;
 exports.TransitionDefaultMinimumObjectSize = TransitionDefaultMinimumObjectSize;
 exports.TransitionStorageClass = TransitionStorageClass;
 exports.Type = Type;
+exports.UpdateBucketMetadataAnnotationTableConfigurationCommand = UpdateBucketMetadataAnnotationTableConfigurationCommand;
 exports.UpdateBucketMetadataInventoryTableConfigurationCommand = UpdateBucketMetadataInventoryTableConfigurationCommand;
 exports.UpdateBucketMetadataJournalTableConfigurationCommand = UpdateBucketMetadataJournalTableConfigurationCommand;
 exports.UpdateObjectEncryptionCommand = UpdateObjectEncryptionCommand;
@@ -8386,6 +8516,7 @@ exports.UploadPartCopyCommand = UploadPartCopyCommand;
 exports.WriteGetObjectResponseCommand = WriteGetObjectResponseCommand;
 exports.paginateListBuckets = paginateListBuckets;
 exports.paginateListDirectoryBuckets = paginateListDirectoryBuckets;
+exports.paginateListObjectAnnotations = paginateListObjectAnnotations;
 exports.paginateListObjectsV2 = paginateListObjectsV2;
 exports.paginateListParts = paginateListParts;
 exports.waitForBucketExists = waitForBucketExists;
@@ -8491,6 +8622,18 @@ exports.NoSuchBucket = class NoSuchBucket extends __BaseException {
         Object.setPrototypeOf(this, NoSuchBucket.prototype);
     }
 };
+exports.NoSuchKey = class NoSuchKey extends __BaseException {
+    name = "NoSuchKey";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "NoSuchKey",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, NoSuchKey.prototype);
+    }
+};
 exports.InvalidObjectState = class InvalidObjectState extends __BaseException {
     name = "InvalidObjectState";
     $fault = "client";
@@ -8507,16 +8650,16 @@ exports.InvalidObjectState = class InvalidObjectState extends __BaseException {
         this.AccessTier = opts.AccessTier;
     }
 };
-exports.NoSuchKey = class NoSuchKey extends __BaseException {
-    name = "NoSuchKey";
+exports.NoSuchAnnotation = class NoSuchAnnotation extends __BaseException {
+    name = "NoSuchAnnotation";
     $fault = "client";
     constructor(opts) {
         super({
-            name: "NoSuchKey",
+            name: "NoSuchAnnotation",
             $fault: "client",
             ...opts,
         });
-        Object.setPrototypeOf(this, NoSuchKey.prototype);
+        Object.setPrototypeOf(this, NoSuchAnnotation.prototype);
     }
 };
 exports.NotFound = class NotFound extends __BaseException {
@@ -8529,6 +8672,18 @@ exports.NotFound = class NotFound extends __BaseException {
             ...opts,
         });
         Object.setPrototypeOf(this, NotFound.prototype);
+    }
+};
+exports.InvalidPrefix = class InvalidPrefix extends __BaseException {
+    name = "InvalidPrefix";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "InvalidPrefix",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidPrefix.prototype);
     }
 };
 exports.EncryptionTypeMismatch = class EncryptionTypeMismatch extends __BaseException {
@@ -8577,6 +8732,54 @@ exports.TooManyParts = class TooManyParts extends __BaseException {
             ...opts,
         });
         Object.setPrototypeOf(this, TooManyParts.prototype);
+    }
+};
+exports.AnnotationLimitExceeded = class AnnotationLimitExceeded extends __BaseException {
+    name = "AnnotationLimitExceeded";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "AnnotationLimitExceeded",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AnnotationLimitExceeded.prototype);
+    }
+};
+exports.AnnotationNameTooLong = class AnnotationNameTooLong extends __BaseException {
+    name = "AnnotationNameTooLong";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "AnnotationNameTooLong",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AnnotationNameTooLong.prototype);
+    }
+};
+exports.InvalidAnnotationName = class InvalidAnnotationName extends __BaseException {
+    name = "InvalidAnnotationName";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "InvalidAnnotationName",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidAnnotationName.prototype);
+    }
+};
+exports.UnsupportedMediaType = class UnsupportedMediaType extends __BaseException {
+    name = "UnsupportedMediaType";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "UnsupportedMediaType",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, UnsupportedMediaType.prototype);
     }
 };
 exports.IdempotencyParameterMismatch = class IdempotencyParameterMismatch extends __BaseException {
@@ -8741,8 +8944,11 @@ const _ACLn = "AnalyticsConfigurationList";
 const _ACP = "AccessControlPolicy";
 const _ACT = "AccessControlTranslation";
 const _ACn = "AnalyticsConfiguration";
+const _ACnn = "AnnotationCount";
 const _AD = "AccessDenied";
 const _ADb = "AbortDate";
+const _ADn = "AnnotationDirective";
+const _AE = "AnnotationEntry";
 const _AED = "AnalyticsExportDestination";
 const _AF = "AnalyticsFilter";
 const _AH = "AllowedHeaders";
@@ -8750,15 +8956,21 @@ const _AHl = "AllowedHeader";
 const _AI = "AccountId";
 const _AIMU = "AbortIncompleteMultipartUpload";
 const _AKI = "AccessKeyId";
+const _AL = "AnnotationList";
+const _ALE = "AnnotationLimitExceeded";
 const _AM = "AllowedMethods";
 const _AMU = "AbortMultipartUpload";
 const _AMUO = "AbortMultipartUploadOutput";
 const _AMUR = "AbortMultipartUploadRequest";
 const _AMl = "AllowedMethod";
+const _AN = "AnnotationName";
+const _ANTL = "AnnotationNameTooLong";
 const _AO = "AllowedOrigins";
 const _AOl = "AllowedOrigin";
+const _AP = "AnnotationPayload";
 const _APA = "AccessPointAlias";
 const _APAc = "AccessPointArn";
+const _APn = "AnnotationPrefix";
 const _AQRD = "AllowQuotedRecordDelimiter";
 const _AR = "AcceptRanges";
 const _ARI = "AbortRuleId";
@@ -8767,7 +8979,11 @@ const _ASBD = "AnalyticsS3BucketDestination";
 const _ASSEBD = "ApplyServerSideEncryptionByDefault";
 const _ASr = "ArchiveStatus";
 const _AT = "AccessTier";
+const _ATC = "AnnotationTableConfiguration";
+const _ATCR = "AnnotationTableConfigurationResult";
+const _ATCU = "AnnotationTableConfigurationUpdates";
 const _An = "And";
+const _Ann = "Annotations";
 const _B = "Bucket";
 const _BA = "BucketArn";
 const _BAE = "BucketAlreadyExists";
@@ -8847,7 +9063,7 @@ const _CPom = "CommonPrefixes";
 const _CR = "ContentRange";
 const _CRSBA = "ConfirmRemoveSelfBucketAccess";
 const _CR_ = "Content-Range";
-const _CS = "CopySource";
+const _CS = "ConfigurationState";
 const _CSHA = "ChecksumSHA1";
 const _CSHAh = "ChecksumSHA256";
 const _CSHAhe = "ChecksumSHA512";
@@ -8866,7 +9082,7 @@ const _CSV = "CSV";
 const _CSVI = "CopySourceVersionId";
 const _CSVIn = "CSVInput";
 const _CSVO = "CSVOutput";
-const _CSo = "ConfigurationState";
+const _CSo = "CopySource";
 const _CSr = "CreateSession";
 const _CT = "ChecksumType";
 const _CT_ = "Content-Type";
@@ -8927,6 +9143,9 @@ const _DMVI = "DeleteMarkerVersionId";
 const _DMe = "DeleteMarkers";
 const _DN = "DisplayName";
 const _DO = "DeletedObject";
+const _DOA = "DeleteObjectAnnotation";
+const _DOAO = "DeleteObjectAnnotationOutput";
+const _DOAR = "DeleteObjectAnnotationRequest";
 const _DOO = "DeleteObjectOutput";
 const _DOOe = "DeleteObjectsOutput";
 const _DOR = "DeleteObjectRequest";
@@ -8950,7 +9169,7 @@ const _Deli = "Delimiter";
 const _Des = "Destination";
 const _Desc = "Description";
 const _Det = "Details";
-const _E = "Expiration";
+const _E = "Error";
 const _EA = "EmailAddress";
 const _EBC = "EventBridgeConfiguration";
 const _EBO = "ExpectedBucketOwner";
@@ -8966,22 +9185,22 @@ const _EODM = "ExpiredObjectDeleteMarker";
 const _EOR = "ExistingObjectReplication";
 const _ES = "ExpiresString";
 const _ESBO = "ExpectedSourceBucketOwner";
-const _ET = "EncryptionType";
+const _ET = "ETag";
 const _ETL = "EncryptionTypeList";
 const _ETM = "EncryptionTypeMismatch";
-const _ETa = "ETag";
-const _ETn = "EncodingType";
+const _ETn = "EncryptionType";
+const _ETnc = "EncodingType";
 const _ETv = "EventThreshold";
 const _ETx = "ExpressionType";
 const _En = "Encryption";
 const _Ena = "Enabled";
 const _End = "End";
 const _Er = "Errors";
-const _Err = "Error";
 const _Ev = "Events";
 const _Eve = "Event";
-const _Ex = "Expires";
-const _Exp = "Expression";
+const _Ex = "Expiration";
+const _Exp = "Expires";
+const _Expr = "Expression";
 const _F = "Filter";
 const _FD = "FieldDelimiter";
 const _FHI = "FileHeaderInfo";
@@ -9068,12 +9287,15 @@ const _GJP = "GlacierJobParameters";
 const _GO = "GetObject";
 const _GOA = "GetObjectAcl";
 const _GOAO = "GetObjectAclOutput";
-const _GOAOe = "GetObjectAttributesOutput";
+const _GOAOe = "GetObjectAnnotationOutput";
+const _GOAOet = "GetObjectAttributesOutput";
 const _GOAP = "GetObjectAttributesParts";
 const _GOAR = "GetObjectAclRequest";
-const _GOARe = "GetObjectAttributesResponse";
-const _GOARet = "GetObjectAttributesRequest";
-const _GOAe = "GetObjectAttributes";
+const _GOARe = "GetObjectAnnotationRequest";
+const _GOARet = "GetObjectAttributesResponse";
+const _GOARetb = "GetObjectAttributesRequest";
+const _GOAe = "GetObjectAnnotation";
+const _GOAet = "GetObjectAttributes";
 const _GOLC = "GetObjectLockConfiguration";
 const _GOLCO = "GetObjectLockConfigurationOutput";
 const _GOLCR = "GetObjectLockConfigurationRequest";
@@ -9110,6 +9332,7 @@ const _HOO = "HeadObjectOutput";
 const _HOR = "HeadObjectRequest";
 const _HRC = "HttpRedirectCode";
 const _I = "Id";
+const _IAN = "InvalidAnnotationName";
 const _IC = "InventoryConfiguration";
 const _ICL = "InventoryConfigurationList";
 const _ID = "ID";
@@ -9132,9 +9355,10 @@ const _INM_ = "If-None-Match";
 const _IOF = "InventoryOptionalFields";
 const _IOS = "InvalidObjectState";
 const _IOV = "IncludedObjectVersions";
-const _IP = "IsPublic";
+const _IP = "InvalidPrefix";
 const _IPA = "IgnorePublicAcls";
 const _IPM = "IdempotencyParameterMismatch";
+const _IPs = "IsPublic";
 const _IR = "InvalidRequest";
 const _IRIP = "IsRestoreInProgress";
 const _IS = "InputSerialization";
@@ -9212,6 +9436,9 @@ const _LMUR = "ListMultipartUploadsResult";
 const _LMURi = "ListMultipartUploadsRequest";
 const _LM_ = "Last-Modified";
 const _LO = "ListObjects";
+const _LOA = "ListObjectAnnotations";
+const _LOAO = "ListObjectAnnotationsOutput";
+const _LOAR = "ListObjectAnnotationsRequest";
 const _LOO = "ListObjectsOutput";
 const _LOR = "ListObjectsRequest";
 const _LOV = "ListObjectsV2";
@@ -9231,6 +9458,7 @@ const _LRi = "LifecycleRules";
 const _LVR = "ListVersionsResult";
 const _M = "Metadata";
 const _MAO = "MetricsAndOperator";
+const _MAR = "MaxAnnotationResults";
 const _MAS = "MaxAgeSeconds";
 const _MB = "MaxBuckets";
 const _MC = "MetadataConfiguration";
@@ -9270,6 +9498,7 @@ const _NKM = "NextKeyMarker";
 const _NM = "NextMarker";
 const _NNV = "NewerNoncurrentVersions";
 const _NPNM = "NextPartNumberMarker";
+const _NSA = "NoSuchAnnotation";
 const _NSB = "NoSuchBucket";
 const _NSK = "NoSuchKey";
 const _NSU = "NoSuchUpload";
@@ -9289,6 +9518,7 @@ const _OE = "ObjectEncryption";
 const _OF = "OptionalFields";
 const _OI = "ObjectIdentifier";
 const _OIL = "ObjectIdentifierList";
+const _OIM = "ObjectIfMatch";
 const _OL = "OutputLocation";
 const _OLC = "ObjectLockConfiguration";
 const _OLE = "ObjectLockEnabled";
@@ -9311,6 +9541,7 @@ const _OSLT = "ObjectSizeLessThan";
 const _OSV = "OutputSchemaVersion";
 const _OSu = "OutputSerialization";
 const _OV = "ObjectVersion";
+const _OVI = "ObjectVersionId";
 const _OVL = "ObjectVersionList";
 const _Ob = "Objects";
 const _Obj = "Object";
@@ -9365,7 +9596,10 @@ const _PNM = "PartNumberMarker";
 const _PO = "PutObject";
 const _POA = "PutObjectAcl";
 const _POAO = "PutObjectAclOutput";
+const _POAOu = "PutObjectAnnotationOutput";
 const _POAR = "PutObjectAclRequest";
+const _POARu = "PutObjectAnnotationRequest";
+const _POAu = "PutObjectAnnotation";
 const _POLC = "PutObjectLockConfiguration";
 const _POLCO = "PutObjectLockConfigurationOutput";
 const _POLCR = "PutObjectLockConfigurationRequest";
@@ -9403,7 +9637,7 @@ const _QCue = "QueueConfiguration";
 const _QEC = "QuoteEscapeCharacter";
 const _QF = "QuoteFields";
 const _Qu = "Queue";
-const _R = "Rules";
+const _R = "Role";
 const _RART = "RedirectAllRequestsTo";
 const _RC = "RequestCharged";
 const _RCC = "ResponseCacheControl";
@@ -9452,8 +9686,8 @@ const _Re = "Restore";
 const _Rec = "Records";
 const _Red = "Redirect";
 const _Ret = "Retention";
-const _Ro = "Role";
-const _Ru = "Rule";
+const _Ru = "Rules";
+const _Rul = "Rule";
 const _S = "Status";
 const _SA = "StartAfter";
 const _SAK = "SecretAccessKey";
@@ -9527,13 +9761,13 @@ const _TGa = "TargetGrant";
 const _TL = "TieringList";
 const _TLr = "TransitionList";
 const _TMP = "TooManyParts";
-const _TN = "TableNamespace";
-const _TNa = "TableName";
+const _TN = "TableName";
+const _TNa = "TableNamespace";
 const _TOKF = "TargetObjectKeyFormat";
 const _TP = "TargetPrefix";
 const _TPC = "TotalPartsCount";
-const _TS = "TagSet";
-const _TSa = "TableStatus";
+const _TS = "TableStatus";
+const _TSa = "TagSet";
 const _Ta = "Tag";
 const _Tag = "Tagging";
 const _Ti = "Tier";
@@ -9546,6 +9780,8 @@ const _Tr = "Transitions";
 const _Tra = "Transition";
 const _Ty = "Type";
 const _U = "Uploads";
+const _UBMATC = "UpdateBucketMetadataAnnotationTableConfiguration";
+const _UBMATCR = "UpdateBucketMetadataAnnotationTableConfigurationRequest";
 const _UBMITC = "UpdateBucketMetadataInventoryTableConfiguration";
 const _UBMITCR = "UpdateBucketMetadataInventoryTableConfigurationRequest";
 const _UBMJTC = "UpdateBucketMetadataJournalTableConfiguration";
@@ -9553,6 +9789,7 @@ const _UBMJTCR = "UpdateBucketMetadataJournalTableConfigurationRequest";
 const _UI = "UploadId";
 const _UIM = "UploadIdMarker";
 const _UM = "UserMetadata";
+const _UMT = "UnsupportedMediaType";
 const _UOE = "UpdateObjectEncryption";
 const _UOER = "UpdateObjectEncryptionRequest";
 const _UOERp = "UpdateObjectEncryptionResponse";
@@ -9576,6 +9813,8 @@ const _WGORR = "WriteGetObjectResponseRequest";
 const _WOB = "WriteOffsetBytes";
 const _WRL = "WebsiteRedirectLocation";
 const _Y = "Years";
+const _aN = "annotationName";
+const _ap = "annotation-prefix";
 const _ar = "accept-ranges";
 const _br = "bucket-region";
 const _c = "client";
@@ -9599,6 +9838,7 @@ const _i = "id";
 const _iT = "idempotencyToken";
 const _km = "key-marker";
 const _m = "marker";
+const _mar = "max-annotation-results";
 const _mb = "max-buckets";
 const _mdb = "max-directory-buckets";
 const _mk = "max-keys";
@@ -9724,12 +9964,15 @@ const _xamos = "x-amz-mp-object-size";
 const _xamp = "x-amz-max-parts";
 const _xampc = "x-amz-mp-parts-count";
 const _xaoa = "x-amz-object-attributes";
+const _xaoad = "x-amz-object-annotation-directive";
+const _xaoim = "x-amz-object-if-match";
 const _xaollh = "x-amz-object-lock-legal-hold";
 const _xaolm = "x-amz-object-lock-mode";
 const _xaolrud = "x-amz-object-lock-retain-until-date";
 const _xaoo = "x-amz-object-ownership";
 const _xaooa = "x-amz-optional-object-attributes";
 const _xaos = "x-amz-object-size";
+const _xaovi = "x-amz-object-version-id";
 const _xapnm = "x-amz-part-number-marker";
 const _xar = "x-amz-restore";
 const _xarc = "x-amz-request-charged";
@@ -9764,7 +10007,7 @@ const _xawrl = "x-amz-website-redirect-location";
 const _xs = "xsi:type";
 const n0 = "com.amazonaws.s3";
 const { TypeRegistry } = __nccwpck_require__(26890);
-const { AccessDenied, BucketAlreadyExists, BucketAlreadyOwnedByYou, EncryptionTypeMismatch, IdempotencyParameterMismatch, InvalidObjectState, InvalidRequest, InvalidWriteOffset, NoSuchBucket, NoSuchKey, NoSuchUpload, NotFound, ObjectAlreadyInActiveTierError, ObjectNotInActiveTierError, TooManyParts } = __nccwpck_require__(80631);
+const { AccessDenied, AnnotationLimitExceeded, AnnotationNameTooLong, BucketAlreadyExists, BucketAlreadyOwnedByYou, EncryptionTypeMismatch, IdempotencyParameterMismatch, InvalidAnnotationName, InvalidObjectState, InvalidPrefix, InvalidRequest, InvalidWriteOffset, NoSuchAnnotation, NoSuchBucket, NoSuchKey, NoSuchUpload, NotFound, ObjectAlreadyInActiveTierError, ObjectNotInActiveTierError, TooManyParts, UnsupportedMediaType } = __nccwpck_require__(80631);
 const { S3ServiceException } = __nccwpck_require__(98354);
 const _s_registry = TypeRegistry.for(_s);
 const S3ServiceException$ = [-3, _s, "S3ServiceException", 0, [], []];
@@ -9778,6 +10021,20 @@ const AccessDenied$ = [-3, n0, _AD,
 ];
 exports.AccessDenied$ = AccessDenied$;
 n0_registry.registerError(AccessDenied$, AccessDenied);
+const AnnotationLimitExceeded$ = [-3, n0, _ALE,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+exports.AnnotationLimitExceeded$ = AnnotationLimitExceeded$;
+n0_registry.registerError(AnnotationLimitExceeded$, AnnotationLimitExceeded);
+const AnnotationNameTooLong$ = [-3, n0, _ANTL,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+exports.AnnotationNameTooLong$ = AnnotationNameTooLong$;
+n0_registry.registerError(AnnotationNameTooLong$, AnnotationNameTooLong);
 const BucketAlreadyExists$ = [-3, n0, _BAE,
     { [_e]: _c, [_hE]: 409 },
     [],
@@ -9806,6 +10063,13 @@ const IdempotencyParameterMismatch$ = [-3, n0, _IPM,
 ];
 exports.IdempotencyParameterMismatch$ = IdempotencyParameterMismatch$;
 n0_registry.registerError(IdempotencyParameterMismatch$, IdempotencyParameterMismatch);
+const InvalidAnnotationName$ = [-3, n0, _IAN,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+exports.InvalidAnnotationName$ = InvalidAnnotationName$;
+n0_registry.registerError(InvalidAnnotationName$, InvalidAnnotationName);
 const InvalidObjectState$ = [-3, n0, _IOS,
     { [_e]: _c, [_hE]: 403 },
     [_SC, _AT],
@@ -9813,6 +10077,13 @@ const InvalidObjectState$ = [-3, n0, _IOS,
 ];
 exports.InvalidObjectState$ = InvalidObjectState$;
 n0_registry.registerError(InvalidObjectState$, InvalidObjectState);
+const InvalidPrefix$ = [-3, n0, _IP,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+exports.InvalidPrefix$ = InvalidPrefix$;
+n0_registry.registerError(InvalidPrefix$, InvalidPrefix);
 const InvalidRequest$ = [-3, n0, _IR,
     { [_e]: _c, [_hE]: 400 },
     [],
@@ -9827,6 +10098,13 @@ const InvalidWriteOffset$ = [-3, n0, _IWO,
 ];
 exports.InvalidWriteOffset$ = InvalidWriteOffset$;
 n0_registry.registerError(InvalidWriteOffset$, InvalidWriteOffset);
+const NoSuchAnnotation$ = [-3, n0, _NSA,
+    { [_e]: _c, [_hE]: 404 },
+    [],
+    []
+];
+exports.NoSuchAnnotation$ = NoSuchAnnotation$;
+n0_registry.registerError(NoSuchAnnotation$, NoSuchAnnotation);
 const NoSuchBucket$ = [-3, n0, _NSB,
     { [_e]: _c, [_hE]: 404 },
     [],
@@ -9876,6 +10154,13 @@ const TooManyParts$ = [-3, n0, _TMP,
 ];
 exports.TooManyParts$ = TooManyParts$;
 n0_registry.registerError(TooManyParts$, TooManyParts);
+const UnsupportedMediaType$ = [-3, n0, _UMT,
+    { [_e]: _c, [_hE]: 415 },
+    [],
+    []
+];
+exports.UnsupportedMediaType$ = UnsupportedMediaType$;
+n0_registry.registerError(UnsupportedMediaType$, UnsupportedMediaType);
 exports.errorTypeRegistries = [
     _s_registry,
     n0_registry,
@@ -9953,9 +10238,33 @@ const AnalyticsS3BucketDestination$ = [3, n0, _ASBD,
     [0, 0, 0, 0], 2
 ];
 exports.AnalyticsS3BucketDestination$ = AnalyticsS3BucketDestination$;
+const AnnotationEntry$ = [3, n0, _AE,
+    0,
+    [_AN, _LM, _Si, _ET, _CA, _RS],
+    [0, 4, 1, 0, [64 | 0, { [_xF]: 1 }], 0], 3
+];
+exports.AnnotationEntry$ = AnnotationEntry$;
+const AnnotationTableConfiguration$ = [3, n0, _ATC,
+    0,
+    [_CS, _EC, _R],
+    [0, () => MetadataTableEncryptionConfiguration$, 0], 1
+];
+exports.AnnotationTableConfiguration$ = AnnotationTableConfiguration$;
+const AnnotationTableConfigurationResult$ = [3, n0, _ATCR,
+    0,
+    [_CS, _TS, _E, _TN, _TA, _R],
+    [0, 0, () => ErrorDetails$, 0, 0, 0], 1
+];
+exports.AnnotationTableConfigurationResult$ = AnnotationTableConfigurationResult$;
+const AnnotationTableConfigurationUpdates$ = [3, n0, _ATCU,
+    0,
+    [_CS, _EC, _R],
+    [0, () => MetadataTableEncryptionConfiguration$, 0], 1
+];
+exports.AnnotationTableConfigurationUpdates$ = AnnotationTableConfigurationUpdates$;
 const BlockedEncryptionTypes$ = [3, n0, _BET,
     0,
-    [_ET],
+    [_ETn],
     [[() => EncryptionTypeList, { [_xF]: 1 }]]
 ];
 exports.BlockedEncryptionTypes$ = BlockedEncryptionTypes$;
@@ -9973,8 +10282,8 @@ const BucketInfo$ = [3, n0, _BI,
 exports.BucketInfo$ = BucketInfo$;
 const BucketLifecycleConfiguration$ = [3, n0, _BLC,
     0,
-    [_R],
-    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Ru }]], 1
+    [_Ru],
+    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Rul }]], 1
 ];
 exports.BucketLifecycleConfiguration$ = BucketLifecycleConfiguration$;
 const BucketLoggingStatus$ = [3, n0, _BLS,
@@ -10003,13 +10312,13 @@ const CompletedMultipartUpload$ = [3, n0, _CMU,
 exports.CompletedMultipartUpload$ = CompletedMultipartUpload$;
 const CompletedPart$ = [3, n0, _CPo,
     0,
-    [_ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _PN],
+    [_ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _PN],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
 ];
 exports.CompletedPart$ = CompletedPart$;
 const CompleteMultipartUploadOutput$ = [3, n0, _CMUO,
     { [_xN]: _CMUR },
-    [_L, _B, _K, _E, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSEKMSKI, _BKE, _RC],
+    [_L, _B, _K, _Ex, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSEKMSKI, _BKE, _RC],
     [0, 0, 0, [0, { [_hH]: _xae }], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
 ];
 exports.CompleteMultipartUploadOutput$ = CompleteMultipartUploadOutput$;
@@ -10033,25 +10342,25 @@ const ContinuationEvent$ = [3, n0, _CE,
 exports.ContinuationEvent$ = ContinuationEvent$;
 const CopyObjectOutput$ = [3, n0, _COO,
     0,
-    [_COR, _E, _CSVI, _VI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC],
+    [_COR, _Ex, _CSVI, _VI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC],
     [[() => CopyObjectResult$, 16], [0, { [_hH]: _xae }], [0, { [_hH]: _xacsvi }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
 ];
 exports.CopyObjectOutput$ = CopyObjectOutput$;
 const CopyObjectRequest$ = [3, n0, _CORo,
     0,
-    [_B, _CS, _K, _ACL_, _CC, _CA, _CDo, _CEo, _CL, _CTo, _CSIM, _CSIMS, _CSINM, _CSIUS, _Ex, _GFC, _GR, _GRACP, _GWACP, _IM, _INM, _M, _MD, _TD, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _ESBO],
-    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _xaca }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [4, { [_hH]: _Ex }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xamd }], [0, { [_hH]: _xatd }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 3
+    [_B, _CSo, _K, _ACL_, _CC, _CA, _CDo, _CEo, _CL, _CTo, _CSIM, _CSIMS, _CSINM, _CSIUS, _Exp, _GFC, _GR, _GRACP, _GWACP, _IM, _INM, _M, _MD, _TD, _ADn, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _ESBO],
+    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _xaca }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xamd }], [0, { [_hH]: _xatd }], [0, { [_hH]: _xaoad }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 3
 ];
 exports.CopyObjectRequest$ = CopyObjectRequest$;
 const CopyObjectResult$ = [3, n0, _COR,
     0,
-    [_ETa, _LM, _CT, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [_ET, _LM, _CT, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
     [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
 exports.CopyObjectResult$ = CopyObjectResult$;
 const CopyPartResult$ = [3, n0, _CPR,
     0,
-    [_ETa, _LM, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [_ET, _LM, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
     [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
 exports.CopyPartResult$ = CopyPartResult$;
@@ -10105,8 +10414,8 @@ const CreateMultipartUploadOutput$ = [3, n0, _CMUOr,
 exports.CreateMultipartUploadOutput$ = CreateMultipartUploadOutput$;
 const CreateMultipartUploadRequest$ = [3, n0, _CMURr,
     0,
-    [_B, _K, _ACL_, _CC, _CDo, _CEo, _CL, _CTo, _Ex, _GFC, _GR, _GRACP, _GWACP, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _CA, _CT],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]], 2
+    [_B, _K, _ACL_, _CC, _CDo, _CEo, _CL, _CTo, _Exp, _GFC, _GR, _GRACP, _GWACP, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _CA, _CT],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]], 2
 ];
 exports.CreateMultipartUploadRequest$ = CreateMultipartUploadRequest$;
 const CreateSessionOutput$ = [3, n0, _CSO,
@@ -10253,6 +10562,18 @@ const DeleteMarkerReplication$ = [3, n0, _DMR,
     [0]
 ];
 exports.DeleteMarkerReplication$ = DeleteMarkerReplication$;
+const DeleteObjectAnnotationOutput$ = [3, n0, _DOAO,
+    0,
+    [_OVI, _RC],
+    [[0, { [_hH]: _xaovi }], [0, { [_hH]: _xarc }]]
+];
+exports.DeleteObjectAnnotationOutput$ = DeleteObjectAnnotationOutput$;
+const DeleteObjectAnnotationRequest$ = [3, n0, _DOAR,
+    0,
+    [_B, _K, _AN, _VI, _RP, _EBO, _OIM],
+    [[0, 1], [0, 1], [0, { [_hQ]: _aN }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaoim }]], 3
+];
+exports.DeleteObjectAnnotationRequest$ = DeleteObjectAnnotationRequest$;
 const DeleteObjectOutput$ = [3, n0, _DOO,
     0,
     [_DM, _VI, _RC],
@@ -10268,7 +10589,7 @@ exports.DeleteObjectRequest$ = DeleteObjectRequest$;
 const DeleteObjectsOutput$ = [3, n0, _DOOe,
     { [_xN]: _DRel },
     [_Del, _RC, _Er],
-    [[() => DeletedObjects, { [_xF]: 1 }], [0, { [_hH]: _xarc }], [() => Errors, { [_xF]: 1, [_xN]: _Err }]]
+    [[() => DeletedObjects, { [_xF]: 1 }], [0, { [_hH]: _xarc }], [() => Errors, { [_xF]: 1, [_xN]: _E }]]
 ];
 exports.DeleteObjectsOutput$ = DeleteObjectsOutput$;
 const DeleteObjectsRequest$ = [3, n0, _DORe,
@@ -10303,13 +10624,13 @@ const Destination$ = [3, n0, _Des,
 exports.Destination$ = Destination$;
 const DestinationResult$ = [3, n0, _DRes,
     0,
-    [_TBT, _TBA, _TN],
+    [_TBT, _TBA, _TNa],
     [0, 0, 0]
 ];
 exports.DestinationResult$ = DestinationResult$;
 const Encryption$ = [3, n0, _En,
     0,
-    [_ET, _KMSKI, _KMSC],
+    [_ETn, _KMSKI, _KMSC],
     [0, [() => SSEKMSKeyId, 0], 0], 1
 ];
 exports.Encryption$ = Encryption$;
@@ -10325,7 +10646,7 @@ const EndEvent$ = [3, n0, _EE,
     []
 ];
 exports.EndEvent$ = EndEvent$;
-const _Error$ = [3, n0, _Err,
+const _Error$ = [3, n0, _E,
     0,
     [_K, _VI, _Cod, _Mes],
     [0, 0, 0, 0]
@@ -10459,8 +10780,8 @@ const GetBucketInventoryConfigurationRequest$ = [3, n0, _GBICR,
 exports.GetBucketInventoryConfigurationRequest$ = GetBucketInventoryConfigurationRequest$;
 const GetBucketLifecycleConfigurationOutput$ = [3, n0, _GBLCO,
     { [_xN]: _LCi },
-    [_R, _TDMOS],
-    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Ru }], [0, { [_hH]: _xatdmos }]]
+    [_Ru, _TDMOS],
+    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Rul }], [0, { [_hH]: _xatdmos }]]
 ];
 exports.GetBucketLifecycleConfigurationOutput$ = GetBucketLifecycleConfigurationOutput$;
 const GetBucketLifecycleConfigurationRequest$ = [3, n0, _GBLCR,
@@ -10525,7 +10846,7 @@ const GetBucketMetadataTableConfigurationRequest$ = [3, n0, _GBMTCRe,
 exports.GetBucketMetadataTableConfigurationRequest$ = GetBucketMetadataTableConfigurationRequest$;
 const GetBucketMetadataTableConfigurationResult$ = [3, n0, _GBMTCR,
     0,
-    [_MTCR, _S, _Err],
+    [_MTCR, _S, _E],
     [() => MetadataTableConfigurationResult$, 0, () => ErrorDetails$], 2
 ];
 exports.GetBucketMetadataTableConfigurationResult$ = GetBucketMetadataTableConfigurationResult$;
@@ -10609,7 +10930,7 @@ const GetBucketRequestPaymentRequest$ = [3, n0, _GBRPR,
 exports.GetBucketRequestPaymentRequest$ = GetBucketRequestPaymentRequest$;
 const GetBucketTaggingOutput$ = [3, n0, _GBTO,
     { [_xN]: _Tag },
-    [_TS],
+    [_TSa],
     [[() => TagSet, 0]], 1
 ];
 exports.GetBucketTaggingOutput$ = GetBucketTaggingOutput$;
@@ -10655,9 +10976,21 @@ const GetObjectAclRequest$ = [3, n0, _GOAR,
     [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
 ];
 exports.GetObjectAclRequest$ = GetObjectAclRequest$;
-const GetObjectAttributesOutput$ = [3, n0, _GOAOe,
-    { [_xN]: _GOARe },
-    [_DM, _LM, _VI, _RC, _ETa, _C, _OP, _SC, _OS],
+const GetObjectAnnotationOutput$ = [3, n0, _GOAOe,
+    0,
+    [_AP, _OVI, _LM, _CLo, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _RC, _RS],
+    [[() => StreamingBlob, 16], [0, { [_hH]: _xaovi }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }]]
+];
+exports.GetObjectAnnotationOutput$ = GetObjectAnnotationOutput$;
+const GetObjectAnnotationRequest$ = [3, n0, _GOARe,
+    0,
+    [_B, _K, _AN, _VI, _RP, _EBO, _CMh],
+    [[0, 1], [0, 1], [0, { [_hQ]: _aN }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xacm_ }]], 3
+];
+exports.GetObjectAnnotationRequest$ = GetObjectAnnotationRequest$;
+const GetObjectAttributesOutput$ = [3, n0, _GOAOet,
+    { [_xN]: _GOARet },
+    [_DM, _LM, _VI, _RC, _ET, _C, _OP, _SC, _OS],
     [[2, { [_hH]: _xadm }], [4, { [_hH]: _LM_ }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xarc }], 0, () => Checksum$, [() => GetObjectAttributesParts$, 0], 0, 1]
 ];
 exports.GetObjectAttributesOutput$ = GetObjectAttributesOutput$;
@@ -10667,7 +11000,7 @@ const GetObjectAttributesParts$ = [3, n0, _GOAP,
     [[1, { [_xN]: _PC }], 0, 0, 1, 2, [() => PartsList, { [_xF]: 1, [_xN]: _Par }]]
 ];
 exports.GetObjectAttributesParts$ = GetObjectAttributesParts$;
-const GetObjectAttributesRequest$ = [3, n0, _GOARet,
+const GetObjectAttributesRequest$ = [3, n0, _GOARetb,
     0,
     [_B, _K, _OA, _VI, _MP, _PNM, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
     [[0, 1], [0, 1], [64 | 0, { [_hH]: _xaoa }], [0, { [_hQ]: _vI }], [1, { [_hH]: _xamp }], [0, { [_hH]: _xapnm }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 3
@@ -10699,8 +11032,8 @@ const GetObjectLockConfigurationRequest$ = [3, n0, _GOLCR,
 exports.GetObjectLockConfigurationRequest$ = GetObjectLockConfigurationRequest$;
 const GetObjectOutput$ = [3, n0, _GOO,
     0,
-    [_Bo, _DM, _AR, _E, _Re, _LM, _CLo, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MM, _VI, _CC, _CDo, _CEo, _CL, _CR, _CTo, _Ex, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
-    [[() => StreamingBlob, 16], [2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ETa }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CR_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
+    [_Bo, _DM, _AR, _Ex, _Re, _LM, _CLo, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MM, _VI, _CC, _CDo, _CEo, _CL, _CR, _CTo, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
+    [[() => StreamingBlob, 16], [2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CR_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
 ];
 exports.GetObjectOutput$ = GetObjectOutput$;
 const GetObjectRequest$ = [3, n0, _GOR,
@@ -10723,7 +11056,7 @@ const GetObjectRetentionRequest$ = [3, n0, _GORR,
 exports.GetObjectRetentionRequest$ = GetObjectRetentionRequest$;
 const GetObjectTaggingOutput$ = [3, n0, _GOTO,
     { [_xN]: _Tag },
-    [_TS, _VI],
+    [_TSa, _VI],
     [[() => TagSet, 0], [0, { [_hH]: _xavi }]], 1
 ];
 exports.GetObjectTaggingOutput$ = GetObjectTaggingOutput$;
@@ -10789,8 +11122,8 @@ const HeadBucketRequest$ = [3, n0, _HBR,
 exports.HeadBucketRequest$ = HeadBucketRequest$;
 const HeadObjectOutput$ = [3, n0, _HOO,
     0,
-    [_DM, _AR, _E, _Re, _ASr, _LM, _CLo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _ETa, _MM, _VI, _CC, _CDo, _CEo, _CL, _CTo, _CR, _Ex, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
-    [[2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [0, { [_hH]: _xaas }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _ETa }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _CR_ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
+    [_DM, _AR, _Ex, _Re, _ASr, _LM, _CLo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _ET, _MM, _VI, _CC, _CDo, _CEo, _CL, _CTo, _CR, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
+    [[2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [0, { [_hH]: _xaas }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _ET }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _CR_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
 ];
 exports.HeadObjectOutput$ = HeadObjectOutput$;
 const HeadObjectRequest$ = [3, n0, _HOR,
@@ -10873,19 +11206,19 @@ const InventorySchedule$ = [3, n0, _ISn,
 exports.InventorySchedule$ = InventorySchedule$;
 const InventoryTableConfiguration$ = [3, n0, _ITCn,
     0,
-    [_CSo, _EC],
+    [_CS, _EC],
     [0, () => MetadataTableEncryptionConfiguration$], 1
 ];
 exports.InventoryTableConfiguration$ = InventoryTableConfiguration$;
 const InventoryTableConfigurationResult$ = [3, n0, _ITCR,
     0,
-    [_CSo, _TSa, _Err, _TNa, _TA],
+    [_CS, _TS, _E, _TN, _TA],
     [0, 0, () => ErrorDetails$, 0, 0], 1
 ];
 exports.InventoryTableConfigurationResult$ = InventoryTableConfigurationResult$;
 const InventoryTableConfigurationUpdates$ = [3, n0, _ITCU,
     0,
-    [_CSo, _EC],
+    [_CS, _EC],
     [0, () => MetadataTableEncryptionConfiguration$], 1
 ];
 exports.InventoryTableConfigurationUpdates$ = InventoryTableConfigurationUpdates$;
@@ -10897,7 +11230,7 @@ const JournalTableConfiguration$ = [3, n0, _JTC,
 exports.JournalTableConfiguration$ = JournalTableConfiguration$;
 const JournalTableConfigurationResult$ = [3, n0, _JTCR,
     0,
-    [_TSa, _TNa, _REe, _Err, _TA],
+    [_TS, _TN, _REe, _E, _TA],
     [0, 0, () => RecordExpiration$, () => ErrorDetails$, 0], 3
 ];
 exports.JournalTableConfigurationResult$ = JournalTableConfigurationResult$;
@@ -10933,7 +11266,7 @@ const LifecycleExpiration$ = [3, n0, _LEi,
 exports.LifecycleExpiration$ = LifecycleExpiration$;
 const LifecycleRule$ = [3, n0, _LR,
     0,
-    [_S, _E, _ID, _P, _F, _Tr, _NVT, _NVE, _AIMU],
+    [_S, _Ex, _ID, _P, _F, _Tr, _NVT, _NVE, _AIMU],
     [0, () => LifecycleExpiration$, 0, 0, [() => LifecycleRuleFilter$, 0], [() => TransitionList, { [_xF]: 1, [_xN]: _Tra }], [() => NoncurrentVersionTransitionList, { [_xF]: 1, [_xN]: _NVTo }], () => NoncurrentVersionExpiration$, () => AbortIncompleteMultipartUpload$], 1
 ];
 exports.LifecycleRule$ = LifecycleRule$;
@@ -11023,49 +11356,61 @@ const ListDirectoryBucketsRequest$ = [3, n0, _LDBR,
 exports.ListDirectoryBucketsRequest$ = ListDirectoryBucketsRequest$;
 const ListMultipartUploadsOutput$ = [3, n0, _LMUO,
     { [_xN]: _LMUR },
-    [_B, _KM, _UIM, _NKM, _P, _Deli, _NUIM, _MUa, _IT, _U, _CPom, _ETn, _RC],
+    [_B, _KM, _UIM, _NKM, _P, _Deli, _NUIM, _MUa, _IT, _U, _CPom, _ETnc, _RC],
     [0, 0, 0, 0, 0, 0, 0, 1, 2, [() => MultipartUploadList, { [_xF]: 1, [_xN]: _Up }], [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
 ];
 exports.ListMultipartUploadsOutput$ = ListMultipartUploadsOutput$;
 const ListMultipartUploadsRequest$ = [3, n0, _LMURi,
     0,
-    [_B, _Deli, _ETn, _KM, _MUa, _P, _UIM, _EBO, _RP],
+    [_B, _Deli, _ETnc, _KM, _MUa, _P, _UIM, _EBO, _RP],
     [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _km }], [1, { [_hQ]: _mu }], [0, { [_hQ]: _p }], [0, { [_hQ]: _uim }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 1
 ];
 exports.ListMultipartUploadsRequest$ = ListMultipartUploadsRequest$;
+const ListObjectAnnotationsOutput$ = [3, n0, _LOAO,
+    0,
+    [_Ann, _B, _K, _OVI, _APn, _MAR, _ACnn, _CTon, _NCT, _RC],
+    [[() => AnnotationList, 0], 0, 0, [0, { [_hH]: _xaovi }], 0, 1, 1, 0, 0, [0, { [_hH]: _xarc }]]
+];
+exports.ListObjectAnnotationsOutput$ = ListObjectAnnotationsOutput$;
+const ListObjectAnnotationsRequest$ = [3, n0, _LOAR,
+    0,
+    [_B, _K, _VI, _MAR, _APn, _CTon, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [1, { [_hQ]: _mar }], [0, { [_hQ]: _ap }], [0, { [_hQ]: _ct }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
+];
+exports.ListObjectAnnotationsRequest$ = ListObjectAnnotationsRequest$;
 const ListObjectsOutput$ = [3, n0, _LOO,
     { [_xN]: _LBRi },
-    [_IT, _Ma, _NM, _Con, _N, _P, _Deli, _MK, _CPom, _ETn, _RC],
+    [_IT, _Ma, _NM, _Con, _N, _P, _Deli, _MK, _CPom, _ETnc, _RC],
     [2, 0, 0, [() => ObjectList, { [_xF]: 1 }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
 ];
 exports.ListObjectsOutput$ = ListObjectsOutput$;
 const ListObjectsRequest$ = [3, n0, _LOR,
     0,
-    [_B, _Deli, _ETn, _Ma, _MK, _P, _RP, _EBO, _OOA],
+    [_B, _Deli, _ETnc, _Ma, _MK, _P, _RP, _EBO, _OOA],
     [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _m }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [64 | 0, { [_hH]: _xaooa }]], 1
 ];
 exports.ListObjectsRequest$ = ListObjectsRequest$;
 const ListObjectsV2Output$ = [3, n0, _LOVO,
     { [_xN]: _LBRi },
-    [_IT, _Con, _N, _P, _Deli, _MK, _CPom, _ETn, _KC, _CTon, _NCT, _SA, _RC],
+    [_IT, _Con, _N, _P, _Deli, _MK, _CPom, _ETnc, _KC, _CTon, _NCT, _SA, _RC],
     [2, [() => ObjectList, { [_xF]: 1 }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, 1, 0, 0, 0, [0, { [_hH]: _xarc }]]
 ];
 exports.ListObjectsV2Output$ = ListObjectsV2Output$;
 const ListObjectsV2Request$ = [3, n0, _LOVR,
     0,
-    [_B, _Deli, _ETn, _MK, _P, _CTon, _FO, _SA, _RP, _EBO, _OOA],
+    [_B, _Deli, _ETnc, _MK, _P, _CTon, _FO, _SA, _RP, _EBO, _OOA],
     [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hQ]: _ct }], [2, { [_hQ]: _fo }], [0, { [_hQ]: _sa }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [64 | 0, { [_hH]: _xaooa }]], 1
 ];
 exports.ListObjectsV2Request$ = ListObjectsV2Request$;
 const ListObjectVersionsOutput$ = [3, n0, _LOVOi,
     { [_xN]: _LVR },
-    [_IT, _KM, _VIM, _NKM, _NVIM, _Ve, _DMe, _N, _P, _Deli, _MK, _CPom, _ETn, _RC],
+    [_IT, _KM, _VIM, _NKM, _NVIM, _Ve, _DMe, _N, _P, _Deli, _MK, _CPom, _ETnc, _RC],
     [2, 0, 0, 0, 0, [() => ObjectVersionList, { [_xF]: 1, [_xN]: _Ver }], [() => DeleteMarkers, { [_xF]: 1, [_xN]: _DM }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
 ];
 exports.ListObjectVersionsOutput$ = ListObjectVersionsOutput$;
 const ListObjectVersionsRequest$ = [3, n0, _LOVRi,
     0,
-    [_B, _Deli, _ETn, _KM, _MK, _P, _VIM, _EBO, _RP, _OOA],
+    [_B, _Deli, _ETnc, _KM, _MK, _P, _VIM, _EBO, _RP, _OOA],
     [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _km }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hQ]: _vim }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }], [64 | 0, { [_hH]: _xaooa }]], 1
 ];
 exports.ListObjectVersionsRequest$ = ListObjectVersionsRequest$;
@@ -11095,14 +11440,14 @@ const LoggingEnabled$ = [3, n0, _LE,
 exports.LoggingEnabled$ = LoggingEnabled$;
 const MetadataConfiguration$ = [3, n0, _MC,
     0,
-    [_JTC, _ITCn],
-    [() => JournalTableConfiguration$, () => InventoryTableConfiguration$], 1
+    [_JTC, _ITCn, _ATC],
+    [() => JournalTableConfiguration$, () => InventoryTableConfiguration$, () => AnnotationTableConfiguration$], 1
 ];
 exports.MetadataConfiguration$ = MetadataConfiguration$;
 const MetadataConfigurationResult$ = [3, n0, _MCR,
     0,
-    [_DRes, _JTCR, _ITCR],
-    [() => DestinationResult$, () => JournalTableConfigurationResult$, () => InventoryTableConfigurationResult$], 1
+    [_DRes, _JTCR, _ITCR, _ATCR],
+    [() => DestinationResult$, () => JournalTableConfigurationResult$, () => InventoryTableConfigurationResult$, () => AnnotationTableConfigurationResult$], 1
 ];
 exports.MetadataConfigurationResult$ = MetadataConfigurationResult$;
 const MetadataEntry$ = [3, n0, _ME,
@@ -11179,19 +11524,19 @@ const NotificationConfigurationFilter$ = [3, n0, _NCF,
 exports.NotificationConfigurationFilter$ = NotificationConfigurationFilter$;
 const _Object$ = [3, n0, _Obj,
     0,
-    [_K, _LM, _ETa, _CA, _CT, _Si, _SC, _O, _RSe],
+    [_K, _LM, _ET, _CA, _CT, _Si, _SC, _O, _RSe],
     [0, 4, 0, [64 | 0, { [_xF]: 1 }], 0, 1, 0, () => Owner$, () => RestoreStatus$]
 ];
 exports._Object$ = _Object$;
 const ObjectIdentifier$ = [3, n0, _OI,
     0,
-    [_K, _VI, _ETa, _LMT, _Si],
+    [_K, _VI, _ET, _LMT, _Si],
     [0, 0, 0, 6, 1], 1
 ];
 exports.ObjectIdentifier$ = ObjectIdentifier$;
 const ObjectLockConfiguration$ = [3, n0, _OLC,
     0,
-    [_OLE, _Ru],
+    [_OLE, _Rul],
     [0, () => ObjectLockRule$]
 ];
 exports.ObjectLockConfiguration$ = ObjectLockConfiguration$;
@@ -11221,7 +11566,7 @@ const ObjectPart$ = [3, n0, _OPb,
 exports.ObjectPart$ = ObjectPart$;
 const ObjectVersion$ = [3, n0, _OV,
     0,
-    [_ETa, _CA, _CT, _Si, _SC, _K, _VI, _IL, _LM, _O, _RSe],
+    [_ET, _CA, _CT, _Si, _SC, _K, _VI, _IL, _LM, _O, _RSe],
     [0, [64 | 0, { [_xF]: 1 }], 0, 1, 0, 0, 0, 2, 4, () => Owner$, () => RestoreStatus$]
 ];
 exports.ObjectVersion$ = ObjectVersion$;
@@ -11245,8 +11590,8 @@ const Owner$ = [3, n0, _O,
 exports.Owner$ = Owner$;
 const OwnershipControls$ = [3, n0, _OC,
     0,
-    [_R],
-    [[() => OwnershipControlsRules, { [_xF]: 1, [_xN]: _Ru }]], 1
+    [_Ru],
+    [[() => OwnershipControlsRules, { [_xF]: 1, [_xN]: _Rul }]], 1
 ];
 exports.OwnershipControls$ = OwnershipControls$;
 const OwnershipControlsRule$ = [3, n0, _OCR,
@@ -11263,7 +11608,7 @@ const ParquetInput$ = [3, n0, _PI,
 exports.ParquetInput$ = ParquetInput$;
 const Part$ = [3, n0, _Par,
     0,
-    [_PN, _LM, _ETa, _Si, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [_PN, _LM, _ET, _Si, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
     [1, 4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ];
 exports.Part$ = Part$;
@@ -11275,8 +11620,8 @@ const PartitionedPrefix$ = [3, n0, _PP,
 exports.PartitionedPrefix$ = PartitionedPrefix$;
 const PolicyStatus$ = [3, n0, _PS,
     0,
-    [_IP],
-    [[2, { [_xN]: _IP }]]
+    [_IPs],
+    [[2, { [_xN]: _IPs }]]
 ];
 exports.PolicyStatus$ = PolicyStatus$;
 const Progress$ = [3, n0, _Pr,
@@ -11429,6 +11774,18 @@ const PutObjectAclRequest$ = [3, n0, _POAR,
     [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => AccessControlPolicy$, { [_hP]: 1, [_xN]: _ACP }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }]], 2
 ];
 exports.PutObjectAclRequest$ = PutObjectAclRequest$;
+const PutObjectAnnotationOutput$ = [3, n0, _POAOu,
+    0,
+    [_K, _AN, _OVI, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _RC],
+    [0, 0, [0, { [_hH]: _xaovi }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xarc }]]
+];
+exports.PutObjectAnnotationOutput$ = PutObjectAnnotationOutput$;
+const PutObjectAnnotationRequest$ = [3, n0, _POARu,
+    0,
+    [_B, _K, _AN, _AP, _VI, _OIM, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CMDo, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _aN }], [() => StreamingBlob, 16], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaoim }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 4
+];
+exports.PutObjectAnnotationRequest$ = PutObjectAnnotationRequest$;
 const PutObjectLegalHoldOutput$ = [3, n0, _POLHO,
     0,
     [_RC],
@@ -11455,14 +11812,14 @@ const PutObjectLockConfigurationRequest$ = [3, n0, _POLCR,
 exports.PutObjectLockConfigurationRequest$ = PutObjectLockConfigurationRequest$;
 const PutObjectOutput$ = [3, n0, _POO,
     0,
-    [_E, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _Si, _RC],
-    [[0, { [_hH]: _xae }], [0, { [_hH]: _ETa }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [1, { [_hH]: _xaos }], [0, { [_hH]: _xarc }]]
+    [_Ex, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _Si, _RC],
+    [[0, { [_hH]: _xae }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [1, { [_hH]: _xaos }], [0, { [_hH]: _xarc }]]
 ];
 exports.PutObjectOutput$ = PutObjectOutput$;
 const PutObjectRequest$ = [3, n0, _POR,
     0,
-    [_B, _K, _ACL_, _Bo, _CC, _CDo, _CEo, _CL, _CLo, _CMDo, _CTo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _Ex, _IM, _INM, _GFC, _GR, _GRACP, _GWACP, _WOB, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => StreamingBlob, 16], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [1, { [_hH]: _xawob }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }]], 2
+    [_B, _K, _ACL_, _Bo, _CC, _CDo, _CEo, _CL, _CLo, _CMDo, _CTo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _Exp, _IM, _INM, _GFC, _GR, _GRACP, _GWACP, _WOB, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => StreamingBlob, 16], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [1, { [_hH]: _xawob }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }]], 2
 ];
 exports.PutObjectRequest$ = PutObjectRequest$;
 const PutObjectRetentionOutput$ = [3, n0, _PORO,
@@ -11503,7 +11860,7 @@ const QueueConfiguration$ = [3, n0, _QCue,
 exports.QueueConfiguration$ = QueueConfiguration$;
 const RecordExpiration$ = [3, n0, _REe,
     0,
-    [_E, _D],
+    [_Ex, _D],
     [0, 1], 1
 ];
 exports.RecordExpiration$ = RecordExpiration$;
@@ -11545,8 +11902,8 @@ const ReplicaModifications$ = [3, n0, _RM,
 exports.ReplicaModifications$ = ReplicaModifications$;
 const ReplicationConfiguration$ = [3, n0, _RCe,
     0,
-    [_Ro, _R],
-    [0, [() => ReplicationRules, { [_xF]: 1, [_xN]: _Ru }]], 2
+    [_R, _Ru],
+    [0, [() => ReplicationRules, { [_xF]: 1, [_xN]: _Rul }]], 2
 ];
 exports.ReplicationConfiguration$ = ReplicationConfiguration$;
 const ReplicationRule$ = [3, n0, _RRe,
@@ -11635,13 +11992,13 @@ const S3Location$ = [3, n0, _SL,
 exports.S3Location$ = S3Location$;
 const S3TablesDestination$ = [3, n0, _STD,
     0,
-    [_TBA, _TNa],
+    [_TBA, _TN],
     [0, 0], 2
 ];
 exports.S3TablesDestination$ = S3TablesDestination$;
 const S3TablesDestinationResult$ = [3, n0, _STDR,
     0,
-    [_TBA, _TNa, _TA, _TN],
+    [_TBA, _TN, _TA, _TNa],
     [0, 0, 0, 0], 4
 ];
 exports.S3TablesDestinationResult$ = S3TablesDestinationResult$;
@@ -11659,13 +12016,13 @@ const SelectObjectContentOutput$ = [3, n0, _SOCO,
 exports.SelectObjectContentOutput$ = SelectObjectContentOutput$;
 const SelectObjectContentRequest$ = [3, n0, _SOCR,
     0,
-    [_B, _K, _Exp, _ETx, _IS, _OSu, _SSECA, _SSECK, _SSECKMD, _RPe, _SR, _EBO],
+    [_B, _K, _Expr, _ETx, _IS, _OSu, _SSECA, _SSECK, _SSECKMD, _RPe, _SR, _EBO],
     [[0, 1], [0, 1], 0, 0, () => InputSerialization$, () => OutputSerialization$, [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], () => RequestProgress$, () => ScanRange$, [0, { [_hH]: _xaebo }]], 6
 ];
 exports.SelectObjectContentRequest$ = SelectObjectContentRequest$;
 const SelectParameters$ = [3, n0, _SP,
     0,
-    [_IS, _ETx, _Exp, _OSu],
+    [_IS, _ETx, _Expr, _OSu],
     [() => InputSerialization$, 0, 0, () => OutputSerialization$], 4
 ];
 exports.SelectParameters$ = SelectParameters$;
@@ -11677,8 +12034,8 @@ const ServerSideEncryptionByDefault$ = [3, n0, _SSEBD,
 exports.ServerSideEncryptionByDefault$ = ServerSideEncryptionByDefault$;
 const ServerSideEncryptionConfiguration$ = [3, n0, _SSEC,
     0,
-    [_R],
-    [[() => ServerSideEncryptionRules, { [_xF]: 1, [_xN]: _Ru }]], 1
+    [_Ru],
+    [[() => ServerSideEncryptionRules, { [_xF]: 1, [_xN]: _Rul }]], 1
 ];
 exports.ServerSideEncryptionConfiguration$ = ServerSideEncryptionConfiguration$;
 const ServerSideEncryptionRule$ = [3, n0, _SSER,
@@ -11689,8 +12046,8 @@ const ServerSideEncryptionRule$ = [3, n0, _SSER,
 exports.ServerSideEncryptionRule$ = ServerSideEncryptionRule$;
 const SessionCredentials$ = [3, n0, _SCe,
     0,
-    [_AKI, _SAK, _ST, _E],
-    [[0, { [_xN]: _AKI }], [() => SessionCredentialValue, { [_xN]: _SAK }], [() => SessionCredentialValue, { [_xN]: _ST }], [4, { [_xN]: _E }]], 4
+    [_AKI, _SAK, _ST, _Ex],
+    [[0, { [_xN]: _AKI }], [() => SessionCredentialValue, { [_xN]: _SAK }], [() => SessionCredentialValue, { [_xN]: _ST }], [4, { [_xN]: _Ex }]], 4
 ];
 exports.SessionCredentials$ = SessionCredentials$;
 const SimplePrefix$ = [3, n0, _SPi,
@@ -11761,7 +12118,7 @@ const Tag$ = [3, n0, _Ta,
 exports.Tag$ = Tag$;
 const Tagging$ = [3, n0, _Tag,
     0,
-    [_TS],
+    [_TSa],
     [[() => TagSet, 0]], 1
 ];
 exports.Tagging$ = Tagging$;
@@ -11795,6 +12152,12 @@ const Transition$ = [3, n0, _Tra,
     [5, 1, 0]
 ];
 exports.Transition$ = Transition$;
+const UpdateBucketMetadataAnnotationTableConfigurationRequest$ = [3, n0, _UBMATCR,
+    0,
+    [_B, _ATC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => AnnotationTableConfigurationUpdates$, { [_hP]: 1, [_xN]: _ATC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+exports.UpdateBucketMetadataAnnotationTableConfigurationRequest$ = UpdateBucketMetadataAnnotationTableConfigurationRequest$;
 const UpdateBucketMetadataInventoryTableConfigurationRequest$ = [3, n0, _UBMITCR,
     0,
     [_B, _ITCn, _CMDo, _CA, _EBO],
@@ -11827,14 +12190,14 @@ const UploadPartCopyOutput$ = [3, n0, _UPCO,
 exports.UploadPartCopyOutput$ = UploadPartCopyOutput$;
 const UploadPartCopyRequest$ = [3, n0, _UPCR,
     0,
-    [_B, _CS, _K, _PN, _UI, _CSIM, _CSIMS, _CSINM, _CSIUS, _CSRo, _SSECA, _SSECK, _SSECKMD, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _EBO, _ESBO],
+    [_B, _CSo, _K, _PN, _UI, _CSIM, _CSIMS, _CSINM, _CSIUS, _CSRo, _SSECA, _SSECK, _SSECKMD, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _EBO, _ESBO],
     [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [0, { [_hH]: _xacsr }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 5
 ];
 exports.UploadPartCopyRequest$ = UploadPartCopyRequest$;
 const UploadPartOutput$ = [3, n0, _UPO,
     0,
-    [_SSE, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ETa }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+    [_SSE, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
+    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
 ];
 exports.UploadPartOutput$ = UploadPartOutput$;
 const UploadPartRequest$ = [3, n0, _UPR,
@@ -11857,7 +12220,7 @@ const WebsiteConfiguration$ = [3, n0, _WC,
 exports.WebsiteConfiguration$ = WebsiteConfiguration$;
 const WriteGetObjectResponseRequest$ = [3, n0, _WGORR,
     0,
-    [_RReq, _RTe, _Bo, _SCt, _ECr, _EM, _AR, _CC, _CDo, _CEo, _CL, _CLo, _CR, _CTo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _DM, _ETa, _Ex, _E, _LM, _MM, _M, _OLM, _OLLHS, _OLRUD, _PC, _RS, _RC, _Re, _SSE, _SSECA, _SSEKMSKI, _SSECKMD, _SC, _TC, _VI, _BKE],
+    [_RReq, _RTe, _Bo, _SCt, _ECr, _EM, _AR, _CC, _CDo, _CEo, _CL, _CLo, _CR, _CTo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _DM, _ET, _Exp, _Ex, _LM, _MM, _M, _OLM, _OLLHS, _OLRUD, _PC, _RS, _RC, _Re, _SSE, _SSECA, _SSEKMSKI, _SSECKMD, _SC, _TC, _VI, _BKE],
     [[0, { [_hL]: 1, [_hH]: _xarr }], [0, { [_hH]: _xart }], [() => StreamingBlob, 16], [1, { [_hH]: _xafs }], [0, { [_hH]: _xafec }], [0, { [_hH]: _xafem }], [0, { [_hH]: _xafhar }], [0, { [_hH]: _xafhCC }], [0, { [_hH]: _xafhCD }], [0, { [_hH]: _xafhCE }], [0, { [_hH]: _xafhCL }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xafhCR }], [0, { [_hH]: _xafhCT }], [0, { [_hH]: _xafhxacc }], [0, { [_hH]: _xafhxacc_ }], [0, { [_hH]: _xafhxacc__ }], [0, { [_hH]: _xafhxacs }], [0, { [_hH]: _xafhxacs_ }], [0, { [_hH]: _xafhxacs__ }], [0, { [_hH]: _xafhxacm }], [0, { [_hH]: _xafhxacx }], [0, { [_hH]: _xafhxacx_ }], [0, { [_hH]: _xafhxacx__ }], [2, { [_hH]: _xafhxadm }], [0, { [_hH]: _xafhE }], [4, { [_hH]: _xafhE_ }], [0, { [_hH]: _xafhxae }], [4, { [_hH]: _xafhLM }], [1, { [_hH]: _xafhxamm }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xafhxaolm }], [0, { [_hH]: _xafhxaollh }], [5, { [_hH]: _xafhxaolrud }], [1, { [_hH]: _xafhxampc }], [0, { [_hH]: _xafhxars }], [0, { [_hH]: _xafhxarc }], [0, { [_hH]: _xafhxar }], [0, { [_hH]: _xafhxasse }], [0, { [_hH]: _xafhxasseca }], [() => SSEKMSKeyId, { [_hH]: _xafhxasseakki }], [0, { [_hH]: _xafhxasseckM }], [0, { [_hH]: _xafhxasc }], [1, { [_hH]: _xafhxatc }], [0, { [_hH]: _xafhxavi }], [2, { [_hH]: _xafhxassebke }]], 2
 ];
 exports.WriteGetObjectResponseRequest$ = WriteGetObjectResponseRequest$;
@@ -11868,6 +12231,10 @@ var AllowedOrigins = (/* unused pure expression or super */ null && (64 | 0));
 var AnalyticsConfigurationList = [1, n0, _ACLn,
     0, [() => AnalyticsConfiguration$,
         0]
+];
+var AnnotationList = [1, n0, _AL,
+    0, [() => AnnotationEntry$,
+        { [_xN]: _AE }]
 ];
 var Buckets = [1, n0, _Bu,
     0, [() => Bucket$,
@@ -11892,7 +12259,7 @@ var DeleteMarkers = [1, n0, _DMe,
 ];
 var EncryptionTypeList = [1, n0, _ETL,
     0, [0,
-        { [_xN]: _ET }]
+        { [_xN]: _ETn }]
 ];
 var Errors = [1, n0, _Er,
     0, () => _Error$
@@ -11974,7 +12341,7 @@ var ServerSideEncryptionRules = [1, n0, _SSERe,
     0, [() => ServerSideEncryptionRule$,
         0]
 ];
-var TagSet = [1, n0, _TS,
+var TagSet = [1, n0, _TSa,
     0, [() => Tag$,
         { [_xN]: _Ta }]
 ];
@@ -12093,6 +12460,9 @@ exports.DeleteBucketWebsite$ = [9, n0, _DBW,
 exports.DeleteObject$ = [9, n0, _DOel,
     { [_h]: ["DELETE", "/{Key+}?x-id=DeleteObject", 204] }, () => DeleteObjectRequest$, () => DeleteObjectOutput$
 ];
+exports.DeleteObjectAnnotation$ = [9, n0, _DOA,
+    { [_h]: ["DELETE", "/{Key+}?annotation", 204] }, () => DeleteObjectAnnotationRequest$, () => DeleteObjectAnnotationOutput$
+];
 exports.DeleteObjects$ = [9, n0, _DOele,
     { [_hC]: "-", [_h]: ["POST", "/?delete", 200] }, () => DeleteObjectsRequest$, () => DeleteObjectsOutput$
 ];
@@ -12177,7 +12547,10 @@ exports.GetObject$ = [9, n0, _GO,
 exports.GetObjectAcl$ = [9, n0, _GOA,
     { [_h]: ["GET", "/{Key+}?acl", 200] }, () => GetObjectAclRequest$, () => GetObjectAclOutput$
 ];
-exports.GetObjectAttributes$ = [9, n0, _GOAe,
+exports.GetObjectAnnotation$ = [9, n0, _GOAe,
+    { [_hC]: "-", [_h]: ["GET", "/{Key+}?annotation&x-id=GetObjectAnnotation", 200] }, () => GetObjectAnnotationRequest$, () => GetObjectAnnotationOutput$
+];
+exports.GetObjectAttributes$ = [9, n0, _GOAet,
     { [_h]: ["GET", "/{Key+}?attributes", 200] }, () => GetObjectAttributesRequest$, () => GetObjectAttributesOutput$
 ];
 exports.GetObjectLegalHold$ = [9, n0, _GOLH,
@@ -12224,6 +12597,9 @@ exports.ListDirectoryBuckets$ = [9, n0, _LDB,
 ];
 exports.ListMultipartUploads$ = [9, n0, _LMU,
     { [_h]: ["GET", "/?uploads", 200] }, () => ListMultipartUploadsRequest$, () => ListMultipartUploadsOutput$
+];
+exports.ListObjectAnnotations$ = [9, n0, _LOA,
+    { [_h]: ["GET", "/{Key+}?annotation&x-id=ListObjectAnnotations", 200] }, () => ListObjectAnnotationsRequest$, () => ListObjectAnnotationsOutput$
 ];
 exports.ListObjects$ = [9, n0, _LO,
     { [_h]: ["GET", "/", 200] }, () => ListObjectsRequest$, () => ListObjectsOutput$
@@ -12300,6 +12676,9 @@ exports.PutObject$ = [9, n0, _PO,
 exports.PutObjectAcl$ = [9, n0, _POA,
     { [_hC]: "-", [_h]: ["PUT", "/{Key+}?acl", 200] }, () => PutObjectAclRequest$, () => PutObjectAclOutput$
 ];
+exports.PutObjectAnnotation$ = [9, n0, _POAu,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?annotation", 200] }, () => PutObjectAnnotationRequest$, () => PutObjectAnnotationOutput$
+];
 exports.PutObjectLegalHold$ = [9, n0, _POLH,
     { [_hC]: "-", [_h]: ["PUT", "/{Key+}?legal-hold", 200] }, () => PutObjectLegalHoldRequest$, () => PutObjectLegalHoldOutput$
 ];
@@ -12323,6 +12702,9 @@ exports.RestoreObject$ = [9, n0, _ROe,
 ];
 exports.SelectObjectContent$ = [9, n0, _SOC,
     { [_h]: ["POST", "/{Key+}?select&select-type=2", 200] }, () => SelectObjectContentRequest$, () => SelectObjectContentOutput$
+];
+exports.UpdateBucketMetadataAnnotationTableConfiguration$ = [9, n0, _UBMATC,
+    { [_hC]: "-", [_h]: ["PUT", "/?metadataAnnotationTable", 200] }, () => UpdateBucketMetadataAnnotationTableConfigurationRequest$, () => __Unit
 ];
 exports.UpdateBucketMetadataInventoryTableConfiguration$ = [9, n0, _UBMITC,
     { [_hC]: "-", [_h]: ["PUT", "/?metadataInventoryTable", 200] }, () => UpdateBucketMetadataInventoryTableConfigurationRequest$, () => __Unit
@@ -12586,7 +12968,282 @@ function resolveUserAgentConfig(input) {
     });
 }
 
-const partitionsInfo = { "partitions": [{ "id": "aws", "outputs": { "dnsSuffix": "amazonaws.com", "dualStackDnsSuffix": "api.aws", "implicitGlobalRegion": "us-east-1", "name": "aws", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$", "regions": { "af-south-1": { "description": "Africa (Cape Town)" }, "ap-east-1": { "description": "Asia Pacific (Hong Kong)" }, "ap-east-2": { "description": "Asia Pacific (Taipei)" }, "ap-northeast-1": { "description": "Asia Pacific (Tokyo)" }, "ap-northeast-2": { "description": "Asia Pacific (Seoul)" }, "ap-northeast-3": { "description": "Asia Pacific (Osaka)" }, "ap-south-1": { "description": "Asia Pacific (Mumbai)" }, "ap-south-2": { "description": "Asia Pacific (Hyderabad)" }, "ap-southeast-1": { "description": "Asia Pacific (Singapore)" }, "ap-southeast-2": { "description": "Asia Pacific (Sydney)" }, "ap-southeast-3": { "description": "Asia Pacific (Jakarta)" }, "ap-southeast-4": { "description": "Asia Pacific (Melbourne)" }, "ap-southeast-5": { "description": "Asia Pacific (Malaysia)" }, "ap-southeast-6": { "description": "Asia Pacific (New Zealand)" }, "ap-southeast-7": { "description": "Asia Pacific (Thailand)" }, "aws-global": { "description": "aws global region" }, "ca-central-1": { "description": "Canada (Central)" }, "ca-west-1": { "description": "Canada West (Calgary)" }, "eu-central-1": { "description": "Europe (Frankfurt)" }, "eu-central-2": { "description": "Europe (Zurich)" }, "eu-north-1": { "description": "Europe (Stockholm)" }, "eu-south-1": { "description": "Europe (Milan)" }, "eu-south-2": { "description": "Europe (Spain)" }, "eu-west-1": { "description": "Europe (Ireland)" }, "eu-west-2": { "description": "Europe (London)" }, "eu-west-3": { "description": "Europe (Paris)" }, "il-central-1": { "description": "Israel (Tel Aviv)" }, "me-central-1": { "description": "Middle East (UAE)" }, "me-south-1": { "description": "Middle East (Bahrain)" }, "mx-central-1": { "description": "Mexico (Central)" }, "sa-east-1": { "description": "South America (Sao Paulo)" }, "us-east-1": { "description": "US East (N. Virginia)" }, "us-east-2": { "description": "US East (Ohio)" }, "us-west-1": { "description": "US West (N. California)" }, "us-west-2": { "description": "US West (Oregon)" } } }, { "id": "aws-cn", "outputs": { "dnsSuffix": "amazonaws.com.cn", "dualStackDnsSuffix": "api.amazonwebservices.com.cn", "implicitGlobalRegion": "cn-northwest-1", "name": "aws-cn", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^cn\\-\\w+\\-\\d+$", "regions": { "aws-cn-global": { "description": "aws-cn global region" }, "cn-north-1": { "description": "China (Beijing)" }, "cn-northwest-1": { "description": "China (Ningxia)" } } }, { "id": "aws-eusc", "outputs": { "dnsSuffix": "amazonaws.eu", "dualStackDnsSuffix": "api.amazonwebservices.eu", "implicitGlobalRegion": "eusc-de-east-1", "name": "aws-eusc", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^eusc\\-(de)\\-\\w+\\-\\d+$", "regions": { "eusc-de-east-1": { "description": "AWS European Sovereign Cloud (Germany)" } } }, { "id": "aws-iso", "outputs": { "dnsSuffix": "c2s.ic.gov", "dualStackDnsSuffix": "api.aws.ic.gov", "implicitGlobalRegion": "us-iso-east-1", "name": "aws-iso", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-iso\\-\\w+\\-\\d+$", "regions": { "aws-iso-global": { "description": "aws-iso global region" }, "us-iso-east-1": { "description": "US ISO East" }, "us-iso-west-1": { "description": "US ISO WEST" } } }, { "id": "aws-iso-b", "outputs": { "dnsSuffix": "sc2s.sgov.gov", "dualStackDnsSuffix": "api.aws.scloud", "implicitGlobalRegion": "us-isob-east-1", "name": "aws-iso-b", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-isob\\-\\w+\\-\\d+$", "regions": { "aws-iso-b-global": { "description": "aws-iso-b global region" }, "us-isob-east-1": { "description": "US ISOB East (Ohio)" }, "us-isob-west-1": { "description": "US ISOB West" } } }, { "id": "aws-iso-e", "outputs": { "dnsSuffix": "cloud.adc-e.uk", "dualStackDnsSuffix": "api.cloud-aws.adc-e.uk", "implicitGlobalRegion": "eu-isoe-west-1", "name": "aws-iso-e", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^eu\\-isoe\\-\\w+\\-\\d+$", "regions": { "aws-iso-e-global": { "description": "aws-iso-e global region" }, "eu-isoe-west-1": { "description": "EU ISOE West" } } }, { "id": "aws-iso-f", "outputs": { "dnsSuffix": "csp.hci.ic.gov", "dualStackDnsSuffix": "api.aws.hci.ic.gov", "implicitGlobalRegion": "us-isof-south-1", "name": "aws-iso-f", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-isof\\-\\w+\\-\\d+$", "regions": { "aws-iso-f-global": { "description": "aws-iso-f global region" }, "us-isof-east-1": { "description": "US ISOF EAST" }, "us-isof-south-1": { "description": "US ISOF SOUTH" } } }, { "id": "aws-us-gov", "outputs": { "dnsSuffix": "amazonaws.com", "dualStackDnsSuffix": "api.aws", "implicitGlobalRegion": "us-gov-west-1", "name": "aws-us-gov", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-gov\\-\\w+\\-\\d+$", "regions": { "aws-us-gov-global": { "description": "aws-us-gov global region" }, "us-gov-east-1": { "description": "AWS GovCloud (US-East)" }, "us-gov-west-1": { "description": "AWS GovCloud (US-West)" } } }], "version": "1.1" };
+const partitionsInfo = {
+    "partitions": [
+        {
+            "id": "aws",
+            "outputs": {
+                "dnsSuffix": "amazonaws.com",
+                "dualStackDnsSuffix": "api.aws",
+                "implicitGlobalRegion": "us-east-1",
+                "name": "aws",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
+            "regions": {
+                "af-south-1": {
+                    "description": "Africa (Cape Town)"
+                },
+                "ap-east-1": {
+                    "description": "Asia Pacific (Hong Kong)"
+                },
+                "ap-east-2": {
+                    "description": "Asia Pacific (Taipei)"
+                },
+                "ap-northeast-1": {
+                    "description": "Asia Pacific (Tokyo)"
+                },
+                "ap-northeast-2": {
+                    "description": "Asia Pacific (Seoul)"
+                },
+                "ap-northeast-3": {
+                    "description": "Asia Pacific (Osaka)"
+                },
+                "ap-south-1": {
+                    "description": "Asia Pacific (Mumbai)"
+                },
+                "ap-south-2": {
+                    "description": "Asia Pacific (Hyderabad)"
+                },
+                "ap-southeast-1": {
+                    "description": "Asia Pacific (Singapore)"
+                },
+                "ap-southeast-2": {
+                    "description": "Asia Pacific (Sydney)"
+                },
+                "ap-southeast-3": {
+                    "description": "Asia Pacific (Jakarta)"
+                },
+                "ap-southeast-4": {
+                    "description": "Asia Pacific (Melbourne)"
+                },
+                "ap-southeast-5": {
+                    "description": "Asia Pacific (Malaysia)"
+                },
+                "ap-southeast-6": {
+                    "description": "Asia Pacific (New Zealand)"
+                },
+                "ap-southeast-7": {
+                    "description": "Asia Pacific (Thailand)"
+                },
+                "aws-global": {
+                    "description": "aws global region"
+                },
+                "ca-central-1": {
+                    "description": "Canada (Central)"
+                },
+                "ca-west-1": {
+                    "description": "Canada West (Calgary)"
+                },
+                "eu-central-1": {
+                    "description": "Europe (Frankfurt)"
+                },
+                "eu-central-2": {
+                    "description": "Europe (Zurich)"
+                },
+                "eu-north-1": {
+                    "description": "Europe (Stockholm)"
+                },
+                "eu-south-1": {
+                    "description": "Europe (Milan)"
+                },
+                "eu-south-2": {
+                    "description": "Europe (Spain)"
+                },
+                "eu-west-1": {
+                    "description": "Europe (Ireland)"
+                },
+                "eu-west-2": {
+                    "description": "Europe (London)"
+                },
+                "eu-west-3": {
+                    "description": "Europe (Paris)"
+                },
+                "il-central-1": {
+                    "description": "Israel (Tel Aviv)"
+                },
+                "me-central-1": {
+                    "description": "Middle East (UAE)"
+                },
+                "me-south-1": {
+                    "description": "Middle East (Bahrain)"
+                },
+                "mx-central-1": {
+                    "description": "Mexico (Central)"
+                },
+                "sa-east-1": {
+                    "description": "South America (Sao Paulo)"
+                },
+                "us-east-1": {
+                    "description": "US East (N. Virginia)"
+                },
+                "us-east-2": {
+                    "description": "US East (Ohio)"
+                },
+                "us-west-1": {
+                    "description": "US West (N. California)"
+                },
+                "us-west-2": {
+                    "description": "US West (Oregon)"
+                }
+            }
+        },
+        {
+            "id": "aws-cn",
+            "outputs": {
+                "dnsSuffix": "amazonaws.com.cn",
+                "dualStackDnsSuffix": "api.amazonwebservices.com.cn",
+                "implicitGlobalRegion": "cn-northwest-1",
+                "name": "aws-cn",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^cn\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-cn-global": {
+                    "description": "aws-cn global region"
+                },
+                "cn-north-1": {
+                    "description": "China (Beijing)"
+                },
+                "cn-northwest-1": {
+                    "description": "China (Ningxia)"
+                }
+            }
+        },
+        {
+            "id": "aws-eusc",
+            "outputs": {
+                "dnsSuffix": "amazonaws.eu",
+                "dualStackDnsSuffix": "api.amazonwebservices.eu",
+                "implicitGlobalRegion": "eusc-de-east-1",
+                "name": "aws-eusc",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^eusc\\-(de)\\-\\w+\\-\\d+$",
+            "regions": {
+                "eusc-de-east-1": {
+                    "description": "AWS European Sovereign Cloud (Germany)"
+                }
+            }
+        },
+        {
+            "id": "aws-iso",
+            "outputs": {
+                "dnsSuffix": "c2s.ic.gov",
+                "dualStackDnsSuffix": "api.aws.ic.gov",
+                "implicitGlobalRegion": "us-iso-east-1",
+                "name": "aws-iso",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-iso\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-global": {
+                    "description": "aws-iso global region"
+                },
+                "us-iso-east-1": {
+                    "description": "US ISO East"
+                },
+                "us-iso-west-1": {
+                    "description": "US ISO WEST"
+                }
+            }
+        },
+        {
+            "id": "aws-iso-b",
+            "outputs": {
+                "dnsSuffix": "sc2s.sgov.gov",
+                "dualStackDnsSuffix": "api.aws.scloud",
+                "implicitGlobalRegion": "us-isob-east-1",
+                "name": "aws-iso-b",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-isob\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-b-global": {
+                    "description": "aws-iso-b global region"
+                },
+                "us-isob-east-1": {
+                    "description": "US ISOB East (Ohio)"
+                },
+                "us-isob-west-1": {
+                    "description": "US ISOB West"
+                }
+            }
+        },
+        {
+            "id": "aws-iso-e",
+            "outputs": {
+                "dnsSuffix": "cloud.adc-e.uk",
+                "dualStackDnsSuffix": "api.cloud-aws.adc-e.uk",
+                "implicitGlobalRegion": "eu-isoe-west-1",
+                "name": "aws-iso-e",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^eu\\-isoe\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-e-global": {
+                    "description": "aws-iso-e global region"
+                },
+                "eu-isoe-west-1": {
+                    "description": "EU ISOE West"
+                }
+            }
+        },
+        {
+            "id": "aws-iso-f",
+            "outputs": {
+                "dnsSuffix": "csp.hci.ic.gov",
+                "dualStackDnsSuffix": "api.aws.hci.ic.gov",
+                "implicitGlobalRegion": "us-isof-south-1",
+                "name": "aws-iso-f",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-isof\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-f-global": {
+                    "description": "aws-iso-f global region"
+                },
+                "us-isof-east-1": {
+                    "description": "US ISOF EAST"
+                },
+                "us-isof-south-1": {
+                    "description": "US ISOF SOUTH"
+                }
+            }
+        },
+        {
+            "id": "aws-us-gov",
+            "outputs": {
+                "dnsSuffix": "amazonaws.com",
+                "dualStackDnsSuffix": "api.aws",
+                "implicitGlobalRegion": "us-gov-west-1",
+                "name": "aws-us-gov",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-gov\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-us-gov-global": {
+                    "description": "aws-us-gov global region"
+                },
+                "us-gov-east-1": {
+                    "description": "AWS GovCloud (US-East)"
+                },
+                "us-gov-west-1": {
+                    "description": "AWS GovCloud (US-West)"
+                }
+            }
+        }
+    ],
+    "version": "1.1"
+};
 
 let selectedPartitionsInfo = partitionsInfo;
 let selectedUserAgentPrefix = "";
@@ -17928,7 +18585,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.22";
 var packageInfo = {
 	version: version};
 
@@ -18484,7 +19141,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.22";
 var packageInfo = {
 	version: version};
 
@@ -19167,7 +19824,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.22";
 var packageInfo = {
 	version: version};
 
@@ -19825,7 +20482,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.22";
 var packageInfo = {
 	version: version};
 
@@ -20920,393 +21577,243 @@ exports.XmlText = XmlText;
 
 /***/ }),
 
-/***/ 7051:
+/***/ 43343:
 /***/ ((__unused_webpack_module, exports) => {
 
-const XML = {
-    amp: "&",
-    apos: "'",
-    gt: ">",
-    lt: "<",
-    quot: '"',
+exports.parseXML = function parseXML(xml) {
+    const state = new AwsXmlParser(xml);
+    return state.parse();
 };
-exports.XML = XML;
-exports.COMMON_HTML = {
-    nbsp: "\u00a0",
-    copy: "\u00a9",
-    reg: "\u00ae",
-    trade: "\u2122",
-    mdash: "\u2014",
-    ndash: "\u2013",
-    hellip: "\u2026",
-    laquo: "\u00ab",
-    raquo: "\u00bb",
-    lsquo: "\u2018",
-    rsquo: "\u2019",
-    ldquo: "\u201c",
-    rdquo: "\u201d",
-    bull: "\u2022",
-    para: "\u00b6",
-    sect: "\u00a7",
-    deg: "\u00b0",
-    frac12: "\u00bd",
-    frac14: "\u00bc",
-    frac34: "\u00be",
-};
-exports.CURRENCY = {
-    cent: "\u00a2",
-    pound: "\u00a3",
-    curren: "\u00a4",
-    yen: "\u00a5",
-    euro: "\u20ac",
-    dollar: "$",
-    fnof: "\u0192",
-    inr: "\u20b9",
-    af: "\u060b",
-    birr: "\u1265\u122d",
-    peso: "\u20b1",
-    rub: "\u20bd",
-    won: "\u20a9",
-    yuan: "\u00a5",
-    cedil: "\u00b8",
-};
-const SPECIAL_CHARS = new Set("!?\\/[]$%{}^&*()<>|+");
-function validateEntityName(name) {
-    if (name[0] === "#") {
-        throw new Error(`[EntityReplacer] Invalid character '#' in entity name: "${name}"`);
+class AwsXmlParser {
+    x;
+    i = 0;
+    z;
+    constructor(x) {
+        this.x = x;
+        this.x = x.replace(/\r\n?/g, "\n");
+        this.z = this.x.length;
     }
-    for (const ch of name) {
-        if (SPECIAL_CHARS.has(ch)) {
-            throw new Error(`[EntityReplacer] Invalid character '${ch}' in entity name: "${name}"`);
-        }
-    }
-    return name;
-}
-function mergeEntityMaps(...maps) {
-    const out = Object.create(null);
-    for (const map of maps) {
-        if (!map) {
-            continue;
-        }
-        for (const key of Object.keys(map)) {
-            const raw = map[key];
-            if (typeof raw === "string") {
-                out[key] = raw;
+    parse() {
+        const p = this;
+        const { z } = p;
+        while (p.i < z) {
+            p.trim();
+            if (p.i >= z) {
+                break;
             }
-            else if (raw && typeof raw === "object" && raw.val !== undefined) {
-                const val = raw.val;
-                if (typeof val === "string") {
-                    out[key] = val;
-                }
+            if (p.isNext("<?")) {
+                p.readTo("?>");
+                p.trim();
             }
-        }
-    }
-    return out;
-}
-const LIMIT_TIER_EXTERNAL = "external";
-const LIMIT_TIER_BASE = "base";
-const LIMIT_TIER_ALL = "all";
-function parseLimitTiers(raw) {
-    if (!raw || raw === LIMIT_TIER_EXTERNAL) {
-        return new Set([LIMIT_TIER_EXTERNAL]);
-    }
-    if (raw === LIMIT_TIER_ALL) {
-        return new Set([LIMIT_TIER_ALL]);
-    }
-    if (raw === LIMIT_TIER_BASE) {
-        return new Set([LIMIT_TIER_BASE]);
-    }
-    if (Array.isArray(raw)) {
-        return new Set(raw);
-    }
-    return new Set([LIMIT_TIER_EXTERNAL]);
-}
-const NCR_LEVEL = Object.freeze({ allow: 0, leave: 1, remove: 2, throw: 3 });
-const XML10_ALLOWED_C0 = new Set([0x09, 0x0a, 0x0d]);
-function parseNCRConfig(ncr) {
-    if (!ncr) {
-        return { xmlVersion: 1.0, onLevel: NCR_LEVEL.allow, nullLevel: NCR_LEVEL.remove };
-    }
-    const xmlVersion = ncr.xmlVersion === 1.1 ? 1.1 : 1.0;
-    const onLevel = NCR_LEVEL[ncr.onNCR ?? "allow"] ?? NCR_LEVEL.allow;
-    const nullLevel = NCR_LEVEL[ncr.nullNCR ?? "remove"] ?? NCR_LEVEL.remove;
-    const clampedNull = Math.max(nullLevel, NCR_LEVEL.remove);
-    return { xmlVersion, onLevel, nullLevel: clampedNull };
-}
-exports.EntityDecoderImpl = class EntityDecoderImpl {
-    _limit;
-    _maxTotalExpansions;
-    _maxExpandedLength;
-    _postCheck;
-    _limitTiers;
-    _numericAllowed;
-    _baseMap;
-    _externalMap;
-    _inputMap;
-    _totalExpansions;
-    _expandedLength;
-    _removeSet;
-    _leaveSet;
-    _ncrXmlVersion;
-    _ncrOnLevel;
-    _ncrNullLevel;
-    constructor(options = {}) {
-        this._limit = options.limit || {};
-        this._maxTotalExpansions = this._limit.maxTotalExpansions || 0;
-        this._maxExpandedLength = this._limit.maxExpandedLength || 0;
-        this._postCheck = typeof options.postCheck === "function" ? options.postCheck : (r) => r;
-        this._limitTiers = parseLimitTiers(this._limit.applyLimitsTo ?? LIMIT_TIER_EXTERNAL);
-        this._numericAllowed = options.numericAllowed ?? true;
-        this._baseMap = mergeEntityMaps(XML, options.namedEntities || null);
-        this._externalMap = Object.create(null);
-        this._inputMap = Object.create(null);
-        this._totalExpansions = 0;
-        this._expandedLength = 0;
-        this._removeSet = new Set(options.remove && Array.isArray(options.remove) ? options.remove : []);
-        this._leaveSet = new Set(options.leave && Array.isArray(options.leave) ? options.leave : []);
-        const ncrCfg = parseNCRConfig(options.ncr);
-        this._ncrXmlVersion = ncrCfg.xmlVersion;
-        this._ncrOnLevel = ncrCfg.onLevel;
-        this._ncrNullLevel = ncrCfg.nullLevel;
-    }
-    setExternalEntities(map) {
-        if (map) {
-            for (const key of Object.keys(map)) {
-                validateEntityName(key);
+            else if (p.isNext("<!--")) {
+                p.readTo("-->");
+                p.trim();
             }
-        }
-        this._externalMap = mergeEntityMaps(map);
-    }
-    addExternalEntity(key, value) {
-        validateEntityName(key);
-        if (typeof value === "string" && value.indexOf("&") === -1) {
-            this._externalMap[key] = value;
-        }
-    }
-    addInputEntities(map) {
-        this._totalExpansions = 0;
-        this._expandedLength = 0;
-        this._inputMap = mergeEntityMaps(map);
-    }
-    reset() {
-        this._inputMap = Object.create(null);
-        this._totalExpansions = 0;
-        this._expandedLength = 0;
-        return this;
-    }
-    setXmlVersion(version) {
-        this._ncrXmlVersion = version === "1.1" || version === 1.1 ? 1.1 : 1.0;
-    }
-    decode(str) {
-        if (typeof str !== "string" || str.length === 0) {
-            return str;
-        }
-        const original = str;
-        const chunks = [];
-        const len = str.length;
-        let last = 0;
-        let i = 0;
-        const limitExpansions = this._maxTotalExpansions > 0;
-        const limitLength = this._maxExpandedLength > 0;
-        const checkLimits = limitExpansions || limitLength;
-        while (i < len) {
-            if (str.charCodeAt(i) !== 38) {
-                i++;
-                continue;
+            else if (p.isNext("<!DOCTYPE", false)) {
+                p.skipDoctype();
+                p.trim();
             }
-            let j = i + 1;
-            while (j < len && str.charCodeAt(j) !== 59 && j - i <= 32) {
-                j++;
-            }
-            if (j >= len || str.charCodeAt(j) !== 59) {
-                i++;
-                continue;
-            }
-            const token = str.slice(i + 1, j);
-            if (token.length === 0) {
-                i++;
-                continue;
-            }
-            let replacement;
-            let tier;
-            if (this._removeSet.has(token)) {
-                replacement = "";
-                if (tier === undefined) {
-                    tier = LIMIT_TIER_EXTERNAL;
-                }
-            }
-            else if (this._leaveSet.has(token)) {
-                i++;
-                continue;
-            }
-            else if (token.charCodeAt(0) === 35) {
-                const ncrResult = this._resolveNCR(token);
-                if (ncrResult === undefined) {
-                    i++;
-                    continue;
-                }
-                replacement = ncrResult;
-                tier = LIMIT_TIER_BASE;
+            else if (p.x[p.i] === "<") {
+                const root = p.parseTag();
+                return { [root.tag]: root.value };
             }
             else {
-                const resolved = this._resolveName(token);
-                replacement = resolved?.value;
-                tier = resolved?.tier;
+                throw new Error("@aws-sdk XML parse error: unexpected content.");
             }
-            if (replacement === undefined) {
-                i++;
+        }
+        throw new Error("@aws-sdk XML parse error: no root element.");
+    }
+    isNext(s, caseSensitive = true) {
+        const p = this;
+        if (caseSensitive) {
+            return p.x.startsWith(s, p.i);
+        }
+        return p.x.toLowerCase().startsWith(s.toLowerCase(), p.i);
+    }
+    readTo(stop) {
+        const p = this;
+        const _i = p.x.indexOf(stop, p.i);
+        if (_i === -1) {
+            throw new Error(`@aws-sdk XML parse error: expected "${stop}" not found.`);
+        }
+        const result = p.x.slice(p.i, _i);
+        p.i = _i + stop.length;
+        return result;
+    }
+    trim() {
+        const p = this;
+        while (p.i < p.z && " \t\r\n".includes(p.x[p.i])) {
+            ++p.i;
+        }
+    }
+    readAttrValue() {
+        const p = this;
+        const quote = p.x[p.i];
+        ++p.i;
+        let value = "";
+        while (p.i < p.z && p.x[p.i] !== quote) {
+            value += p.x[p.i++];
+        }
+        ++p.i;
+        return p.decodeEntities(value);
+    }
+    parseTag() {
+        const p = this;
+        ++p.i;
+        let tag = "";
+        while (p.i < p.z && !" \t\r\n>/".includes(p.x[p.i])) {
+            tag += p.x[p.i++];
+        }
+        let hasAttrs = false;
+        const attrs = Object.create(null);
+        while (p.i < p.z) {
+            p.trim();
+            if (">/".includes(p.x[p.i])) {
+                break;
+            }
+            let name = "";
+            while (p.i < p.z && !"= \t\r\n>/?".includes(p.x[p.i])) {
+                name += p.x[p.i++];
+            }
+            p.trim();
+            if (p.x[p.i] !== "=") {
+                break;
+            }
+            ++p.i;
+            p.trim();
+            attrs[name] = p.readAttrValue();
+            hasAttrs = true;
+        }
+        if (p.i >= p.z) {
+            throw new Error("@aws-sdk XML parse error: unexpected end of input.");
+        }
+        if (p.x[p.i] === "/") {
+            ++p.i;
+            if (p.i >= p.z || p.x[p.i] !== ">") {
+                throw new Error("@aws-sdk XML parse error: expected > at the end of self-closing tag.");
+            }
+            ++p.i;
+            Object.setPrototypeOf(attrs, Object.prototype);
+            return { tag, value: hasAttrs ? attrs : "" };
+        }
+        if (p.x[p.i] !== ">") {
+            throw new Error("@aws-sdk XML parse error: expected > at the end of opening tag.");
+        }
+        ++p.i;
+        const textParts = [];
+        const childTags = [];
+        let hasElementChild = false;
+        while (p.i < p.z) {
+            if (p.isNext("</")) {
+                break;
+            }
+            if (p.x[p.i] === "<") {
+                if (p.isNext("<!--")) {
+                    p.readTo("-->");
+                }
+                else if (p.isNext("<![CDATA[")) {
+                    p.i += 9;
+                    textParts.push(p.readTo("]]>"));
+                }
+                else if (p.isNext("<?")) {
+                    p.readTo("?>");
+                }
+                else {
+                    hasElementChild = true;
+                    childTags.push(p.parseTag());
+                }
+            }
+            else {
+                let text = "";
+                while (p.i < p.z && p.x[p.i] !== "<") {
+                    text += p.x[p.i++];
+                }
+                textParts.push(p.decodeEntities(text));
+            }
+        }
+        if (!p.isNext("</")) {
+            throw new Error(`@aws-sdk XML parse error: missing closing tag </${tag}>.`);
+        }
+        p.i += 2;
+        const closeTag = p.readTo(">").trim();
+        if (closeTag !== tag) {
+            throw new Error(`@aws-sdk XML parse error: mismatched tags <${tag}> and </${closeTag}>.`);
+        }
+        if (!hasAttrs && textParts.length === 0 && !hasElementChild) {
+            return { tag, value: "" };
+        }
+        if (!hasAttrs && !hasElementChild) {
+            const text = textParts.length === 1 ? textParts[0] : textParts.join("");
+            if (text.trim() === "" && text.includes("\n")) {
+                return { tag, value: "" };
+            }
+            return { tag, value: text };
+        }
+        const obj = Object.create(null);
+        for (const text of textParts) {
+            if (text.trim() === "" && text.includes("\n")) {
                 continue;
             }
-            if (i > last) {
-                chunks.push(str.slice(last, i));
-            }
-            chunks.push(replacement);
-            last = j + 1;
-            i = last;
-            if (checkLimits && this._tierCounts(tier)) {
-                if (limitExpansions) {
-                    this._totalExpansions++;
-                    if (this._totalExpansions > this._maxTotalExpansions) {
-                        throw new Error(`[EntityReplacer] Entity expansion count limit exceeded: ` +
-                            `${this._totalExpansions} > ${this._maxTotalExpansions}`);
-                    }
+            obj["#text"] = "#text" in obj ? obj["#text"] + text : text;
+        }
+        for (const child of childTags) {
+            if (child.tag in obj) {
+                if (Array.isArray(obj[child.tag])) {
+                    obj[child.tag].push(child.value);
                 }
-                if (limitLength) {
-                    const delta = replacement.length - (token.length + 2);
-                    if (delta > 0) {
-                        this._expandedLength += delta;
-                        if (this._expandedLength > this._maxExpandedLength) {
-                            throw new Error(`[EntityReplacer] Expanded content length limit exceeded: ` +
-                                `${this._expandedLength} > ${this._maxExpandedLength}`);
-                        }
-                    }
+                else {
+                    obj[child.tag] = [obj[child.tag], child.value];
                 }
             }
-        }
-        if (last < len) {
-            chunks.push(str.slice(last));
-        }
-        const result = chunks.length === 0 ? str : chunks.join("");
-        return this._postCheck(result, original);
-    }
-    _tierCounts(tier) {
-        if (this._limitTiers.has(LIMIT_TIER_ALL)) {
-            return true;
-        }
-        return this._limitTiers.has(tier);
-    }
-    _resolveName(name) {
-        if (name in this._inputMap) {
-            return { value: this._inputMap[name], tier: LIMIT_TIER_EXTERNAL };
-        }
-        if (name in this._externalMap) {
-            return { value: this._externalMap[name], tier: LIMIT_TIER_EXTERNAL };
-        }
-        if (name in this._baseMap) {
-            return { value: this._baseMap[name], tier: LIMIT_TIER_BASE };
-        }
-        return undefined;
-    }
-    _classifyNCR(cp) {
-        if (cp === 0) {
-            return this._ncrNullLevel;
-        }
-        if (cp >= 0xd800 && cp <= 0xdfff) {
-            return NCR_LEVEL.remove;
-        }
-        if (this._ncrXmlVersion === 1.0) {
-            if (cp >= 0x01 && cp <= 0x1f && !XML10_ALLOWED_C0.has(cp)) {
-                return NCR_LEVEL.remove;
+            else {
+                obj[child.tag] = child.value;
             }
         }
-        return -1;
+        for (const [k, v] of Object.entries(attrs)) {
+            obj[k] = v;
+        }
+        Object.setPrototypeOf(obj, Object.prototype);
+        return { tag, value: obj };
     }
-    _applyNCRAction(action, token, cp) {
-        switch (action) {
-            case NCR_LEVEL.allow:
-                return String.fromCodePoint(cp);
-            case NCR_LEVEL.remove:
-                return "";
-            case NCR_LEVEL.leave:
-                return undefined;
-            case NCR_LEVEL.throw:
-                throw new Error(`[EntityDecoder] Prohibited numeric character reference ` +
-                    `&${token}; (U+${cp.toString(16).toUpperCase().padStart(4, "0")})`);
-            default:
-                return String.fromCodePoint(cp);
+    static ENTITIES = {
+        amp: "&",
+        lt: "<",
+        gt: ">",
+        quot: '"',
+        apos: "'",
+    };
+    skipDoctype() {
+        const p = this;
+        p.i += 9;
+        let depth = 0;
+        while (p.i < p.z) {
+            const c = p.x[p.i];
+            if (c === "[") {
+                ++depth;
+            }
+            else if (c === "]") {
+                --depth;
+            }
+            else if (c === ">" && depth === 0) {
+                ++p.i;
+                return;
+            }
+            ++p.i;
         }
+        throw new Error("@aws-sdk XML parse error: unclosed DOCTYPE.");
     }
-    _resolveNCR(token) {
-        const second = token.charCodeAt(1);
-        let cp;
-        if (second === 120 || second === 88) {
-            cp = parseInt(token.slice(2), 16);
-        }
-        else {
-            cp = parseInt(token.slice(1), 10);
-        }
-        if (Number.isNaN(cp) || cp < 0 || cp > 0x10ffff) {
-            return undefined;
-        }
-        const minimum = this._classifyNCR(cp);
-        if (!this._numericAllowed && minimum < NCR_LEVEL.remove) {
-            return undefined;
-        }
-        const effective = minimum === -1 ? this._ncrOnLevel : Math.max(this._ncrOnLevel, minimum);
-        return this._applyNCRAction(effective, token, cp);
+    decodeEntities(s) {
+        return s.replace(/&(?:#x([0-9a-fA-F]{1,6})|#(\d{1,7})|([a-zA-Z][a-zA-Z0-9]{0,30}));/g, (_, hex, dec, named) => {
+            if (hex) {
+                return String.fromCharCode(parseInt(hex, 16));
+            }
+            if (dec) {
+                return String.fromCharCode(parseInt(dec, 10));
+            }
+            return AwsXmlParser.ENTITIES[named] ?? "";
+        });
     }
-};
-
-
-/***/ }),
-
-/***/ 43343:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { XMLParser } = __nccwpck_require__(50591);
-const { COMMON_HTML, CURRENCY, EntityDecoderImpl, XML } = __nccwpck_require__(7051);
-const entityDecoder = new EntityDecoderImpl({
-    namedEntities: { ...XML, ...COMMON_HTML, ...CURRENCY },
-    numericAllowed: true,
-    limit: {
-        maxTotalExpansions: Infinity,
-    },
-    ncr: {
-        xmlVersion: 1.1,
-    },
-});
-const parser = new XMLParser({
-    attributeNamePrefix: "",
-    processEntities: {
-        enabled: true,
-        maxTotalExpansions: Infinity,
-    },
-    htmlEntities: true,
-    entityDecoder: {
-        setExternalEntities: (entities) => {
-            entityDecoder.setExternalEntities(entities);
-        },
-        addInputEntities: (entities) => {
-            entityDecoder.addInputEntities(entities);
-        },
-        reset: () => {
-            entityDecoder.reset();
-        },
-        decode: (text) => {
-            return entityDecoder.decode(text);
-        },
-        setXmlVersion: (version) => void {},
-    },
-    ignoreAttributes: false,
-    ignoreDeclaration: true,
-    parseTagValue: false,
-    trimValues: false,
-    tagValueProcessor: (_, val) => (val.trim() === "" && val.includes("\n") ? "" : undefined),
-    maxNestedTags: Infinity,
-});
-exports.parseXML = function parseXML(xmlString) {
-    return parser.parse(xmlString, true);
-};
+}
 
 
 /***/ }),
@@ -29443,7 +29950,7 @@ exports.setFeature = setFeature;
 /***/ 64645:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
-const { nv, toUtf8, fromUtf8, NumericValue, calculateBodyLength, _parseEpochTimestamp, fromBase64, generateIdempotencyToken } = __nccwpck_require__(92430);
+const { nv, NumericValue, calculateBodyLength, _parseEpochTimestamp, fromBase64, generateIdempotencyToken } = __nccwpck_require__(92430);
 const { HttpRequest, collectBody, SerdeContext, RpcProtocol } = __nccwpck_require__(93422);
 const { NormalizedSchema, deref, TypeRegistry } = __nccwpck_require__(26890);
 const { getSmithyContext } = __nccwpck_require__(34534);
@@ -29474,14 +29981,15 @@ function tag(data) {
     return data;
 }
 
-const USE_TEXT_DECODER = typeof TextDecoder !== "undefined";
 const USE_BUFFER$1 = typeof Buffer !== "undefined";
+const textDecoder = new TextDecoder();
 let payload = alloc(0);
+let isBuffer = false;
 let dataView$1 = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
-const textDecoder = USE_TEXT_DECODER ? new TextDecoder() : null;
 let _offset = 0;
 function setPayload(bytes) {
     payload = bytes;
+    isBuffer = USE_BUFFER$1 && payload instanceof Buffer;
     dataView$1 = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
 }
 function decode(at, to) {
@@ -29490,10 +29998,13 @@ function decode(at, to) {
     }
     const major = (payload[at] & 0b1110_0000) >> 5;
     const minor = payload[at] & 0b0001_1111;
+    if (minor === minorIndefinite && 2 <= major && major <= 5) {
+        return decodeIndefinite(at, to);
+    }
     switch (major) {
         case majorUint64:
         case majorNegativeInt64:
-        case majorTag:
+        case majorTag: {
             let unsignedInt;
             let offset;
             if (minor < 24) {
@@ -29503,31 +30014,43 @@ function decode(at, to) {
             else {
                 switch (minor) {
                     case extendedOneByte:
+                        if (to - at < 2) {
+                            overflow(1);
+                        }
+                        unsignedInt = payload[at + 1];
+                        offset = 2;
+                        break;
                     case extendedFloat16:
+                        if (to - at < 3) {
+                            overflow(2);
+                        }
+                        unsignedInt = dataView$1.getUint16(at + 1);
+                        offset = 3;
+                        break;
                     case extendedFloat32:
+                        if (to - at < 5) {
+                            overflow(4);
+                        }
+                        unsignedInt = dataView$1.getUint32(at + 1);
+                        offset = 5;
+                        break;
                     case extendedFloat64:
-                        const countLength = minorValueToArgumentLength[minor];
-                        const countOffset = (countLength + 1);
-                        offset = countOffset;
-                        if (to - at < countOffset) {
-                            throw new Error(`countLength ${countLength} greater than remaining buf len.`);
+                        if (to - at < 9) {
+                            overflow(8);
                         }
-                        const countIndex = at + 1;
-                        if (countLength === 1) {
-                            unsignedInt = payload[countIndex];
+                        {
+                            const hi = dataView$1.getUint32(at + 1);
+                            if (hi < 0x00200000) {
+                                unsignedInt = hi * 4294967296 + dataView$1.getUint32(at + 5);
+                            }
+                            else {
+                                unsignedInt = dataView$1.getBigUint64(at + 1);
+                            }
                         }
-                        else if (countLength === 2) {
-                            unsignedInt = dataView$1.getUint16(countIndex);
-                        }
-                        else if (countLength === 4) {
-                            unsignedInt = dataView$1.getUint32(countIndex);
-                        }
-                        else {
-                            unsignedInt = dataView$1.getBigUint64(countIndex);
-                        }
+                        offset = 9;
                         break;
                     default:
-                        throw new Error(`unexpected minor value ${minor}.`);
+                        unexpectedMinor(minor);
                 }
             }
             if (major === majorUint64) {
@@ -29546,234 +30069,97 @@ function decode(at, to) {
                 return castBigInt(negativeInt);
             }
             else {
-                if (minor === 2 || minor === 3) {
-                    const length = decodeCount(at + offset, to);
-                    let b = BigInt(0);
-                    const start = at + offset + _offset;
-                    for (let i = start; i < start + length; ++i) {
-                        b = (b << BigInt(8)) | BigInt(payload[i]);
-                    }
-                    _offset = offset + _offset + length;
-                    return minor === 3 ? -b - BigInt(1) : b;
-                }
-                else if (minor === 4) {
-                    const decimalFraction = decode(at + offset, to);
-                    const [exponent, mantissa] = decimalFraction;
-                    const normalizer = mantissa < 0 ? -1 : 1;
-                    const mantissaStr = "0".repeat(Math.abs(exponent) + 1) + String(BigInt(normalizer) * BigInt(mantissa));
-                    let numericString;
-                    const sign = mantissa < 0 ? "-" : "";
-                    numericString =
-                        exponent === 0
-                            ? mantissaStr
-                            : mantissaStr.slice(0, mantissaStr.length + exponent) + "." + mantissaStr.slice(exponent);
-                    numericString = numericString.replace(/^0+/g, "");
-                    if (numericString === "") {
-                        numericString = "0";
-                    }
-                    if (numericString[0] === ".") {
-                        numericString = "0" + numericString;
-                    }
-                    numericString = sign + numericString;
-                    _offset = offset + _offset;
-                    return nv(numericString);
-                }
-                else {
-                    const value = decode(at + offset, to);
-                    const valueOffset = _offset;
-                    _offset = offset + valueOffset;
-                    return tag({ tag: castBigInt(unsignedInt), value });
-                }
+                return decodeTagValue(at, to, minor, unsignedInt, offset);
             }
+        }
         case majorUtf8String:
+            return decodeUtf8String(at, to);
         case majorMap:
+            return decodeMap(at, to);
         case majorList:
+            return decodeList(at, to);
         case majorUnstructuredByteString:
-            if (minor === minorIndefinite) {
-                switch (major) {
-                    case majorUtf8String:
-                        return decodeUtf8StringIndefinite(at, to);
-                    case majorMap:
-                        return decodeMapIndefinite(at, to);
-                    case majorList:
-                        return decodeListIndefinite(at, to);
-                    case majorUnstructuredByteString:
-                        return decodeUnstructuredByteStringIndefinite(at, to);
-                }
-            }
-            else {
-                switch (major) {
-                    case majorUtf8String:
-                        return decodeUtf8String(at, to);
-                    case majorMap:
-                        return decodeMap(at, to);
-                    case majorList:
-                        return decodeList(at, to);
-                    case majorUnstructuredByteString:
-                        return decodeUnstructuredByteString(at, to);
-                }
-            }
+            return decodeUnstructuredByteString(at, to);
         default:
             return decodeSpecial(at, to);
     }
 }
-function bytesToUtf8(bytes, at, to) {
-    if (USE_BUFFER$1 && bytes.constructor?.name === "Buffer") {
-        return bytes.toString("utf-8", at, to);
+function decodeIndefinite(at, to) {
+    const major = (payload[at] & 0b1110_0000) >> 5;
+    const minor = payload[at] & 0b0001_1111;
+    if (minor === minorIndefinite) {
+        switch (major) {
+            case majorUtf8String:
+                return decodeUtf8StringIndefinite(at, to);
+            case majorMap:
+                return decodeMapIndefinite(at, to);
+            case majorList:
+                return decodeListIndefinite(at, to);
+            case majorUnstructuredByteString:
+                return decodeUnstructuredByteStringIndefinite(at, to);
+        }
     }
-    if (textDecoder) {
-        return textDecoder.decode(bytes.subarray(at, to));
-    }
-    return toUtf8(bytes.subarray(at, to));
 }
-function demote(bigInteger) {
-    const num = Number(bigInteger);
-    if (num < Number.MIN_SAFE_INTEGER || Number.MAX_SAFE_INTEGER < num) {
-        console.warn(new Error(`@smithy/core/cbor - truncating BigInt(${bigInteger}) to ${num} with loss of precision.`));
-    }
-    return num;
-}
-const minorValueToArgumentLength = {
-    [extendedOneByte]: 1,
-    [extendedFloat16]: 2,
-    [extendedFloat32]: 4,
-    [extendedFloat64]: 8,
-};
 function bytesToFloat16(a, b) {
     const sign = a >> 7;
     const exponent = (a & 0b0111_1100) >> 2;
     const fraction = ((a & 0b0000_0011) << 8) | b;
     const scalar = sign === 0 ? 1 : -1;
-    let exponentComponent;
-    let summation;
     if (exponent === 0b00000) {
-        if (fraction === 0b00000_00000) {
+        if (fraction === 0) {
             return 0;
         }
-        else {
-            exponentComponent = Math.pow(2, 1 - 15);
-            summation = 0;
-        }
+        return scalar * (Math.pow(2, 1 - 15) * (fraction / 1024));
     }
     else if (exponent === 0b11111) {
-        if (fraction === 0b00000_00000) {
+        if (fraction === 0) {
             return scalar * Infinity;
         }
+        return NaN;
+    }
+    return scalar * (Math.pow(2, exponent - 15) * (1 + fraction / 1024));
+}
+function decodeMap(at, to) {
+    const mapDataLength = decodeCount(at, to);
+    if (mapDataLength < 15) {
+        return decodeMapSmall(at, to, mapDataLength);
+    }
+    return decodeMapLarge(at, to, mapDataLength);
+}
+function decodeMapLarge(at, to, mapDataLength) {
+    const offset = _offset;
+    at += offset;
+    const base = at;
+    const map = Object.create(null);
+    for (let i = 0; i < mapDataLength; ++i) {
+        const key = decodeUtf8String(at, to);
+        at += _offset;
+        const valMajor = (payload[at] & 0b1110_0000) >> 5;
+        if (valMajor === majorUtf8String) {
+            map[key] = decodeUtf8String(at, to);
+        }
         else {
-            return NaN;
+            map[key] = decode(at, to);
         }
+        at += _offset;
     }
-    else {
-        exponentComponent = Math.pow(2, exponent - 15);
-        summation = 1;
-    }
-    summation += fraction / 1024;
-    return scalar * (exponentComponent * summation);
+    _offset = offset + (at - base);
+    Object.setPrototypeOf(map, Object.prototype);
+    return map;
 }
-function decodeCount(at, to) {
-    const minor = payload[at] & 0b0001_1111;
-    if (minor < 24) {
-        _offset = 1;
-        return minor;
-    }
-    if (minor === extendedOneByte ||
-        minor === extendedFloat16 ||
-        minor === extendedFloat32 ||
-        minor === extendedFloat64) {
-        const countLength = minorValueToArgumentLength[minor];
-        _offset = (countLength + 1);
-        if (to - at < _offset) {
-            throw new Error(`countLength ${countLength} greater than remaining buf len.`);
-        }
-        const countIndex = at + 1;
-        if (countLength === 1) {
-            return payload[countIndex];
-        }
-        else if (countLength === 2) {
-            return dataView$1.getUint16(countIndex);
-        }
-        else if (countLength === 4) {
-            return dataView$1.getUint32(countIndex);
-        }
-        return demote(dataView$1.getBigUint64(countIndex));
-    }
-    throw new Error(`unexpected minor value ${minor}.`);
-}
-function decodeUtf8String(at, to) {
-    const length = decodeCount(at, to);
+function decodeMapSmall(at, to, mapDataLength) {
     const offset = _offset;
     at += offset;
-    if (to - at < length) {
-        throw new Error(`string len ${length} greater than remaining buf len.`);
+    const base = at;
+    const map = {};
+    for (let i = 0; i < mapDataLength; ++i) {
+        const key = decodeUtf8String(at, to);
+        at += _offset;
+        map[key] = decode(at, to);
+        at += _offset;
     }
-    const value = bytesToUtf8(payload, at, at + length);
-    _offset = offset + length;
-    return value;
-}
-function decodeUtf8StringIndefinite(at, to) {
-    at += 1;
-    const vector = [];
-    for (const base = at; at < to;) {
-        if (payload[at] === 0b1111_1111) {
-            const data = alloc(vector.length);
-            data.set(vector, 0);
-            _offset = at - base + 2;
-            return bytesToUtf8(data, 0, data.length);
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        const minor = payload[at] & 0b0001_1111;
-        if (major !== majorUtf8String) {
-            throw new Error(`unexpected major type ${major} in indefinite string.`);
-        }
-        if (minor === minorIndefinite) {
-            throw new Error("nested indefinite string.");
-        }
-        const bytes = decodeUnstructuredByteString(at, to);
-        const length = _offset;
-        at += length;
-        for (let i = 0; i < bytes.length; ++i) {
-            vector.push(bytes[i]);
-        }
-    }
-    throw new Error("expected break marker.");
-}
-function decodeUnstructuredByteString(at, to) {
-    const length = decodeCount(at, to);
-    const offset = _offset;
-    at += offset;
-    if (to - at < length) {
-        throw new Error(`unstructured byte string len ${length} greater than remaining buf len.`);
-    }
-    const value = payload.subarray(at, at + length);
-    _offset = offset + length;
-    return value;
-}
-function decodeUnstructuredByteStringIndefinite(at, to) {
-    at += 1;
-    const vector = [];
-    for (const base = at; at < to;) {
-        if (payload[at] === 0b1111_1111) {
-            const data = alloc(vector.length);
-            data.set(vector, 0);
-            _offset = at - base + 2;
-            return data;
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        const minor = payload[at] & 0b0001_1111;
-        if (major !== majorUnstructuredByteString) {
-            throw new Error(`unexpected major type ${major} in indefinite string.`);
-        }
-        if (minor === minorIndefinite) {
-            throw new Error("nested indefinite string.");
-        }
-        const bytes = decodeUnstructuredByteString(at, to);
-        const length = _offset;
-        at += length;
-        for (let i = 0; i < bytes.length; ++i) {
-            vector.push(bytes[i]);
-        }
-    }
-    throw new Error("expected break marker.");
+    _offset = offset + (at - base);
+    return map;
 }
 function decodeList(at, to) {
     const listDataLength = decodeCount(at, to);
@@ -29782,75 +30168,115 @@ function decodeList(at, to) {
     const base = at;
     const list = Array(listDataLength);
     for (let i = 0; i < listDataLength; ++i) {
-        const item = decode(at, to);
-        const itemOffset = _offset;
-        list[i] = item;
-        at += itemOffset;
+        list[i] = decode(at, to);
+        at += _offset;
     }
     _offset = offset + (at - base);
     return list;
 }
-function decodeListIndefinite(at, to) {
-    at += 1;
-    const list = [];
-    for (const base = at; at < to;) {
-        if (payload[at] === 0b1111_1111) {
-            _offset = at - base + 2;
-            return list;
-        }
-        const item = decode(at, to);
-        const n = _offset;
-        at += n;
-        list.push(item);
-    }
-    throw new Error("expected break marker.");
-}
-function decodeMap(at, to) {
-    const mapDataLength = decodeCount(at, to);
+function decodeUtf8String(at, to) {
+    const length = decodeCount(at, to);
     const offset = _offset;
     at += offset;
-    const base = at;
-    const map = {};
-    for (let i = 0; i < mapDataLength; ++i) {
-        if (at >= to) {
-            throw new Error("unexpected end of map payload.");
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        if (major !== majorUtf8String) {
-            throw new Error(`unexpected major type ${major} for map key at index ${at}.`);
-        }
-        const key = decode(at, to);
-        at += _offset;
-        const value = decode(at, to);
-        at += _offset;
-        map[key] = value;
+    if (to - at < length) {
+        overflow(length);
     }
-    _offset = offset + (at - base);
-    return map;
+    _offset = offset + length;
+    if (length < 24) {
+        return decodeUtf8StringCached(at, length);
+    }
+    if (isBuffer) {
+        return payload.toString("utf-8", at, at + length);
+    }
+    return textDecoder.decode(payload.subarray(at, at + length));
 }
-function decodeMapIndefinite(at, to) {
-    at += 1;
-    const base = at;
-    const map = {};
-    for (; at < to;) {
-        if (at >= to) {
-            throw new Error("unexpected end of map payload.");
-        }
-        if (payload[at] === 0b1111_1111) {
-            _offset = at - base + 2;
-            return map;
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        if (major !== majorUtf8String) {
-            throw new Error(`unexpected major type ${major} for map key.`);
-        }
-        const key = decode(at, to);
-        at += _offset;
-        const value = decode(at, to);
-        at += _offset;
-        map[key] = value;
+const stringCache = new Array(2048);
+const stringCacheEpochs = new Uint16Array(2048);
+let cacheEpoch = 0;
+function advanceDecodingEpoch() {
+    cacheEpoch = (cacheEpoch + 1) & 0b1111_1111_1111_1111;
+}
+function decodeUtf8StringCached(at, length) {
+    let h = length;
+    for (let i = 0; i < length; ++i) {
+        h = (h * 31 + payload[at + i]) | 0;
     }
-    throw new Error("expected break marker.");
+    const slot = (h >>> 0) & 2047;
+    const cached = stringCache[slot];
+    if (cached !== undefined) {
+        if (cached.length === length) {
+            let match = true;
+            for (let i = 0; i < length; ++i) {
+                if (cached.charCodeAt(i) !== payload[at + i]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                stringCacheEpochs[slot] = cacheEpoch;
+                return cached;
+            }
+        }
+    }
+    const result = isBuffer
+        ? payload.toString("utf-8", at, at + length)
+        : textDecoder.decode(payload.subarray(at, at + length));
+    if (stringCacheEpochs[slot] !== cacheEpoch) {
+        stringCache[slot] = result;
+        stringCacheEpochs[slot] = cacheEpoch;
+    }
+    return result;
+}
+function decodeUnstructuredByteString(at, to) {
+    const length = decodeCount(at, to);
+    const offset = _offset;
+    at += offset;
+    if (to - at < length) {
+        overflow(length);
+    }
+    const value = payload.subarray(at, at + length);
+    _offset = offset + length;
+    return value;
+}
+function decodeTagValue(at, to, minor, unsignedInt, offset) {
+    if (minor === 2 || minor === 3) {
+        const length = decodeCount(at + offset, to);
+        let b = BigInt(0);
+        const start = at + offset + _offset;
+        for (let i = start; i < start + length; ++i) {
+            b = (b << BigInt(8)) | BigInt(payload[i]);
+        }
+        _offset = offset + _offset + length;
+        return minor === 3 ? -b - BigInt(1) : b;
+    }
+    else if (minor === 4) {
+        const decimalFraction = decode(at + offset, to);
+        const [exponent, mantissa] = decimalFraction;
+        const normalizer = mantissa < 0 ? -1 : 1;
+        const mantissaStr = "0".repeat(Math.abs(exponent) + 1) + String(BigInt(normalizer) * BigInt(mantissa));
+        let numericString;
+        const sign = mantissa < 0 ? "-" : "";
+        numericString =
+            exponent === 0
+                ? mantissaStr
+                : mantissaStr.slice(0, mantissaStr.length + exponent) + "." + mantissaStr.slice(exponent);
+        numericString = numericString.replace(/^0+/g, "");
+        if (numericString === "") {
+            numericString = "0";
+        }
+        if (numericString[0] === ".") {
+            numericString = "0" + numericString;
+        }
+        numericString = sign + numericString;
+        _offset = offset + _offset;
+        return nv(numericString);
+    }
+    else {
+        const value = decode(at + offset, to);
+        const valueOffset = _offset;
+        _offset = offset + valueOffset;
+        return tag({ tag: castBigInt(unsignedInt), value });
+    }
 }
 function decodeSpecial(at, to) {
     const minor = payload[at] & 0b0001_1111;
@@ -29884,8 +30310,129 @@ function decodeSpecial(at, to) {
             _offset = 9;
             return dataView$1.getFloat64(at + 1);
         default:
-            throw new Error(`unexpected minor value ${minor}.`);
+            unexpectedMinor(minor);
     }
+}
+function decodeCount(at, to) {
+    const minor = payload[at] & 0b0001_1111;
+    if (minor < 24) {
+        _offset = 1;
+        return minor;
+    }
+    switch (minor) {
+        case extendedOneByte:
+            if (to - at < 2) {
+                overflow(1);
+            }
+            _offset = 2;
+            return payload[at + 1];
+        case extendedFloat16:
+            if (to - at < 3) {
+                overflow(2);
+            }
+            _offset = 3;
+            return dataView$1.getUint16(at + 1);
+        case extendedFloat32:
+            if (to - at < 5) {
+                overflow(4);
+            }
+            _offset = 5;
+            return dataView$1.getUint32(at + 1);
+        case extendedFloat64:
+            if (to - at < 9) {
+                overflow(8);
+            }
+            _offset = 9;
+            return demote(dataView$1.getBigUint64(at + 1));
+        default:
+            unexpectedMinor(minor);
+    }
+}
+function decodeMapIndefinite(at, to) {
+    at += 1;
+    const base = at;
+    const map = {};
+    for (; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            _offset = at - base + 2;
+            return map;
+        }
+        const key = decodeUtf8String(at, to);
+        at += _offset;
+        map[key] = decode(at, to);
+        at += _offset;
+    }
+    throw new Error("expected break marker.");
+}
+function decodeListIndefinite(at, to) {
+    at += 1;
+    const list = [];
+    for (const base = at; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            _offset = at - base + 2;
+            return list;
+        }
+        list.push(decode(at, to));
+        at += _offset;
+    }
+    throw new Error("expected break marker.");
+}
+function decodeUtf8StringIndefinite(at, to) {
+    at += 1;
+    const vector = [];
+    for (const base = at; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            const data = alloc(vector.length);
+            data.set(vector, 0);
+            _offset = at - base + 2;
+            if (USE_BUFFER$1) {
+                return data.toString("utf-8", 0, data.length);
+            }
+            return textDecoder.decode(data);
+        }
+        const major = (payload[at] & 0b1110_0000) >> 5;
+        const minor = payload[at] & 0b0001_1111;
+        if (major !== majorUtf8String) {
+            unexpectedMajorInIndefiniteString(major);
+        }
+        if (minor === minorIndefinite) {
+            throw new Error("nested indefinite string.");
+        }
+        const bytes = decodeUnstructuredByteString(at, to);
+        const length = _offset;
+        at += length;
+        for (let i = 0; i < bytes.length; ++i) {
+            vector.push(bytes[i]);
+        }
+    }
+    throw new Error("expected break marker.");
+}
+function decodeUnstructuredByteStringIndefinite(at, to) {
+    at += 1;
+    const vector = [];
+    for (const base = at; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            const data = alloc(vector.length);
+            data.set(vector, 0);
+            _offset = at - base + 2;
+            return data;
+        }
+        const major = (payload[at] & 0b1110_0000) >> 5;
+        const minor = payload[at] & 0b0001_1111;
+        if (major !== majorUnstructuredByteString) {
+            unexpectedMajorInIndefiniteString(major);
+        }
+        if (minor === minorIndefinite) {
+            throw new Error("nested indefinite string.");
+        }
+        const bytes = decodeUnstructuredByteString(at, to);
+        const length = _offset;
+        at += length;
+        for (let i = 0; i < bytes.length; ++i) {
+            vector.push(bytes[i]);
+        }
+    }
+    throw new Error("expected break marker.");
 }
 function castBigInt(bigInt) {
     if (typeof bigInt === "number") {
@@ -29897,22 +30444,212 @@ function castBigInt(bigInt) {
     }
     return bigInt;
 }
+function demote(bigInteger) {
+    const num = Number(bigInteger);
+    if (num < Number.MIN_SAFE_INTEGER || Number.MAX_SAFE_INTEGER < num) {
+        console.warn(new Error(`@smithy/core/cbor - truncating BigInt(${bigInteger}) to ${num} with loss of precision.`));
+    }
+    return num;
+}
+function overflow(n) {
+    throw new Error(`length ${n} greater than remaining buf len.`);
+}
+function unexpectedMinor(minor) {
+    throw new Error(`unexpected minor value ${minor}.`);
+}
+function unexpectedMajorInIndefiniteString(major) {
+    throw new Error(`unexpected major type ${major} in indefinite string.`);
+}
 
 const USE_BUFFER = typeof Buffer !== "undefined";
+const encodeStringCache = new Map();
+let encodeCacheEpoch = 0;
+let encodeCacheSaturated = false;
 const initialSize = 2048;
 let data = alloc(initialSize);
 let dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
 let cursor = 0;
-function ensureSpace(bytes) {
-    const remaining = data.byteLength - cursor;
-    if (remaining < bytes) {
-        if (cursor < 16_000_000) {
-            resize(Math.max(data.byteLength * 4, data.byteLength + bytes));
+function encode(_input) {
+    const encodeStack = [_input];
+    while (encodeStack.length) {
+        const input = encodeStack.pop();
+        if (typeof input === "string") {
+            const len = input.length;
+            if (USE_BUFFER) {
+                ensureSpace(len * 3 + 9);
+                if (len > 23) {
+                    encodeHeader(majorUtf8String, Buffer.byteLength(input));
+                    cursor += data.write(input, cursor);
+                }
+                else {
+                    encodeStringCached(input);
+                }
+            }
+            else {
+                const maxBytes = len * 3;
+                ensureSpace(maxBytes + 9);
+                const headerPos = cursor;
+                const result = new TextEncoder().encodeInto(input, data.subarray(cursor + 9));
+                const byteLen = result.written;
+                let headerSize;
+                if (byteLen < 24) {
+                    headerSize = 1;
+                }
+                else if (byteLen < 256) {
+                    headerSize = 2;
+                }
+                else if (byteLen < 65536) {
+                    headerSize = 3;
+                }
+                else if (byteLen < 4294967296) {
+                    headerSize = 5;
+                }
+                else {
+                    headerSize = 9;
+                }
+                if (headerSize < 9) {
+                    data.copyWithin(headerPos + headerSize, headerPos + 9, headerPos + 9 + byteLen);
+                }
+                cursor = headerPos;
+                encodeInteger(majorUtf8String, byteLen);
+                cursor += byteLen;
+            }
+            continue;
         }
-        else {
-            resize(data.byteLength + bytes + 16_000_000);
+        if (data.byteLength - cursor < 9) {
+            ensureSpace(64);
         }
+        if (typeof input === "number") {
+            if (Number.isInteger(input)) {
+                const nonNegative = input >= 0;
+                const major = nonNegative ? majorUint64 : majorNegativeInt64;
+                const value = nonNegative ? input : -input - 1;
+                if (value < 24) {
+                    data[cursor++] = (major << 5) | value;
+                }
+                else if (value < 256) {
+                    data[cursor++] = (major << 5) | 24;
+                    data[cursor++] = value;
+                }
+                else if (value < 65536) {
+                    data[cursor++] = (major << 5) | extendedFloat16;
+                    data[cursor++] = value >> 8;
+                    data[cursor++] = value & 0xff;
+                }
+                else if (value < 4294967296) {
+                    data[cursor++] = (major << 5) | extendedFloat32;
+                    dataView.setUint32(cursor, value);
+                    cursor += 4;
+                }
+                else {
+                    data[cursor++] = (major << 5) | extendedFloat64;
+                    const hi = (value / 4294967296) | 0;
+                    const lo = (value - hi * 4294967296) | 0;
+                    dataView.setUint32(cursor, hi);
+                    dataView.setUint32(cursor + 4, lo);
+                    cursor += 8;
+                }
+                continue;
+            }
+            data[cursor++] = (majorSpecial << 5) | extendedFloat64;
+            dataView.setFloat64(cursor, input);
+            cursor += 8;
+            continue;
+        }
+        else if (typeof input === "bigint") {
+            const nonNegative = input >= 0;
+            const major = nonNegative ? majorUint64 : majorNegativeInt64;
+            const value = nonNegative ? input : -input - BigInt(1);
+            if (value < BigInt("18446744073709551616")) {
+                const n = Number(value);
+                if (n < 4294967296) {
+                    encodeInteger(major, n);
+                }
+                else {
+                    data[cursor++] = (major << 5) | extendedFloat64;
+                    dataView.setBigUint64(cursor, value);
+                    cursor += 8;
+                }
+            }
+            else {
+                const binaryBigInt = value.toString(2);
+                const bigIntBytes = new Uint8Array(Math.ceil(binaryBigInt.length / 8));
+                let b = value;
+                let i = 0;
+                while (bigIntBytes.byteLength - ++i >= 0) {
+                    bigIntBytes[bigIntBytes.byteLength - i] = Number(b & BigInt(255));
+                    b >>= BigInt(8);
+                }
+                ensureSpace(bigIntBytes.byteLength * 2 + 16);
+                data[cursor++] = nonNegative ? 0b110_00010 : 0b110_00011;
+                encodeHeader(majorUnstructuredByteString, bigIntBytes.byteLength);
+                data.set(bigIntBytes, cursor);
+                cursor += bigIntBytes.byteLength;
+            }
+            continue;
+        }
+        else if (input === null) {
+            data[cursor++] = (majorSpecial << 5) | specialNull;
+            continue;
+        }
+        else if (typeof input === "boolean") {
+            data[cursor++] = (majorSpecial << 5) | (input ? specialTrue : specialFalse);
+            continue;
+        }
+        else if (typeof input === "undefined") {
+            throw new Error("@smithy/core/cbor: client may not serialize undefined value.");
+        }
+        else if (Array.isArray(input)) {
+            encodeInteger(majorList, input.length);
+            ensureSpace(input.length * 9 + 64);
+            for (let i = input.length - 1; i >= 0; --i) {
+                encodeStack.push(input[i]);
+            }
+            continue;
+        }
+        else if (typeof input.byteLength === "number") {
+            ensureSpace(input.length * 2 + 9);
+            encodeInteger(majorUnstructuredByteString, input.length);
+            data.set(input, cursor);
+            cursor += input.byteLength;
+            continue;
+        }
+        else if (typeof input === "object") {
+            if (input instanceof NumericValue) {
+                const decimalIndex = input.string.indexOf(".");
+                const exponent = decimalIndex === -1 ? 0 : decimalIndex - input.string.length + 1;
+                const mantissa = BigInt(input.string.replace(".", ""));
+                data[cursor++] = 0b110_00100;
+                encodeInteger(majorList, 2);
+                encodeStack.push(mantissa);
+                encodeStack.push(exponent);
+                continue;
+            }
+            if (input[tagSymbol]) {
+                if ("tag" in input && "value" in input) {
+                    encodeStack.push(input.value);
+                    encodeHeader(majorTag, input.tag);
+                    continue;
+                }
+                else {
+                    throw new Error("tag encountered with missing fields, need 'tag' and 'value', found: " + JSON.stringify(input));
+                }
+            }
+            const keys = Object.keys(input);
+            const len = keys.length;
+            encodeInteger(majorMap, len);
+            for (let i = len - 1; i >= 0; --i) {
+                encodeStack.push(input[keys[i]]);
+                encodeStack.push(keys[i]);
+            }
+            continue;
+        }
+        throw new Error(`data type ${input?.constructor?.name ?? typeof input} not compatible for encoding.`);
     }
+}
+function advanceEncodingEpoch() {
+    encodeCacheEpoch = (encodeCacheEpoch + 1) & 0b1111_1111_1111_1111;
+    encodeCacheSaturated = false;
 }
 function toUint8Array() {
     const out = alloc(cursor);
@@ -29933,20 +30670,67 @@ function resize(size) {
     }
     dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
 }
+function encodeStringCached(input) {
+    const cached = encodeStringCache.get(input);
+    if (cached !== undefined) {
+        data.set(cached.bytes, cursor);
+        cursor += cached.bytes.length;
+        cached.epoch = encodeCacheEpoch;
+        return;
+    }
+    const start = cursor;
+    const byteLen = Buffer.byteLength(input);
+    encodeInteger(majorUtf8String, byteLen);
+    cursor += data.write(input, cursor);
+    const bytes = Uint8Array.prototype.slice.call(data, start, cursor);
+    if (encodeStringCache.size >= 2048) {
+        if (encodeCacheSaturated) {
+            return;
+        }
+        let evicted = 0;
+        for (const [key, entry] of encodeStringCache) {
+            if (evicted >= 1024) {
+                break;
+            }
+            if (entry.epoch !== encodeCacheEpoch) {
+                encodeStringCache.delete(key);
+                evicted++;
+            }
+        }
+        if (evicted === 0) {
+            encodeCacheSaturated = true;
+            return;
+        }
+    }
+    if (encodeStringCache.size < 2048) {
+        encodeStringCache.set(input, { epoch: encodeCacheEpoch, bytes });
+    }
+}
+function ensureSpace(bytes) {
+    const remaining = data.byteLength - cursor;
+    if (remaining < bytes) {
+        if (cursor < 16_000_000) {
+            resize(Math.max(data.byteLength * 4, data.byteLength + bytes));
+        }
+        else {
+            resize(data.byteLength + bytes + 16_000_000);
+        }
+    }
+}
 function encodeHeader(major, value) {
     if (value < 24) {
         data[cursor++] = (major << 5) | value;
     }
-    else if (value < 1 << 8) {
+    else if (value < 256) {
         data[cursor++] = (major << 5) | 24;
         data[cursor++] = value;
     }
-    else if (value < 1 << 16) {
+    else if (value < 65536) {
         data[cursor++] = (major << 5) | extendedFloat16;
         dataView.setUint16(cursor, value);
         cursor += 2;
     }
-    else if (value < 2 ** 32) {
+    else if (value < 4294967296) {
         data[cursor++] = (major << 5) | extendedFloat32;
         dataView.setUint32(cursor, value);
         cursor += 4;
@@ -29957,172 +30741,42 @@ function encodeHeader(major, value) {
         cursor += 8;
     }
 }
-function encode(_input) {
-    const encodeStack = [_input];
-    while (encodeStack.length) {
-        const input = encodeStack.pop();
-        ensureSpace(typeof input === "string" ? input.length * 4 : 64);
-        if (typeof input === "string") {
-            if (USE_BUFFER) {
-                encodeHeader(majorUtf8String, Buffer.byteLength(input));
-                cursor += data.write(input, cursor);
-            }
-            else {
-                const bytes = fromUtf8(input);
-                encodeHeader(majorUtf8String, bytes.byteLength);
-                data.set(bytes, cursor);
-                cursor += bytes.byteLength;
-            }
-            continue;
-        }
-        else if (typeof input === "number") {
-            if (Number.isInteger(input)) {
-                const nonNegative = input >= 0;
-                const major = nonNegative ? majorUint64 : majorNegativeInt64;
-                const value = nonNegative ? input : -input - 1;
-                if (value < 24) {
-                    data[cursor++] = (major << 5) | value;
-                }
-                else if (value < 256) {
-                    data[cursor++] = (major << 5) | 24;
-                    data[cursor++] = value;
-                }
-                else if (value < 65536) {
-                    data[cursor++] = (major << 5) | extendedFloat16;
-                    data[cursor++] = value >> 8;
-                    data[cursor++] = value;
-                }
-                else if (value < 4294967296) {
-                    data[cursor++] = (major << 5) | extendedFloat32;
-                    dataView.setUint32(cursor, value);
-                    cursor += 4;
-                }
-                else {
-                    data[cursor++] = (major << 5) | extendedFloat64;
-                    dataView.setBigUint64(cursor, BigInt(value));
-                    cursor += 8;
-                }
-                continue;
-            }
-            data[cursor++] = (majorSpecial << 5) | extendedFloat64;
-            dataView.setFloat64(cursor, input);
-            cursor += 8;
-            continue;
-        }
-        else if (typeof input === "bigint") {
-            const nonNegative = input >= 0;
-            const major = nonNegative ? majorUint64 : majorNegativeInt64;
-            const value = nonNegative ? input : -input - BigInt(1);
-            const n = Number(value);
-            if (n < 24) {
-                data[cursor++] = (major << 5) | n;
-            }
-            else if (n < 256) {
-                data[cursor++] = (major << 5) | 24;
-                data[cursor++] = n;
-            }
-            else if (n < 65536) {
-                data[cursor++] = (major << 5) | extendedFloat16;
-                data[cursor++] = n >> 8;
-                data[cursor++] = n & 0b1111_1111;
-            }
-            else if (n < 4294967296) {
-                data[cursor++] = (major << 5) | extendedFloat32;
-                dataView.setUint32(cursor, n);
-                cursor += 4;
-            }
-            else if (value < BigInt("18446744073709551616")) {
-                data[cursor++] = (major << 5) | extendedFloat64;
-                dataView.setBigUint64(cursor, value);
-                cursor += 8;
-            }
-            else {
-                const binaryBigInt = value.toString(2);
-                const bigIntBytes = new Uint8Array(Math.ceil(binaryBigInt.length / 8));
-                let b = value;
-                let i = 0;
-                while (bigIntBytes.byteLength - ++i >= 0) {
-                    bigIntBytes[bigIntBytes.byteLength - i] = Number(b & BigInt(255));
-                    b >>= BigInt(8);
-                }
-                ensureSpace(bigIntBytes.byteLength * 2);
-                data[cursor++] = nonNegative ? 0b110_00010 : 0b110_00011;
-                if (USE_BUFFER) {
-                    encodeHeader(majorUnstructuredByteString, Buffer.byteLength(bigIntBytes));
-                }
-                else {
-                    encodeHeader(majorUnstructuredByteString, bigIntBytes.byteLength);
-                }
-                data.set(bigIntBytes, cursor);
-                cursor += bigIntBytes.byteLength;
-            }
-            continue;
-        }
-        else if (input === null) {
-            data[cursor++] = (majorSpecial << 5) | specialNull;
-            continue;
-        }
-        else if (typeof input === "boolean") {
-            data[cursor++] = (majorSpecial << 5) | (input ? specialTrue : specialFalse);
-            continue;
-        }
-        else if (typeof input === "undefined") {
-            throw new Error("@smithy/core/cbor: client may not serialize undefined value.");
-        }
-        else if (Array.isArray(input)) {
-            for (let i = input.length - 1; i >= 0; --i) {
-                encodeStack.push(input[i]);
-            }
-            encodeHeader(majorList, input.length);
-            continue;
-        }
-        else if (typeof input.byteLength === "number") {
-            ensureSpace(input.length * 2);
-            encodeHeader(majorUnstructuredByteString, input.length);
-            data.set(input, cursor);
-            cursor += input.byteLength;
-            continue;
-        }
-        else if (typeof input === "object") {
-            if (input instanceof NumericValue) {
-                const decimalIndex = input.string.indexOf(".");
-                const exponent = decimalIndex === -1 ? 0 : decimalIndex - input.string.length + 1;
-                const mantissa = BigInt(input.string.replace(".", ""));
-                data[cursor++] = 0b110_00100;
-                encodeStack.push(mantissa);
-                encodeStack.push(exponent);
-                encodeHeader(majorList, 2);
-                continue;
-            }
-            if (input[tagSymbol]) {
-                if ("tag" in input && "value" in input) {
-                    encodeStack.push(input.value);
-                    encodeHeader(majorTag, input.tag);
-                    continue;
-                }
-                else {
-                    throw new Error("tag encountered with missing fields, need 'tag' and 'value', found: " + JSON.stringify(input));
-                }
-            }
-            const keys = Object.keys(input);
-            for (let i = keys.length - 1; i >= 0; --i) {
-                const key = keys[i];
-                encodeStack.push(input[key]);
-                encodeStack.push(key);
-            }
-            encodeHeader(majorMap, keys.length);
-            continue;
-        }
-        throw new Error(`data type ${input?.constructor?.name ?? typeof input} not compatible for encoding.`);
+function encodeInteger(major, value) {
+    if (value < 24) {
+        data[cursor++] = (major << 5) | value;
+    }
+    else if (value < 256) {
+        data[cursor++] = (major << 5) | 24;
+        data[cursor++] = value;
+    }
+    else if (value < 65536) {
+        data[cursor++] = (major << 5) | extendedFloat16;
+        data[cursor++] = value >> 8;
+        data[cursor++] = value & 0xff;
+    }
+    else if (value < 4294967296) {
+        data[cursor++] = (major << 5) | extendedFloat32;
+        dataView.setUint32(cursor, value);
+        cursor += 4;
+    }
+    else {
+        data[cursor++] = (major << 5) | extendedFloat64;
+        const hi = (value / 4294967296) | 0;
+        const lo = (value - hi * 4294967296) | 0;
+        dataView.setUint32(cursor, hi);
+        dataView.setUint32(cursor + 4, lo);
+        cursor += 8;
     }
 }
 
 const cbor = {
     deserialize(payload) {
+        advanceDecodingEpoch();
         setPayload(payload);
         return decode(0, payload.length);
     },
     serialize(input) {
+        advanceEncodingEpoch();
         try {
             encode(input);
             return toUint8Array();
@@ -31764,7 +32418,7 @@ const getArrayIfSingleItem = (mayBeArray) => Array.isArray(mayBeArray) ? mayBeAr
 const getValueFromTextNode = (obj) => {
     const textNodeName = "#text";
     for (const key in obj) {
-        if (obj.hasOwnProperty(key) && obj[key][textNodeName] !== undefined) {
+        if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key][textNodeName] !== undefined) {
             obj[key] = obj[key][textNodeName];
         }
         else if (typeof obj[key] === "object" && obj[key] !== null) {
@@ -34604,14 +35258,22 @@ class HttpProtocol extends SerdeContext {
         });
     }
     async loadEventStreamCapability() {
-        const { EventStreamSerde } = __nccwpck_require__(56579);
+        const { EventStreamSerde, eventStreamSerdeProvider } = __nccwpck_require__(56579);
+        const marshaller = this.resolveEventStreamMarshaller(eventStreamSerdeProvider);
         return new EventStreamSerde({
-            marshaller: this.getEventStreamMarshaller(),
+            marshaller,
             serializer: this.serializer,
             deserializer: this.deserializer,
             serdeContext: this.serdeContext,
             defaultContentType: this.getDefaultContentType(),
         });
+    }
+    resolveEventStreamMarshaller(importedProvider) {
+        const context = this.serdeContext;
+        if (context.eventStreamMarshaller) {
+            return context.eventStreamMarshaller;
+        }
+        return importedProvider(this.serdeContext);
     }
     getDefaultContentType() {
         throw new Error(`@smithy/core/protocols - ${this.constructor.name} getDefaultContentType() implementation missing.`);
@@ -93844,18 +94506,11 @@ module.exports = axios;
 
 /***/ }),
 
-/***/ 50591:
-/***/ ((module) => {
-
-(()=>{"use strict";var t={d:(e,n)=>{for(var i in n)t.o(n,i)&&!t.o(e,i)&&Object.defineProperty(e,i,{enumerable:!0,get:n[i]})},o:(t,e)=>Object.prototype.hasOwnProperty.call(t,e),r:t=>{"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(t,"__esModule",{value:!0})}},e={};t.r(e),t.d(e,{XMLBuilder:()=>Xt,XMLParser:()=>Tt,XMLValidator:()=>Yt});const n=":A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD",i=new RegExp("^["+n+"]["+n+"\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$");function s(t,e){const n=[];let i=e.exec(t);for(;i;){const s=[];s.startIndex=e.lastIndex-i[0].length;const r=i.length;for(let t=0;t<r;t++)s.push(i[t]);n.push(s),i=e.exec(t)}return n}const r=function(t){return!(null==i.exec(t))},o=["hasOwnProperty","toString","valueOf","__defineGetter__","__defineSetter__","__lookupGetter__","__lookupSetter__"],a=["__proto__","constructor","prototype"],h={allowBooleanAttributes:!1,unpairedTags:[]};function l(t,e){e=Object.assign({},h,e);const n=[];let i=!1,s=!1;"\ufeff"===t[0]&&(t=t.substr(1));for(let r=0;r<t.length;r++)if("<"===t[r]&&"?"===t[r+1]){if(r+=2,r=p(t,r),r.err)return r}else{if("<"!==t[r]){if(u(t[r]))continue;return b("InvalidChar","char '"+t[r]+"' is not expected.",w(t,r))}{let o=r;if(r++,"!"===t[r]){r=c(t,r);continue}{let a=!1;"/"===t[r]&&(a=!0,r++);let h="";for(;r<t.length&&">"!==t[r]&&" "!==t[r]&&"\t"!==t[r]&&"\n"!==t[r]&&"\r"!==t[r];r++)h+=t[r];if(h=h.trim(),"/"===h[h.length-1]&&(h=h.substring(0,h.length-1),r--),!E(h)){let e;return e=0===h.trim().length?"Invalid space after '<'.":"Tag '"+h+"' is an invalid name.",b("InvalidTag",e,w(t,r))}const l=g(t,r);if(!1===l)return b("InvalidAttr","Attributes for '"+h+"' have open quote.",w(t,r));let d=l.value;if(r=l.index,"/"===d[d.length-1]){const n=r-d.length;d=d.substring(0,d.length-1);const s=x(d,e);if(!0!==s)return b(s.err.code,s.err.msg,w(t,n+s.err.line));i=!0}else if(a){if(!l.tagClosed)return b("InvalidTag","Closing tag '"+h+"' doesn't have proper closing.",w(t,r));if(d.trim().length>0)return b("InvalidTag","Closing tag '"+h+"' can't have attributes or invalid starting.",w(t,o));if(0===n.length)return b("InvalidTag","Closing tag '"+h+"' has not been opened.",w(t,o));{const e=n.pop();if(h!==e.tagName){let n=w(t,e.tagStartPos);return b("InvalidTag","Expected closing tag '"+e.tagName+"' (opened in line "+n.line+", col "+n.col+") instead of closing tag '"+h+"'.",w(t,o))}0==n.length&&(s=!0)}}else{const a=x(d,e);if(!0!==a)return b(a.err.code,a.err.msg,w(t,r-d.length+a.err.line));if(!0===s)return b("InvalidXml","Multiple possible root nodes found.",w(t,r));-1!==e.unpairedTags.indexOf(h)||n.push({tagName:h,tagStartPos:o}),i=!0}for(r++;r<t.length;r++)if("<"===t[r]){if("!"===t[r+1]){r++,r=c(t,r);continue}if("?"!==t[r+1])break;if(r=p(t,++r),r.err)return r}else if("&"===t[r]){const e=N(t,r);if(-1==e)return b("InvalidChar","char '&' is not expected.",w(t,r));r=e}else if(!0===s&&!u(t[r]))return b("InvalidXml","Extra text at the end",w(t,r));"<"===t[r]&&r--}}}return i?1==n.length?b("InvalidTag","Unclosed tag '"+n[0].tagName+"'.",w(t,n[0].tagStartPos)):!(n.length>0)||b("InvalidXml","Invalid '"+JSON.stringify(n.map(t=>t.tagName),null,4).replace(/\r?\n/g,"")+"' found.",{line:1,col:1}):b("InvalidXml","Start tag expected.",1)}function u(t){return" "===t||"\t"===t||"\n"===t||"\r"===t}function p(t,e){const n=e;for(;e<t.length;e++)if("?"==t[e]||" "==t[e]){const i=t.substr(n,e-n);if(e>5&&"xml"===i)return b("InvalidXml","XML declaration allowed only at the start of the document.",w(t,e));if("?"==t[e]&&">"==t[e+1]){e++;break}continue}return e}function c(t,e){if(t.length>e+5&&"-"===t[e+1]&&"-"===t[e+2]){for(e+=3;e<t.length;e++)if("-"===t[e]&&"-"===t[e+1]&&">"===t[e+2]){e+=2;break}}else if(t.length>e+8&&"D"===t[e+1]&&"O"===t[e+2]&&"C"===t[e+3]&&"T"===t[e+4]&&"Y"===t[e+5]&&"P"===t[e+6]&&"E"===t[e+7]){let n=1;for(e+=8;e<t.length;e++)if("<"===t[e])n++;else if(">"===t[e]&&(n--,0===n))break}else if(t.length>e+9&&"["===t[e+1]&&"C"===t[e+2]&&"D"===t[e+3]&&"A"===t[e+4]&&"T"===t[e+5]&&"A"===t[e+6]&&"["===t[e+7])for(e+=8;e<t.length;e++)if("]"===t[e]&&"]"===t[e+1]&&">"===t[e+2]){e+=2;break}return e}const d='"',f="'";function g(t,e){let n="",i="",s=!1;for(;e<t.length;e++){if(t[e]===d||t[e]===f)""===i?i=t[e]:i!==t[e]||(i="");else if(">"===t[e]&&""===i){s=!0;break}n+=t[e]}return""===i&&{value:n,index:e,tagClosed:s}}const m=new RegExp("(\\s*)([^\\s=]+)(\\s*=)?(\\s*(['\"])(([\\s\\S])*?)\\5)?","g");function x(t,e){const n=s(t,m),i={};for(let t=0;t<n.length;t++){if(0===n[t][1].length)return b("InvalidAttr","Attribute '"+n[t][2]+"' has no space in starting.",v(n[t]));if(void 0!==n[t][3]&&void 0===n[t][4])return b("InvalidAttr","Attribute '"+n[t][2]+"' is without value.",v(n[t]));if(void 0===n[t][3]&&!e.allowBooleanAttributes)return b("InvalidAttr","boolean attribute '"+n[t][2]+"' is not allowed.",v(n[t]));const s=n[t][2];if(!y(s))return b("InvalidAttr","Attribute '"+s+"' is an invalid name.",v(n[t]));if(Object.prototype.hasOwnProperty.call(i,s))return b("InvalidAttr","Attribute '"+s+"' is repeated.",v(n[t]));i[s]=1}return!0}function N(t,e){if(";"===t[++e])return-1;if("#"===t[e])return function(t,e){let n=/\d/;for("x"===t[e]&&(e++,n=/[\da-fA-F]/);e<t.length;e++){if(";"===t[e])return e;if(!t[e].match(n))break}return-1}(t,++e);let n=0;for(;e<t.length;e++,n++)if(!(t[e].match(/\w/)&&n<20)){if(";"===t[e])break;return-1}return e}function b(t,e,n){return{err:{code:t,msg:e,line:n.line||n,col:n.col}}}function y(t){return r(t)}function E(t){return r(t)}function w(t,e){const n=t.substring(0,e).split(/\r?\n/);return{line:n.length,col:n[n.length-1].length+1}}function v(t){return t.startIndex+t[1].length}const S=t=>o.includes(t)?"__"+t:t,_={preserveOrder:!1,attributeNamePrefix:"@_",attributesGroupName:!1,textNodeName:"#text",ignoreAttributes:!0,removeNSPrefix:!1,allowBooleanAttributes:!1,parseTagValue:!0,parseAttributeValue:!1,trimValues:!0,cdataPropName:!1,numberParseOptions:{hex:!0,leadingZeros:!0,eNotation:!0},tagValueProcessor:function(t,e){return e},attributeValueProcessor:function(t,e){return e},stopNodes:[],alwaysCreateTextNode:!1,isArray:()=>!1,commentPropName:!1,unpairedTags:[],processEntities:!0,htmlEntities:!1,entityDecoder:null,ignoreDeclaration:!1,ignorePiTags:!1,transformTagName:!1,transformAttributeName:!1,updateTag:function(t,e,n){return t},captureMetaData:!1,maxNestedTags:100,strictReservedNames:!0,jPath:!0,onDangerousProperty:S};function A(t,e){if("string"!=typeof t)return;const n=t.toLowerCase();if(o.some(t=>n===t.toLowerCase()))throw new Error(`[SECURITY] Invalid ${e}: "${t}" is a reserved JavaScript keyword that could cause prototype pollution`);if(a.some(t=>n===t.toLowerCase()))throw new Error(`[SECURITY] Invalid ${e}: "${t}" is a reserved JavaScript keyword that could cause prototype pollution`)}function T(t,e){return"boolean"==typeof t?{enabled:t,maxEntitySize:1e4,maxExpansionDepth:1e4,maxTotalExpansions:1/0,maxExpandedLength:1e5,maxEntityCount:1e3,allowedTags:null,tagFilter:null,appliesTo:"all"}:"object"==typeof t&&null!==t?{enabled:!1!==t.enabled,maxEntitySize:Math.max(1,t.maxEntitySize??1e4),maxExpansionDepth:Math.max(1,t.maxExpansionDepth??1e4),maxTotalExpansions:Math.max(1,t.maxTotalExpansions??1/0),maxExpandedLength:Math.max(1,t.maxExpandedLength??1e5),maxEntityCount:Math.max(1,t.maxEntityCount??1e3),allowedTags:t.allowedTags??null,tagFilter:t.tagFilter??null,appliesTo:t.appliesTo??"all"}:T(!0)}const C=function(t){const e=Object.assign({},_,t),n=[{value:e.attributeNamePrefix,name:"attributeNamePrefix"},{value:e.attributesGroupName,name:"attributesGroupName"},{value:e.textNodeName,name:"textNodeName"},{value:e.cdataPropName,name:"cdataPropName"},{value:e.commentPropName,name:"commentPropName"}];for(const{value:t,name:e}of n)t&&A(t,e);return null===e.onDangerousProperty&&(e.onDangerousProperty=S),e.processEntities=T(e.processEntities,e.htmlEntities),e.unpairedTagsSet=new Set(e.unpairedTags),e.stopNodes&&Array.isArray(e.stopNodes)&&(e.stopNodes=e.stopNodes.map(t=>"string"==typeof t&&t.startsWith("*.")?".."+t.substring(2):t)),e};let P;P="function"!=typeof Symbol?"@@xmlMetadata":Symbol("XML Node Metadata");class O{constructor(t){this.tagname=t,this.child=[],this[":@"]=Object.create(null)}add(t,e){"__proto__"===t&&(t="#__proto__"),this.child.push({[t]:e})}addChild(t,e){"__proto__"===t.tagname&&(t.tagname="#__proto__"),t[":@"]&&Object.keys(t[":@"]).length>0?this.child.push({[t.tagname]:t.child,":@":t[":@"]}):this.child.push({[t.tagname]:t.child}),void 0!==e&&(this.child[this.child.length-1][P]={startIndex:e})}static getMetaDataSymbol(){return P}}class ${constructor(t){this.suppressValidationErr=!t,this.options=t}readDocType(t,e){const n=Object.create(null);let i=0;if("O"!==t[e+3]||"C"!==t[e+4]||"T"!==t[e+5]||"Y"!==t[e+6]||"P"!==t[e+7]||"E"!==t[e+8])throw new Error("Invalid Tag instead of DOCTYPE");{e+=9;let s=1,r=!1,o=!1,a="";for(;e<t.length;e++)if("<"!==t[e]||o)if(">"===t[e]){if(o?"-"===t[e-1]&&"-"===t[e-2]&&(o=!1,s--):s--,0===s)break}else"["===t[e]?r=!0:a+=t[e];else{if(r&&D(t,"!ENTITY",e)){let s,r;if(e+=7,[s,r,e]=this.readEntityExp(t,e+1,this.suppressValidationErr),-1===r.indexOf("&")){if(!1!==this.options.enabled&&null!=this.options.maxEntityCount&&i>=this.options.maxEntityCount)throw new Error(`Entity count (${i+1}) exceeds maximum allowed (${this.options.maxEntityCount})`);n[s]=r,i++}}else if(r&&D(t,"!ELEMENT",e)){e+=8;const{index:n}=this.readElementExp(t,e+1);e=n}else if(r&&D(t,"!ATTLIST",e))e+=8;else if(r&&D(t,"!NOTATION",e)){e+=9;const{index:n}=this.readNotationExp(t,e+1,this.suppressValidationErr);e=n}else{if(!D(t,"!--",e))throw new Error("Invalid DOCTYPE");o=!0}s++,a=""}if(0!==s)throw new Error("Unclosed DOCTYPE")}return{entities:n,i:e}}readEntityExp(t,e){const n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e])&&'"'!==t[e]&&"'"!==t[e];)e++;let i=t.substring(n,e);if(M(i),e=I(t,e),!this.suppressValidationErr){if("SYSTEM"===t.substring(e,e+6).toUpperCase())throw new Error("External entities are not supported");if("%"===t[e])throw new Error("Parameter entities are not supported")}let s="";if([e,s]=this.readIdentifierVal(t,e,"entity"),!1!==this.options.enabled&&null!=this.options.maxEntitySize&&s.length>this.options.maxEntitySize)throw new Error(`Entity "${i}" size (${s.length}) exceeds maximum allowed size (${this.options.maxEntitySize})`);return[i,s,--e]}readNotationExp(t,e){const n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e]);)e++;let i=t.substring(n,e);!this.suppressValidationErr&&M(i),e=I(t,e);const s=t.substring(e,e+6).toUpperCase();if(!this.suppressValidationErr&&"SYSTEM"!==s&&"PUBLIC"!==s)throw new Error(`Expected SYSTEM or PUBLIC, found "${s}"`);e+=s.length,e=I(t,e);let r=null,o=null;if("PUBLIC"===s)[e,r]=this.readIdentifierVal(t,e,"publicIdentifier"),'"'!==t[e=I(t,e)]&&"'"!==t[e]||([e,o]=this.readIdentifierVal(t,e,"systemIdentifier"));else if("SYSTEM"===s&&([e,o]=this.readIdentifierVal(t,e,"systemIdentifier"),!this.suppressValidationErr&&!o))throw new Error("Missing mandatory system identifier for SYSTEM notation");return{notationName:i,publicIdentifier:r,systemIdentifier:o,index:--e}}readIdentifierVal(t,e,n){let i="";const s=t[e];if('"'!==s&&"'"!==s)throw new Error(`Expected quoted string, found "${s}"`);const r=++e;for(;e<t.length&&t[e]!==s;)e++;if(i=t.substring(r,e),t[e]!==s)throw new Error(`Unterminated ${n} value`);return[++e,i]}readElementExp(t,e){const n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e]);)e++;let i=t.substring(n,e);if(!this.suppressValidationErr&&!r(i))throw new Error(`Invalid element name: "${i}"`);let s="";if("E"===t[e=I(t,e)]&&D(t,"MPTY",e))e+=4;else if("A"===t[e]&&D(t,"NY",e))e+=2;else if("("===t[e]){const n=++e;for(;e<t.length&&")"!==t[e];)e++;if(s=t.substring(n,e),")"!==t[e])throw new Error("Unterminated content model")}else if(!this.suppressValidationErr)throw new Error(`Invalid Element Expression, found "${t[e]}"`);return{elementName:i,contentModel:s.trim(),index:e}}readAttlistExp(t,e){let n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e]);)e++;let i=t.substring(n,e);for(M(i),n=e=I(t,e);e<t.length&&!/\s/.test(t[e]);)e++;let s=t.substring(n,e);if(!M(s))throw new Error(`Invalid attribute name: "${s}"`);e=I(t,e);let r="";if("NOTATION"===t.substring(e,e+8).toUpperCase()){if(r="NOTATION","("!==t[e=I(t,e+=8)])throw new Error(`Expected '(', found "${t[e]}"`);e++;let n=[];for(;e<t.length&&")"!==t[e];){const i=e;for(;e<t.length&&"|"!==t[e]&&")"!==t[e];)e++;let s=t.substring(i,e);if(s=s.trim(),!M(s))throw new Error(`Invalid notation name: "${s}"`);n.push(s),"|"===t[e]&&(e++,e=I(t,e))}if(")"!==t[e])throw new Error("Unterminated list of notations");e++,r+=" ("+n.join("|")+")"}else{const n=e;for(;e<t.length&&!/\s/.test(t[e]);)e++;r+=t.substring(n,e);const i=["CDATA","ID","IDREF","IDREFS","ENTITY","ENTITIES","NMTOKEN","NMTOKENS"];if(!this.suppressValidationErr&&!i.includes(r.toUpperCase()))throw new Error(`Invalid attribute type: "${r}"`)}e=I(t,e);let o="";return"#REQUIRED"===t.substring(e,e+8).toUpperCase()?(o="#REQUIRED",e+=8):"#IMPLIED"===t.substring(e,e+7).toUpperCase()?(o="#IMPLIED",e+=7):[e,o]=this.readIdentifierVal(t,e,"ATTLIST"),{elementName:i,attributeName:s,attributeType:r,defaultValue:o,index:e}}}const I=(t,e)=>{for(;e<t.length&&/\s/.test(t[e]);)e++;return e};function D(t,e,n){for(let i=0;i<e.length;i++)if(e[i]!==t[n+i+1])return!1;return!0}function M(t){if(r(t))return t;throw new Error(`Invalid entity name ${t}`)}const j=/^[-+]?0x[a-fA-F0-9]+$/,V=/^([\-\+])?(0*)([0-9]*(\.[0-9]*)?)$/,L={hex:!0,leadingZeros:!0,decimalPoint:".",eNotation:!0,infinity:"original"};const k=/^([-+])?(0*)(\d*(\.\d*)?[eE][-\+]?\d+)$/;class F{constructor(t){this._matcher=t}get separator(){return this._matcher.separator}getCurrentTag(){const t=this._matcher.path;return t.length>0?t[t.length-1].tag:void 0}getCurrentNamespace(){const t=this._matcher.path;return t.length>0?t[t.length-1].namespace:void 0}getAttrValue(t){const e=this._matcher.path;if(0!==e.length)return e[e.length-1].values?.[t]}hasAttr(t){const e=this._matcher.path;if(0===e.length)return!1;const n=e[e.length-1];return void 0!==n.values&&t in n.values}getPosition(){const t=this._matcher.path;return 0===t.length?-1:t[t.length-1].position??0}getCounter(){const t=this._matcher.path;return 0===t.length?-1:t[t.length-1].counter??0}getIndex(){return this.getPosition()}getDepth(){return this._matcher.path.length}toString(t,e=!0){return this._matcher.toString(t,e)}toArray(){return this._matcher.path.map(t=>t.tag)}matches(t){return this._matcher.matches(t)}matchesAny(t){return t.matchesAny(this._matcher)}}class R{constructor(t={}){this.separator=t.separator||".",this.path=[],this.siblingStacks=[],this._pathStringCache=null,this._view=new F(this)}push(t,e=null,n=null){this._pathStringCache=null,this.path.length>0&&(this.path[this.path.length-1].values=void 0);const i=this.path.length;this.siblingStacks[i]||(this.siblingStacks[i]=new Map);const s=this.siblingStacks[i],r=n?`${n}:${t}`:t,o=s.get(r)||0;let a=0;for(const t of s.values())a+=t;s.set(r,o+1);const h={tag:t,position:a,counter:o};null!=n&&(h.namespace=n),null!=e&&(h.values=e),this.path.push(h)}pop(){if(0===this.path.length)return;this._pathStringCache=null;const t=this.path.pop();return this.siblingStacks.length>this.path.length+1&&(this.siblingStacks.length=this.path.length+1),t}updateCurrent(t){if(this.path.length>0){const e=this.path[this.path.length-1];null!=t&&(e.values=t)}}getCurrentTag(){return this.path.length>0?this.path[this.path.length-1].tag:void 0}getCurrentNamespace(){return this.path.length>0?this.path[this.path.length-1].namespace:void 0}getAttrValue(t){if(0!==this.path.length)return this.path[this.path.length-1].values?.[t]}hasAttr(t){if(0===this.path.length)return!1;const e=this.path[this.path.length-1];return void 0!==e.values&&t in e.values}getPosition(){return 0===this.path.length?-1:this.path[this.path.length-1].position??0}getCounter(){return 0===this.path.length?-1:this.path[this.path.length-1].counter??0}getIndex(){return this.getPosition()}getDepth(){return this.path.length}toString(t,e=!0){const n=t||this.separator;if(n===this.separator&&!0===e){if(null!==this._pathStringCache)return this._pathStringCache;const t=this.path.map(t=>t.namespace?`${t.namespace}:${t.tag}`:t.tag).join(n);return this._pathStringCache=t,t}return this.path.map(t=>e&&t.namespace?`${t.namespace}:${t.tag}`:t.tag).join(n)}toArray(){return this.path.map(t=>t.tag)}reset(){this._pathStringCache=null,this.path=[],this.siblingStacks=[]}matches(t){const e=t.segments;return 0!==e.length&&(t.hasDeepWildcard()?this._matchWithDeepWildcard(e):this._matchSimple(e))}_matchSimple(t){if(this.path.length!==t.length)return!1;for(let e=0;e<t.length;e++)if(!this._matchSegment(t[e],this.path[e],e===this.path.length-1))return!1;return!0}_matchWithDeepWildcard(t){let e=this.path.length-1,n=t.length-1;for(;n>=0&&e>=0;){const i=t[n];if("deep-wildcard"===i.type){if(n--,n<0)return!0;const i=t[n];let s=!1;for(let t=e;t>=0;t--)if(this._matchSegment(i,this.path[t],t===this.path.length-1)){e=t-1,n--,s=!0;break}if(!s)return!1}else{if(!this._matchSegment(i,this.path[e],e===this.path.length-1))return!1;e--,n--}}return n<0}_matchSegment(t,e,n){if("*"!==t.tag&&t.tag!==e.tag)return!1;if(void 0!==t.namespace&&"*"!==t.namespace&&t.namespace!==e.namespace)return!1;if(void 0!==t.attrName){if(!n)return!1;if(!e.values||!(t.attrName in e.values))return!1;if(void 0!==t.attrValue&&String(e.values[t.attrName])!==String(t.attrValue))return!1}if(void 0!==t.position){if(!n)return!1;const i=e.counter??0;if("first"===t.position&&0!==i)return!1;if("odd"===t.position&&i%2!=1)return!1;if("even"===t.position&&i%2!=0)return!1;if("nth"===t.position&&i!==t.positionValue)return!1}return!0}matchesAny(t){return t.matchesAny(this)}snapshot(){return{path:this.path.map(t=>({...t})),siblingStacks:this.siblingStacks.map(t=>new Map(t))}}restore(t){this._pathStringCache=null,this.path=t.path.map(t=>({...t})),this.siblingStacks=t.siblingStacks.map(t=>new Map(t))}readOnly(){return this._view}}class G{constructor(t,e={},n){this.pattern=t,this.separator=e.separator||".",this.segments=this._parse(t),this.data=n,this._hasDeepWildcard=this.segments.some(t=>"deep-wildcard"===t.type),this._hasAttributeCondition=this.segments.some(t=>void 0!==t.attrName),this._hasPositionSelector=this.segments.some(t=>void 0!==t.position)}_parse(t){const e=[];let n=0,i="";for(;n<t.length;)t[n]===this.separator?n+1<t.length&&t[n+1]===this.separator?(i.trim()&&(e.push(this._parseSegment(i.trim())),i=""),e.push({type:"deep-wildcard"}),n+=2):(i.trim()&&e.push(this._parseSegment(i.trim())),i="",n++):(i+=t[n],n++);return i.trim()&&e.push(this._parseSegment(i.trim())),e}_parseSegment(t){const e={type:"tag"};let n=null,i=t;const s=t.match(/^([^\[]+)(\[[^\]]*\])(.*)$/);if(s&&(i=s[1]+s[3],s[2])){const t=s[2].slice(1,-1);t&&(n=t)}let r,o,a=i;if(i.includes("::")){const e=i.indexOf("::");if(r=i.substring(0,e).trim(),a=i.substring(e+2).trim(),!r)throw new Error(`Invalid namespace in pattern: ${t}`)}let h=null;if(a.includes(":")){const t=a.lastIndexOf(":"),e=a.substring(0,t).trim(),n=a.substring(t+1).trim();["first","last","odd","even"].includes(n)||/^nth\(\d+\)$/.test(n)?(o=e,h=n):o=a}else o=a;if(!o)throw new Error(`Invalid segment pattern: ${t}`);if(e.tag=o,r&&(e.namespace=r),n)if(n.includes("=")){const t=n.indexOf("=");e.attrName=n.substring(0,t).trim(),e.attrValue=n.substring(t+1).trim()}else e.attrName=n.trim();if(h){const t=h.match(/^nth\((\d+)\)$/);t?(e.position="nth",e.positionValue=parseInt(t[1],10)):e.position=h}return e}get length(){return this.segments.length}hasDeepWildcard(){return this._hasDeepWildcard}hasAttributeCondition(){return this._hasAttributeCondition}hasPositionSelector(){return this._hasPositionSelector}toString(){return this.pattern}}class B{constructor(){this._byDepthAndTag=new Map,this._wildcardByDepth=new Map,this._deepWildcards=[],this._patterns=new Set,this._sealed=!1}add(t){if(this._sealed)throw new TypeError("ExpressionSet is sealed. Create a new ExpressionSet to add more expressions.");if(this._patterns.has(t.pattern))return this;if(this._patterns.add(t.pattern),t.hasDeepWildcard())return this._deepWildcards.push(t),this;const e=t.length,n=t.segments[t.segments.length-1],i=n?.tag;if(i&&"*"!==i){const n=`${e}:${i}`;this._byDepthAndTag.has(n)||this._byDepthAndTag.set(n,[]),this._byDepthAndTag.get(n).push(t)}else this._wildcardByDepth.has(e)||this._wildcardByDepth.set(e,[]),this._wildcardByDepth.get(e).push(t);return this}addAll(t){for(const e of t)this.add(e);return this}has(t){return this._patterns.has(t.pattern)}get size(){return this._patterns.size}seal(){return this._sealed=!0,this}get isSealed(){return this._sealed}matchesAny(t){return null!==this.findMatch(t)}findMatch(t){const e=t.getDepth(),n=`${e}:${t.getCurrentTag()}`,i=this._byDepthAndTag.get(n);if(i)for(let e=0;e<i.length;e++)if(t.matches(i[e]))return i[e];const s=this._wildcardByDepth.get(e);if(s)for(let e=0;e<s.length;e++)if(t.matches(s[e]))return s[e];for(let e=0;e<this._deepWildcards.length;e++)if(t.matches(this._deepWildcards[e]))return this._deepWildcards[e];return null}}const U={cent:"¢",pound:"£",curren:"¤",yen:"¥",euro:"€",dollar:"$",euro:"€",fnof:"ƒ",inr:"₹",af:"؋",birr:"ብር",peso:"₱",rub:"₽",won:"₩",yuan:"¥",cedil:"¸"},W={amp:"&",apos:"'",gt:">",lt:"<",quot:'"'},X={nbsp:" ",copy:"©",reg:"®",trade:"™",mdash:"—",ndash:"–",hellip:"…",laquo:"«",raquo:"»",lsquo:"‘",rsquo:"’",ldquo:"“",rdquo:"”",bull:"•",para:"¶",sect:"§",deg:"°",frac12:"½",frac14:"¼",frac34:"¾"},Y=new Set("!?\\\\/[]$%{}^&*()<>|+");function z(t){if("#"===t[0])throw new Error(`[EntityReplacer] Invalid character '#' in entity name: "${t}"`);for(const e of t)if(Y.has(e))throw new Error(`[EntityReplacer] Invalid character '${e}' in entity name: "${t}"`);return t}function q(...t){const e=Object.create(null);for(const n of t)if(n)for(const t of Object.keys(n)){const i=n[t];if("string"==typeof i)e[t]=i;else if(i&&"object"==typeof i&&void 0!==i.val){const n=i.val;"string"==typeof n&&(e[t]=n)}}return e}const Z="external",J="base",K="all",Q=Object.freeze({allow:0,leave:1,remove:2,throw:3}),H=new Set([9,10,13]);class tt{constructor(t={}){var e;this._limit=t.limit||{},this._maxTotalExpansions=this._limit.maxTotalExpansions||0,this._maxExpandedLength=this._limit.maxExpandedLength||0,this._postCheck="function"==typeof t.postCheck?t.postCheck:t=>t,this._limitTiers=(e=this._limit.applyLimitsTo??Z)&&e!==Z?e===K?new Set([K]):e===J?new Set([J]):Array.isArray(e)?new Set(e):new Set([Z]):new Set([Z]),this._numericAllowed=t.numericAllowed??!0,this._baseMap=q(W,t.namedEntities||null),this._externalMap=Object.create(null),this._inputMap=Object.create(null),this._totalExpansions=0,this._expandedLength=0,this._removeSet=new Set(t.remove&&Array.isArray(t.remove)?t.remove:[]),this._leaveSet=new Set(t.leave&&Array.isArray(t.leave)?t.leave:[]);const n=function(t){if(!t)return{xmlVersion:1,onLevel:Q.allow,nullLevel:Q.remove};const e=1.1===t.xmlVersion?1.1:1,n=Q[t.onNCR]??Q.allow,i=Q[t.nullNCR]??Q.remove;return{xmlVersion:e,onLevel:n,nullLevel:Math.max(i,Q.remove)}}(t.ncr);this._ncrXmlVersion=n.xmlVersion,this._ncrOnLevel=n.onLevel,this._ncrNullLevel=n.nullLevel}setExternalEntities(t){if(t)for(const e of Object.keys(t))z(e);this._externalMap=q(t)}addExternalEntity(t,e){z(t),"string"==typeof e&&-1===e.indexOf("&")&&(this._externalMap[t]=e)}addInputEntities(t){this._totalExpansions=0,this._expandedLength=0,this._inputMap=q(t)}reset(){return this._inputMap=Object.create(null),this._totalExpansions=0,this._expandedLength=0,this}setXmlVersion(t){this._ncrXmlVersion=1.1===t?1.1:1}decode(t){if("string"!=typeof t||0===t.length)return t;const e=t,n=[],i=t.length;let s=0,r=0;const o=this._maxTotalExpansions>0,a=this._maxExpandedLength>0,h=o||a;for(;r<i;){if(38!==t.charCodeAt(r)){r++;continue}let e=r+1;for(;e<i&&59!==t.charCodeAt(e)&&e-r<=32;)e++;if(e>=i||59!==t.charCodeAt(e)){r++;continue}const l=t.slice(r+1,e);if(0===l.length){r++;continue}let u,p;if(this._removeSet.has(l))u="",void 0===p&&(p=Z);else{if(this._leaveSet.has(l)){r++;continue}if(35===l.charCodeAt(0)){const t=this._resolveNCR(l);if(void 0===t){r++;continue}u=t,p=J}else{const t=this._resolveName(l);u=t?.value,p=t?.tier}}if(void 0!==u){if(r>s&&n.push(t.slice(s,r)),n.push(u),s=e+1,r=s,h&&this._tierCounts(p)){if(o&&(this._totalExpansions++,this._totalExpansions>this._maxTotalExpansions))throw new Error(`[EntityReplacer] Entity expansion count limit exceeded: ${this._totalExpansions} > ${this._maxTotalExpansions}`);if(a){const t=u.length-(l.length+2);if(t>0&&(this._expandedLength+=t,this._expandedLength>this._maxExpandedLength))throw new Error(`[EntityReplacer] Expanded content length limit exceeded: ${this._expandedLength} > ${this._maxExpandedLength}`)}}}else r++}s<i&&n.push(t.slice(s));const l=0===n.length?t:n.join("");return this._postCheck(l,e)}_tierCounts(t){return!!this._limitTiers.has(K)||this._limitTiers.has(t)}_resolveName(t){return t in this._inputMap?{value:this._inputMap[t],tier:Z}:t in this._externalMap?{value:this._externalMap[t],tier:Z}:t in this._baseMap?{value:this._baseMap[t],tier:J}:void 0}_classifyNCR(t){return 0===t?this._ncrNullLevel:t>=55296&&t<=57343||1===this._ncrXmlVersion&&t>=1&&t<=31&&!H.has(t)?Q.remove:-1}_applyNCRAction(t,e,n){switch(t){case Q.allow:return String.fromCodePoint(n);case Q.remove:return"";case Q.leave:return;case Q.throw:throw new Error(`[EntityDecoder] Prohibited numeric character reference &${e}; (U+${n.toString(16).toUpperCase().padStart(4,"0")})`);default:return String.fromCodePoint(n)}}_resolveNCR(t){const e=t.charCodeAt(1);let n;if(n=120===e||88===e?parseInt(t.slice(2),16):parseInt(t.slice(1),10),Number.isNaN(n)||n<0||n>1114111)return;const i=this._classifyNCR(n);if(!this._numericAllowed&&i<Q.remove)return;const s=-1===i?this._ncrOnLevel:Math.max(this._ncrOnLevel,i);return this._applyNCRAction(s,t,n)}}function et(t,e){if(!t)return{};const n=e.attributesGroupName?t[e.attributesGroupName]:t;if(!n)return{};const i={};for(const t in n)t.startsWith(e.attributeNamePrefix)?i[t.substring(e.attributeNamePrefix.length)]=n[t]:i[t]=n[t];return i}function nt(t){if(!t||"string"!=typeof t)return;const e=t.indexOf(":");if(-1!==e&&e>0){const n=t.substring(0,e);if("xmlns"!==n)return n}}class it{constructor(t,e){var n;this.options=t,this.currentNode=null,this.tagsNodeStack=[],this.parseXml=ht,this.parseTextData=st,this.resolveNameSpace=rt,this.buildAttributesMap=at,this.isItStopNode=ct,this.replaceEntitiesValue=ut,this.readStopNodeData=mt,this.saveTextToParentTag=pt,this.addChild=lt,this.ignoreAttributesFn="function"==typeof(n=this.options.ignoreAttributes)?n:Array.isArray(n)?t=>{for(const e of n){if("string"==typeof e&&t===e)return!0;if(e instanceof RegExp&&e.test(t))return!0}}:()=>!1,this.entityExpansionCount=0,this.currentExpandedLength=0;let i={...W};this.options.entityDecoder?this.entityDecoder=this.options.entityDecoder:("object"==typeof this.options.htmlEntities?i=this.options.htmlEntities:!0===this.options.htmlEntities&&(i={...X,...U}),this.entityDecoder=new tt({namedEntities:{...i,...e},numericAllowed:this.options.htmlEntities,limit:{maxTotalExpansions:this.options.processEntities.maxTotalExpansions,maxExpandedLength:this.options.processEntities.maxExpandedLength,applyLimitsTo:this.options.processEntities.appliesTo}})),this.matcher=new R,this.readonlyMatcher=this.matcher.readOnly(),this.isCurrentNodeStopNode=!1,this.stopNodeExpressionsSet=new B;const s=this.options.stopNodes;if(s&&s.length>0){for(let t=0;t<s.length;t++){const e=s[t];"string"==typeof e?this.stopNodeExpressionsSet.add(new G(e)):e instanceof G&&this.stopNodeExpressionsSet.add(e)}this.stopNodeExpressionsSet.seal()}}}function st(t,e,n,i,s,r,o){const a=this.options;if(void 0!==t&&(a.trimValues&&!i&&(t=t.trim()),t.length>0)){o||(t=this.replaceEntitiesValue(t,e,n));const i=a.jPath?n.toString():n,h=a.tagValueProcessor(e,t,i,s,r);return null==h?t:typeof h!=typeof t||h!==t?h:a.trimValues||t.trim()===t?xt(t,a.parseTagValue,a.numberParseOptions):t}}function rt(t){if(this.options.removeNSPrefix){const e=t.split(":"),n="/"===t.charAt(0)?"/":"";if("xmlns"===e[0])return"";2===e.length&&(t=n+e[1])}return t}const ot=new RegExp("([^\\s=]+)\\s*(=\\s*(['\"])([\\s\\S]*?)\\3)?","gm");function at(t,e,n,i=!1){const r=this.options;if(!0===i||!0!==r.ignoreAttributes&&"string"==typeof t){const i=s(t,ot),o=i.length,a={},h=new Array(o);let l=!1;const u={};for(let t=0;t<o;t++){const e=this.resolveNameSpace(i[t][1]),s=i[t][4];if(e.length&&void 0!==s){let i=s;r.trimValues&&(i=i.trim()),i=this.replaceEntitiesValue(i,n,this.readonlyMatcher),h[t]=i,u[e]=i,l=!0}}l&&"object"==typeof e&&e.updateCurrent&&e.updateCurrent(u);const p=r.jPath?e.toString():this.readonlyMatcher;let c=!1;for(let t=0;t<o;t++){const e=this.resolveNameSpace(i[t][1]);if(this.ignoreAttributesFn(e,p))continue;let n=r.attributeNamePrefix+e;if(e.length)if(r.transformAttributeName&&(n=r.transformAttributeName(n)),n=bt(n,r),void 0!==i[t][4]){const i=h[t],s=r.attributeValueProcessor(e,i,p);a[n]=null==s?i:typeof s!=typeof i||s!==i?s:xt(i,r.parseAttributeValue,r.numberParseOptions),c=!0}else r.allowBooleanAttributes&&(a[n]=!0,c=!0)}if(!c)return;if(r.attributesGroupName&&!r.preserveOrder){const t={};return t[r.attributesGroupName]=a,t}return a}}const ht=function(t){t=t.replace(/\r\n?/g,"\n");const e=new O("!xml");let n=e,i="";this.matcher.reset(),this.entityDecoder.reset(),this.entityExpansionCount=0,this.currentExpandedLength=0;const s=this.options,r=new $(s.processEntities),o=t.length;for(let a=0;a<o;a++)if("<"===t[a]){const h=t.charCodeAt(a+1);if(47===h){const e=dt(t,">",a,"Closing Tag is not closed.");let r=t.substring(a+2,e).trim();if(s.removeNSPrefix){const t=r.indexOf(":");-1!==t&&(r=r.substr(t+1))}r=Nt(s.transformTagName,r,"",s).tagName,n&&(i=this.saveTextToParentTag(i,n,this.readonlyMatcher));const o=this.matcher.getCurrentTag();if(r&&s.unpairedTagsSet.has(r))throw new Error(`Unpaired tag can not be used as closing tag: </${r}>`);o&&s.unpairedTagsSet.has(o)&&(this.matcher.pop(),this.tagsNodeStack.pop()),this.matcher.pop(),this.isCurrentNodeStopNode=!1,n=this.tagsNodeStack.pop(),i="",a=e}else if(63===h){let e=gt(t,a,!1,"?>");if(!e)throw new Error("Pi Tag is not closed.");i=this.saveTextToParentTag(i,n,this.readonlyMatcher);const r=this.buildAttributesMap(e.tagExp,this.matcher,e.tagName,!0);if(r){const t=r[this.options.attributeNamePrefix+"version"];this.entityDecoder.setXmlVersion(Number(t)||1)}if(s.ignoreDeclaration&&"?xml"===e.tagName||s.ignorePiTags);else{const t=new O(e.tagName);t.add(s.textNodeName,""),e.tagName!==e.tagExp&&e.attrExpPresent&&!0!==s.ignoreAttributes&&(t[":@"]=r),this.addChild(n,t,this.readonlyMatcher,a)}a=e.closeIndex+1}else if(33===h&&45===t.charCodeAt(a+2)&&45===t.charCodeAt(a+3)){const e=dt(t,"--\x3e",a+4,"Comment is not closed.");if(s.commentPropName){const r=t.substring(a+4,e-2);i=this.saveTextToParentTag(i,n,this.readonlyMatcher),n.add(s.commentPropName,[{[s.textNodeName]:r}])}a=e}else if(33===h&&68===t.charCodeAt(a+2)){const e=r.readDocType(t,a);this.entityDecoder.addInputEntities(e.entities),a=e.i}else if(33===h&&91===t.charCodeAt(a+2)){const e=dt(t,"]]>",a,"CDATA is not closed.")-2,r=t.substring(a+9,e);i=this.saveTextToParentTag(i,n,this.readonlyMatcher);let o=this.parseTextData(r,n.tagname,this.readonlyMatcher,!0,!1,!0,!0);null==o&&(o=""),s.cdataPropName?n.add(s.cdataPropName,[{[s.textNodeName]:r}]):n.add(s.textNodeName,o),a=e+2}else{let r=gt(t,a,s.removeNSPrefix);if(!r){const e=t.substring(Math.max(0,a-50),Math.min(o,a+50));throw new Error(`readTagExp returned undefined at position ${a}. Context: "${e}"`)}let h=r.tagName;const l=r.rawTagName;let u=r.tagExp,p=r.attrExpPresent,c=r.closeIndex;if(({tagName:h,tagExp:u}=Nt(s.transformTagName,h,u,s)),s.strictReservedNames&&(h===s.commentPropName||h===s.cdataPropName||h===s.textNodeName||h===s.attributesGroupName))throw new Error(`Invalid tag name: ${h}`);n&&i&&"!xml"!==n.tagname&&(i=this.saveTextToParentTag(i,n,this.readonlyMatcher,!1));const d=n;d&&s.unpairedTagsSet.has(d.tagname)&&(n=this.tagsNodeStack.pop(),this.matcher.pop());let f=!1;u.length>0&&u.lastIndexOf("/")===u.length-1&&(f=!0,"/"===h[h.length-1]?(h=h.substr(0,h.length-1),u=h):u=u.substr(0,u.length-1),p=h!==u);let g,m=null,x={};g=nt(l),h!==e.tagname&&this.matcher.push(h,{},g),h!==u&&p&&(m=this.buildAttributesMap(u,this.matcher,h),m&&(x=et(m,s))),h!==e.tagname&&(this.isCurrentNodeStopNode=this.isItStopNode());const N=a;if(this.isCurrentNodeStopNode){let e="";if(f)a=r.closeIndex;else if(s.unpairedTagsSet.has(h))a=r.closeIndex;else{const n=this.readStopNodeData(t,l,c+1);if(!n)throw new Error(`Unexpected end of ${l}`);a=n.i,e=n.tagContent}const i=new O(h);m&&(i[":@"]=m),i.add(s.textNodeName,e),this.matcher.pop(),this.isCurrentNodeStopNode=!1,this.addChild(n,i,this.readonlyMatcher,N)}else{if(f){({tagName:h,tagExp:u}=Nt(s.transformTagName,h,u,s));const t=new O(h);m&&(t[":@"]=m),this.addChild(n,t,this.readonlyMatcher,N),this.matcher.pop(),this.isCurrentNodeStopNode=!1}else{if(s.unpairedTagsSet.has(h)){const t=new O(h);m&&(t[":@"]=m),this.addChild(n,t,this.readonlyMatcher,N),this.matcher.pop(),this.isCurrentNodeStopNode=!1,a=r.closeIndex;continue}{const t=new O(h);if(this.tagsNodeStack.length>s.maxNestedTags)throw new Error("Maximum nested tags exceeded");this.tagsNodeStack.push(n),m&&(t[":@"]=m),this.addChild(n,t,this.readonlyMatcher,N),n=t}}i="",a=c}}}else i+=t[a];return e.child};function lt(t,e,n,i){this.options.captureMetaData||(i=void 0);const s=this.options.jPath?n.toString():n,r=this.options.updateTag(e.tagname,s,e[":@"]);!1===r||("string"==typeof r?(e.tagname=r,t.addChild(e,i)):t.addChild(e,i))}function ut(t,e,n){const i=this.options.processEntities;if(!i||!i.enabled)return t;if(i.allowedTags){const s=this.options.jPath?n.toString():n;if(!(Array.isArray(i.allowedTags)?i.allowedTags.includes(e):i.allowedTags(e,s)))return t}if(i.tagFilter){const s=this.options.jPath?n.toString():n;if(!i.tagFilter(e,s))return t}return this.entityDecoder.decode(t)}function pt(t,e,n,i){return t&&(void 0===i&&(i=0===e.child.length),void 0!==(t=this.parseTextData(t,e.tagname,n,!1,!!e[":@"]&&0!==Object.keys(e[":@"]).length,i))&&""!==t&&e.add(this.options.textNodeName,t),t=""),t}function ct(){return 0!==this.stopNodeExpressionsSet.size&&this.matcher.matchesAny(this.stopNodeExpressionsSet)}function dt(t,e,n,i){const s=t.indexOf(e,n);if(-1===s)throw new Error(i);return s+e.length-1}function ft(t,e,n,i){const s=t.indexOf(e,n);if(-1===s)throw new Error(i);return s}function gt(t,e,n,i=">"){const s=function(t,e,n=">"){let i=0;const s=t.length,r=n.charCodeAt(0),o=n.length>1?n.charCodeAt(1):-1;let a="",h=e;for(let n=e;n<s;n++){const e=t.charCodeAt(n);if(i)e===i&&(i=0);else if(34===e||39===e)i=e;else if(e===r){if(-1===o)return a+=t.substring(h,n),{data:a,index:n};if(t.charCodeAt(n+1)===o)return a+=t.substring(h,n),{data:a,index:n}}else 9!==e||i||(a+=t.substring(h,n)+" ",h=n+1)}}(t,e+1,i);if(!s)return;let r=s.data;const o=s.index,a=r.search(/\s/);let h=r,l=!0;-1!==a&&(h=r.substring(0,a),r=r.substring(a+1).trimStart());const u=h;if(n){const t=h.indexOf(":");-1!==t&&(h=h.substr(t+1),l=h!==s.data.substr(t+1))}return{tagName:h,tagExp:r,closeIndex:o,attrExpPresent:l,rawTagName:u}}function mt(t,e,n){const i=n;let s=1;const r=t.length;for(;n<r;n++)if("<"===t[n]){const r=t.charCodeAt(n+1);if(47===r){const r=ft(t,">",n,`${e} is not closed`);if(t.substring(n+2,r).trim()===e&&(s--,0===s))return{tagContent:t.substring(i,n),i:r};n=r}else if(63===r)n=dt(t,"?>",n+1,"StopNode is not closed.");else if(33===r&&45===t.charCodeAt(n+2)&&45===t.charCodeAt(n+3))n=dt(t,"--\x3e",n+3,"StopNode is not closed.");else if(33===r&&91===t.charCodeAt(n+2))n=dt(t,"]]>",n,"StopNode is not closed.")-2;else{const i=gt(t,n,!1);i&&((i&&i.tagName)===e&&"/"!==i.tagExp[i.tagExp.length-1]&&s++,n=i.closeIndex)}}}function xt(t,e,n){if(e&&"string"==typeof t){const e=t.trim();return"true"===e||"false"!==e&&function(t,e={}){if(e=Object.assign({},L,e),!t||"string"!=typeof t)return t;let n=t.trim();if(0===n.length)return t;if(void 0!==e.skipLike&&e.skipLike.test(n))return t;if("0"===n)return 0;if(e.hex&&j.test(n))return function(t){if(parseInt)return parseInt(t,16);if(Number.parseInt)return Number.parseInt(t,16);if(window&&window.parseInt)return window.parseInt(t,16);throw new Error("parseInt, Number.parseInt, window.parseInt are not supported")}(n);if(isFinite(n)){if(n.includes("e")||n.includes("E"))return function(t,e,n){if(!n.eNotation)return t;const i=e.match(k);if(i){let s=i[1]||"";const r=-1===i[3].indexOf("e")?"E":"e",o=i[2],a=s?t[o.length+1]===r:t[o.length]===r;return o.length>1&&a?t:(1!==o.length||!i[3].startsWith(`.${r}`)&&i[3][0]!==r)&&o.length>0?n.leadingZeros&&!a?(e=(i[1]||"")+i[3],Number(e)):t:Number(e)}return t}(t,n,e);{const s=V.exec(n);if(s){const r=s[1]||"",o=s[2];let a=(i=s[3])&&-1!==i.indexOf(".")?("."===(i=i.replace(/0+$/,""))?i="0":"."===i[0]?i="0"+i:"."===i[i.length-1]&&(i=i.substring(0,i.length-1)),i):i;const h=r?"."===t[o.length+1]:"."===t[o.length];if(!e.leadingZeros&&(o.length>1||1===o.length&&!h))return t;{const i=Number(n),s=String(i);if(0===i)return i;if(-1!==s.search(/[eE]/))return e.eNotation?i:t;if(-1!==n.indexOf("."))return"0"===s||s===a||s===`${r}${a}`?i:t;let h=o?a:n;return o?h===s||r+h===s?i:t:h===s||h===r+s?i:t}}return t}}var i;return function(t,e,n){const i=e===1/0;switch(n.infinity.toLowerCase()){case"null":return null;case"infinity":return e;case"string":return i?"Infinity":"-Infinity";default:return t}}(t,Number(n),e)}(t,n)}return void 0!==t?t:""}function Nt(t,e,n,i){if(t){const i=t(e);n===e&&(n=i),e=i}return{tagName:e=bt(e,i),tagExp:n}}function bt(t,e){if(a.includes(t))throw new Error(`[SECURITY] Invalid name: "${t}" is a reserved JavaScript keyword that could cause prototype pollution`);return o.includes(t)?e.onDangerousProperty(t):t}const yt=O.getMetaDataSymbol();function Et(t,e){if(!t||"object"!=typeof t)return{};if(!e)return t;const n={};for(const i in t)i.startsWith(e)?n[i.substring(e.length)]=t[i]:n[i]=t[i];return n}function wt(t,e,n,i){return vt(t,e,n,i)}function vt(t,e,n,i){let s;const r={};for(let o=0;o<t.length;o++){const a=t[o],h=St(a);if(void 0!==h&&h!==e.textNodeName){const t=Et(a[":@"]||{},e.attributeNamePrefix);n.push(h,t)}if(h===e.textNodeName)void 0===s?s=a[h]:s+=""+a[h];else{if(void 0===h)continue;if(a[h]){let t=vt(a[h],e,n,i);const s=At(t,e);if(0===Object.keys(t).length&&e.alwaysCreateTextNode&&(t[e.textNodeName]=""),a[":@"]?_t(t,a[":@"],i,e):1!==Object.keys(t).length||void 0===t[e.textNodeName]||e.alwaysCreateTextNode?0===Object.keys(t).length&&(e.alwaysCreateTextNode?t[e.textNodeName]="":t=""):t=t[e.textNodeName],void 0!==a[yt]&&"object"==typeof t&&null!==t&&(t[yt]=a[yt]),void 0!==r[h]&&Object.prototype.hasOwnProperty.call(r,h))Array.isArray(r[h])||(r[h]=[r[h]]),r[h].push(t);else{const n=e.jPath?i.toString():i;e.isArray(h,n,s)?r[h]=[t]:r[h]=t}void 0!==h&&h!==e.textNodeName&&n.pop()}}}return"string"==typeof s?s.length>0&&(r[e.textNodeName]=s):void 0!==s&&(r[e.textNodeName]=s),r}function St(t){const e=Object.keys(t);for(let t=0;t<e.length;t++){const n=e[t];if(":@"!==n)return n}}function _t(t,e,n,i){if(e){const s=Object.keys(e),r=s.length;for(let o=0;o<r;o++){const r=s[o],a=r.startsWith(i.attributeNamePrefix)?r.substring(i.attributeNamePrefix.length):r,h=i.jPath?n.toString()+"."+a:n;i.isArray(r,h,!0,!0)?t[r]=[e[r]]:t[r]=e[r]}}}function At(t,e){const{textNodeName:n}=e,i=Object.keys(t).length;return 0===i||!(1!==i||!t[n]&&"boolean"!=typeof t[n]&&0!==t[n])}class Tt{constructor(t){this.externalEntities={},this.options=C(t)}parse(t,e){if("string"!=typeof t&&t.toString)t=t.toString();else if("string"!=typeof t)throw new Error("XML data is accepted in String or Bytes[] form.");if(e){!0===e&&(e={});const n=l(t,e);if(!0!==n)throw Error(`${n.err.msg}:${n.err.line}:${n.err.col}`)}const n=new it(this.options,this.externalEntities),i=n.parseXml(t);return this.options.preserveOrder||void 0===i?i:wt(i,this.options,n.matcher,n.readonlyMatcher)}addEntity(t,e){if(-1!==e.indexOf("&"))throw new Error("Entity value can't have '&'");if(-1!==t.indexOf("&")||-1!==t.indexOf(";"))throw new Error("An entity must be set without '&' and ';'. Eg. use '#xD' for '&#xD;'");if("&"===e)throw new Error("An entity with value '&' is not permitted");this.externalEntities[t]=e}static getMetaDataSymbol(){return O.getMetaDataSymbol()}}function Ct(t){return String(t).replace(/--/g,"- -").replace(/--/g,"- -").replace(/-$/,"- ")}function Pt(t){return String(t).replace(/\]\]>/g,"]]]]><![CDATA[>")}function Ot(t){return String(t).replace(/"/g,"&quot;").replace(/'/g,"&apos;")}function $t(t,e){let n="";e.format&&e.indentBy.length>0&&(n="\n");const i=[];if(e.stopNodes&&Array.isArray(e.stopNodes))for(let t=0;t<e.stopNodes.length;t++){const n=e.stopNodes[t];"string"==typeof n?i.push(new G(n)):n instanceof G&&i.push(n)}return It(t,e,n,new R,i)}function It(t,e,n,i,s){let r="",o=!1;if(e.maxNestedTags&&i.getDepth()>e.maxNestedTags)throw new Error("Maximum nested tags exceeded");if(!Array.isArray(t)){if(null!=t){let n=t.toString();return n=Ft(n,e),n}return""}for(let a=0;a<t.length;a++){const h=t[a],l=Vt(h);if(void 0===l)continue;const u=Dt(h[":@"],e);i.push(l,u);const p=kt(i,s);if(l===e.textNodeName){let t=h[l];p||(t=e.tagValueProcessor(l,t),t=Ft(t,e)),o&&(r+=n),r+=t,o=!1,i.pop();continue}if(l===e.cdataPropName){o&&(r+=n),r+=`<![CDATA[${Pt(h[l][0][e.textNodeName])}]]>`,o=!1,i.pop();continue}if(l===e.commentPropName){r+=n+`\x3c!--${Ct(h[l][0][e.textNodeName])}--\x3e`,o=!0,i.pop();continue}if("?"===l[0]){const t=Lt(h[":@"],e,p),s="?xml"===l?"":n;let a=h[l][0][e.textNodeName];a=0!==a.length?" "+a:"",r+=s+`<${l}${a}${t}?>`,o=!0,i.pop();continue}let c=n;""!==c&&(c+=e.indentBy);const d=n+`<${l}${Lt(h[":@"],e,p)}`;let f;f=p?Mt(h[l],e):It(h[l],e,c,i,s),-1!==e.unpairedTags.indexOf(l)?e.suppressUnpairedNode?r+=d+">":r+=d+"/>":f&&0!==f.length||!e.suppressEmptyNode?f&&f.endsWith(">")?r+=d+`>${f}${n}</${l}>`:(r+=d+">",f&&""!==n&&(f.includes("/>")||f.includes("</"))?r+=n+e.indentBy+f+n:r+=f,r+=`</${l}>`):r+=d+"/>",o=!0,i.pop()}return r}function Dt(t,e){if(!t||e.ignoreAttributes)return null;const n={};let i=!1;for(let s in t)Object.prototype.hasOwnProperty.call(t,s)&&(n[s.startsWith(e.attributeNamePrefix)?s.substr(e.attributeNamePrefix.length):s]=Ot(t[s]),i=!0);return i?n:null}function Mt(t,e){if(!Array.isArray(t))return null!=t?t.toString():"";let n="";for(let i=0;i<t.length;i++){const s=t[i],r=Vt(s);if(r===e.textNodeName)n+=s[r];else if(r===e.cdataPropName)n+=s[r][0][e.textNodeName];else if(r===e.commentPropName)n+=s[r][0][e.textNodeName];else{if(r&&"?"===r[0])continue;if(r){const t=jt(s[":@"],e),i=Mt(s[r],e);i&&0!==i.length?n+=`<${r}${t}>${i}</${r}>`:n+=`<${r}${t}/>`}}}return n}function jt(t,e){let n="";if(t&&!e.ignoreAttributes)for(let i in t){if(!Object.prototype.hasOwnProperty.call(t,i))continue;let s=t[i];!0===s&&e.suppressBooleanAttributes?n+=` ${i.substr(e.attributeNamePrefix.length)}`:n+=` ${i.substr(e.attributeNamePrefix.length)}="${Ot(s)}"`}return n}function Vt(t){const e=Object.keys(t);for(let n=0;n<e.length;n++){const i=e[n];if(Object.prototype.hasOwnProperty.call(t,i)&&":@"!==i)return i}}function Lt(t,e,n){let i="";if(t&&!e.ignoreAttributes)for(let s in t){if(!Object.prototype.hasOwnProperty.call(t,s))continue;let r;n?r=t[s]:(r=e.attributeValueProcessor(s,t[s]),r=Ft(r,e)),!0===r&&e.suppressBooleanAttributes?i+=` ${s.substr(e.attributeNamePrefix.length)}`:i+=` ${s.substr(e.attributeNamePrefix.length)}="${Ot(r)}"`}return i}function kt(t,e){if(!e||0===e.length)return!1;for(let n=0;n<e.length;n++)if(t.matches(e[n]))return!0;return!1}function Ft(t,e){if(t&&t.length>0&&e.processEntities)for(let n=0;n<e.entities.length;n++){const i=e.entities[n];t=t.replace(i.regex,i.val)}return t}const Rt={attributeNamePrefix:"@_",attributesGroupName:!1,textNodeName:"#text",ignoreAttributes:!0,cdataPropName:!1,format:!1,indentBy:"  ",suppressEmptyNode:!1,suppressUnpairedNode:!0,suppressBooleanAttributes:!0,tagValueProcessor:function(t,e){return e},attributeValueProcessor:function(t,e){return e},preserveOrder:!1,commentPropName:!1,unpairedTags:[],entities:[{regex:new RegExp("&","g"),val:"&amp;"},{regex:new RegExp(">","g"),val:"&gt;"},{regex:new RegExp("<","g"),val:"&lt;"},{regex:new RegExp("'","g"),val:"&apos;"},{regex:new RegExp('"',"g"),val:"&quot;"}],processEntities:!0,stopNodes:[],oneListGroup:!1,maxNestedTags:100,jPath:!0};function Gt(t){if(this.options=Object.assign({},Rt,t),this.options.stopNodes&&Array.isArray(this.options.stopNodes)&&(this.options.stopNodes=this.options.stopNodes.map(t=>"string"==typeof t&&t.startsWith("*.")?".."+t.substring(2):t)),this.stopNodeExpressions=[],this.options.stopNodes&&Array.isArray(this.options.stopNodes))for(let t=0;t<this.options.stopNodes.length;t++){const e=this.options.stopNodes[t];"string"==typeof e?this.stopNodeExpressions.push(new G(e)):e instanceof G&&this.stopNodeExpressions.push(e)}var e;!0===this.options.ignoreAttributes||this.options.attributesGroupName?this.isAttribute=function(){return!1}:(this.ignoreAttributesFn="function"==typeof(e=this.options.ignoreAttributes)?e:Array.isArray(e)?t=>{for(const n of e){if("string"==typeof n&&t===n)return!0;if(n instanceof RegExp&&n.test(t))return!0}}:()=>!1,this.attrPrefixLen=this.options.attributeNamePrefix.length,this.isAttribute=Wt),this.processTextOrObjNode=Bt,this.options.format?(this.indentate=Ut,this.tagEndChar=">\n",this.newLine="\n"):(this.indentate=function(){return""},this.tagEndChar=">",this.newLine="")}function Bt(t,e,n,i){const s=this.extractAttributes(t);if(i.push(e,s),this.checkStopNode(i)){const s=this.buildRawContent(t),r=this.buildAttributesForStopNode(t);return i.pop(),this.buildObjectNode(s,e,r,n)}const r=this.j2x(t,n+1,i);return i.pop(),void 0!==t[this.options.textNodeName]&&1===Object.keys(t).length?this.buildTextValNode(t[this.options.textNodeName],e,r.attrStr,n,i):this.buildObjectNode(r.val,e,r.attrStr,n)}function Ut(t){return this.options.indentBy.repeat(t)}function Wt(t){return!(!t.startsWith(this.options.attributeNamePrefix)||t===this.options.textNodeName)&&t.substr(this.attrPrefixLen)}Gt.prototype.build=function(t){if(this.options.preserveOrder)return $t(t,this.options);{Array.isArray(t)&&this.options.arrayNodeName&&this.options.arrayNodeName.length>1&&(t={[this.options.arrayNodeName]:t});const e=new R;return this.j2x(t,0,e).val}},Gt.prototype.j2x=function(t,e,n){let i="",s="";if(this.options.maxNestedTags&&n.getDepth()>=this.options.maxNestedTags)throw new Error("Maximum nested tags exceeded");const r=this.options.jPath?n.toString():n,o=this.checkStopNode(n);for(let a in t)if(Object.prototype.hasOwnProperty.call(t,a))if(void 0===t[a])this.isAttribute(a)&&(s+="");else if(null===t[a])this.isAttribute(a)||a===this.options.cdataPropName||a===this.options.commentPropName?s+="":"?"===a[0]?s+=this.indentate(e)+"<"+a+"?"+this.tagEndChar:s+=this.indentate(e)+"<"+a+"/"+this.tagEndChar;else if(t[a]instanceof Date)s+=this.buildTextValNode(t[a],a,"",e,n);else if("object"!=typeof t[a]){const h=this.isAttribute(a);if(h&&!this.ignoreAttributesFn(h,r))i+=this.buildAttrPairStr(h,""+t[a],o);else if(!h)if(a===this.options.textNodeName){let e=this.options.tagValueProcessor(a,""+t[a]);s+=this.replaceEntitiesValue(e)}else{n.push(a);const i=this.checkStopNode(n);if(n.pop(),i){const n=""+t[a];s+=""===n?this.indentate(e)+"<"+a+this.closeTag(a)+this.tagEndChar:this.indentate(e)+"<"+a+">"+n+"</"+a+this.tagEndChar}else s+=this.buildTextValNode(t[a],a,"",e,n)}}else if(Array.isArray(t[a])){const i=t[a].length;let r="",o="";for(let h=0;h<i;h++){const i=t[a][h];if(void 0===i);else if(null===i)"?"===a[0]?s+=this.indentate(e)+"<"+a+"?"+this.tagEndChar:s+=this.indentate(e)+"<"+a+"/"+this.tagEndChar;else if("object"==typeof i)if(this.options.oneListGroup){n.push(a);const t=this.j2x(i,e+1,n);n.pop(),r+=t.val,this.options.attributesGroupName&&i.hasOwnProperty(this.options.attributesGroupName)&&(o+=t.attrStr)}else r+=this.processTextOrObjNode(i,a,e,n);else if(this.options.oneListGroup){let t=this.options.tagValueProcessor(a,i);t=this.replaceEntitiesValue(t),r+=t}else{n.push(a);const t=this.checkStopNode(n);if(n.pop(),t){const t=""+i;r+=""===t?this.indentate(e)+"<"+a+this.closeTag(a)+this.tagEndChar:this.indentate(e)+"<"+a+">"+t+"</"+a+this.tagEndChar}else r+=this.buildTextValNode(i,a,"",e,n)}}this.options.oneListGroup&&(r=this.buildObjectNode(r,a,o,e)),s+=r}else if(this.options.attributesGroupName&&a===this.options.attributesGroupName){const e=Object.keys(t[a]),n=e.length;for(let s=0;s<n;s++)i+=this.buildAttrPairStr(e[s],""+t[a][e[s]],o)}else s+=this.processTextOrObjNode(t[a],a,e,n);return{attrStr:i,val:s}},Gt.prototype.buildAttrPairStr=function(t,e,n){return n||(e=this.options.attributeValueProcessor(t,""+e),e=this.replaceEntitiesValue(e)),this.options.suppressBooleanAttributes&&"true"===e?" "+t:" "+t+'="'+Ot(e)+'"'},Gt.prototype.extractAttributes=function(t){if(!t||"object"!=typeof t)return null;const e={};let n=!1;if(this.options.attributesGroupName&&t[this.options.attributesGroupName]){const i=t[this.options.attributesGroupName];for(let t in i)Object.prototype.hasOwnProperty.call(i,t)&&(e[t.startsWith(this.options.attributeNamePrefix)?t.substring(this.options.attributeNamePrefix.length):t]=Ot(i[t]),n=!0)}else for(let i in t){if(!Object.prototype.hasOwnProperty.call(t,i))continue;const s=this.isAttribute(i);s&&(e[s]=Ot(t[i]),n=!0)}return n?e:null},Gt.prototype.buildRawContent=function(t){if("string"==typeof t)return t;if("object"!=typeof t||null===t)return String(t);if(void 0!==t[this.options.textNodeName])return t[this.options.textNodeName];let e="";for(let n in t){if(!Object.prototype.hasOwnProperty.call(t,n))continue;if(this.isAttribute(n))continue;if(this.options.attributesGroupName&&n===this.options.attributesGroupName)continue;const i=t[n];if(n===this.options.textNodeName)e+=i;else if(Array.isArray(i)){for(let t of i)if("string"==typeof t||"number"==typeof t)e+=`<${n}>${t}</${n}>`;else if("object"==typeof t&&null!==t){const i=this.buildRawContent(t),s=this.buildAttributesForStopNode(t);e+=""===i?`<${n}${s}/>`:`<${n}${s}>${i}</${n}>`}}else if("object"==typeof i&&null!==i){const t=this.buildRawContent(i),s=this.buildAttributesForStopNode(i);e+=""===t?`<${n}${s}/>`:`<${n}${s}>${t}</${n}>`}else e+=`<${n}>${i}</${n}>`}return e},Gt.prototype.buildAttributesForStopNode=function(t){if(!t||"object"!=typeof t)return"";let e="";if(this.options.attributesGroupName&&t[this.options.attributesGroupName]){const n=t[this.options.attributesGroupName];for(let t in n){if(!Object.prototype.hasOwnProperty.call(n,t))continue;const i=t.startsWith(this.options.attributeNamePrefix)?t.substring(this.options.attributeNamePrefix.length):t,s=n[t];!0===s&&this.options.suppressBooleanAttributes?e+=" "+i:e+=" "+i+'="'+s+'"'}}else for(let n in t){if(!Object.prototype.hasOwnProperty.call(t,n))continue;const i=this.isAttribute(n);if(i){const s=t[n];!0===s&&this.options.suppressBooleanAttributes?e+=" "+i:e+=" "+i+'="'+s+'"'}}return e},Gt.prototype.buildObjectNode=function(t,e,n,i){if(""===t)return"?"===e[0]?this.indentate(i)+"<"+e+n+"?"+this.tagEndChar:this.indentate(i)+"<"+e+n+this.closeTag(e)+this.tagEndChar;{let s="</"+e+this.tagEndChar,r="";return"?"===e[0]&&(r="?",s=""),!n&&""!==n||-1!==t.indexOf("<")?!1!==this.options.commentPropName&&e===this.options.commentPropName&&0===r.length?this.indentate(i)+`\x3c!--${t}--\x3e`+this.newLine:this.indentate(i)+"<"+e+n+r+this.tagEndChar+t+this.indentate(i)+s:this.indentate(i)+"<"+e+n+r+">"+t+s}},Gt.prototype.closeTag=function(t){let e="";return-1!==this.options.unpairedTags.indexOf(t)?this.options.suppressUnpairedNode||(e="/"):e=this.options.suppressEmptyNode?"/":`></${t}`,e},Gt.prototype.checkStopNode=function(t){if(!this.stopNodeExpressions||0===this.stopNodeExpressions.length)return!1;for(let e=0;e<this.stopNodeExpressions.length;e++)if(t.matches(this.stopNodeExpressions[e]))return!0;return!1},Gt.prototype.buildTextValNode=function(t,e,n,i,s){if(!1!==this.options.cdataPropName&&e===this.options.cdataPropName){const e=Pt(t);return this.indentate(i)+`<![CDATA[${e}]]>`+this.newLine}if(!1!==this.options.commentPropName&&e===this.options.commentPropName){const e=Ct(t);return this.indentate(i)+`\x3c!--${e}--\x3e`+this.newLine}if("?"===e[0])return this.indentate(i)+"<"+e+n+"?"+this.tagEndChar;{let s=this.options.tagValueProcessor(e,t);return s=this.replaceEntitiesValue(s),""===s?this.indentate(i)+"<"+e+n+this.closeTag(e)+this.tagEndChar:this.indentate(i)+"<"+e+n+">"+s+"</"+e+this.tagEndChar}},Gt.prototype.replaceEntitiesValue=function(t){if(t&&t.length>0&&this.options.processEntities)for(let e=0;e<this.options.entities.length;e++){const n=this.options.entities[e];t=t.replace(n.regex,n.val)}return t};const Xt=Gt,Yt={validate:l};module.exports=e})();
-
-/***/ }),
-
 /***/ 27413:
 /***/ ((module) => {
 
 "use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-s3","description":"AWS SDK for JavaScript S3 Client for Node.js, Browser and React Native","version":"3.1069.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline","build:es":"premove dist-es && tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"premove dist-types && tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service","test":"yarn g:vitest run --passWithNoTests","test:watch":"yarn g:vitest watch --passWithNoTests","test:integration":"yarn g:vitest run --passWithNoTests -c vitest.config.integ.mts","test:integration:watch":"yarn g:vitest watch --passWithNoTests -c vitest.config.integ.mts","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:browser":"yarn g:vitest run -c vitest.config.browser.mts","test:browser:watch":"yarn g:vitest watch -c vitest.config.browser.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha1-browser":"5.2.0","@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"^3.974.21","@aws-sdk/credential-provider-node":"^3.972.56","@aws-sdk/middleware-flexible-checksums":"^3.974.31","@aws-sdk/middleware-sdk-s3":"^3.972.52","@aws-sdk/signature-v4-multi-region":"^3.996.35","@aws-sdk/types":"^3.973.13","@smithy/core":"^3.24.6","@smithy/fetch-http-handler":"^5.4.6","@smithy/node-http-handler":"^4.7.6","@smithy/types":"^4.14.3","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/signature-v4-crt":"3.1069.0","@smithy/snapshot-testing":"^2.1.7","@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3","vitest":"^4.0.17"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.5":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/sdk-for-javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-s3","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-s3"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-s3","description":"AWS SDK for JavaScript S3 Client for Node.js, Browser and React Native","version":"3.1075.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline","build:es":"premove dist-es && tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"premove dist-types && tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service","test":"yarn g:vitest run --passWithNoTests","test:watch":"yarn g:vitest watch --passWithNoTests","test:integration":"yarn g:vitest run --passWithNoTests -c vitest.config.integ.mts","test:integration:watch":"yarn g:vitest watch --passWithNoTests -c vitest.config.integ.mts","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:browser":"yarn g:vitest run -c vitest.config.browser.mts","test:browser:watch":"yarn g:vitest watch -c vitest.config.browser.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha1-browser":"5.2.0","@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"^3.974.23","@aws-sdk/credential-provider-node":"^3.972.58","@aws-sdk/middleware-flexible-checksums":"^3.974.33","@aws-sdk/middleware-sdk-s3":"^3.972.54","@aws-sdk/signature-v4-multi-region":"^3.996.35","@aws-sdk/types":"^3.973.13","@smithy/core":"^3.24.6","@smithy/fetch-http-handler":"^5.4.6","@smithy/node-http-handler":"^4.7.6","@smithy/types":"^4.14.3","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/signature-v4-crt":"3.1075.0","@smithy/snapshot-testing":"^2.1.7","@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3","vitest":"^4.0.17"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.5":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/sdk-for-javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-s3","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-s3"}}');
 
 /***/ }),
 

@@ -8,6 +8,7 @@ import {
   handleClosed,
   handleComment,
   isReadyLabel,
+  shouldSkipDuplicateRouting,
 } from "./router";
 import { COMMENT_MARKER } from "./comment";
 import { handleSchedule } from "./reminders";
@@ -229,6 +230,17 @@ async function run(): Promise<void> {
       !isReadyLabel(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases)
     ) {
       core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
+      return;
+    }
+
+    const defersTo = shouldSkipDuplicateRouting(
+      labelName,
+      (pr.labels ?? []).map((l: { name: string }) => l.name),
+      inputs.readyLabel,
+      teamsConfig.ready_label_aliases
+    );
+    if (defersTo) {
+      core.info(`Skipping duplicate routing: "${labelName}" defers to "${defersTo}"`);
       return;
     }
 

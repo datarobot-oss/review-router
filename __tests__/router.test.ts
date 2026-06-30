@@ -8,6 +8,7 @@ import {
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
   isReadyLabel,
+  shouldSkipDuplicateRouting,
 } from "../src/router";
 import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
@@ -595,6 +596,44 @@ describe("isReadyLabel", () => {
   it("defaults aliases to empty when not provided", () => {
     expect(isReadyLabel("Ready for Review", "Ready for Review")).toBe(true);
     expect(isReadyLabel("00 - Ready for Review", "Ready for Review")).toBe(false);
+  });
+});
+
+describe("shouldSkipDuplicateRouting", () => {
+  const primary = "Ready for Review";
+  const aliases = ["00 - Ready for Review"];
+
+  it("returns null when no other ready labels exist", () => {
+    expect(shouldSkipDuplicateRouting(primary, [primary, "bug"], primary, aliases)).toBeNull();
+  });
+
+  it("skips alias when primary is also present", () => {
+    const labels = [primary, "00 - Ready for Review", "bug"];
+    expect(shouldSkipDuplicateRouting("00 - Ready for Review", labels, primary, aliases)).toBe(
+      primary
+    );
+  });
+
+  it("processes primary when alias is also present", () => {
+    const labels = [primary, "00 - Ready for Review", "bug"];
+    expect(shouldSkipDuplicateRouting(primary, labels, primary, aliases)).toBeNull();
+  });
+
+  it("picks alphabetically first alias when primary is absent", () => {
+    const twoAliases = ["00 - Ready for Review", "01 - Ready for Review"];
+    const labels = [...twoAliases, "bug"];
+    expect(shouldSkipDuplicateRouting("01 - Ready for Review", labels, primary, twoAliases)).toBe(
+      "00 - Ready for Review"
+    );
+    expect(
+      shouldSkipDuplicateRouting("00 - Ready for Review", labels, primary, twoAliases)
+    ).toBeNull();
+  });
+
+  it("returns null when only non-ready labels exist alongside the trigger", () => {
+    expect(
+      shouldSkipDuplicateRouting(primary, [primary, "enhancement", "bug"], primary, aliases)
+    ).toBeNull();
   });
 });
 

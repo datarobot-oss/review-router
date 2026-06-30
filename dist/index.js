@@ -82750,6 +82750,11 @@ async function run() {
             core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
             return;
         }
+        const defersTo = (0, router_1.shouldSkipDuplicateRouting)(labelName, (pr.labels ?? []).map((l) => l.name), inputs.readyLabel, teamsConfig.ready_label_aliases);
+        if (defersTo) {
+            core.info(`Skipping duplicate routing: "${labelName}" defers to "${defersTo}"`);
+            return;
+        }
         await (0, router_1.handleLabeled)(octokit, {
             owner,
             repo,
@@ -83163,6 +83168,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EXTERNAL_CONTRIBUTION_LABEL = void 0;
 exports.isReadyLabel = isReadyLabel;
+exports.shouldSkipDuplicateRouting = shouldSkipDuplicateRouting;
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
@@ -83196,6 +83202,19 @@ async function withRetry(fn, maxAttempts = 3, delayMs = 1000) {
 }
 function isReadyLabel(name, readyLabel, aliases = []) {
     return name === readyLabel || aliases.includes(name);
+}
+function shouldSkipDuplicateRouting(triggeringLabel, allLabels, readyLabel, aliases = []) {
+    const otherReady = allLabels.filter((l) => l !== triggeringLabel && isReadyLabel(l, readyLabel, aliases));
+    if (otherReady.length === 0)
+        return null;
+    const allReady = [triggeringLabel, ...otherReady].sort((a, b) => {
+        if (a === readyLabel)
+            return -1;
+        if (b === readyLabel)
+            return 1;
+        return a.localeCompare(b);
+    });
+    return allReady[0] !== triggeringLabel ? allReady[0] : null;
 }
 async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) {
     const refs = (0, comment_1.extractSlackRefsFromDescription)(prBody);

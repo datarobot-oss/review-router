@@ -50,6 +50,25 @@ export function isReadyLabel(name: string, readyLabel: string, aliases: string[]
   return name === readyLabel || aliases.includes(name);
 }
 
+export function shouldSkipDuplicateRouting(
+  triggeringLabel: string,
+  allLabels: string[],
+  readyLabel: string,
+  aliases: string[] = []
+): string | null {
+  const otherReady = allLabels.filter(
+    (l) => l !== triggeringLabel && isReadyLabel(l, readyLabel, aliases)
+  );
+  if (otherReady.length === 0) return null;
+
+  const allReady = [triggeringLabel, ...otherReady].sort((a, b) => {
+    if (a === readyLabel) return -1;
+    if (b === readyLabel) return 1;
+    return a.localeCompare(b);
+  });
+  return allReady[0] !== triggeringLabel ? allReady[0] : null;
+}
+
 export interface LabeledContext {
   owner: string;
   repo: string;

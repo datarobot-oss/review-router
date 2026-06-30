@@ -3846,34 +3846,6 @@ exports.uint32ArrayFrom = uint32ArrayFrom;
 
 /***/ }),
 
-/***/ 9151:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { AwsCrc32 } = __nccwpck_require__(2110);
-const { numToUint8 } = __nccwpck_require__(5667);
-const zlib = __nccwpck_require__(8522);
-class NodeCrc32 {
-    checksum = 0;
-    update(data) {
-        this.checksum = zlib.crc32(data, this.checksum);
-    }
-    async digest() {
-        return numToUint8(this.checksum);
-    }
-    reset() {
-        this.checksum = 0;
-    }
-}
-exports.getCrc32ChecksumAlgorithmFunction = () => {
-    if (typeof zlib.crc32 === "undefined") {
-        return AwsCrc32;
-    }
-    return NodeCrc32;
-};
-
-
-/***/ }),
-
 /***/ 6251:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -3881,7 +3853,9 @@ const { setFeature } = __nccwpck_require__(5152);
 const { HttpRequest } = __nccwpck_require__(3422);
 const { isArrayBuffer, toUint8Array, createBufferedReadable, createChecksumStream } = __nccwpck_require__(2430);
 const { AwsCrc32c } = __nccwpck_require__(1491);
-const { getCrc32ChecksumAlgorithmFunction } = __nccwpck_require__(9151);
+const { AwsCrc32 } = __nccwpck_require__(2110);
+const { numToUint8 } = __nccwpck_require__(5667);
+const zlib = __nccwpck_require__(8522);
 const { normalizeProvider } = __nccwpck_require__(2658);
 
 const generateCRC64NVMETable = () => {
@@ -4074,6 +4048,25 @@ const hasHeaderWithPrefix = (headerPrefix, headers) => {
 };
 
 const isStreaming = (body) => body !== undefined && typeof body !== "string" && !ArrayBuffer.isView(body) && !isArrayBuffer(body);
+
+class NodeCrc32 {
+    checksum = 0;
+    update(data) {
+        this.checksum = zlib.crc32(data, this.checksum);
+    }
+    async digest() {
+        return numToUint8(this.checksum);
+    }
+    reset() {
+        this.checksum = 0;
+    }
+}
+const getCrc32ChecksumAlgorithmFunction = () => {
+    if (typeof zlib.crc32 === "undefined") {
+        return AwsCrc32;
+    }
+    return NodeCrc32;
+};
 
 const CLIENT_SUPPORTED_ALGORITHMS = [
     ChecksumAlgorithm.CRC32,
@@ -4428,139 +4421,29 @@ exports.resolveFlexibleChecksumsConfig = resolveFlexibleChecksumsConfig;
 
 /***/ }),
 
-/***/ 7168:
+/***/ 3711:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
-const { resolveAwsSdkSigV4AConfig, resolveAwsSdkSigV4Config } = __nccwpck_require__(7523);
+const { awsEndpointFunctions, emitWarningIfUnsupportedVersion: emitWarningIfUnsupportedVersion$1, createDefaultUserAgentProvider, NODE_APP_ID_CONFIG_OPTIONS, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, resolveUserAgentConfig, resolveHostHeaderConfig, getUserAgentPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin } = __nccwpck_require__(5152);
+const { NODE_RESPONSE_CHECKSUM_VALIDATION_CONFIG_OPTIONS, NODE_REQUEST_CHECKSUM_CALCULATION_CONFIG_OPTIONS, resolveFlexibleChecksumsConfig, getFlexibleChecksumsPlugin } = __nccwpck_require__(9836);
+const { getThrow200ExceptionsPlugin, S3RestXmlProtocol, NODE_USE_ARN_REGION_CONFIG_OPTIONS, NODE_DISABLE_S3_EXPRESS_SESSION_AUTH_OPTIONS, resolveS3Config, getValidateBucketNamePlugin, getAddExpectContinuePlugin, getRegionRedirectMiddlewarePlugin, getS3ExpressPlugin, getS3ExpressHttpSigningPlugin, getSsecPlugin, getLocationConstraintPlugin, getS3ExpiresMiddlewarePlugin, getCheckContentLengthHeaderPlugin } = __nccwpck_require__(5028);
+const { getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin, createPaginator } = __nccwpck_require__(402);
+const { normalizeProvider, getSmithyContext, ServiceException, Command, NoOpLogger, emitWarningIfUnsupportedVersion, loadConfigsForDefaultMode, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, Client, createWaiter, checkExceptions, WaiterState, createAggregatedClient } = __nccwpck_require__(2658);
+exports.$Command = Command;
+exports.__Client = Client;
+const { resolveDefaultsModeConfig, loadConfig, NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, NODE_REGION_CONFIG_OPTIONS, NODE_REGION_CONFIG_FILE_OPTIONS, resolveRegionConfig } = __nccwpck_require__(7291);
+const { BinaryDecisionDiagram, EndpointCache, decideEndpoint, customEndpointFunctions, resolveParams, getEndpointPlugin, resolveEndpointConfig } = __nccwpck_require__(2085);
+const { eventStreamSerdeProvider, resolveEventStreamSerdeConfig } = __nccwpck_require__(6579);
+const { parseUrl, getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig, getContentLengthPlugin } = __nccwpck_require__(3422);
+const { DEFAULT_RETRY_MODE, NODE_RETRY_MODE_CONFIG_OPTIONS, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, resolveRetryConfig, getRetryPlugin } = __nccwpck_require__(3609);
+const { TypeRegistry, getSchemaSerdePlugin } = __nccwpck_require__(6890);
+const { resolveAwsSdkSigV4Config, resolveAwsSdkSigV4AConfig, AwsSdkSigV4Signer, AwsSdkSigV4ASigner, NODE_SIGV4A_CONFIG_OPTIONS, NODE_AUTH_SCHEME_PREFERENCE_OPTIONS } = __nccwpck_require__(7523);
 const { SignatureV4MultiRegion } = __nccwpck_require__(5785);
-const { getSmithyContext, normalizeProvider } = __nccwpck_require__(2658);
-const { resolveParams } = __nccwpck_require__(2085);
-const { defaultEndpointResolver } = __nccwpck_require__(7526);
-const createEndpointRuleSetHttpAuthSchemeParametersProvider = (defaultHttpAuthSchemeParametersProvider) => async (config, context, input) => {
-    if (!input) {
-        throw new Error("Could not find `input` for `defaultEndpointRuleSetHttpAuthSchemeParametersProvider`");
-    }
-    const defaultParameters = await defaultHttpAuthSchemeParametersProvider(config, context, input);
-    const instructionsFn = getSmithyContext(context)?.commandInstance?.constructor
-        ?.getEndpointParameterInstructions;
-    if (!instructionsFn) {
-        throw new Error(`getEndpointParameterInstructions() is not defined on '${context.commandName}'`);
-    }
-    const endpointParameters = await resolveParams(input, { getEndpointParameterInstructions: instructionsFn }, config);
-    return Object.assign(defaultParameters, endpointParameters);
-};
-const _defaultS3HttpAuthSchemeParametersProvider = async (config, context, input) => {
-    return {
-        operation: getSmithyContext(context).operation,
-        region: await normalizeProvider(config.region)() || (() => {
-            throw new Error("expected `region` to be configured for `aws.auth#sigv4`");
-        })(),
-    };
-};
-exports.defaultS3HttpAuthSchemeParametersProvider = createEndpointRuleSetHttpAuthSchemeParametersProvider(_defaultS3HttpAuthSchemeParametersProvider);
-function createAwsAuthSigv4HttpAuthOption(authParameters) {
-    return {
-        schemeId: "aws.auth#sigv4",
-        signingProperties: {
-            name: "s3",
-            region: authParameters.region,
-        },
-        propertiesExtractor: (config, context) => ({
-            signingProperties: {
-                config,
-                context,
-            },
-        }),
-    };
-}
-function createAwsAuthSigv4aHttpAuthOption(authParameters) {
-    return {
-        schemeId: "aws.auth#sigv4a",
-        signingProperties: {
-            name: "s3",
-            region: authParameters.region,
-        },
-        propertiesExtractor: (config, context) => ({
-            signingProperties: {
-                config,
-                context,
-            },
-        }),
-    };
-}
-const createEndpointRuleSetHttpAuthSchemeProvider = (defaultEndpointResolver, defaultHttpAuthSchemeResolver, createHttpAuthOptionFunctions) => {
-    const endpointRuleSetHttpAuthSchemeProvider = (authParameters) => {
-        const endpoint = defaultEndpointResolver(authParameters);
-        const authSchemes = endpoint.properties?.authSchemes;
-        if (!authSchemes) {
-            return defaultHttpAuthSchemeResolver(authParameters);
-        }
-        const options = [];
-        for (const scheme of authSchemes) {
-            const { name: resolvedName, properties = {}, ...rest } = scheme;
-            const name = resolvedName.toLowerCase();
-            if (resolvedName !== name) {
-                console.warn(`HttpAuthScheme has been normalized with lowercasing: '${resolvedName}' to '${name}'`);
-            }
-            let schemeId;
-            if (name === "sigv4a") {
-                schemeId = "aws.auth#sigv4a";
-                const sigv4Present = authSchemes.find((s) => {
-                    const name = s.name.toLowerCase();
-                    return name !== "sigv4a" && name.startsWith("sigv4");
-                });
-                if (SignatureV4MultiRegion.sigv4aDependency() === "none" && sigv4Present) {
-                    continue;
-                }
-            }
-            else if (name.startsWith("sigv4")) {
-                schemeId = "aws.auth#sigv4";
-            }
-            else {
-                throw new Error(`Unknown HttpAuthScheme found in '@smithy.rules#endpointRuleSet': '${name}'`);
-            }
-            const createOption = createHttpAuthOptionFunctions[schemeId];
-            if (!createOption) {
-                throw new Error(`Could not find HttpAuthOption create function for '${schemeId}'`);
-            }
-            const option = createOption(authParameters);
-            option.schemeId = schemeId;
-            option.signingProperties = { ...(option.signingProperties || {}), ...rest, ...properties };
-            options.push(option);
-        }
-        return options;
-    };
-    return endpointRuleSetHttpAuthSchemeProvider;
-};
-const _defaultS3HttpAuthSchemeProvider = (authParameters) => {
-    const options = [];
-    switch (authParameters.operation) {
-        default: {
-            options.push(createAwsAuthSigv4HttpAuthOption(authParameters));
-            options.push(createAwsAuthSigv4aHttpAuthOption(authParameters));
-        }
-    }
-    return options;
-};
-exports.defaultS3HttpAuthSchemeProvider = createEndpointRuleSetHttpAuthSchemeProvider(defaultEndpointResolver, _defaultS3HttpAuthSchemeProvider, {
-    "aws.auth#sigv4": createAwsAuthSigv4HttpAuthOption,
-    "aws.auth#sigv4a": createAwsAuthSigv4aHttpAuthOption,
-});
-exports.resolveHttpAuthSchemeConfig = (config) => {
-    const config_0 = resolveAwsSdkSigV4Config(config);
-    const config_1 = resolveAwsSdkSigV4AConfig(config_0);
-    return Object.assign(config_1, {
-        authSchemePreference: normalizeProvider(config.authSchemePreference ?? []),
-    });
-};
+const { defaultProvider } = __nccwpck_require__(5861);
+const { readableStreamHasher } = __nccwpck_require__(9542);
+const { toUtf8, fromUtf8, sdkStreamMixin, getAwsChunkedEncodingStream, toBase64, fromBase64, Hash, calculateBodyLength } = __nccwpck_require__(2430);
+const { streamCollector, NodeHttpHandler } = __nccwpck_require__(1279);
 
-
-/***/ }),
-
-/***/ 6363:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { BinaryDecisionDiagram } = __nccwpck_require__(2085);
 const aw = "ref", ax = "argv", ay = "backend", az = "authSchemes", aA = "disableDoubleEncoding", aB = "signingName", aC = "signingRegion", aD = "signingRegionSet";
 const a = -1, b = true, c = false, d = "isSet", e = "booleanEquals", f = "stringEquals", g = "coalesce", h = "substring", i = "", j = "aws.partition", k = "partitionResult", l = "accessPointSuffix", m = "regionPrefix", n = (n) => "outpostId_ssa_" + n + i, o = "hardwareType", p = "ite", q = "isValidHostLabel", s = "sigv4", t = "aws.isVirtualHostableS3Bucket", u = "url", v = "getAttr", w = "bucketArn", x = "--", y = "arnType", z = "accesspoint", A = (n) => "accessPointName_ssa_" + n + i, B = "s3-object-lambda", C = "s3-outposts", D = "bucketPartition", E = "us-east-1", F = "outpostType", G = "name", H = "s3", I = "{url#scheme}://{Bucket}.{url#authority}{url#path}", J = "{url#scheme}://{url#authority}{url#path}", K = "{url#scheme}://{url#authority}{url#normalizedPath}{Bucket}", L = "https://{Bucket}.s3-accelerate.{partitionResult#dnsSuffix}", M = "https://{Bucket}.s3.{partitionResult#dnsSuffix}", N = (n) => "{url#scheme}://{accessPointName_ssa_" + n + "}-{bucketArn#accountId}.{url#authority}{url#path}", O = (n) => "Invalid ARN: The access point name may only contain a-z, A-Z, 0-9 and `-`. Found: `{accessPointName_ssa_" + n + "}`", P = "sigv4a", Q = "{url#scheme}://{url#authority}{url#normalizedPath}{uri_encoded_bucket}", R = "https://s3.{partitionResult#dnsSuffix}/{uri_encoded_bucket}", S = "https://s3.{partitionResult#dnsSuffix}", T = { [aw]: "UseFIPS" }, U = { [aw]: "UseDualStack" }, V = { [aw]: "Bucket" }, W = { "fn": v, [ax]: [{ [aw]: k }, G] }, X = { [aw]: u }, Y = { [aw]: "Region" }, Z = { [aw]: w }, aa = { [aw]: y }, ab = { [aw]: "accessPointName_ssa_1" }, ac = { "fn": v, [ax]: [Z, "region"] }, ad = { [aw]: o }, ae = { "fn": v, [ax]: [Z, "service"] }, af = { "fn": v, [ax]: [Z, "accountId"] }, ag = { [ay]: "S3Express", [az]: [{ [aA]: true, [G]: "{_s3e_auth}", [aB]: "s3express", [aC]: "{Region}" }] }, ah = { [ay]: "S3Express", [az]: [{ [aA]: true, [G]: s, [aB]: "s3express", [aC]: "{Region}" }] }, ai = { [az]: [{ [aA]: true, [G]: P, [aB]: C, [aD]: ["*"] }, { [aA]: true, [G]: s, [aB]: C, [aC]: "{Region}" }] }, aj = { [az]: [{ [aA]: true, [G]: s, [aB]: H, [aC]: E }] }, ak = { [az]: [{ [aA]: true, [G]: s, [aB]: H, [aC]: "{Region}" }] }, al = { [az]: [{ [aA]: true, [G]: s, [aB]: B, [aC]: "{bucketArn#region}" }] }, am = { [az]: [{ [aA]: true, [G]: s, [aB]: H, [aC]: "{bucketArn#region}" }] }, an = { [az]: [{ [aA]: true, [G]: P, [aB]: C, [aD]: ["*"] }, { [aA]: true, [G]: s, [aB]: C, [aC]: "{bucketArn#region}" }] }, ao = { [az]: [{ [aA]: true, [G]: s, [aB]: B, [aC]: "{Region}" }] }, ap = [Y], aq = [{ [aw]: "Endpoint" }], as = [V], at = [V, 0, 7, true], au = [Z, "resourceId[1]"], av = ["*"];
 const _data = {
@@ -5317,17 +5200,8 @@ const nodes = new Int32Array([
     44, r + 15, 553,
     45, r + 15, r + 20,
 ]);
-exports.bdd = BinaryDecisionDiagram.from(nodes, root, _data.conditions, _data.results);
+const bdd = BinaryDecisionDiagram.from(nodes, root, _data.conditions, _data.results);
 
-
-/***/ }),
-
-/***/ 7526:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { awsEndpointFunctions } = __nccwpck_require__(5152);
-const { customEndpointFunctions, decideEndpoint, EndpointCache } = __nccwpck_require__(2085);
-const { bdd } = __nccwpck_require__(6363);
 const cache = new EndpointCache({
     size: 50,
     params: [
@@ -5347,7 +5221,7 @@ const cache = new EndpointCache({
         "UseS3ExpressControlEndpoint",
     ],
 });
-exports.defaultEndpointResolver = (endpointParams, context = {}) => {
+const defaultEndpointResolver = (endpointParams, context = {}) => {
     return cache.get(endpointParams, () => decideEndpoint(bdd, {
         endpointParams: endpointParams,
         logger: context.logger,
@@ -5355,33 +5229,123 @@ exports.defaultEndpointResolver = (endpointParams, context = {}) => {
 };
 customEndpointFunctions.aws = awsEndpointFunctions;
 
-
-/***/ }),
-
-/***/ 3711:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-var __exportStar = (m, e) => { Object.assign(e, m); };
-const { getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, resolveUserAgentConfig, resolveHostHeaderConfig, getUserAgentPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin } = __nccwpck_require__(5152);
-const { resolveFlexibleChecksumsConfig, getFlexibleChecksumsPlugin } = __nccwpck_require__(9836);
-const { getThrow200ExceptionsPlugin, resolveS3Config, getValidateBucketNamePlugin, getAddExpectContinuePlugin, getRegionRedirectMiddlewarePlugin, getS3ExpressPlugin, getS3ExpressHttpSigningPlugin, getSsecPlugin, getLocationConstraintPlugin, getS3ExpiresMiddlewarePlugin, getCheckContentLengthHeaderPlugin } = __nccwpck_require__(5028);
-const { getHttpAuthSchemeEndpointRuleSetPlugin, DefaultIdentityProviderConfig, getHttpSigningPlugin, createPaginator } = __nccwpck_require__(402);
-const { Command, getDefaultExtensionConfiguration, resolveDefaultRuntimeConfig, Client, createWaiter, checkExceptions, WaiterState, createAggregatedClient } = __nccwpck_require__(2658);
-exports.$Command = Command;
-exports.__Client = Client;
-const { resolveRegionConfig } = __nccwpck_require__(7291);
-const { getEndpointPlugin, resolveEndpointConfig } = __nccwpck_require__(2085);
-const { resolveEventStreamSerdeConfig } = __nccwpck_require__(6579);
-const { getHttpHandlerExtensionConfiguration, resolveHttpHandlerRuntimeConfig, getContentLengthPlugin } = __nccwpck_require__(3422);
-const { resolveRetryConfig, getRetryPlugin } = __nccwpck_require__(3609);
-const { getSchemaSerdePlugin } = __nccwpck_require__(6890);
-const { resolveHttpAuthSchemeConfig, defaultS3HttpAuthSchemeParametersProvider } = __nccwpck_require__(7168);
-const { CreateSession$, AbortMultipartUpload$, CompleteMultipartUpload$, CopyObject$, CreateBucket$, CreateBucketMetadataConfiguration$, CreateBucketMetadataTableConfiguration$, CreateMultipartUpload$, DeleteBucketAnalyticsConfiguration$, DeleteBucket$, DeleteBucketCors$, DeleteBucketEncryption$, DeleteBucketIntelligentTieringConfiguration$, DeleteBucketInventoryConfiguration$, DeleteBucketLifecycle$, DeleteBucketMetadataConfiguration$, DeleteBucketMetadataTableConfiguration$, DeleteBucketMetricsConfiguration$, DeleteBucketOwnershipControls$, DeleteBucketPolicy$, DeleteBucketReplication$, DeleteBucketTagging$, DeleteBucketWebsite$, DeleteObject$, DeleteObjects$, DeleteObjectTagging$, DeletePublicAccessBlock$, GetBucketAbac$, GetBucketAccelerateConfiguration$, GetBucketAcl$, GetBucketAnalyticsConfiguration$, GetBucketCors$, GetBucketEncryption$, GetBucketIntelligentTieringConfiguration$, GetBucketInventoryConfiguration$, GetBucketLifecycleConfiguration$, GetBucketLocation$, GetBucketLogging$, GetBucketMetadataConfiguration$, GetBucketMetadataTableConfiguration$, GetBucketMetricsConfiguration$, GetBucketNotificationConfiguration$, GetBucketOwnershipControls$, GetBucketPolicy$, GetBucketPolicyStatus$, GetBucketReplication$, GetBucketRequestPayment$, GetBucketTagging$, GetBucketVersioning$, GetBucketWebsite$, GetObjectAcl$, GetObjectAttributes$, GetObject$, GetObjectLegalHold$, GetObjectLockConfiguration$, GetObjectRetention$, GetObjectTagging$, GetObjectTorrent$, GetPublicAccessBlock$, HeadBucket$, HeadObject$, ListBucketAnalyticsConfigurations$, ListBucketIntelligentTieringConfigurations$, ListBucketInventoryConfigurations$, ListBucketMetricsConfigurations$, ListBuckets$, ListDirectoryBuckets$, ListMultipartUploads$, ListObjects$, ListObjectsV2$, ListObjectVersions$, ListParts$, PutBucketAbac$, PutBucketAccelerateConfiguration$, PutBucketAcl$, PutBucketAnalyticsConfiguration$, PutBucketCors$, PutBucketEncryption$, PutBucketIntelligentTieringConfiguration$, PutBucketInventoryConfiguration$, PutBucketLifecycleConfiguration$, PutBucketLogging$, PutBucketMetricsConfiguration$, PutBucketNotificationConfiguration$, PutBucketOwnershipControls$, PutBucketPolicy$, PutBucketReplication$, PutBucketRequestPayment$, PutBucketTagging$, PutBucketVersioning$, PutBucketWebsite$, PutObjectAcl$, PutObject$, PutObjectLegalHold$, PutObjectLockConfiguration$, PutObjectRetention$, PutObjectTagging$, PutPublicAccessBlock$, RenameObject$, RestoreObject$, SelectObjectContent$, UpdateBucketMetadataInventoryTableConfiguration$, UpdateBucketMetadataJournalTableConfiguration$, UpdateObjectEncryption$, UploadPart$, UploadPartCopy$, WriteGetObjectResponse$ } = __nccwpck_require__(91);
-__exportStar(__nccwpck_require__(91), exports);
-const { getRuntimeConfig } = __nccwpck_require__(5745);
-__exportStar(__nccwpck_require__(631), exports);
-const { S3ServiceException } = __nccwpck_require__(8354);
-exports.S3ServiceException = S3ServiceException;
+const createEndpointRuleSetHttpAuthSchemeParametersProvider = (defaultHttpAuthSchemeParametersProvider) => async (config, context, input) => {
+    if (!input) {
+        throw new Error("Could not find `input` for `defaultEndpointRuleSetHttpAuthSchemeParametersProvider`");
+    }
+    const defaultParameters = await defaultHttpAuthSchemeParametersProvider(config, context, input);
+    const instructionsFn = getSmithyContext(context)?.commandInstance?.constructor
+        ?.getEndpointParameterInstructions;
+    if (!instructionsFn) {
+        throw new Error(`getEndpointParameterInstructions() is not defined on '${context.commandName}'`);
+    }
+    const endpointParameters = await resolveParams(input, { getEndpointParameterInstructions: instructionsFn }, config);
+    return Object.assign(defaultParameters, endpointParameters);
+};
+const _defaultS3HttpAuthSchemeParametersProvider = async (config, context, input) => {
+    return {
+        operation: getSmithyContext(context).operation,
+        region: await normalizeProvider(config.region)() || (() => {
+            throw new Error("expected `region` to be configured for `aws.auth#sigv4`");
+        })(),
+    };
+};
+const defaultS3HttpAuthSchemeParametersProvider = createEndpointRuleSetHttpAuthSchemeParametersProvider(_defaultS3HttpAuthSchemeParametersProvider);
+function createAwsAuthSigv4HttpAuthOption(authParameters) {
+    return {
+        schemeId: "aws.auth#sigv4",
+        signingProperties: {
+            name: "s3",
+            region: authParameters.region,
+        },
+        propertiesExtractor: (config, context) => ({
+            signingProperties: {
+                config,
+                context,
+            },
+        }),
+    };
+}
+function createAwsAuthSigv4aHttpAuthOption(authParameters) {
+    return {
+        schemeId: "aws.auth#sigv4a",
+        signingProperties: {
+            name: "s3",
+            region: authParameters.region,
+        },
+        propertiesExtractor: (config, context) => ({
+            signingProperties: {
+                config,
+                context,
+            },
+        }),
+    };
+}
+const createEndpointRuleSetHttpAuthSchemeProvider = (defaultEndpointResolver, defaultHttpAuthSchemeResolver, createHttpAuthOptionFunctions) => {
+    const endpointRuleSetHttpAuthSchemeProvider = (authParameters) => {
+        const endpoint = defaultEndpointResolver(authParameters);
+        const authSchemes = endpoint.properties?.authSchemes;
+        if (!authSchemes) {
+            return defaultHttpAuthSchemeResolver(authParameters);
+        }
+        const options = [];
+        for (const scheme of authSchemes) {
+            const { name: resolvedName, properties = {}, ...rest } = scheme;
+            const name = resolvedName.toLowerCase();
+            if (resolvedName !== name) {
+                console.warn(`HttpAuthScheme has been normalized with lowercasing: '${resolvedName}' to '${name}'`);
+            }
+            let schemeId;
+            if (name === "sigv4a") {
+                schemeId = "aws.auth#sigv4a";
+                const sigv4Present = authSchemes.find((s) => {
+                    const name = s.name.toLowerCase();
+                    return name !== "sigv4a" && name.startsWith("sigv4");
+                });
+                if (SignatureV4MultiRegion.sigv4aDependency() === "none" && sigv4Present) {
+                    continue;
+                }
+            }
+            else if (name.startsWith("sigv4")) {
+                schemeId = "aws.auth#sigv4";
+            }
+            else {
+                throw new Error(`Unknown HttpAuthScheme found in '@smithy.rules#endpointRuleSet': '${name}'`);
+            }
+            const createOption = createHttpAuthOptionFunctions[schemeId];
+            if (!createOption) {
+                throw new Error(`Could not find HttpAuthOption create function for '${schemeId}'`);
+            }
+            const option = createOption(authParameters);
+            option.schemeId = schemeId;
+            option.signingProperties = { ...(option.signingProperties || {}), ...rest, ...properties };
+            options.push(option);
+        }
+        return options;
+    };
+    return endpointRuleSetHttpAuthSchemeProvider;
+};
+const _defaultS3HttpAuthSchemeProvider = (authParameters) => {
+    const options = [];
+    switch (authParameters.operation) {
+        default: {
+            options.push(createAwsAuthSigv4HttpAuthOption(authParameters));
+            options.push(createAwsAuthSigv4aHttpAuthOption(authParameters));
+        }
+    }
+    return options;
+};
+const defaultS3HttpAuthSchemeProvider = createEndpointRuleSetHttpAuthSchemeProvider(defaultEndpointResolver, _defaultS3HttpAuthSchemeProvider, {
+    "aws.auth#sigv4": createAwsAuthSigv4HttpAuthOption,
+    "aws.auth#sigv4a": createAwsAuthSigv4aHttpAuthOption,
+});
+const resolveHttpAuthSchemeConfig = (config) => {
+    const config_0 = resolveAwsSdkSigV4Config(config);
+    const config_1 = resolveAwsSdkSigV4AConfig(config_0);
+    return Object.assign(config_1, {
+        authSchemePreference: normalizeProvider(config.authSchemePreference ?? []),
+    });
+};
 
 const resolveClientEndpointParameters = (options) => {
     return Object.assign(options, {
@@ -5408,6 +5372,3680 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
+class S3ServiceException extends ServiceException {
+    constructor(options) {
+        super(options);
+        Object.setPrototypeOf(this, S3ServiceException.prototype);
+    }
+}
+
+class NoSuchUpload extends S3ServiceException {
+    name = "NoSuchUpload";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "NoSuchUpload",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, NoSuchUpload.prototype);
+    }
+}
+class AccessDenied extends S3ServiceException {
+    name = "AccessDenied";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "AccessDenied",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AccessDenied.prototype);
+    }
+}
+class ObjectNotInActiveTierError extends S3ServiceException {
+    name = "ObjectNotInActiveTierError";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "ObjectNotInActiveTierError",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, ObjectNotInActiveTierError.prototype);
+    }
+}
+class BucketAlreadyExists extends S3ServiceException {
+    name = "BucketAlreadyExists";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "BucketAlreadyExists",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, BucketAlreadyExists.prototype);
+    }
+}
+class BucketAlreadyOwnedByYou extends S3ServiceException {
+    name = "BucketAlreadyOwnedByYou";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "BucketAlreadyOwnedByYou",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, BucketAlreadyOwnedByYou.prototype);
+    }
+}
+class NoSuchBucket extends S3ServiceException {
+    name = "NoSuchBucket";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "NoSuchBucket",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, NoSuchBucket.prototype);
+    }
+}
+class NoSuchKey extends S3ServiceException {
+    name = "NoSuchKey";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "NoSuchKey",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, NoSuchKey.prototype);
+    }
+}
+class InvalidObjectState extends S3ServiceException {
+    name = "InvalidObjectState";
+    $fault = "client";
+    StorageClass;
+    AccessTier;
+    constructor(opts) {
+        super({
+            name: "InvalidObjectState",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidObjectState.prototype);
+        this.StorageClass = opts.StorageClass;
+        this.AccessTier = opts.AccessTier;
+    }
+}
+class NoSuchAnnotation extends S3ServiceException {
+    name = "NoSuchAnnotation";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "NoSuchAnnotation",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, NoSuchAnnotation.prototype);
+    }
+}
+class NotFound extends S3ServiceException {
+    name = "NotFound";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "NotFound",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, NotFound.prototype);
+    }
+}
+class InvalidPrefix extends S3ServiceException {
+    name = "InvalidPrefix";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "InvalidPrefix",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidPrefix.prototype);
+    }
+}
+class EncryptionTypeMismatch extends S3ServiceException {
+    name = "EncryptionTypeMismatch";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "EncryptionTypeMismatch",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, EncryptionTypeMismatch.prototype);
+    }
+}
+class InvalidRequest extends S3ServiceException {
+    name = "InvalidRequest";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "InvalidRequest",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidRequest.prototype);
+    }
+}
+class InvalidWriteOffset extends S3ServiceException {
+    name = "InvalidWriteOffset";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "InvalidWriteOffset",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidWriteOffset.prototype);
+    }
+}
+class TooManyParts extends S3ServiceException {
+    name = "TooManyParts";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "TooManyParts",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, TooManyParts.prototype);
+    }
+}
+class AnnotationLimitExceeded extends S3ServiceException {
+    name = "AnnotationLimitExceeded";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "AnnotationLimitExceeded",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AnnotationLimitExceeded.prototype);
+    }
+}
+class AnnotationNameTooLong extends S3ServiceException {
+    name = "AnnotationNameTooLong";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "AnnotationNameTooLong",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, AnnotationNameTooLong.prototype);
+    }
+}
+class InvalidAnnotationName extends S3ServiceException {
+    name = "InvalidAnnotationName";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "InvalidAnnotationName",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, InvalidAnnotationName.prototype);
+    }
+}
+class UnsupportedMediaType extends S3ServiceException {
+    name = "UnsupportedMediaType";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "UnsupportedMediaType",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, UnsupportedMediaType.prototype);
+    }
+}
+class IdempotencyParameterMismatch extends S3ServiceException {
+    name = "IdempotencyParameterMismatch";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "IdempotencyParameterMismatch",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, IdempotencyParameterMismatch.prototype);
+    }
+}
+class ObjectAlreadyInActiveTierError extends S3ServiceException {
+    name = "ObjectAlreadyInActiveTierError";
+    $fault = "client";
+    constructor(opts) {
+        super({
+            name: "ObjectAlreadyInActiveTierError",
+            $fault: "client",
+            ...opts,
+        });
+        Object.setPrototypeOf(this, ObjectAlreadyInActiveTierError.prototype);
+    }
+}
+
+const _A = "Account";
+const _AAO = "AnalyticsAndOperator";
+const _AC = "AccelerateConfiguration";
+const _ACL = "AccessControlList";
+const _ACL_ = "ACL";
+const _ACLn = "AnalyticsConfigurationList";
+const _ACP = "AccessControlPolicy";
+const _ACT = "AccessControlTranslation";
+const _ACn = "AnalyticsConfiguration";
+const _ACnn = "AnnotationCount";
+const _AD = "AccessDenied";
+const _ADb = "AbortDate";
+const _ADn = "AnnotationDirective";
+const _AE = "AnnotationEntry";
+const _AED = "AnalyticsExportDestination";
+const _AF = "AnalyticsFilter";
+const _AH = "AllowedHeaders";
+const _AHl = "AllowedHeader";
+const _AI = "AccountId";
+const _AIMU = "AbortIncompleteMultipartUpload";
+const _AKI = "AccessKeyId";
+const _AL = "AnnotationList";
+const _ALE = "AnnotationLimitExceeded";
+const _AM = "AllowedMethods";
+const _AMU = "AbortMultipartUpload";
+const _AMUO = "AbortMultipartUploadOutput";
+const _AMUR = "AbortMultipartUploadRequest";
+const _AMl = "AllowedMethod";
+const _AN = "AnnotationName";
+const _ANTL = "AnnotationNameTooLong";
+const _AO = "AllowedOrigins";
+const _AOl = "AllowedOrigin";
+const _AP = "AnnotationPayload";
+const _APA = "AccessPointAlias";
+const _APAc = "AccessPointArn";
+const _APn = "AnnotationPrefix";
+const _AQRD = "AllowQuotedRecordDelimiter";
+const _AR = "AcceptRanges";
+const _ARI = "AbortRuleId";
+const _AS = "AbacStatus";
+const _ASBD = "AnalyticsS3BucketDestination";
+const _ASSEBD = "ApplyServerSideEncryptionByDefault";
+const _ASr = "ArchiveStatus";
+const _AT = "AccessTier";
+const _ATC = "AnnotationTableConfiguration";
+const _ATCR = "AnnotationTableConfigurationResult";
+const _ATCU = "AnnotationTableConfigurationUpdates";
+const _An = "And";
+const _Ann = "Annotations";
+const _B = "Bucket";
+const _BA = "BucketArn";
+const _BAE = "BucketAlreadyExists";
+const _BAI = "BucketAccountId";
+const _BAOBY = "BucketAlreadyOwnedByYou";
+const _BET = "BlockedEncryptionTypes";
+const _BGR = "BypassGovernanceRetention";
+const _BI = "BucketInfo";
+const _BKE = "BucketKeyEnabled";
+const _BLC = "BucketLifecycleConfiguration";
+const _BLN = "BucketLocationName";
+const _BLS = "BucketLoggingStatus";
+const _BLT = "BucketLocationType";
+const _BN = "BucketNamespace";
+const _BNu = "BucketName";
+const _BP = "BytesProcessed";
+const _BPA = "BlockPublicAcls";
+const _BPP = "BlockPublicPolicy";
+const _BR = "BucketRegion";
+const _BRy = "BytesReturned";
+const _BS = "BytesScanned";
+const _Bo = "Body";
+const _Bu = "Buckets";
+const _C = "Checksum";
+const _CA = "ChecksumAlgorithm";
+const _CACL = "CannedACL";
+const _CB = "CreateBucket";
+const _CBC = "CreateBucketConfiguration";
+const _CBMC = "CreateBucketMetadataConfiguration";
+const _CBMCR = "CreateBucketMetadataConfigurationRequest";
+const _CBMTC = "CreateBucketMetadataTableConfiguration";
+const _CBMTCR = "CreateBucketMetadataTableConfigurationRequest";
+const _CBO = "CreateBucketOutput";
+const _CBR = "CreateBucketRequest";
+const _CC = "CacheControl";
+const _CCRC = "ChecksumCRC32";
+const _CCRCC = "ChecksumCRC32C";
+const _CCRCNVME = "ChecksumCRC64NVME";
+const _CC_ = "Cache-Control";
+const _CD = "CreationDate";
+const _CD_ = "Content-Disposition";
+const _CDo = "ContentDisposition";
+const _CE = "ContinuationEvent";
+const _CE_ = "Content-Encoding";
+const _CEo = "ContentEncoding";
+const _CF = "CloudFunction";
+const _CFC = "CloudFunctionConfiguration";
+const _CL = "ContentLanguage";
+const _CL_ = "Content-Language";
+const _CL__ = "Content-Length";
+const _CLo = "ContentLength";
+const _CM = "Content-MD5";
+const _CMD = "ChecksumMD5";
+const _CMDo = "ContentMD5";
+const _CMU = "CompletedMultipartUpload";
+const _CMUO = "CompleteMultipartUploadOutput";
+const _CMUOr = "CreateMultipartUploadOutput";
+const _CMUR = "CompleteMultipartUploadResult";
+const _CMURo = "CompleteMultipartUploadRequest";
+const _CMURr = "CreateMultipartUploadRequest";
+const _CMUo = "CompleteMultipartUpload";
+const _CMUr = "CreateMultipartUpload";
+const _CMh = "ChecksumMode";
+const _CO = "CopyObject";
+const _COO = "CopyObjectOutput";
+const _COR = "CopyObjectResult";
+const _CORSC = "CORSConfiguration";
+const _CORSR = "CORSRules";
+const _CORSRu = "CORSRule";
+const _CORo = "CopyObjectRequest";
+const _CP = "CommonPrefix";
+const _CPL = "CommonPrefixList";
+const _CPLo = "CompletedPartList";
+const _CPR = "CopyPartResult";
+const _CPo = "CompletedPart";
+const _CPom = "CommonPrefixes";
+const _CR = "ContentRange";
+const _CRSBA = "ConfirmRemoveSelfBucketAccess";
+const _CR_ = "Content-Range";
+const _CS = "ConfigurationState";
+const _CSHA = "ChecksumSHA1";
+const _CSHAh = "ChecksumSHA256";
+const _CSHAhe = "ChecksumSHA512";
+const _CSIM = "CopySourceIfMatch";
+const _CSIMS = "CopySourceIfModifiedSince";
+const _CSINM = "CopySourceIfNoneMatch";
+const _CSIUS = "CopySourceIfUnmodifiedSince";
+const _CSO = "CreateSessionOutput";
+const _CSR = "CreateSessionResult";
+const _CSRo = "CopySourceRange";
+const _CSRr = "CreateSessionRequest";
+const _CSSSECA = "CopySourceSSECustomerAlgorithm";
+const _CSSSECK = "CopySourceSSECustomerKey";
+const _CSSSECKMD = "CopySourceSSECustomerKeyMD5";
+const _CSV = "CSV";
+const _CSVI = "CopySourceVersionId";
+const _CSVIn = "CSVInput";
+const _CSVO = "CSVOutput";
+const _CSo = "CopySource";
+const _CSr = "CreateSession";
+const _CT = "ChecksumType";
+const _CT_ = "Content-Type";
+const _CTl = "ClientToken";
+const _CTo = "ContentType";
+const _CTom = "CompressionType";
+const _CTon = "ContinuationToken";
+const _CXXHASH = "ChecksumXXHASH64";
+const _CXXHASHh = "ChecksumXXHASH3";
+const _CXXHASHhe = "ChecksumXXHASH128";
+const _Co = "Condition";
+const _Cod = "Code";
+const _Com = "Comments";
+const _Con = "Contents";
+const _Cont = "Cont";
+const _Cr = "Credentials";
+const _D = "Days";
+const _DAI = "DaysAfterInitiation";
+const _DB = "DeleteBucket";
+const _DBAC = "DeleteBucketAnalyticsConfiguration";
+const _DBACR = "DeleteBucketAnalyticsConfigurationRequest";
+const _DBC = "DeleteBucketCors";
+const _DBCR = "DeleteBucketCorsRequest";
+const _DBE = "DeleteBucketEncryption";
+const _DBER = "DeleteBucketEncryptionRequest";
+const _DBIC = "DeleteBucketInventoryConfiguration";
+const _DBICR = "DeleteBucketInventoryConfigurationRequest";
+const _DBITC = "DeleteBucketIntelligentTieringConfiguration";
+const _DBITCR = "DeleteBucketIntelligentTieringConfigurationRequest";
+const _DBL = "DeleteBucketLifecycle";
+const _DBLR = "DeleteBucketLifecycleRequest";
+const _DBMC = "DeleteBucketMetadataConfiguration";
+const _DBMCR = "DeleteBucketMetadataConfigurationRequest";
+const _DBMCRe = "DeleteBucketMetricsConfigurationRequest";
+const _DBMCe = "DeleteBucketMetricsConfiguration";
+const _DBMTC = "DeleteBucketMetadataTableConfiguration";
+const _DBMTCR = "DeleteBucketMetadataTableConfigurationRequest";
+const _DBOC = "DeleteBucketOwnershipControls";
+const _DBOCR = "DeleteBucketOwnershipControlsRequest";
+const _DBP = "DeleteBucketPolicy";
+const _DBPR = "DeleteBucketPolicyRequest";
+const _DBR = "DeleteBucketRequest";
+const _DBRR = "DeleteBucketReplicationRequest";
+const _DBRe = "DeleteBucketReplication";
+const _DBT = "DeleteBucketTagging";
+const _DBTR = "DeleteBucketTaggingRequest";
+const _DBW = "DeleteBucketWebsite";
+const _DBWR = "DeleteBucketWebsiteRequest";
+const _DE = "DataExport";
+const _DIM = "DestinationIfMatch";
+const _DIMS = "DestinationIfModifiedSince";
+const _DINM = "DestinationIfNoneMatch";
+const _DIUS = "DestinationIfUnmodifiedSince";
+const _DM = "DeleteMarker";
+const _DME = "DeleteMarkerEntry";
+const _DMR = "DeleteMarkerReplication";
+const _DMVI = "DeleteMarkerVersionId";
+const _DMe = "DeleteMarkers";
+const _DN = "DisplayName";
+const _DO = "DeletedObject";
+const _DOA = "DeleteObjectAnnotation";
+const _DOAO = "DeleteObjectAnnotationOutput";
+const _DOAR = "DeleteObjectAnnotationRequest";
+const _DOO = "DeleteObjectOutput";
+const _DOOe = "DeleteObjectsOutput";
+const _DOR = "DeleteObjectRequest";
+const _DORe = "DeleteObjectsRequest";
+const _DOT = "DeleteObjectTagging";
+const _DOTO = "DeleteObjectTaggingOutput";
+const _DOTR = "DeleteObjectTaggingRequest";
+const _DOe = "DeletedObjects";
+const _DOel = "DeleteObject";
+const _DOele = "DeleteObjects";
+const _DPAB = "DeletePublicAccessBlock";
+const _DPABR = "DeletePublicAccessBlockRequest";
+const _DR = "DataRedundancy";
+const _DRe = "DefaultRetention";
+const _DRel = "DeleteResult";
+const _DRes = "DestinationResult";
+const _Da = "Date";
+const _De = "Delete";
+const _Del = "Deleted";
+const _Deli = "Delimiter";
+const _Des = "Destination";
+const _Desc = "Description";
+const _Det = "Details";
+const _E = "Error";
+const _EA = "EmailAddress";
+const _EBC = "EventBridgeConfiguration";
+const _EBO = "ExpectedBucketOwner";
+const _EC = "EncryptionConfiguration";
+const _ECr = "ErrorCode";
+const _ED = "ErrorDetails";
+const _EDr = "ErrorDocument";
+const _EE = "EndEvent";
+const _EH = "ExposeHeaders";
+const _EHx = "ExposeHeader";
+const _EM = "ErrorMessage";
+const _EODM = "ExpiredObjectDeleteMarker";
+const _EOR = "ExistingObjectReplication";
+const _ES = "ExpiresString";
+const _ESBO = "ExpectedSourceBucketOwner";
+const _ET = "ETag";
+const _ETL = "EncryptionTypeList";
+const _ETM = "EncryptionTypeMismatch";
+const _ETn = "EncryptionType";
+const _ETnc = "EncodingType";
+const _ETv = "EventThreshold";
+const _ETx = "ExpressionType";
+const _En = "Encryption";
+const _Ena = "Enabled";
+const _End = "End";
+const _Er = "Errors";
+const _Ev = "Events";
+const _Eve = "Event";
+const _Ex = "Expiration";
+const _Exp = "Expires";
+const _Expr = "Expression";
+const _F = "Filter";
+const _FD = "FieldDelimiter";
+const _FHI = "FileHeaderInfo";
+const _FO = "FetchOwner";
+const _FR = "FilterRule";
+const _FRL = "FilterRuleList";
+const _FRi = "FilterRules";
+const _Fi = "Field";
+const _Fo = "Format";
+const _Fr = "Frequency";
+const _G = "Grants";
+const _GBA = "GetBucketAbac";
+const _GBAC = "GetBucketAccelerateConfiguration";
+const _GBACO = "GetBucketAccelerateConfigurationOutput";
+const _GBACOe = "GetBucketAnalyticsConfigurationOutput";
+const _GBACR = "GetBucketAccelerateConfigurationRequest";
+const _GBACRe = "GetBucketAnalyticsConfigurationRequest";
+const _GBACe = "GetBucketAnalyticsConfiguration";
+const _GBAO = "GetBucketAbacOutput";
+const _GBAOe = "GetBucketAclOutput";
+const _GBAR = "GetBucketAbacRequest";
+const _GBARe = "GetBucketAclRequest";
+const _GBAe = "GetBucketAcl";
+const _GBC = "GetBucketCors";
+const _GBCO = "GetBucketCorsOutput";
+const _GBCR = "GetBucketCorsRequest";
+const _GBE = "GetBucketEncryption";
+const _GBEO = "GetBucketEncryptionOutput";
+const _GBER = "GetBucketEncryptionRequest";
+const _GBIC = "GetBucketInventoryConfiguration";
+const _GBICO = "GetBucketInventoryConfigurationOutput";
+const _GBICR = "GetBucketInventoryConfigurationRequest";
+const _GBITC = "GetBucketIntelligentTieringConfiguration";
+const _GBITCO = "GetBucketIntelligentTieringConfigurationOutput";
+const _GBITCR = "GetBucketIntelligentTieringConfigurationRequest";
+const _GBL = "GetBucketLocation";
+const _GBLC = "GetBucketLifecycleConfiguration";
+const _GBLCO = "GetBucketLifecycleConfigurationOutput";
+const _GBLCR = "GetBucketLifecycleConfigurationRequest";
+const _GBLO = "GetBucketLocationOutput";
+const _GBLOe = "GetBucketLoggingOutput";
+const _GBLR = "GetBucketLocationRequest";
+const _GBLRe = "GetBucketLoggingRequest";
+const _GBLe = "GetBucketLogging";
+const _GBMC = "GetBucketMetadataConfiguration";
+const _GBMCO = "GetBucketMetadataConfigurationOutput";
+const _GBMCOe = "GetBucketMetricsConfigurationOutput";
+const _GBMCR = "GetBucketMetadataConfigurationResult";
+const _GBMCRe = "GetBucketMetadataConfigurationRequest";
+const _GBMCRet = "GetBucketMetricsConfigurationRequest";
+const _GBMCe = "GetBucketMetricsConfiguration";
+const _GBMTC = "GetBucketMetadataTableConfiguration";
+const _GBMTCO = "GetBucketMetadataTableConfigurationOutput";
+const _GBMTCR = "GetBucketMetadataTableConfigurationResult";
+const _GBMTCRe = "GetBucketMetadataTableConfigurationRequest";
+const _GBNC = "GetBucketNotificationConfiguration";
+const _GBNCR = "GetBucketNotificationConfigurationRequest";
+const _GBOC = "GetBucketOwnershipControls";
+const _GBOCO = "GetBucketOwnershipControlsOutput";
+const _GBOCR = "GetBucketOwnershipControlsRequest";
+const _GBP = "GetBucketPolicy";
+const _GBPO = "GetBucketPolicyOutput";
+const _GBPR = "GetBucketPolicyRequest";
+const _GBPS = "GetBucketPolicyStatus";
+const _GBPSO = "GetBucketPolicyStatusOutput";
+const _GBPSR = "GetBucketPolicyStatusRequest";
+const _GBR = "GetBucketReplication";
+const _GBRO = "GetBucketReplicationOutput";
+const _GBRP = "GetBucketRequestPayment";
+const _GBRPO = "GetBucketRequestPaymentOutput";
+const _GBRPR = "GetBucketRequestPaymentRequest";
+const _GBRR = "GetBucketReplicationRequest";
+const _GBT = "GetBucketTagging";
+const _GBTO = "GetBucketTaggingOutput";
+const _GBTR = "GetBucketTaggingRequest";
+const _GBV = "GetBucketVersioning";
+const _GBVO = "GetBucketVersioningOutput";
+const _GBVR = "GetBucketVersioningRequest";
+const _GBW = "GetBucketWebsite";
+const _GBWO = "GetBucketWebsiteOutput";
+const _GBWR = "GetBucketWebsiteRequest";
+const _GFC = "GrantFullControl";
+const _GJP = "GlacierJobParameters";
+const _GO = "GetObject";
+const _GOA = "GetObjectAcl";
+const _GOAO = "GetObjectAclOutput";
+const _GOAOe = "GetObjectAnnotationOutput";
+const _GOAOet = "GetObjectAttributesOutput";
+const _GOAP = "GetObjectAttributesParts";
+const _GOAR = "GetObjectAclRequest";
+const _GOARe = "GetObjectAnnotationRequest";
+const _GOARet = "GetObjectAttributesResponse";
+const _GOARetb = "GetObjectAttributesRequest";
+const _GOAe = "GetObjectAnnotation";
+const _GOAet = "GetObjectAttributes";
+const _GOLC = "GetObjectLockConfiguration";
+const _GOLCO = "GetObjectLockConfigurationOutput";
+const _GOLCR = "GetObjectLockConfigurationRequest";
+const _GOLH = "GetObjectLegalHold";
+const _GOLHO = "GetObjectLegalHoldOutput";
+const _GOLHR = "GetObjectLegalHoldRequest";
+const _GOO = "GetObjectOutput";
+const _GOR = "GetObjectRequest";
+const _GORO = "GetObjectRetentionOutput";
+const _GORR = "GetObjectRetentionRequest";
+const _GORe = "GetObjectRetention";
+const _GOT = "GetObjectTagging";
+const _GOTO = "GetObjectTaggingOutput";
+const _GOTOe = "GetObjectTorrentOutput";
+const _GOTR = "GetObjectTaggingRequest";
+const _GOTRe = "GetObjectTorrentRequest";
+const _GOTe = "GetObjectTorrent";
+const _GPAB = "GetPublicAccessBlock";
+const _GPABO = "GetPublicAccessBlockOutput";
+const _GPABR = "GetPublicAccessBlockRequest";
+const _GR = "GrantRead";
+const _GRACP = "GrantReadACP";
+const _GW = "GrantWrite";
+const _GWACP = "GrantWriteACP";
+const _Gr = "Grant";
+const _Gra = "Grantee";
+const _HB = "HeadBucket";
+const _HBO = "HeadBucketOutput";
+const _HBR = "HeadBucketRequest";
+const _HECRE = "HttpErrorCodeReturnedEquals";
+const _HN = "HostName";
+const _HO = "HeadObject";
+const _HOO = "HeadObjectOutput";
+const _HOR = "HeadObjectRequest";
+const _HRC = "HttpRedirectCode";
+const _I = "Id";
+const _IAN = "InvalidAnnotationName";
+const _IC = "InventoryConfiguration";
+const _ICL = "InventoryConfigurationList";
+const _ID = "ID";
+const _IDn = "IndexDocument";
+const _IDnv = "InventoryDestination";
+const _IE = "IsEnabled";
+const _IEn = "InventoryEncryption";
+const _IF = "InventoryFilter";
+const _IL = "IsLatest";
+const _IM = "IfMatch";
+const _IMIT = "IfMatchInitiatedTime";
+const _IMLMT = "IfMatchLastModifiedTime";
+const _IMS = "IfMatchSize";
+const _IMS_ = "If-Modified-Since";
+const _IMSf = "IfModifiedSince";
+const _IMUR = "InitiateMultipartUploadResult";
+const _IM_ = "If-Match";
+const _INM = "IfNoneMatch";
+const _INM_ = "If-None-Match";
+const _IOF = "InventoryOptionalFields";
+const _IOS = "InvalidObjectState";
+const _IOV = "IncludedObjectVersions";
+const _IP = "InvalidPrefix";
+const _IPA = "IgnorePublicAcls";
+const _IPM = "IdempotencyParameterMismatch";
+const _IPs = "IsPublic";
+const _IR = "InvalidRequest";
+const _IRIP = "IsRestoreInProgress";
+const _IS = "InputSerialization";
+const _ISBD = "InventoryS3BucketDestination";
+const _ISn = "InventorySchedule";
+const _IT = "IsTruncated";
+const _ITAO = "IntelligentTieringAndOperator";
+const _ITC = "IntelligentTieringConfiguration";
+const _ITCL = "IntelligentTieringConfigurationList";
+const _ITCR = "InventoryTableConfigurationResult";
+const _ITCU = "InventoryTableConfigurationUpdates";
+const _ITCn = "InventoryTableConfiguration";
+const _ITF = "IntelligentTieringFilter";
+const _IUS = "IfUnmodifiedSince";
+const _IUS_ = "If-Unmodified-Since";
+const _IWO = "InvalidWriteOffset";
+const _In = "Initiator";
+const _Ini = "Initiated";
+const _JSON = "JSON";
+const _JSONI = "JSONInput";
+const _JSONO = "JSONOutput";
+const _JTC = "JournalTableConfiguration";
+const _JTCR = "JournalTableConfigurationResult";
+const _JTCU = "JournalTableConfigurationUpdates";
+const _K = "Key";
+const _KC = "KeyCount";
+const _KI = "KeyId";
+const _KKA = "KmsKeyArn";
+const _KM = "KeyMarker";
+const _KMSC = "KMSContext";
+const _KMSKA = "KMSKeyArn";
+const _KMSKI = "KMSKeyId";
+const _KMSMKID = "KMSMasterKeyID";
+const _KPE = "KeyPrefixEquals";
+const _L = "Location";
+const _LAMBR = "ListAllMyBucketsResult";
+const _LAMDBR = "ListAllMyDirectoryBucketsResult";
+const _LB = "ListBuckets";
+const _LBAC = "ListBucketAnalyticsConfigurations";
+const _LBACO = "ListBucketAnalyticsConfigurationsOutput";
+const _LBACR = "ListBucketAnalyticsConfigurationResult";
+const _LBACRi = "ListBucketAnalyticsConfigurationsRequest";
+const _LBIC = "ListBucketInventoryConfigurations";
+const _LBICO = "ListBucketInventoryConfigurationsOutput";
+const _LBICR = "ListBucketInventoryConfigurationsRequest";
+const _LBITC = "ListBucketIntelligentTieringConfigurations";
+const _LBITCO = "ListBucketIntelligentTieringConfigurationsOutput";
+const _LBITCR = "ListBucketIntelligentTieringConfigurationsRequest";
+const _LBMC = "ListBucketMetricsConfigurations";
+const _LBMCO = "ListBucketMetricsConfigurationsOutput";
+const _LBMCR = "ListBucketMetricsConfigurationsRequest";
+const _LBO = "ListBucketsOutput";
+const _LBR = "ListBucketsRequest";
+const _LBRi = "ListBucketResult";
+const _LC = "LocationConstraint";
+const _LCi = "LifecycleConfiguration";
+const _LDB = "ListDirectoryBuckets";
+const _LDBO = "ListDirectoryBucketsOutput";
+const _LDBR = "ListDirectoryBucketsRequest";
+const _LE = "LoggingEnabled";
+const _LEi = "LifecycleExpiration";
+const _LFA = "LambdaFunctionArn";
+const _LFC = "LambdaFunctionConfiguration";
+const _LFCL = "LambdaFunctionConfigurationList";
+const _LFCa = "LambdaFunctionConfigurations";
+const _LH = "LegalHold";
+const _LI = "LocationInfo";
+const _LICR = "ListInventoryConfigurationsResult";
+const _LM = "LastModified";
+const _LMCR = "ListMetricsConfigurationsResult";
+const _LMT = "LastModifiedTime";
+const _LMU = "ListMultipartUploads";
+const _LMUO = "ListMultipartUploadsOutput";
+const _LMUR = "ListMultipartUploadsResult";
+const _LMURi = "ListMultipartUploadsRequest";
+const _LM_ = "Last-Modified";
+const _LO = "ListObjects";
+const _LOA = "ListObjectAnnotations";
+const _LOAO = "ListObjectAnnotationsOutput";
+const _LOAR = "ListObjectAnnotationsRequest";
+const _LOO = "ListObjectsOutput";
+const _LOR = "ListObjectsRequest";
+const _LOV = "ListObjectsV2";
+const _LOVO = "ListObjectsV2Output";
+const _LOVOi = "ListObjectVersionsOutput";
+const _LOVR = "ListObjectsV2Request";
+const _LOVRi = "ListObjectVersionsRequest";
+const _LOVi = "ListObjectVersions";
+const _LP = "ListParts";
+const _LPO = "ListPartsOutput";
+const _LPR = "ListPartsResult";
+const _LPRi = "ListPartsRequest";
+const _LR = "LifecycleRule";
+const _LRAO = "LifecycleRuleAndOperator";
+const _LRF = "LifecycleRuleFilter";
+const _LRi = "LifecycleRules";
+const _LVR = "ListVersionsResult";
+const _M = "Metadata";
+const _MAO = "MetricsAndOperator";
+const _MAR = "MaxAnnotationResults";
+const _MAS = "MaxAgeSeconds";
+const _MB = "MaxBuckets";
+const _MC = "MetadataConfiguration";
+const _MCL = "MetricsConfigurationList";
+const _MCR = "MetadataConfigurationResult";
+const _MCe = "MetricsConfiguration";
+const _MD = "MetadataDirective";
+const _MDB = "MaxDirectoryBuckets";
+const _MDf = "MfaDelete";
+const _ME = "MetadataEntry";
+const _MF = "MetricsFilter";
+const _MFA = "MFA";
+const _MFAD = "MFADelete";
+const _MK = "MaxKeys";
+const _MM = "MissingMeta";
+const _MOS = "MpuObjectSize";
+const _MP = "MaxParts";
+const _MTC = "MetadataTableConfiguration";
+const _MTCR = "MetadataTableConfigurationResult";
+const _MTEC = "MetadataTableEncryptionConfiguration";
+const _MU = "MultipartUpload";
+const _MUL = "MultipartUploadList";
+const _MUa = "MaxUploads";
+const _Ma = "Marker";
+const _Me = "Metrics";
+const _Mes = "Message";
+const _Mi = "Minutes";
+const _Mo = "Mode";
+const _N = "Name";
+const _NC = "NotificationConfiguration";
+const _NCF = "NotificationConfigurationFilter";
+const _NCT = "NextContinuationToken";
+const _ND = "NoncurrentDays";
+const _NEKKAS = "NonEmptyKmsKeyArnString";
+const _NF = "NotFound";
+const _NKM = "NextKeyMarker";
+const _NM = "NextMarker";
+const _NNV = "NewerNoncurrentVersions";
+const _NPNM = "NextPartNumberMarker";
+const _NSA = "NoSuchAnnotation";
+const _NSB = "NoSuchBucket";
+const _NSK = "NoSuchKey";
+const _NSU = "NoSuchUpload";
+const _NUIM = "NextUploadIdMarker";
+const _NVE = "NoncurrentVersionExpiration";
+const _NVIM = "NextVersionIdMarker";
+const _NVT = "NoncurrentVersionTransitions";
+const _NVTL = "NoncurrentVersionTransitionList";
+const _NVTo = "NoncurrentVersionTransition";
+const _O = "Owner";
+const _OA = "ObjectAttributes";
+const _OAIATE = "ObjectAlreadyInActiveTierError";
+const _OC = "OwnershipControls";
+const _OCR = "OwnershipControlsRule";
+const _OCRw = "OwnershipControlsRules";
+const _OE = "ObjectEncryption";
+const _OF = "OptionalFields";
+const _OI = "ObjectIdentifier";
+const _OIL = "ObjectIdentifierList";
+const _OIM = "ObjectIfMatch";
+const _OL = "OutputLocation";
+const _OLC = "ObjectLockConfiguration";
+const _OLE = "ObjectLockEnabled";
+const _OLEFB = "ObjectLockEnabledForBucket";
+const _OLLH = "ObjectLockLegalHold";
+const _OLLHS = "ObjectLockLegalHoldStatus";
+const _OLM = "ObjectLockMode";
+const _OLR = "ObjectLockRetention";
+const _OLRUD = "ObjectLockRetainUntilDate";
+const _OLRb = "ObjectLockRule";
+const _OLb = "ObjectList";
+const _ONIATE = "ObjectNotInActiveTierError";
+const _OO = "ObjectOwnership";
+const _OOA = "OptionalObjectAttributes";
+const _OP = "ObjectParts";
+const _OPb = "ObjectPart";
+const _OS = "ObjectSize";
+const _OSGT = "ObjectSizeGreaterThan";
+const _OSLT = "ObjectSizeLessThan";
+const _OSV = "OutputSchemaVersion";
+const _OSu = "OutputSerialization";
+const _OV = "ObjectVersion";
+const _OVI = "ObjectVersionId";
+const _OVL = "ObjectVersionList";
+const _Ob = "Objects";
+const _Obj = "Object";
+const _P = "Prefix";
+const _PABC = "PublicAccessBlockConfiguration";
+const _PBA = "PutBucketAbac";
+const _PBAC = "PutBucketAccelerateConfiguration";
+const _PBACR = "PutBucketAccelerateConfigurationRequest";
+const _PBACRu = "PutBucketAnalyticsConfigurationRequest";
+const _PBACu = "PutBucketAnalyticsConfiguration";
+const _PBAR = "PutBucketAbacRequest";
+const _PBARu = "PutBucketAclRequest";
+const _PBAu = "PutBucketAcl";
+const _PBC = "PutBucketCors";
+const _PBCR = "PutBucketCorsRequest";
+const _PBE = "PutBucketEncryption";
+const _PBER = "PutBucketEncryptionRequest";
+const _PBIC = "PutBucketInventoryConfiguration";
+const _PBICR = "PutBucketInventoryConfigurationRequest";
+const _PBITC = "PutBucketIntelligentTieringConfiguration";
+const _PBITCR = "PutBucketIntelligentTieringConfigurationRequest";
+const _PBL = "PutBucketLogging";
+const _PBLC = "PutBucketLifecycleConfiguration";
+const _PBLCO = "PutBucketLifecycleConfigurationOutput";
+const _PBLCR = "PutBucketLifecycleConfigurationRequest";
+const _PBLR = "PutBucketLoggingRequest";
+const _PBMC = "PutBucketMetricsConfiguration";
+const _PBMCR = "PutBucketMetricsConfigurationRequest";
+const _PBNC = "PutBucketNotificationConfiguration";
+const _PBNCR = "PutBucketNotificationConfigurationRequest";
+const _PBOC = "PutBucketOwnershipControls";
+const _PBOCR = "PutBucketOwnershipControlsRequest";
+const _PBP = "PutBucketPolicy";
+const _PBPR = "PutBucketPolicyRequest";
+const _PBR = "PutBucketReplication";
+const _PBRP = "PutBucketRequestPayment";
+const _PBRPR = "PutBucketRequestPaymentRequest";
+const _PBRR = "PutBucketReplicationRequest";
+const _PBT = "PutBucketTagging";
+const _PBTR = "PutBucketTaggingRequest";
+const _PBV = "PutBucketVersioning";
+const _PBVR = "PutBucketVersioningRequest";
+const _PBW = "PutBucketWebsite";
+const _PBWR = "PutBucketWebsiteRequest";
+const _PC = "PartsCount";
+const _PDS = "PartitionDateSource";
+const _PE = "ProgressEvent";
+const _PI = "ParquetInput";
+const _PL = "PartsList";
+const _PN = "PartNumber";
+const _PNM = "PartNumberMarker";
+const _PO = "PutObject";
+const _POA = "PutObjectAcl";
+const _POAO = "PutObjectAclOutput";
+const _POAOu = "PutObjectAnnotationOutput";
+const _POAR = "PutObjectAclRequest";
+const _POARu = "PutObjectAnnotationRequest";
+const _POAu = "PutObjectAnnotation";
+const _POLC = "PutObjectLockConfiguration";
+const _POLCO = "PutObjectLockConfigurationOutput";
+const _POLCR = "PutObjectLockConfigurationRequest";
+const _POLH = "PutObjectLegalHold";
+const _POLHO = "PutObjectLegalHoldOutput";
+const _POLHR = "PutObjectLegalHoldRequest";
+const _POO = "PutObjectOutput";
+const _POR = "PutObjectRequest";
+const _PORO = "PutObjectRetentionOutput";
+const _PORR = "PutObjectRetentionRequest";
+const _PORu = "PutObjectRetention";
+const _POT = "PutObjectTagging";
+const _POTO = "PutObjectTaggingOutput";
+const _POTR = "PutObjectTaggingRequest";
+const _PP = "PartitionedPrefix";
+const _PPAB = "PutPublicAccessBlock";
+const _PPABR = "PutPublicAccessBlockRequest";
+const _PS = "PolicyStatus";
+const _Pa = "Parts";
+const _Par = "Part";
+const _Parq = "Parquet";
+const _Pay = "Payer";
+const _Payl = "Payload";
+const _Pe = "Permission";
+const _Po = "Policy";
+const _Pr = "Progress";
+const _Pri = "Priority";
+const _Pro = "Protocol";
+const _Q = "Quiet";
+const _QA = "QueueArn";
+const _QC = "QuoteCharacter";
+const _QCL = "QueueConfigurationList";
+const _QCu = "QueueConfigurations";
+const _QCue = "QueueConfiguration";
+const _QEC = "QuoteEscapeCharacter";
+const _QF = "QuoteFields";
+const _Qu = "Queue";
+const _R = "Role";
+const _RART = "RedirectAllRequestsTo";
+const _RC = "RequestCharged";
+const _RCC = "ResponseCacheControl";
+const _RCD = "ResponseContentDisposition";
+const _RCE = "ResponseContentEncoding";
+const _RCL = "ResponseContentLanguage";
+const _RCT = "ResponseContentType";
+const _RCe = "ReplicationConfiguration";
+const _RD = "RecordDelimiter";
+const _RE = "ResponseExpires";
+const _RED = "RestoreExpiryDate";
+const _REe = "RecordExpiration";
+const _REec = "RecordsEvent";
+const _RKKID = "ReplicaKmsKeyID";
+const _RKPW = "ReplaceKeyPrefixWith";
+const _RKW = "ReplaceKeyWith";
+const _RM = "ReplicaModifications";
+const _RO = "RenameObject";
+const _ROO = "RenameObjectOutput";
+const _ROOe = "RestoreObjectOutput";
+const _ROP = "RestoreOutputPath";
+const _ROR = "RenameObjectRequest";
+const _RORe = "RestoreObjectRequest";
+const _ROe = "RestoreObject";
+const _RP = "RequestPayer";
+const _RPB = "RestrictPublicBuckets";
+const _RPC = "RequestPaymentConfiguration";
+const _RPe = "RequestProgress";
+const _RR = "RoutingRules";
+const _RRAO = "ReplicationRuleAndOperator";
+const _RRF = "ReplicationRuleFilter";
+const _RRe = "ReplicationRule";
+const _RRep = "ReplicationRules";
+const _RReq = "RequestRoute";
+const _RRes = "RestoreRequest";
+const _RRo = "RoutingRule";
+const _RS = "ReplicationStatus";
+const _RSe = "RestoreStatus";
+const _RSen = "RenameSource";
+const _RT = "ReplicationTime";
+const _RTV = "ReplicationTimeValue";
+const _RTe = "RequestToken";
+const _RUD = "RetainUntilDate";
+const _Ra = "Range";
+const _Re = "Restore";
+const _Rec = "Records";
+const _Red = "Redirect";
+const _Ret = "Retention";
+const _Ru = "Rules";
+const _Rul = "Rule";
+const _S = "Status";
+const _SA = "StartAfter";
+const _SAK = "SecretAccessKey";
+const _SAs = "SseAlgorithm";
+const _SB = "StreamingBlob";
+const _SBD = "S3BucketDestination";
+const _SC = "StorageClass";
+const _SCA = "StorageClassAnalysis";
+const _SCADE = "StorageClassAnalysisDataExport";
+const _SCV = "SessionCredentialValue";
+const _SCe = "SessionCredentials";
+const _SCt = "StatusCode";
+const _SDV = "SkipDestinationValidation";
+const _SE = "StatsEvent";
+const _SIM = "SourceIfMatch";
+const _SIMS = "SourceIfModifiedSince";
+const _SINM = "SourceIfNoneMatch";
+const _SIUS = "SourceIfUnmodifiedSince";
+const _SK = "SSE-KMS";
+const _SKEO = "SseKmsEncryptedObjects";
+const _SKF = "S3KeyFilter";
+const _SKe = "S3Key";
+const _SL = "S3Location";
+const _SM = "SessionMode";
+const _SOC = "SelectObjectContent";
+const _SOCES = "SelectObjectContentEventStream";
+const _SOCO = "SelectObjectContentOutput";
+const _SOCR = "SelectObjectContentRequest";
+const _SP = "SelectParameters";
+const _SPi = "SimplePrefix";
+const _SR = "ScanRange";
+const _SS = "SSE-S3";
+const _SSC = "SourceSelectionCriteria";
+const _SSE = "ServerSideEncryption";
+const _SSEA = "SSEAlgorithm";
+const _SSEBD = "ServerSideEncryptionByDefault";
+const _SSEC = "ServerSideEncryptionConfiguration";
+const _SSECA = "SSECustomerAlgorithm";
+const _SSECK = "SSECustomerKey";
+const _SSECKMD = "SSECustomerKeyMD5";
+const _SSEKMS = "SSEKMS";
+const _SSEKMSE = "SSEKMSEncryption";
+const _SSEKMSEC = "SSEKMSEncryptionContext";
+const _SSEKMSKI = "SSEKMSKeyId";
+const _SSER = "ServerSideEncryptionRule";
+const _SSERe = "ServerSideEncryptionRules";
+const _SSES = "SSES3";
+const _ST = "SessionToken";
+const _STD = "S3TablesDestination";
+const _STDR = "S3TablesDestinationResult";
+const _S_ = "S3";
+const _Sc = "Schedule";
+const _Si = "Size";
+const _St = "Start";
+const _Sta = "Stats";
+const _Su = "Suffix";
+const _T = "Tags";
+const _TA = "TableArn";
+const _TAo = "TopicArn";
+const _TB = "TargetBucket";
+const _TBA = "TableBucketArn";
+const _TBT = "TableBucketType";
+const _TC = "TagCount";
+const _TCL = "TopicConfigurationList";
+const _TCo = "TopicConfigurations";
+const _TCop = "TopicConfiguration";
+const _TD = "TaggingDirective";
+const _TDMOS = "TransitionDefaultMinimumObjectSize";
+const _TG = "TargetGrants";
+const _TGa = "TargetGrant";
+const _TL = "TieringList";
+const _TLr = "TransitionList";
+const _TMP = "TooManyParts";
+const _TN = "TableName";
+const _TNa = "TableNamespace";
+const _TOKF = "TargetObjectKeyFormat";
+const _TP = "TargetPrefix";
+const _TPC = "TotalPartsCount";
+const _TS = "TableStatus";
+const _TSa = "TagSet";
+const _Ta = "Tag";
+const _Tag = "Tagging";
+const _Ti = "Tier";
+const _Tie = "Tierings";
+const _Tier = "Tiering";
+const _Tim = "Time";
+const _To = "Token";
+const _Top = "Topic";
+const _Tr = "Transitions";
+const _Tra = "Transition";
+const _Ty = "Type";
+const _U = "Uploads";
+const _UBMATC = "UpdateBucketMetadataAnnotationTableConfiguration";
+const _UBMATCR = "UpdateBucketMetadataAnnotationTableConfigurationRequest";
+const _UBMITC = "UpdateBucketMetadataInventoryTableConfiguration";
+const _UBMITCR = "UpdateBucketMetadataInventoryTableConfigurationRequest";
+const _UBMJTC = "UpdateBucketMetadataJournalTableConfiguration";
+const _UBMJTCR = "UpdateBucketMetadataJournalTableConfigurationRequest";
+const _UI = "UploadId";
+const _UIM = "UploadIdMarker";
+const _UM = "UserMetadata";
+const _UMT = "UnsupportedMediaType";
+const _UOE = "UpdateObjectEncryption";
+const _UOER = "UpdateObjectEncryptionRequest";
+const _UOERp = "UpdateObjectEncryptionResponse";
+const _UP = "UploadPart";
+const _UPC = "UploadPartCopy";
+const _UPCO = "UploadPartCopyOutput";
+const _UPCR = "UploadPartCopyRequest";
+const _UPO = "UploadPartOutput";
+const _UPR = "UploadPartRequest";
+const _URI = "URI";
+const _Up = "Upload";
+const _V = "Value";
+const _VC = "VersioningConfiguration";
+const _VI = "VersionId";
+const _VIM = "VersionIdMarker";
+const _Ve = "Versions";
+const _Ver = "Version";
+const _WC = "WebsiteConfiguration";
+const _WGOR = "WriteGetObjectResponse";
+const _WGORR = "WriteGetObjectResponseRequest";
+const _WOB = "WriteOffsetBytes";
+const _WRL = "WebsiteRedirectLocation";
+const _Y = "Years";
+const _aN = "annotationName";
+const _ap = "annotation-prefix";
+const _ar = "accept-ranges";
+const _br = "bucket-region";
+const _c = "client";
+const _ct = "continuation-token";
+const _d = "delimiter";
+const _e = "error";
+const _eP = "eventPayload";
+const _en = "endpoint";
+const _et = "encoding-type";
+const _fo = "fetch-owner";
+const _h = "http";
+const _hC = "httpChecksum";
+const _hE = "httpError";
+const _hH = "httpHeader";
+const _hL = "hostLabel";
+const _hP = "httpPayload";
+const _hPH = "httpPrefixHeaders";
+const _hQ = "httpQuery";
+const _hi = "http://www.w3.org/2001/XMLSchema-instance";
+const _i = "id";
+const _iT = "idempotencyToken";
+const _km = "key-marker";
+const _m = "marker";
+const _mar = "max-annotation-results";
+const _mb = "max-buckets";
+const _mdb = "max-directory-buckets";
+const _mk = "max-keys";
+const _mp = "max-parts";
+const _mu = "max-uploads";
+const _p = "prefix";
+const _pN = "partNumber";
+const _pnm = "part-number-marker";
+const _rcc = "response-cache-control";
+const _rcd = "response-content-disposition";
+const _rce = "response-content-encoding";
+const _rcl = "response-content-language";
+const _rct = "response-content-type";
+const _re = "response-expires";
+const _s = "smithy.ts.sdk.synthetic.com.amazonaws.s3";
+const _sa = "start-after";
+const _st = "streaming";
+const _uI = "uploadId";
+const _uim = "upload-id-marker";
+const _vI = "versionId";
+const _vim = "version-id-marker";
+const _x = "xsi";
+const _xA = "xmlAttribute";
+const _xF = "xmlFlattened";
+const _xN = "xmlName";
+const _xNm = "xmlNamespace";
+const _xaa = "x-amz-acl";
+const _xaad = "x-amz-abort-date";
+const _xaapa = "x-amz-access-point-alias";
+const _xaari = "x-amz-abort-rule-id";
+const _xaas = "x-amz-archive-status";
+const _xaba = "x-amz-bucket-arn";
+const _xabgr = "x-amz-bypass-governance-retention";
+const _xabln = "x-amz-bucket-location-name";
+const _xablt = "x-amz-bucket-location-type";
+const _xabn = "x-amz-bucket-namespace";
+const _xabole = "x-amz-bucket-object-lock-enabled";
+const _xabolt = "x-amz-bucket-object-lock-token";
+const _xabr = "x-amz-bucket-region";
+const _xaca = "x-amz-checksum-algorithm";
+const _xacc = "x-amz-checksum-crc32";
+const _xacc_ = "x-amz-checksum-crc32c";
+const _xacc__ = "x-amz-checksum-crc64nvme";
+const _xacm = "x-amz-checksum-md5";
+const _xacm_ = "x-amz-checksum-mode";
+const _xacrsba = "x-amz-confirm-remove-self-bucket-access";
+const _xacs = "x-amz-checksum-sha1";
+const _xacs_ = "x-amz-checksum-sha256";
+const _xacs__ = "x-amz-checksum-sha512";
+const _xacs___ = "x-amz-copy-source";
+const _xacsim = "x-amz-copy-source-if-match";
+const _xacsims = "x-amz-copy-source-if-modified-since";
+const _xacsinm = "x-amz-copy-source-if-none-match";
+const _xacsius = "x-amz-copy-source-if-unmodified-since";
+const _xacsm = "x-amz-create-session-mode";
+const _xacsr = "x-amz-copy-source-range";
+const _xacssseca = "x-amz-copy-source-server-side-encryption-customer-algorithm";
+const _xacssseck = "x-amz-copy-source-server-side-encryption-customer-key";
+const _xacssseckM = "x-amz-copy-source-server-side-encryption-customer-key-MD5";
+const _xacsvi = "x-amz-copy-source-version-id";
+const _xact = "x-amz-checksum-type";
+const _xact_ = "x-amz-client-token";
+const _xacx = "x-amz-checksum-xxhash64";
+const _xacx_ = "x-amz-checksum-xxhash3";
+const _xacx__ = "x-amz-checksum-xxhash128";
+const _xadm = "x-amz-delete-marker";
+const _xae = "x-amz-expiration";
+const _xaebo = "x-amz-expected-bucket-owner";
+const _xafec = "x-amz-fwd-error-code";
+const _xafem = "x-amz-fwd-error-message";
+const _xafhCC = "x-amz-fwd-header-Cache-Control";
+const _xafhCD = "x-amz-fwd-header-Content-Disposition";
+const _xafhCE = "x-amz-fwd-header-Content-Encoding";
+const _xafhCL = "x-amz-fwd-header-Content-Language";
+const _xafhCR = "x-amz-fwd-header-Content-Range";
+const _xafhCT = "x-amz-fwd-header-Content-Type";
+const _xafhE = "x-amz-fwd-header-ETag";
+const _xafhE_ = "x-amz-fwd-header-Expires";
+const _xafhLM = "x-amz-fwd-header-Last-Modified";
+const _xafhar = "x-amz-fwd-header-accept-ranges";
+const _xafhxacc = "x-amz-fwd-header-x-amz-checksum-crc32";
+const _xafhxacc_ = "x-amz-fwd-header-x-amz-checksum-crc32c";
+const _xafhxacc__ = "x-amz-fwd-header-x-amz-checksum-crc64nvme";
+const _xafhxacm = "x-amz-fwd-header-x-amz-checksum-md5";
+const _xafhxacs = "x-amz-fwd-header-x-amz-checksum-sha1";
+const _xafhxacs_ = "x-amz-fwd-header-x-amz-checksum-sha256";
+const _xafhxacs__ = "x-amz-fwd-header-x-amz-checksum-sha512";
+const _xafhxacx = "x-amz-fwd-header-x-amz-checksum-xxhash64";
+const _xafhxacx_ = "x-amz-fwd-header-x-amz-checksum-xxhash3";
+const _xafhxacx__ = "x-amz-fwd-header-x-amz-checksum-xxhash128";
+const _xafhxadm = "x-amz-fwd-header-x-amz-delete-marker";
+const _xafhxae = "x-amz-fwd-header-x-amz-expiration";
+const _xafhxamm = "x-amz-fwd-header-x-amz-missing-meta";
+const _xafhxampc = "x-amz-fwd-header-x-amz-mp-parts-count";
+const _xafhxaollh = "x-amz-fwd-header-x-amz-object-lock-legal-hold";
+const _xafhxaolm = "x-amz-fwd-header-x-amz-object-lock-mode";
+const _xafhxaolrud = "x-amz-fwd-header-x-amz-object-lock-retain-until-date";
+const _xafhxar = "x-amz-fwd-header-x-amz-restore";
+const _xafhxarc = "x-amz-fwd-header-x-amz-request-charged";
+const _xafhxars = "x-amz-fwd-header-x-amz-replication-status";
+const _xafhxasc = "x-amz-fwd-header-x-amz-storage-class";
+const _xafhxasse = "x-amz-fwd-header-x-amz-server-side-encryption";
+const _xafhxasseakki = "x-amz-fwd-header-x-amz-server-side-encryption-aws-kms-key-id";
+const _xafhxassebke = "x-amz-fwd-header-x-amz-server-side-encryption-bucket-key-enabled";
+const _xafhxasseca = "x-amz-fwd-header-x-amz-server-side-encryption-customer-algorithm";
+const _xafhxasseckM = "x-amz-fwd-header-x-amz-server-side-encryption-customer-key-MD5";
+const _xafhxatc = "x-amz-fwd-header-x-amz-tagging-count";
+const _xafhxavi = "x-amz-fwd-header-x-amz-version-id";
+const _xafs = "x-amz-fwd-status";
+const _xagfc = "x-amz-grant-full-control";
+const _xagr = "x-amz-grant-read";
+const _xagra = "x-amz-grant-read-acp";
+const _xagw = "x-amz-grant-write";
+const _xagwa = "x-amz-grant-write-acp";
+const _xaimit = "x-amz-if-match-initiated-time";
+const _xaimlmt = "x-amz-if-match-last-modified-time";
+const _xaims = "x-amz-if-match-size";
+const _xam = "x-amz-meta-";
+const _xam_ = "x-amz-mfa";
+const _xamd = "x-amz-metadata-directive";
+const _xamm = "x-amz-missing-meta";
+const _xamos = "x-amz-mp-object-size";
+const _xamp = "x-amz-max-parts";
+const _xampc = "x-amz-mp-parts-count";
+const _xaoa = "x-amz-object-attributes";
+const _xaoad = "x-amz-object-annotation-directive";
+const _xaoim = "x-amz-object-if-match";
+const _xaollh = "x-amz-object-lock-legal-hold";
+const _xaolm = "x-amz-object-lock-mode";
+const _xaolrud = "x-amz-object-lock-retain-until-date";
+const _xaoo = "x-amz-object-ownership";
+const _xaooa = "x-amz-optional-object-attributes";
+const _xaos = "x-amz-object-size";
+const _xaovi = "x-amz-object-version-id";
+const _xapnm = "x-amz-part-number-marker";
+const _xar = "x-amz-restore";
+const _xarc = "x-amz-request-charged";
+const _xarop = "x-amz-restore-output-path";
+const _xarp = "x-amz-request-payer";
+const _xarr = "x-amz-request-route";
+const _xars = "x-amz-replication-status";
+const _xars_ = "x-amz-rename-source";
+const _xarsim = "x-amz-rename-source-if-match";
+const _xarsims = "x-amz-rename-source-if-modified-since";
+const _xarsinm = "x-amz-rename-source-if-none-match";
+const _xarsius = "x-amz-rename-source-if-unmodified-since";
+const _xart = "x-amz-request-token";
+const _xasc = "x-amz-storage-class";
+const _xasca = "x-amz-sdk-checksum-algorithm";
+const _xasdv = "x-amz-skip-destination-validation";
+const _xasebo = "x-amz-source-expected-bucket-owner";
+const _xasse = "x-amz-server-side-encryption";
+const _xasseakki = "x-amz-server-side-encryption-aws-kms-key-id";
+const _xassebke = "x-amz-server-side-encryption-bucket-key-enabled";
+const _xassec = "x-amz-server-side-encryption-context";
+const _xasseca = "x-amz-server-side-encryption-customer-algorithm";
+const _xasseck = "x-amz-server-side-encryption-customer-key";
+const _xasseckM = "x-amz-server-side-encryption-customer-key-MD5";
+const _xat = "x-amz-tagging";
+const _xatc = "x-amz-tagging-count";
+const _xatd = "x-amz-tagging-directive";
+const _xatdmos = "x-amz-transition-default-minimum-object-size";
+const _xavi = "x-amz-version-id";
+const _xawob = "x-amz-write-offset-bytes";
+const _xawrl = "x-amz-website-redirect-location";
+const _xs = "xsi:type";
+const n0 = "com.amazonaws.s3";
+const _s_registry = TypeRegistry.for(_s);
+var S3ServiceException$ = [-3, _s, "S3ServiceException", 0, [], []];
+_s_registry.registerError(S3ServiceException$, S3ServiceException);
+const n0_registry = TypeRegistry.for(n0);
+var AccessDenied$ = [-3, n0, _AD,
+    { [_e]: _c, [_hE]: 403 },
+    [],
+    []
+];
+n0_registry.registerError(AccessDenied$, AccessDenied);
+var AnnotationLimitExceeded$ = [-3, n0, _ALE,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(AnnotationLimitExceeded$, AnnotationLimitExceeded);
+var AnnotationNameTooLong$ = [-3, n0, _ANTL,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(AnnotationNameTooLong$, AnnotationNameTooLong);
+var BucketAlreadyExists$ = [-3, n0, _BAE,
+    { [_e]: _c, [_hE]: 409 },
+    [],
+    []
+];
+n0_registry.registerError(BucketAlreadyExists$, BucketAlreadyExists);
+var BucketAlreadyOwnedByYou$ = [-3, n0, _BAOBY,
+    { [_e]: _c, [_hE]: 409 },
+    [],
+    []
+];
+n0_registry.registerError(BucketAlreadyOwnedByYou$, BucketAlreadyOwnedByYou);
+var EncryptionTypeMismatch$ = [-3, n0, _ETM,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(EncryptionTypeMismatch$, EncryptionTypeMismatch);
+var IdempotencyParameterMismatch$ = [-3, n0, _IPM,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(IdempotencyParameterMismatch$, IdempotencyParameterMismatch);
+var InvalidAnnotationName$ = [-3, n0, _IAN,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(InvalidAnnotationName$, InvalidAnnotationName);
+var InvalidObjectState$ = [-3, n0, _IOS,
+    { [_e]: _c, [_hE]: 403 },
+    [_SC, _AT],
+    [0, 0]
+];
+n0_registry.registerError(InvalidObjectState$, InvalidObjectState);
+var InvalidPrefix$ = [-3, n0, _IP,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(InvalidPrefix$, InvalidPrefix);
+var InvalidRequest$ = [-3, n0, _IR,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(InvalidRequest$, InvalidRequest);
+var InvalidWriteOffset$ = [-3, n0, _IWO,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(InvalidWriteOffset$, InvalidWriteOffset);
+var NoSuchAnnotation$ = [-3, n0, _NSA,
+    { [_e]: _c, [_hE]: 404 },
+    [],
+    []
+];
+n0_registry.registerError(NoSuchAnnotation$, NoSuchAnnotation);
+var NoSuchBucket$ = [-3, n0, _NSB,
+    { [_e]: _c, [_hE]: 404 },
+    [],
+    []
+];
+n0_registry.registerError(NoSuchBucket$, NoSuchBucket);
+var NoSuchKey$ = [-3, n0, _NSK,
+    { [_e]: _c, [_hE]: 404 },
+    [],
+    []
+];
+n0_registry.registerError(NoSuchKey$, NoSuchKey);
+var NoSuchUpload$ = [-3, n0, _NSU,
+    { [_e]: _c, [_hE]: 404 },
+    [],
+    []
+];
+n0_registry.registerError(NoSuchUpload$, NoSuchUpload);
+var NotFound$ = [-3, n0, _NF,
+    { [_e]: _c },
+    [],
+    []
+];
+n0_registry.registerError(NotFound$, NotFound);
+var ObjectAlreadyInActiveTierError$ = [-3, n0, _OAIATE,
+    { [_e]: _c, [_hE]: 403 },
+    [],
+    []
+];
+n0_registry.registerError(ObjectAlreadyInActiveTierError$, ObjectAlreadyInActiveTierError);
+var ObjectNotInActiveTierError$ = [-3, n0, _ONIATE,
+    { [_e]: _c, [_hE]: 403 },
+    [],
+    []
+];
+n0_registry.registerError(ObjectNotInActiveTierError$, ObjectNotInActiveTierError);
+var TooManyParts$ = [-3, n0, _TMP,
+    { [_e]: _c, [_hE]: 400 },
+    [],
+    []
+];
+n0_registry.registerError(TooManyParts$, TooManyParts);
+var UnsupportedMediaType$ = [-3, n0, _UMT,
+    { [_e]: _c, [_hE]: 415 },
+    [],
+    []
+];
+n0_registry.registerError(UnsupportedMediaType$, UnsupportedMediaType);
+const errorTypeRegistries = [
+    _s_registry,
+    n0_registry,
+];
+var CopySourceSSECustomerKey = [0, n0, _CSSSECK, 8, 0];
+var NonEmptyKmsKeyArnString = [0, n0, _NEKKAS, 8, 0];
+var SessionCredentialValue = [0, n0, _SCV, 8, 0];
+var SSECustomerKey = [0, n0, _SSECK, 8, 0];
+var SSEKMSEncryptionContext = [0, n0, _SSEKMSEC, 8, 0];
+var SSEKMSKeyId = [0, n0, _SSEKMSKI, 8, 0];
+var StreamingBlob = [0, n0, _SB, { [_st]: 1 }, 42];
+var AbacStatus$ = [3, n0, _AS,
+    0,
+    [_S],
+    [0]
+];
+var AbortIncompleteMultipartUpload$ = [3, n0, _AIMU,
+    0,
+    [_DAI],
+    [1]
+];
+var AbortMultipartUploadOutput$ = [3, n0, _AMUO,
+    0,
+    [_RC],
+    [[0, { [_hH]: _xarc }]]
+];
+var AbortMultipartUploadRequest$ = [3, n0, _AMUR,
+    0,
+    [_B, _K, _UI, _RP, _EBO, _IMIT],
+    [[0, 1], [0, 1], [0, { [_hQ]: _uI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [6, { [_hH]: _xaimit }]], 3
+];
+var AccelerateConfiguration$ = [3, n0, _AC,
+    0,
+    [_S],
+    [0]
+];
+var AccessControlPolicy$ = [3, n0, _ACP,
+    0,
+    [_G, _O],
+    [[() => Grants, { [_xN]: _ACL }], () => Owner$]
+];
+var AccessControlTranslation$ = [3, n0, _ACT,
+    0,
+    [_O],
+    [0], 1
+];
+var AnalyticsAndOperator$ = [3, n0, _AAO,
+    0,
+    [_P, _T],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
+];
+var AnalyticsConfiguration$ = [3, n0, _ACn,
+    0,
+    [_I, _SCA, _F],
+    [0, () => StorageClassAnalysis$, [() => AnalyticsFilter$, 0]], 2
+];
+var AnalyticsExportDestination$ = [3, n0, _AED,
+    0,
+    [_SBD],
+    [() => AnalyticsS3BucketDestination$], 1
+];
+var AnalyticsS3BucketDestination$ = [3, n0, _ASBD,
+    0,
+    [_Fo, _B, _BAI, _P],
+    [0, 0, 0, 0], 2
+];
+var AnnotationEntry$ = [3, n0, _AE,
+    0,
+    [_AN, _LM, _Si, _ET, _CA, _RS],
+    [0, 4, 1, 0, [64 | 0, { [_xF]: 1 }], 0], 3
+];
+var AnnotationTableConfiguration$ = [3, n0, _ATC,
+    0,
+    [_CS, _EC, _R],
+    [0, () => MetadataTableEncryptionConfiguration$, 0], 1
+];
+var AnnotationTableConfigurationResult$ = [3, n0, _ATCR,
+    0,
+    [_CS, _TS, _E, _TN, _TA, _R],
+    [0, 0, () => ErrorDetails$, 0, 0, 0], 1
+];
+var AnnotationTableConfigurationUpdates$ = [3, n0, _ATCU,
+    0,
+    [_CS, _EC, _R],
+    [0, () => MetadataTableEncryptionConfiguration$, 0], 1
+];
+var BlockedEncryptionTypes$ = [3, n0, _BET,
+    0,
+    [_ETn],
+    [[() => EncryptionTypeList, { [_xF]: 1 }]]
+];
+var Bucket$ = [3, n0, _B,
+    0,
+    [_N, _CD, _BR, _BA],
+    [0, 4, 0, 0]
+];
+var BucketInfo$ = [3, n0, _BI,
+    0,
+    [_DR, _Ty],
+    [0, 0]
+];
+var BucketLifecycleConfiguration$ = [3, n0, _BLC,
+    0,
+    [_Ru],
+    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Rul }]], 1
+];
+var BucketLoggingStatus$ = [3, n0, _BLS,
+    0,
+    [_LE],
+    [[() => LoggingEnabled$, 0]]
+];
+var Checksum$ = [3, n0, _C,
+    0,
+    [_CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+];
+var CommonPrefix$ = [3, n0, _CP,
+    0,
+    [_P],
+    [0]
+];
+var CompletedMultipartUpload$ = [3, n0, _CMU,
+    0,
+    [_Pa],
+    [[() => CompletedPartList, { [_xF]: 1, [_xN]: _Par }]]
+];
+var CompletedPart$ = [3, n0, _CPo,
+    0,
+    [_ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _PN],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+];
+var CompleteMultipartUploadOutput$ = [3, n0, _CMUO,
+    { [_xN]: _CMUR },
+    [_L, _B, _K, _Ex, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSEKMSKI, _BKE, _RC],
+    [0, 0, 0, [0, { [_hH]: _xae }], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+];
+var CompleteMultipartUploadRequest$ = [3, n0, _CMURo,
+    0,
+    [_B, _K, _UI, _MU, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MOS, _RP, _EBO, _IM, _INM, _SSECA, _SSECK, _SSECKMD],
+    [[0, 1], [0, 1], [0, { [_hQ]: _uI }], [() => CompletedMultipartUpload$, { [_hP]: 1, [_xN]: _CMUo }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamos }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }]], 3
+];
+var Condition$ = [3, n0, _Co,
+    0,
+    [_HECRE, _KPE],
+    [0, 0]
+];
+var ContinuationEvent$ = [3, n0, _CE,
+    0,
+    [],
+    []
+];
+var CopyObjectOutput$ = [3, n0, _COO,
+    0,
+    [_COR, _Ex, _CSVI, _VI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC],
+    [[() => CopyObjectResult$, 16], [0, { [_hH]: _xae }], [0, { [_hH]: _xacsvi }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+];
+var CopyObjectRequest$ = [3, n0, _CORo,
+    0,
+    [_B, _CSo, _K, _ACL_, _CC, _CA, _CDo, _CEo, _CL, _CTo, _CSIM, _CSIMS, _CSINM, _CSIUS, _Exp, _GFC, _GR, _GRACP, _GWACP, _IM, _INM, _M, _MD, _TD, _ADn, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _ESBO],
+    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _xaca }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xamd }], [0, { [_hH]: _xatd }], [0, { [_hH]: _xaoad }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 3
+];
+var CopyObjectResult$ = [3, n0, _COR,
+    0,
+    [_ET, _LM, _CT, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+];
+var CopyPartResult$ = [3, n0, _CPR,
+    0,
+    [_ET, _LM, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+];
+var CORSConfiguration$ = [3, n0, _CORSC,
+    0,
+    [_CORSR],
+    [[() => CORSRules, { [_xF]: 1, [_xN]: _CORSRu }]], 1
+];
+var CORSRule$ = [3, n0, _CORSRu,
+    0,
+    [_AM, _AO, _ID, _AH, _EH, _MAS],
+    [[64 | 0, { [_xF]: 1, [_xN]: _AMl }], [64 | 0, { [_xF]: 1, [_xN]: _AOl }], 0, [64 | 0, { [_xF]: 1, [_xN]: _AHl }], [64 | 0, { [_xF]: 1, [_xN]: _EHx }], 1], 2
+];
+var CreateBucketConfiguration$ = [3, n0, _CBC,
+    0,
+    [_LC, _L, _B, _T],
+    [0, () => LocationInfo$, () => BucketInfo$, [() => TagSet, 0]]
+];
+var CreateBucketMetadataConfigurationRequest$ = [3, n0, _CBMCR,
+    0,
+    [_B, _MC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => MetadataConfiguration$, { [_hP]: 1, [_xN]: _MC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var CreateBucketMetadataTableConfigurationRequest$ = [3, n0, _CBMTCR,
+    0,
+    [_B, _MTC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => MetadataTableConfiguration$, { [_hP]: 1, [_xN]: _MTC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var CreateBucketOutput$ = [3, n0, _CBO,
+    0,
+    [_L, _BA],
+    [[0, { [_hH]: _L }], [0, { [_hH]: _xaba }]]
+];
+var CreateBucketRequest$ = [3, n0, _CBR,
+    0,
+    [_B, _ACL_, _CBC, _GFC, _GR, _GRACP, _GW, _GWACP, _OLEFB, _OO, _BN],
+    [[0, 1], [0, { [_hH]: _xaa }], [() => CreateBucketConfiguration$, { [_hP]: 1, [_xN]: _CBC }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [2, { [_hH]: _xabole }], [0, { [_hH]: _xaoo }], [0, { [_hH]: _xabn }]], 1
+];
+var CreateMultipartUploadOutput$ = [3, n0, _CMUOr,
+    { [_xN]: _IMUR },
+    [_ADb, _ARI, _B, _K, _UI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC, _CA, _CT],
+    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], [0, { [_xN]: _B }], 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]]
+];
+var CreateMultipartUploadRequest$ = [3, n0, _CMURr,
+    0,
+    [_B, _K, _ACL_, _CC, _CDo, _CEo, _CL, _CTo, _Exp, _GFC, _GR, _GRACP, _GWACP, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _CA, _CT],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]], 2
+];
+var CreateSessionOutput$ = [3, n0, _CSO,
+    { [_xN]: _CSR },
+    [_Cr, _SSE, _SSEKMSKI, _SSEKMSEC, _BKE],
+    [[() => SessionCredentials$, { [_xN]: _Cr }], [0, { [_hH]: _xasse }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }]], 1
+];
+var CreateSessionRequest$ = [3, n0, _CSRr,
+    0,
+    [_B, _SM, _SSE, _SSEKMSKI, _SSEKMSEC, _BKE],
+    [[0, 1], [0, { [_hH]: _xacsm }], [0, { [_hH]: _xasse }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }]], 1
+];
+var CSVInput$ = [3, n0, _CSVIn,
+    0,
+    [_FHI, _Com, _QEC, _RD, _FD, _QC, _AQRD],
+    [0, 0, 0, 0, 0, 0, 2]
+];
+var CSVOutput$ = [3, n0, _CSVO,
+    0,
+    [_QF, _QEC, _RD, _FD, _QC],
+    [0, 0, 0, 0, 0]
+];
+var DefaultRetention$ = [3, n0, _DRe,
+    0,
+    [_Mo, _D, _Y],
+    [0, 1, 1]
+];
+var Delete$ = [3, n0, _De,
+    0,
+    [_Ob, _Q],
+    [[() => ObjectIdentifierList, { [_xF]: 1, [_xN]: _Obj }], 2], 1
+];
+var DeleteBucketAnalyticsConfigurationRequest$ = [3, n0, _DBACR,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var DeleteBucketCorsRequest$ = [3, n0, _DBCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketEncryptionRequest$ = [3, n0, _DBER,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketIntelligentTieringConfigurationRequest$ = [3, n0, _DBITCR,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var DeleteBucketInventoryConfigurationRequest$ = [3, n0, _DBICR,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var DeleteBucketLifecycleRequest$ = [3, n0, _DBLR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketMetadataConfigurationRequest$ = [3, n0, _DBMCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketMetadataTableConfigurationRequest$ = [3, n0, _DBMTCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketMetricsConfigurationRequest$ = [3, n0, _DBMCRe,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var DeleteBucketOwnershipControlsRequest$ = [3, n0, _DBOCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketPolicyRequest$ = [3, n0, _DBPR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketReplicationRequest$ = [3, n0, _DBRR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketRequest$ = [3, n0, _DBR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketTaggingRequest$ = [3, n0, _DBTR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeleteBucketWebsiteRequest$ = [3, n0, _DBWR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var DeletedObject$ = [3, n0, _DO,
+    0,
+    [_K, _VI, _DM, _DMVI],
+    [0, 0, 2, 0]
+];
+var DeleteMarkerEntry$ = [3, n0, _DME,
+    0,
+    [_O, _K, _VI, _IL, _LM],
+    [() => Owner$, 0, 0, 2, 4]
+];
+var DeleteMarkerReplication$ = [3, n0, _DMR,
+    0,
+    [_S],
+    [0]
+];
+var DeleteObjectAnnotationOutput$ = [3, n0, _DOAO,
+    0,
+    [_OVI, _RC],
+    [[0, { [_hH]: _xaovi }], [0, { [_hH]: _xarc }]]
+];
+var DeleteObjectAnnotationRequest$ = [3, n0, _DOAR,
+    0,
+    [_B, _K, _AN, _VI, _RP, _EBO, _OIM],
+    [[0, 1], [0, 1], [0, { [_hQ]: _aN }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaoim }]], 3
+];
+var DeleteObjectOutput$ = [3, n0, _DOO,
+    0,
+    [_DM, _VI, _RC],
+    [[2, { [_hH]: _xadm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xarc }]]
+];
+var DeleteObjectRequest$ = [3, n0, _DOR,
+    0,
+    [_B, _K, _MFA, _VI, _RP, _BGR, _EBO, _IM, _IMLMT, _IMS],
+    [[0, 1], [0, 1], [0, { [_hH]: _xam_ }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [2, { [_hH]: _xabgr }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _IM_ }], [6, { [_hH]: _xaimlmt }], [1, { [_hH]: _xaims }]], 2
+];
+var DeleteObjectsOutput$ = [3, n0, _DOOe,
+    { [_xN]: _DRel },
+    [_Del, _RC, _Er],
+    [[() => DeletedObjects, { [_xF]: 1 }], [0, { [_hH]: _xarc }], [() => Errors, { [_xF]: 1, [_xN]: _E }]]
+];
+var DeleteObjectsRequest$ = [3, n0, _DORe,
+    0,
+    [_B, _De, _MFA, _RP, _BGR, _EBO, _CA],
+    [[0, 1], [() => Delete$, { [_hP]: 1, [_xN]: _De }], [0, { [_hH]: _xam_ }], [0, { [_hH]: _xarp }], [2, { [_hH]: _xabgr }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasca }]], 2
+];
+var DeleteObjectTaggingOutput$ = [3, n0, _DOTO,
+    0,
+    [_VI],
+    [[0, { [_hH]: _xavi }]]
+];
+var DeleteObjectTaggingRequest$ = [3, n0, _DOTR,
+    0,
+    [_B, _K, _VI, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }]], 2
+];
+var DeletePublicAccessBlockRequest$ = [3, n0, _DPABR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var Destination$ = [3, n0, _Des,
+    0,
+    [_B, _A, _SC, _ACT, _EC, _RT, _Me],
+    [0, 0, 0, () => AccessControlTranslation$, () => EncryptionConfiguration$, () => ReplicationTime$, () => Metrics$], 1
+];
+var DestinationResult$ = [3, n0, _DRes,
+    0,
+    [_TBT, _TBA, _TNa],
+    [0, 0, 0]
+];
+var Encryption$ = [3, n0, _En,
+    0,
+    [_ETn, _KMSKI, _KMSC],
+    [0, [() => SSEKMSKeyId, 0], 0], 1
+];
+var EncryptionConfiguration$ = [3, n0, _EC,
+    0,
+    [_RKKID],
+    [0]
+];
+var EndEvent$ = [3, n0, _EE,
+    0,
+    [],
+    []
+];
+var _Error$ = [3, n0, _E,
+    0,
+    [_K, _VI, _Cod, _Mes],
+    [0, 0, 0, 0]
+];
+var ErrorDetails$ = [3, n0, _ED,
+    0,
+    [_ECr, _EM],
+    [0, 0]
+];
+var ErrorDocument$ = [3, n0, _EDr,
+    0,
+    [_K],
+    [0], 1
+];
+var EventBridgeConfiguration$ = [3, n0, _EBC,
+    0,
+    [],
+    []
+];
+var ExistingObjectReplication$ = [3, n0, _EOR,
+    0,
+    [_S],
+    [0], 1
+];
+var FilterRule$ = [3, n0, _FR,
+    0,
+    [_N, _V],
+    [0, 0]
+];
+var GetBucketAbacOutput$ = [3, n0, _GBAO,
+    0,
+    [_AS],
+    [[() => AbacStatus$, 16]]
+];
+var GetBucketAbacRequest$ = [3, n0, _GBAR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketAccelerateConfigurationOutput$ = [3, n0, _GBACO,
+    { [_xN]: _AC },
+    [_S, _RC],
+    [0, [0, { [_hH]: _xarc }]]
+];
+var GetBucketAccelerateConfigurationRequest$ = [3, n0, _GBACR,
+    0,
+    [_B, _EBO, _RP],
+    [[0, 1], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 1
+];
+var GetBucketAclOutput$ = [3, n0, _GBAOe,
+    { [_xN]: _ACP },
+    [_O, _G],
+    [() => Owner$, [() => Grants, { [_xN]: _ACL }]]
+];
+var GetBucketAclRequest$ = [3, n0, _GBARe,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketAnalyticsConfigurationOutput$ = [3, n0, _GBACOe,
+    0,
+    [_ACn],
+    [[() => AnalyticsConfiguration$, 16]]
+];
+var GetBucketAnalyticsConfigurationRequest$ = [3, n0, _GBACRe,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetBucketCorsOutput$ = [3, n0, _GBCO,
+    { [_xN]: _CORSC },
+    [_CORSR],
+    [[() => CORSRules, { [_xF]: 1, [_xN]: _CORSRu }]]
+];
+var GetBucketCorsRequest$ = [3, n0, _GBCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketEncryptionOutput$ = [3, n0, _GBEO,
+    0,
+    [_SSEC],
+    [[() => ServerSideEncryptionConfiguration$, 16]]
+];
+var GetBucketEncryptionRequest$ = [3, n0, _GBER,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketIntelligentTieringConfigurationOutput$ = [3, n0, _GBITCO,
+    0,
+    [_ITC],
+    [[() => IntelligentTieringConfiguration$, 16]]
+];
+var GetBucketIntelligentTieringConfigurationRequest$ = [3, n0, _GBITCR,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetBucketInventoryConfigurationOutput$ = [3, n0, _GBICO,
+    0,
+    [_IC],
+    [[() => InventoryConfiguration$, 16]]
+];
+var GetBucketInventoryConfigurationRequest$ = [3, n0, _GBICR,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetBucketLifecycleConfigurationOutput$ = [3, n0, _GBLCO,
+    { [_xN]: _LCi },
+    [_Ru, _TDMOS],
+    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Rul }], [0, { [_hH]: _xatdmos }]]
+];
+var GetBucketLifecycleConfigurationRequest$ = [3, n0, _GBLCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketLocationOutput$ = [3, n0, _GBLO,
+    { [_xN]: _LC },
+    [_LC],
+    [0]
+];
+var GetBucketLocationRequest$ = [3, n0, _GBLR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketLoggingOutput$ = [3, n0, _GBLOe,
+    { [_xN]: _BLS },
+    [_LE],
+    [[() => LoggingEnabled$, 0]]
+];
+var GetBucketLoggingRequest$ = [3, n0, _GBLRe,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketMetadataConfigurationOutput$ = [3, n0, _GBMCO,
+    0,
+    [_GBMCR],
+    [[() => GetBucketMetadataConfigurationResult$, 16]]
+];
+var GetBucketMetadataConfigurationRequest$ = [3, n0, _GBMCRe,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketMetadataConfigurationResult$ = [3, n0, _GBMCR,
+    0,
+    [_MCR],
+    [() => MetadataConfigurationResult$], 1
+];
+var GetBucketMetadataTableConfigurationOutput$ = [3, n0, _GBMTCO,
+    0,
+    [_GBMTCR],
+    [[() => GetBucketMetadataTableConfigurationResult$, 16]]
+];
+var GetBucketMetadataTableConfigurationRequest$ = [3, n0, _GBMTCRe,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketMetadataTableConfigurationResult$ = [3, n0, _GBMTCR,
+    0,
+    [_MTCR, _S, _E],
+    [() => MetadataTableConfigurationResult$, 0, () => ErrorDetails$], 2
+];
+var GetBucketMetricsConfigurationOutput$ = [3, n0, _GBMCOe,
+    0,
+    [_MCe],
+    [[() => MetricsConfiguration$, 16]]
+];
+var GetBucketMetricsConfigurationRequest$ = [3, n0, _GBMCRet,
+    0,
+    [_B, _I, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetBucketNotificationConfigurationRequest$ = [3, n0, _GBNCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketOwnershipControlsOutput$ = [3, n0, _GBOCO,
+    0,
+    [_OC],
+    [[() => OwnershipControls$, 16]]
+];
+var GetBucketOwnershipControlsRequest$ = [3, n0, _GBOCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketPolicyOutput$ = [3, n0, _GBPO,
+    0,
+    [_Po],
+    [[0, 16]]
+];
+var GetBucketPolicyRequest$ = [3, n0, _GBPR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketPolicyStatusOutput$ = [3, n0, _GBPSO,
+    0,
+    [_PS],
+    [[() => PolicyStatus$, 16]]
+];
+var GetBucketPolicyStatusRequest$ = [3, n0, _GBPSR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketReplicationOutput$ = [3, n0, _GBRO,
+    0,
+    [_RCe],
+    [[() => ReplicationConfiguration$, 16]]
+];
+var GetBucketReplicationRequest$ = [3, n0, _GBRR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketRequestPaymentOutput$ = [3, n0, _GBRPO,
+    { [_xN]: _RPC },
+    [_Pay],
+    [0]
+];
+var GetBucketRequestPaymentRequest$ = [3, n0, _GBRPR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketTaggingOutput$ = [3, n0, _GBTO,
+    { [_xN]: _Tag },
+    [_TSa],
+    [[() => TagSet, 0]], 1
+];
+var GetBucketTaggingRequest$ = [3, n0, _GBTR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketVersioningOutput$ = [3, n0, _GBVO,
+    { [_xN]: _VC },
+    [_S, _MFAD],
+    [0, [0, { [_xN]: _MDf }]]
+];
+var GetBucketVersioningRequest$ = [3, n0, _GBVR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetBucketWebsiteOutput$ = [3, n0, _GBWO,
+    { [_xN]: _WC },
+    [_RART, _IDn, _EDr, _RR],
+    [() => RedirectAllRequestsTo$, () => IndexDocument$, () => ErrorDocument$, [() => RoutingRules, 0]]
+];
+var GetBucketWebsiteRequest$ = [3, n0, _GBWR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetObjectAclOutput$ = [3, n0, _GOAO,
+    { [_xN]: _ACP },
+    [_O, _G, _RC],
+    [() => Owner$, [() => Grants, { [_xN]: _ACL }], [0, { [_hH]: _xarc }]]
+];
+var GetObjectAclRequest$ = [3, n0, _GOAR,
+    0,
+    [_B, _K, _VI, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetObjectAnnotationOutput$ = [3, n0, _GOAOe,
+    0,
+    [_AP, _OVI, _LM, _CLo, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _RC, _RS],
+    [[() => StreamingBlob, 16], [0, { [_hH]: _xaovi }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }]]
+];
+var GetObjectAnnotationRequest$ = [3, n0, _GOARe,
+    0,
+    [_B, _K, _AN, _VI, _RP, _EBO, _CMh],
+    [[0, 1], [0, 1], [0, { [_hQ]: _aN }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xacm_ }]], 3
+];
+var GetObjectAttributesOutput$ = [3, n0, _GOAOet,
+    { [_xN]: _GOARet },
+    [_DM, _LM, _VI, _RC, _ET, _C, _OP, _SC, _OS],
+    [[2, { [_hH]: _xadm }], [4, { [_hH]: _LM_ }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xarc }], 0, () => Checksum$, [() => GetObjectAttributesParts$, 0], 0, 1]
+];
+var GetObjectAttributesParts$ = [3, n0, _GOAP,
+    0,
+    [_TPC, _PNM, _NPNM, _MP, _IT, _Pa],
+    [[1, { [_xN]: _PC }], 0, 0, 1, 2, [() => PartsList, { [_xF]: 1, [_xN]: _Par }]]
+];
+var GetObjectAttributesRequest$ = [3, n0, _GOARetb,
+    0,
+    [_B, _K, _OA, _VI, _MP, _PNM, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
+    [[0, 1], [0, 1], [64 | 0, { [_hH]: _xaoa }], [0, { [_hQ]: _vI }], [1, { [_hH]: _xamp }], [0, { [_hH]: _xapnm }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 3
+];
+var GetObjectLegalHoldOutput$ = [3, n0, _GOLHO,
+    0,
+    [_LH],
+    [[() => ObjectLockLegalHold$, { [_hP]: 1, [_xN]: _LH }]]
+];
+var GetObjectLegalHoldRequest$ = [3, n0, _GOLHR,
+    0,
+    [_B, _K, _VI, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetObjectLockConfigurationOutput$ = [3, n0, _GOLCO,
+    0,
+    [_OLC],
+    [[() => ObjectLockConfiguration$, 16]]
+];
+var GetObjectLockConfigurationRequest$ = [3, n0, _GOLCR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GetObjectOutput$ = [3, n0, _GOO,
+    0,
+    [_Bo, _DM, _AR, _Ex, _Re, _LM, _CLo, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MM, _VI, _CC, _CDo, _CEo, _CL, _CR, _CTo, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
+    [[() => StreamingBlob, 16], [2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CR_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
+];
+var GetObjectRequest$ = [3, n0, _GOR,
+    0,
+    [_B, _K, _IM, _IMSf, _INM, _IUS, _Ra, _RCC, _RCD, _RCE, _RCL, _RCT, _RE, _VI, _SSECA, _SSECK, _SSECKMD, _RP, _PN, _EBO, _CMh],
+    [[0, 1], [0, 1], [0, { [_hH]: _IM_ }], [4, { [_hH]: _IMS_ }], [0, { [_hH]: _INM_ }], [4, { [_hH]: _IUS_ }], [0, { [_hH]: _Ra }], [0, { [_hQ]: _rcc }], [0, { [_hQ]: _rcd }], [0, { [_hQ]: _rce }], [0, { [_hQ]: _rcl }], [0, { [_hQ]: _rct }], [6, { [_hQ]: _re }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [1, { [_hQ]: _pN }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xacm_ }]], 2
+];
+var GetObjectRetentionOutput$ = [3, n0, _GORO,
+    0,
+    [_Ret],
+    [[() => ObjectLockRetention$, { [_hP]: 1, [_xN]: _Ret }]]
+];
+var GetObjectRetentionRequest$ = [3, n0, _GORR,
+    0,
+    [_B, _K, _VI, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetObjectTaggingOutput$ = [3, n0, _GOTO,
+    { [_xN]: _Tag },
+    [_TSa, _VI],
+    [[() => TagSet, 0], [0, { [_hH]: _xavi }]], 1
+];
+var GetObjectTaggingRequest$ = [3, n0, _GOTR,
+    0,
+    [_B, _K, _VI, _EBO, _RP],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 2
+];
+var GetObjectTorrentOutput$ = [3, n0, _GOTOe,
+    0,
+    [_Bo, _RC],
+    [[() => StreamingBlob, 16], [0, { [_hH]: _xarc }]]
+];
+var GetObjectTorrentRequest$ = [3, n0, _GOTRe,
+    0,
+    [_B, _K, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
+];
+var GetPublicAccessBlockOutput$ = [3, n0, _GPABO,
+    0,
+    [_PABC],
+    [[() => PublicAccessBlockConfiguration$, 16]]
+];
+var GetPublicAccessBlockRequest$ = [3, n0, _GPABR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var GlacierJobParameters$ = [3, n0, _GJP,
+    0,
+    [_Ti],
+    [0], 1
+];
+var Grant$ = [3, n0, _Gr,
+    0,
+    [_Gra, _Pe],
+    [[() => Grantee$, { [_xNm]: [_x, _hi] }], 0]
+];
+var Grantee$ = [3, n0, _Gra,
+    0,
+    [_Ty, _DN, _EA, _ID, _URI],
+    [[0, { [_xA]: 1, [_xN]: _xs }], 0, 0, 0, 0], 1
+];
+var HeadBucketOutput$ = [3, n0, _HBO,
+    0,
+    [_BA, _BLT, _BLN, _BR, _APA],
+    [[0, { [_hH]: _xaba }], [0, { [_hH]: _xablt }], [0, { [_hH]: _xabln }], [0, { [_hH]: _xabr }], [2, { [_hH]: _xaapa }]]
+];
+var HeadBucketRequest$ = [3, n0, _HBR,
+    0,
+    [_B, _EBO],
+    [[0, 1], [0, { [_hH]: _xaebo }]], 1
+];
+var HeadObjectOutput$ = [3, n0, _HOO,
+    0,
+    [_DM, _AR, _Ex, _Re, _ASr, _LM, _CLo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _ET, _MM, _VI, _CC, _CDo, _CEo, _CL, _CTo, _CR, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
+    [[2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [0, { [_hH]: _xaas }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _ET }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _CR_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
+];
+var HeadObjectRequest$ = [3, n0, _HOR,
+    0,
+    [_B, _K, _IM, _IMSf, _INM, _IUS, _Ra, _RCC, _RCD, _RCE, _RCL, _RCT, _RE, _VI, _SSECA, _SSECK, _SSECKMD, _RP, _PN, _EBO, _CMh],
+    [[0, 1], [0, 1], [0, { [_hH]: _IM_ }], [4, { [_hH]: _IMS_ }], [0, { [_hH]: _INM_ }], [4, { [_hH]: _IUS_ }], [0, { [_hH]: _Ra }], [0, { [_hQ]: _rcc }], [0, { [_hQ]: _rcd }], [0, { [_hQ]: _rce }], [0, { [_hQ]: _rcl }], [0, { [_hQ]: _rct }], [6, { [_hQ]: _re }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [1, { [_hQ]: _pN }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xacm_ }]], 2
+];
+var IndexDocument$ = [3, n0, _IDn,
+    0,
+    [_Su],
+    [0], 1
+];
+var Initiator$ = [3, n0, _In,
+    0,
+    [_ID, _DN],
+    [0, 0]
+];
+var InputSerialization$ = [3, n0, _IS,
+    0,
+    [_CSV, _CTom, _JSON, _Parq],
+    [() => CSVInput$, 0, () => JSONInput$, () => ParquetInput$]
+];
+var IntelligentTieringAndOperator$ = [3, n0, _ITAO,
+    0,
+    [_P, _T],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
+];
+var IntelligentTieringConfiguration$ = [3, n0, _ITC,
+    0,
+    [_I, _S, _Tie, _F],
+    [0, 0, [() => TieringList, { [_xF]: 1, [_xN]: _Tier }], [() => IntelligentTieringFilter$, 0]], 3
+];
+var IntelligentTieringFilter$ = [3, n0, _ITF,
+    0,
+    [_P, _Ta, _An],
+    [0, () => Tag$, [() => IntelligentTieringAndOperator$, 0]]
+];
+var InventoryConfiguration$ = [3, n0, _IC,
+    0,
+    [_Des, _IE, _I, _IOV, _Sc, _F, _OF],
+    [[() => InventoryDestination$, 0], 2, 0, 0, () => InventorySchedule$, () => InventoryFilter$, [() => InventoryOptionalFields, 0]], 5
+];
+var InventoryDestination$ = [3, n0, _IDnv,
+    0,
+    [_SBD],
+    [[() => InventoryS3BucketDestination$, 0]], 1
+];
+var InventoryEncryption$ = [3, n0, _IEn,
+    0,
+    [_SSES, _SSEKMS],
+    [[() => SSES3$, { [_xN]: _SS }], [() => SSEKMS$, { [_xN]: _SK }]]
+];
+var InventoryFilter$ = [3, n0, _IF,
+    0,
+    [_P],
+    [0], 1
+];
+var InventoryS3BucketDestination$ = [3, n0, _ISBD,
+    0,
+    [_B, _Fo, _AI, _P, _En],
+    [0, 0, 0, 0, [() => InventoryEncryption$, 0]], 2
+];
+var InventorySchedule$ = [3, n0, _ISn,
+    0,
+    [_Fr],
+    [0], 1
+];
+var InventoryTableConfiguration$ = [3, n0, _ITCn,
+    0,
+    [_CS, _EC],
+    [0, () => MetadataTableEncryptionConfiguration$], 1
+];
+var InventoryTableConfigurationResult$ = [3, n0, _ITCR,
+    0,
+    [_CS, _TS, _E, _TN, _TA],
+    [0, 0, () => ErrorDetails$, 0, 0], 1
+];
+var InventoryTableConfigurationUpdates$ = [3, n0, _ITCU,
+    0,
+    [_CS, _EC],
+    [0, () => MetadataTableEncryptionConfiguration$], 1
+];
+var JournalTableConfiguration$ = [3, n0, _JTC,
+    0,
+    [_REe, _EC],
+    [() => RecordExpiration$, () => MetadataTableEncryptionConfiguration$], 1
+];
+var JournalTableConfigurationResult$ = [3, n0, _JTCR,
+    0,
+    [_TS, _TN, _REe, _E, _TA],
+    [0, 0, () => RecordExpiration$, () => ErrorDetails$, 0], 3
+];
+var JournalTableConfigurationUpdates$ = [3, n0, _JTCU,
+    0,
+    [_REe],
+    [() => RecordExpiration$], 1
+];
+var JSONInput$ = [3, n0, _JSONI,
+    0,
+    [_Ty],
+    [0]
+];
+var JSONOutput$ = [3, n0, _JSONO,
+    0,
+    [_RD],
+    [0]
+];
+var LambdaFunctionConfiguration$ = [3, n0, _LFC,
+    0,
+    [_LFA, _Ev, _I, _F],
+    [[0, { [_xN]: _CF }], [64 | 0, { [_xF]: 1, [_xN]: _Eve }], 0, [() => NotificationConfigurationFilter$, 0]], 2
+];
+var LifecycleExpiration$ = [3, n0, _LEi,
+    0,
+    [_Da, _D, _EODM],
+    [5, 1, 2]
+];
+var LifecycleRule$ = [3, n0, _LR,
+    0,
+    [_S, _Ex, _ID, _P, _F, _Tr, _NVT, _NVE, _AIMU],
+    [0, () => LifecycleExpiration$, 0, 0, [() => LifecycleRuleFilter$, 0], [() => TransitionList, { [_xF]: 1, [_xN]: _Tra }], [() => NoncurrentVersionTransitionList, { [_xF]: 1, [_xN]: _NVTo }], () => NoncurrentVersionExpiration$, () => AbortIncompleteMultipartUpload$], 1
+];
+var LifecycleRuleAndOperator$ = [3, n0, _LRAO,
+    0,
+    [_P, _T, _OSGT, _OSLT],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }], 1, 1]
+];
+var LifecycleRuleFilter$ = [3, n0, _LRF,
+    0,
+    [_P, _Ta, _OSGT, _OSLT, _An],
+    [0, () => Tag$, 1, 1, [() => LifecycleRuleAndOperator$, 0]]
+];
+var ListBucketAnalyticsConfigurationsOutput$ = [3, n0, _LBACO,
+    { [_xN]: _LBACR },
+    [_IT, _CTon, _NCT, _ACLn],
+    [2, 0, 0, [() => AnalyticsConfigurationList, { [_xF]: 1, [_xN]: _ACn }]]
+];
+var ListBucketAnalyticsConfigurationsRequest$ = [3, n0, _LBACRi,
+    0,
+    [_B, _CTon, _EBO],
+    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
+];
+var ListBucketIntelligentTieringConfigurationsOutput$ = [3, n0, _LBITCO,
+    0,
+    [_IT, _CTon, _NCT, _ITCL],
+    [2, 0, 0, [() => IntelligentTieringConfigurationList, { [_xF]: 1, [_xN]: _ITC }]]
+];
+var ListBucketIntelligentTieringConfigurationsRequest$ = [3, n0, _LBITCR,
+    0,
+    [_B, _CTon, _EBO],
+    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
+];
+var ListBucketInventoryConfigurationsOutput$ = [3, n0, _LBICO,
+    { [_xN]: _LICR },
+    [_CTon, _ICL, _IT, _NCT],
+    [0, [() => InventoryConfigurationList, { [_xF]: 1, [_xN]: _IC }], 2, 0]
+];
+var ListBucketInventoryConfigurationsRequest$ = [3, n0, _LBICR,
+    0,
+    [_B, _CTon, _EBO],
+    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
+];
+var ListBucketMetricsConfigurationsOutput$ = [3, n0, _LBMCO,
+    { [_xN]: _LMCR },
+    [_IT, _CTon, _NCT, _MCL],
+    [2, 0, 0, [() => MetricsConfigurationList, { [_xF]: 1, [_xN]: _MCe }]]
+];
+var ListBucketMetricsConfigurationsRequest$ = [3, n0, _LBMCR,
+    0,
+    [_B, _CTon, _EBO],
+    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
+];
+var ListBucketsOutput$ = [3, n0, _LBO,
+    { [_xN]: _LAMBR },
+    [_Bu, _O, _CTon, _P],
+    [[() => Buckets, 0], () => Owner$, 0, 0]
+];
+var ListBucketsRequest$ = [3, n0, _LBR,
+    0,
+    [_MB, _CTon, _P, _BR],
+    [[1, { [_hQ]: _mb }], [0, { [_hQ]: _ct }], [0, { [_hQ]: _p }], [0, { [_hQ]: _br }]]
+];
+var ListDirectoryBucketsOutput$ = [3, n0, _LDBO,
+    { [_xN]: _LAMDBR },
+    [_Bu, _CTon],
+    [[() => Buckets, 0], 0]
+];
+var ListDirectoryBucketsRequest$ = [3, n0, _LDBR,
+    0,
+    [_CTon, _MDB],
+    [[0, { [_hQ]: _ct }], [1, { [_hQ]: _mdb }]]
+];
+var ListMultipartUploadsOutput$ = [3, n0, _LMUO,
+    { [_xN]: _LMUR },
+    [_B, _KM, _UIM, _NKM, _P, _Deli, _NUIM, _MUa, _IT, _U, _CPom, _ETnc, _RC],
+    [0, 0, 0, 0, 0, 0, 0, 1, 2, [() => MultipartUploadList, { [_xF]: 1, [_xN]: _Up }], [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
+];
+var ListMultipartUploadsRequest$ = [3, n0, _LMURi,
+    0,
+    [_B, _Deli, _ETnc, _KM, _MUa, _P, _UIM, _EBO, _RP],
+    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _km }], [1, { [_hQ]: _mu }], [0, { [_hQ]: _p }], [0, { [_hQ]: _uim }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 1
+];
+var ListObjectAnnotationsOutput$ = [3, n0, _LOAO,
+    0,
+    [_Ann, _B, _K, _OVI, _APn, _MAR, _ACnn, _CTon, _NCT, _RC],
+    [[() => AnnotationList, 0], 0, 0, [0, { [_hH]: _xaovi }], 0, 1, 1, 0, 0, [0, { [_hH]: _xarc }]]
+];
+var ListObjectAnnotationsRequest$ = [3, n0, _LOAR,
+    0,
+    [_B, _K, _VI, _MAR, _APn, _CTon, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [1, { [_hQ]: _mar }], [0, { [_hQ]: _ap }], [0, { [_hQ]: _ct }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
+];
+var ListObjectsOutput$ = [3, n0, _LOO,
+    { [_xN]: _LBRi },
+    [_IT, _Ma, _NM, _Con, _N, _P, _Deli, _MK, _CPom, _ETnc, _RC],
+    [2, 0, 0, [() => ObjectList, { [_xF]: 1 }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
+];
+var ListObjectsRequest$ = [3, n0, _LOR,
+    0,
+    [_B, _Deli, _ETnc, _Ma, _MK, _P, _RP, _EBO, _OOA],
+    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _m }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [64 | 0, { [_hH]: _xaooa }]], 1
+];
+var ListObjectsV2Output$ = [3, n0, _LOVO,
+    { [_xN]: _LBRi },
+    [_IT, _Con, _N, _P, _Deli, _MK, _CPom, _ETnc, _KC, _CTon, _NCT, _SA, _RC],
+    [2, [() => ObjectList, { [_xF]: 1 }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, 1, 0, 0, 0, [0, { [_hH]: _xarc }]]
+];
+var ListObjectsV2Request$ = [3, n0, _LOVR,
+    0,
+    [_B, _Deli, _ETnc, _MK, _P, _CTon, _FO, _SA, _RP, _EBO, _OOA],
+    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hQ]: _ct }], [2, { [_hQ]: _fo }], [0, { [_hQ]: _sa }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [64 | 0, { [_hH]: _xaooa }]], 1
+];
+var ListObjectVersionsOutput$ = [3, n0, _LOVOi,
+    { [_xN]: _LVR },
+    [_IT, _KM, _VIM, _NKM, _NVIM, _Ve, _DMe, _N, _P, _Deli, _MK, _CPom, _ETnc, _RC],
+    [2, 0, 0, 0, 0, [() => ObjectVersionList, { [_xF]: 1, [_xN]: _Ver }], [() => DeleteMarkers, { [_xF]: 1, [_xN]: _DM }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
+];
+var ListObjectVersionsRequest$ = [3, n0, _LOVRi,
+    0,
+    [_B, _Deli, _ETnc, _KM, _MK, _P, _VIM, _EBO, _RP, _OOA],
+    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _km }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hQ]: _vim }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }], [64 | 0, { [_hH]: _xaooa }]], 1
+];
+var ListPartsOutput$ = [3, n0, _LPO,
+    { [_xN]: _LPR },
+    [_ADb, _ARI, _B, _K, _UI, _PNM, _NPNM, _MP, _IT, _Pa, _In, _O, _SC, _RC, _CA, _CT],
+    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], 0, 0, 0, 0, 0, 1, 2, [() => Parts, { [_xF]: 1, [_xN]: _Par }], () => Initiator$, () => Owner$, 0, [0, { [_hH]: _xarc }], 0, 0]
+];
+var ListPartsRequest$ = [3, n0, _LPRi,
+    0,
+    [_B, _K, _UI, _MP, _PNM, _RP, _EBO, _SSECA, _SSECK, _SSECKMD],
+    [[0, 1], [0, 1], [0, { [_hQ]: _uI }], [1, { [_hQ]: _mp }], [0, { [_hQ]: _pnm }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }]], 3
+];
+var LocationInfo$ = [3, n0, _LI,
+    0,
+    [_Ty, _N],
+    [0, 0]
+];
+var LoggingEnabled$ = [3, n0, _LE,
+    0,
+    [_TB, _TP, _TG, _TOKF],
+    [0, 0, [() => TargetGrants, 0], [() => TargetObjectKeyFormat$, 0]], 2
+];
+var MetadataConfiguration$ = [3, n0, _MC,
+    0,
+    [_JTC, _ITCn, _ATC],
+    [() => JournalTableConfiguration$, () => InventoryTableConfiguration$, () => AnnotationTableConfiguration$], 1
+];
+var MetadataConfigurationResult$ = [3, n0, _MCR,
+    0,
+    [_DRes, _JTCR, _ITCR, _ATCR],
+    [() => DestinationResult$, () => JournalTableConfigurationResult$, () => InventoryTableConfigurationResult$, () => AnnotationTableConfigurationResult$], 1
+];
+var MetadataEntry$ = [3, n0, _ME,
+    0,
+    [_N, _V],
+    [0, 0]
+];
+var MetadataTableConfiguration$ = [3, n0, _MTC,
+    0,
+    [_STD],
+    [() => S3TablesDestination$], 1
+];
+var MetadataTableConfigurationResult$ = [3, n0, _MTCR,
+    0,
+    [_STDR],
+    [() => S3TablesDestinationResult$], 1
+];
+var MetadataTableEncryptionConfiguration$ = [3, n0, _MTEC,
+    0,
+    [_SAs, _KKA],
+    [0, 0], 1
+];
+var Metrics$ = [3, n0, _Me,
+    0,
+    [_S, _ETv],
+    [0, () => ReplicationTimeValue$], 1
+];
+var MetricsAndOperator$ = [3, n0, _MAO,
+    0,
+    [_P, _T, _APAc],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }], 0]
+];
+var MetricsConfiguration$ = [3, n0, _MCe,
+    0,
+    [_I, _F],
+    [0, [() => MetricsFilter$, 0]], 1
+];
+var MultipartUpload$ = [3, n0, _MU,
+    0,
+    [_UI, _K, _Ini, _SC, _O, _In, _CA, _CT],
+    [0, 0, 4, 0, () => Owner$, () => Initiator$, 0, 0]
+];
+var NoncurrentVersionExpiration$ = [3, n0, _NVE,
+    0,
+    [_ND, _NNV],
+    [1, 1]
+];
+var NoncurrentVersionTransition$ = [3, n0, _NVTo,
+    0,
+    [_ND, _SC, _NNV],
+    [1, 0, 1]
+];
+var NotificationConfiguration$ = [3, n0, _NC,
+    0,
+    [_TCo, _QCu, _LFCa, _EBC],
+    [[() => TopicConfigurationList, { [_xF]: 1, [_xN]: _TCop }], [() => QueueConfigurationList, { [_xF]: 1, [_xN]: _QCue }], [() => LambdaFunctionConfigurationList, { [_xF]: 1, [_xN]: _CFC }], () => EventBridgeConfiguration$]
+];
+var NotificationConfigurationFilter$ = [3, n0, _NCF,
+    0,
+    [_K],
+    [[() => S3KeyFilter$, { [_xN]: _SKe }]]
+];
+var _Object$ = [3, n0, _Obj,
+    0,
+    [_K, _LM, _ET, _CA, _CT, _Si, _SC, _O, _RSe],
+    [0, 4, 0, [64 | 0, { [_xF]: 1 }], 0, 1, 0, () => Owner$, () => RestoreStatus$]
+];
+var ObjectIdentifier$ = [3, n0, _OI,
+    0,
+    [_K, _VI, _ET, _LMT, _Si],
+    [0, 0, 0, 6, 1], 1
+];
+var ObjectLockConfiguration$ = [3, n0, _OLC,
+    0,
+    [_OLE, _Rul],
+    [0, () => ObjectLockRule$]
+];
+var ObjectLockLegalHold$ = [3, n0, _OLLH,
+    0,
+    [_S],
+    [0]
+];
+var ObjectLockRetention$ = [3, n0, _OLR,
+    0,
+    [_Mo, _RUD],
+    [0, 5]
+];
+var ObjectLockRule$ = [3, n0, _OLRb,
+    0,
+    [_DRe],
+    [() => DefaultRetention$]
+];
+var ObjectPart$ = [3, n0, _OPb,
+    0,
+    [_PN, _Si, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+];
+var ObjectVersion$ = [3, n0, _OV,
+    0,
+    [_ET, _CA, _CT, _Si, _SC, _K, _VI, _IL, _LM, _O, _RSe],
+    [0, [64 | 0, { [_xF]: 1 }], 0, 1, 0, 0, 0, 2, 4, () => Owner$, () => RestoreStatus$]
+];
+var OutputLocation$ = [3, n0, _OL,
+    0,
+    [_S_],
+    [[() => S3Location$, 0]]
+];
+var OutputSerialization$ = [3, n0, _OSu,
+    0,
+    [_CSV, _JSON],
+    [() => CSVOutput$, () => JSONOutput$]
+];
+var Owner$ = [3, n0, _O,
+    0,
+    [_DN, _ID],
+    [0, 0]
+];
+var OwnershipControls$ = [3, n0, _OC,
+    0,
+    [_Ru],
+    [[() => OwnershipControlsRules, { [_xF]: 1, [_xN]: _Rul }]], 1
+];
+var OwnershipControlsRule$ = [3, n0, _OCR,
+    0,
+    [_OO],
+    [0], 1
+];
+var ParquetInput$ = [3, n0, _PI,
+    0,
+    [],
+    []
+];
+var Part$ = [3, n0, _Par,
+    0,
+    [_PN, _LM, _ET, _Si, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
+    [1, 4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+];
+var PartitionedPrefix$ = [3, n0, _PP,
+    { [_xN]: _PP },
+    [_PDS],
+    [0]
+];
+var PolicyStatus$ = [3, n0, _PS,
+    0,
+    [_IPs],
+    [[2, { [_xN]: _IPs }]]
+];
+var Progress$ = [3, n0, _Pr,
+    0,
+    [_BS, _BP, _BRy],
+    [1, 1, 1]
+];
+var ProgressEvent$ = [3, n0, _PE,
+    0,
+    [_Det],
+    [[() => Progress$, { [_eP]: 1 }]]
+];
+var PublicAccessBlockConfiguration$ = [3, n0, _PABC,
+    0,
+    [_BPA, _IPA, _BPP, _RPB],
+    [[2, { [_xN]: _BPA }], [2, { [_xN]: _IPA }], [2, { [_xN]: _BPP }], [2, { [_xN]: _RPB }]]
+];
+var PutBucketAbacRequest$ = [3, n0, _PBAR,
+    0,
+    [_B, _AS, _CMDo, _CA, _EBO],
+    [[0, 1], [() => AbacStatus$, { [_hP]: 1, [_xN]: _AS }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketAccelerateConfigurationRequest$ = [3, n0, _PBACR,
+    0,
+    [_B, _AC, _EBO, _CA],
+    [[0, 1], [() => AccelerateConfiguration$, { [_hP]: 1, [_xN]: _AC }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasca }]], 2
+];
+var PutBucketAclRequest$ = [3, n0, _PBARu,
+    0,
+    [_B, _ACL_, _ACP, _CMDo, _CA, _GFC, _GR, _GRACP, _GW, _GWACP, _EBO],
+    [[0, 1], [0, { [_hH]: _xaa }], [() => AccessControlPolicy$, { [_hP]: 1, [_xN]: _ACP }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _xaebo }]], 1
+];
+var PutBucketAnalyticsConfigurationRequest$ = [3, n0, _PBACRu,
+    0,
+    [_B, _I, _ACn, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [() => AnalyticsConfiguration$, { [_hP]: 1, [_xN]: _ACn }], [0, { [_hH]: _xaebo }]], 3
+];
+var PutBucketCorsRequest$ = [3, n0, _PBCR,
+    0,
+    [_B, _CORSC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => CORSConfiguration$, { [_hP]: 1, [_xN]: _CORSC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketEncryptionRequest$ = [3, n0, _PBER,
+    0,
+    [_B, _SSEC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => ServerSideEncryptionConfiguration$, { [_hP]: 1, [_xN]: _SSEC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketIntelligentTieringConfigurationRequest$ = [3, n0, _PBITCR,
+    0,
+    [_B, _I, _ITC, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [() => IntelligentTieringConfiguration$, { [_hP]: 1, [_xN]: _ITC }], [0, { [_hH]: _xaebo }]], 3
+];
+var PutBucketInventoryConfigurationRequest$ = [3, n0, _PBICR,
+    0,
+    [_B, _I, _IC, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [() => InventoryConfiguration$, { [_hP]: 1, [_xN]: _IC }], [0, { [_hH]: _xaebo }]], 3
+];
+var PutBucketLifecycleConfigurationOutput$ = [3, n0, _PBLCO,
+    0,
+    [_TDMOS],
+    [[0, { [_hH]: _xatdmos }]]
+];
+var PutBucketLifecycleConfigurationRequest$ = [3, n0, _PBLCR,
+    0,
+    [_B, _CA, _LCi, _EBO, _TDMOS],
+    [[0, 1], [0, { [_hH]: _xasca }], [() => BucketLifecycleConfiguration$, { [_hP]: 1, [_xN]: _LCi }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xatdmos }]], 1
+];
+var PutBucketLoggingRequest$ = [3, n0, _PBLR,
+    0,
+    [_B, _BLS, _CMDo, _CA, _EBO],
+    [[0, 1], [() => BucketLoggingStatus$, { [_hP]: 1, [_xN]: _BLS }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketMetricsConfigurationRequest$ = [3, n0, _PBMCR,
+    0,
+    [_B, _I, _MCe, _EBO],
+    [[0, 1], [0, { [_hQ]: _i }], [() => MetricsConfiguration$, { [_hP]: 1, [_xN]: _MCe }], [0, { [_hH]: _xaebo }]], 3
+];
+var PutBucketNotificationConfigurationRequest$ = [3, n0, _PBNCR,
+    0,
+    [_B, _NC, _EBO, _SDV],
+    [[0, 1], [() => NotificationConfiguration$, { [_hP]: 1, [_xN]: _NC }], [0, { [_hH]: _xaebo }], [2, { [_hH]: _xasdv }]], 2
+];
+var PutBucketOwnershipControlsRequest$ = [3, n0, _PBOCR,
+    0,
+    [_B, _OC, _CMDo, _EBO, _CA],
+    [[0, 1], [() => OwnershipControls$, { [_hP]: 1, [_xN]: _OC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasca }]], 2
+];
+var PutBucketPolicyRequest$ = [3, n0, _PBPR,
+    0,
+    [_B, _Po, _CMDo, _CA, _CRSBA, _EBO],
+    [[0, 1], [0, 16], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [2, { [_hH]: _xacrsba }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketReplicationRequest$ = [3, n0, _PBRR,
+    0,
+    [_B, _RCe, _CMDo, _CA, _To, _EBO],
+    [[0, 1], [() => ReplicationConfiguration$, { [_hP]: 1, [_xN]: _RCe }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xabolt }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketRequestPaymentRequest$ = [3, n0, _PBRPR,
+    0,
+    [_B, _RPC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => RequestPaymentConfiguration$, { [_hP]: 1, [_xN]: _RPC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketTaggingRequest$ = [3, n0, _PBTR,
+    0,
+    [_B, _Tag, _CMDo, _CA, _EBO],
+    [[0, 1], [() => Tagging$, { [_hP]: 1, [_xN]: _Tag }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketVersioningRequest$ = [3, n0, _PBVR,
+    0,
+    [_B, _VC, _CMDo, _CA, _MFA, _EBO],
+    [[0, 1], [() => VersioningConfiguration$, { [_hP]: 1, [_xN]: _VC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xam_ }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutBucketWebsiteRequest$ = [3, n0, _PBWR,
+    0,
+    [_B, _WC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => WebsiteConfiguration$, { [_hP]: 1, [_xN]: _WC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutObjectAclOutput$ = [3, n0, _POAO,
+    0,
+    [_RC],
+    [[0, { [_hH]: _xarc }]]
+];
+var PutObjectAclRequest$ = [3, n0, _POAR,
+    0,
+    [_B, _K, _ACL_, _ACP, _CMDo, _CA, _GFC, _GR, _GRACP, _GW, _GWACP, _RP, _VI, _EBO],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => AccessControlPolicy$, { [_hP]: 1, [_xN]: _ACP }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutObjectAnnotationOutput$ = [3, n0, _POAOu,
+    0,
+    [_K, _AN, _OVI, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _RC],
+    [0, 0, [0, { [_hH]: _xaovi }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xarc }]]
+];
+var PutObjectAnnotationRequest$ = [3, n0, _POARu,
+    0,
+    [_B, _K, _AN, _AP, _VI, _OIM, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CMDo, _RP, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _aN }], [() => StreamingBlob, 16], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaoim }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 4
+];
+var PutObjectLegalHoldOutput$ = [3, n0, _POLHO,
+    0,
+    [_RC],
+    [[0, { [_hH]: _xarc }]]
+];
+var PutObjectLegalHoldRequest$ = [3, n0, _POLHR,
+    0,
+    [_B, _K, _LH, _RP, _VI, _CMDo, _CA, _EBO],
+    [[0, 1], [0, 1], [() => ObjectLockLegalHold$, { [_hP]: 1, [_xN]: _LH }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutObjectLockConfigurationOutput$ = [3, n0, _POLCO,
+    0,
+    [_RC],
+    [[0, { [_hH]: _xarc }]]
+];
+var PutObjectLockConfigurationRequest$ = [3, n0, _POLCR,
+    0,
+    [_B, _OLC, _RP, _To, _CMDo, _CA, _EBO],
+    [[0, 1], [() => ObjectLockConfiguration$, { [_hP]: 1, [_xN]: _OLC }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xabolt }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 1
+];
+var PutObjectOutput$ = [3, n0, _POO,
+    0,
+    [_Ex, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _Si, _RC],
+    [[0, { [_hH]: _xae }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [1, { [_hH]: _xaos }], [0, { [_hH]: _xarc }]]
+];
+var PutObjectRequest$ = [3, n0, _POR,
+    0,
+    [_B, _K, _ACL_, _Bo, _CC, _CDo, _CEo, _CL, _CLo, _CMDo, _CTo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _Exp, _IM, _INM, _GFC, _GR, _GRACP, _GWACP, _WOB, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => StreamingBlob, 16], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [1, { [_hH]: _xawob }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutObjectRetentionOutput$ = [3, n0, _PORO,
+    0,
+    [_RC],
+    [[0, { [_hH]: _xarc }]]
+];
+var PutObjectRetentionRequest$ = [3, n0, _PORR,
+    0,
+    [_B, _K, _Ret, _RP, _VI, _BGR, _CMDo, _CA, _EBO],
+    [[0, 1], [0, 1], [() => ObjectLockRetention$, { [_hP]: 1, [_xN]: _Ret }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [2, { [_hH]: _xabgr }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var PutObjectTaggingOutput$ = [3, n0, _POTO,
+    0,
+    [_VI],
+    [[0, { [_hH]: _xavi }]]
+];
+var PutObjectTaggingRequest$ = [3, n0, _POTR,
+    0,
+    [_B, _K, _Tag, _VI, _CMDo, _CA, _EBO, _RP],
+    [[0, 1], [0, 1], [() => Tagging$, { [_hP]: 1, [_xN]: _Tag }], [0, { [_hQ]: _vI }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 3
+];
+var PutPublicAccessBlockRequest$ = [3, n0, _PPABR,
+    0,
+    [_B, _PABC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => PublicAccessBlockConfiguration$, { [_hP]: 1, [_xN]: _PABC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var QueueConfiguration$ = [3, n0, _QCue,
+    0,
+    [_QA, _Ev, _I, _F],
+    [[0, { [_xN]: _Qu }], [64 | 0, { [_xF]: 1, [_xN]: _Eve }], 0, [() => NotificationConfigurationFilter$, 0]], 2
+];
+var RecordExpiration$ = [3, n0, _REe,
+    0,
+    [_Ex, _D],
+    [0, 1], 1
+];
+var RecordsEvent$ = [3, n0, _REec,
+    0,
+    [_Payl],
+    [[21, { [_eP]: 1 }]]
+];
+var Redirect$ = [3, n0, _Red,
+    0,
+    [_HN, _HRC, _Pro, _RKPW, _RKW],
+    [0, 0, 0, 0, 0]
+];
+var RedirectAllRequestsTo$ = [3, n0, _RART,
+    0,
+    [_HN, _Pro],
+    [0, 0], 1
+];
+var RenameObjectOutput$ = [3, n0, _ROO,
+    0,
+    [],
+    []
+];
+var RenameObjectRequest$ = [3, n0, _ROR,
+    0,
+    [_B, _K, _RSen, _DIM, _DINM, _DIMS, _DIUS, _SIM, _SINM, _SIMS, _SIUS, _CTl],
+    [[0, 1], [0, 1], [0, { [_hH]: _xars_ }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [4, { [_hH]: _IMS_ }], [4, { [_hH]: _IUS_ }], [0, { [_hH]: _xarsim }], [0, { [_hH]: _xarsinm }], [6, { [_hH]: _xarsims }], [6, { [_hH]: _xarsius }], [0, { [_hH]: _xact_, [_iT]: 1 }]], 3
+];
+var ReplicaModifications$ = [3, n0, _RM,
+    0,
+    [_S],
+    [0], 1
+];
+var ReplicationConfiguration$ = [3, n0, _RCe,
+    0,
+    [_R, _Ru],
+    [0, [() => ReplicationRules, { [_xF]: 1, [_xN]: _Rul }]], 2
+];
+var ReplicationRule$ = [3, n0, _RRe,
+    0,
+    [_S, _Des, _ID, _Pri, _P, _F, _SSC, _EOR, _DMR],
+    [0, () => Destination$, 0, 1, 0, [() => ReplicationRuleFilter$, 0], () => SourceSelectionCriteria$, () => ExistingObjectReplication$, () => DeleteMarkerReplication$], 2
+];
+var ReplicationRuleAndOperator$ = [3, n0, _RRAO,
+    0,
+    [_P, _T],
+    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
+];
+var ReplicationRuleFilter$ = [3, n0, _RRF,
+    0,
+    [_P, _Ta, _An],
+    [0, () => Tag$, [() => ReplicationRuleAndOperator$, 0]]
+];
+var ReplicationTime$ = [3, n0, _RT,
+    0,
+    [_S, _Tim],
+    [0, () => ReplicationTimeValue$], 2
+];
+var ReplicationTimeValue$ = [3, n0, _RTV,
+    0,
+    [_Mi],
+    [1]
+];
+var RequestPaymentConfiguration$ = [3, n0, _RPC,
+    0,
+    [_Pay],
+    [0], 1
+];
+var RequestProgress$ = [3, n0, _RPe,
+    0,
+    [_Ena],
+    [2]
+];
+var RestoreObjectOutput$ = [3, n0, _ROOe,
+    0,
+    [_RC, _ROP],
+    [[0, { [_hH]: _xarc }], [0, { [_hH]: _xarop }]]
+];
+var RestoreObjectRequest$ = [3, n0, _RORe,
+    0,
+    [_B, _K, _VI, _RRes, _RP, _CA, _EBO],
+    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [() => RestoreRequest$, { [_hP]: 1, [_xN]: _RRes }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var RestoreRequest$ = [3, n0, _RRes,
+    0,
+    [_D, _GJP, _Ty, _Ti, _Desc, _SP, _OL],
+    [1, () => GlacierJobParameters$, 0, 0, 0, () => SelectParameters$, [() => OutputLocation$, 0]]
+];
+var RestoreStatus$ = [3, n0, _RSe,
+    0,
+    [_IRIP, _RED],
+    [2, 4]
+];
+var RoutingRule$ = [3, n0, _RRo,
+    0,
+    [_Red, _Co],
+    [() => Redirect$, () => Condition$], 1
+];
+var S3KeyFilter$ = [3, n0, _SKF,
+    0,
+    [_FRi],
+    [[() => FilterRuleList, { [_xF]: 1, [_xN]: _FR }]]
+];
+var S3Location$ = [3, n0, _SL,
+    0,
+    [_BNu, _P, _En, _CACL, _ACL, _Tag, _UM, _SC],
+    [0, 0, [() => Encryption$, 0], 0, [() => Grants, 0], [() => Tagging$, 0], [() => UserMetadata, 0], 0], 2
+];
+var S3TablesDestination$ = [3, n0, _STD,
+    0,
+    [_TBA, _TN],
+    [0, 0], 2
+];
+var S3TablesDestinationResult$ = [3, n0, _STDR,
+    0,
+    [_TBA, _TN, _TA, _TNa],
+    [0, 0, 0, 0], 4
+];
+var ScanRange$ = [3, n0, _SR,
+    0,
+    [_St, _End],
+    [1, 1]
+];
+var SelectObjectContentOutput$ = [3, n0, _SOCO,
+    0,
+    [_Payl],
+    [[() => SelectObjectContentEventStream$, 16]]
+];
+var SelectObjectContentRequest$ = [3, n0, _SOCR,
+    0,
+    [_B, _K, _Expr, _ETx, _IS, _OSu, _SSECA, _SSECK, _SSECKMD, _RPe, _SR, _EBO],
+    [[0, 1], [0, 1], 0, 0, () => InputSerialization$, () => OutputSerialization$, [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], () => RequestProgress$, () => ScanRange$, [0, { [_hH]: _xaebo }]], 6
+];
+var SelectParameters$ = [3, n0, _SP,
+    0,
+    [_IS, _ETx, _Expr, _OSu],
+    [() => InputSerialization$, 0, 0, () => OutputSerialization$], 4
+];
+var ServerSideEncryptionByDefault$ = [3, n0, _SSEBD,
+    0,
+    [_SSEA, _KMSMKID],
+    [0, [() => SSEKMSKeyId, 0]], 1
+];
+var ServerSideEncryptionConfiguration$ = [3, n0, _SSEC,
+    0,
+    [_Ru],
+    [[() => ServerSideEncryptionRules, { [_xF]: 1, [_xN]: _Rul }]], 1
+];
+var ServerSideEncryptionRule$ = [3, n0, _SSER,
+    0,
+    [_ASSEBD, _BKE, _BET],
+    [[() => ServerSideEncryptionByDefault$, 0], 2, [() => BlockedEncryptionTypes$, 0]]
+];
+var SessionCredentials$ = [3, n0, _SCe,
+    0,
+    [_AKI, _SAK, _ST, _Ex],
+    [[0, { [_xN]: _AKI }], [() => SessionCredentialValue, { [_xN]: _SAK }], [() => SessionCredentialValue, { [_xN]: _ST }], [4, { [_xN]: _Ex }]], 4
+];
+var SimplePrefix$ = [3, n0, _SPi,
+    { [_xN]: _SPi },
+    [],
+    []
+];
+var SourceSelectionCriteria$ = [3, n0, _SSC,
+    0,
+    [_SKEO, _RM],
+    [() => SseKmsEncryptedObjects$, () => ReplicaModifications$]
+];
+var SSEKMS$ = [3, n0, _SSEKMS,
+    { [_xN]: _SK },
+    [_KI],
+    [[() => SSEKMSKeyId, 0]], 1
+];
+var SseKmsEncryptedObjects$ = [3, n0, _SKEO,
+    0,
+    [_S],
+    [0], 1
+];
+var SSEKMSEncryption$ = [3, n0, _SSEKMSE,
+    { [_xN]: _SK },
+    [_KMSKA, _BKE],
+    [[() => NonEmptyKmsKeyArnString, 0], 2], 1
+];
+var SSES3$ = [3, n0, _SSES,
+    { [_xN]: _SS },
+    [],
+    []
+];
+var Stats$ = [3, n0, _Sta,
+    0,
+    [_BS, _BP, _BRy],
+    [1, 1, 1]
+];
+var StatsEvent$ = [3, n0, _SE,
+    0,
+    [_Det],
+    [[() => Stats$, { [_eP]: 1 }]]
+];
+var StorageClassAnalysis$ = [3, n0, _SCA,
+    0,
+    [_DE],
+    [() => StorageClassAnalysisDataExport$]
+];
+var StorageClassAnalysisDataExport$ = [3, n0, _SCADE,
+    0,
+    [_OSV, _Des],
+    [0, () => AnalyticsExportDestination$], 2
+];
+var Tag$ = [3, n0, _Ta,
+    0,
+    [_K, _V],
+    [0, 0], 2
+];
+var Tagging$ = [3, n0, _Tag,
+    0,
+    [_TSa],
+    [[() => TagSet, 0]], 1
+];
+var TargetGrant$ = [3, n0, _TGa,
+    0,
+    [_Gra, _Pe],
+    [[() => Grantee$, { [_xNm]: [_x, _hi] }], 0]
+];
+var TargetObjectKeyFormat$ = [3, n0, _TOKF,
+    0,
+    [_SPi, _PP],
+    [[() => SimplePrefix$, { [_xN]: _SPi }], [() => PartitionedPrefix$, { [_xN]: _PP }]]
+];
+var Tiering$ = [3, n0, _Tier,
+    0,
+    [_D, _AT],
+    [1, 0], 2
+];
+var TopicConfiguration$ = [3, n0, _TCop,
+    0,
+    [_TAo, _Ev, _I, _F],
+    [[0, { [_xN]: _Top }], [64 | 0, { [_xF]: 1, [_xN]: _Eve }], 0, [() => NotificationConfigurationFilter$, 0]], 2
+];
+var Transition$ = [3, n0, _Tra,
+    0,
+    [_Da, _D, _SC],
+    [5, 1, 0]
+];
+var UpdateBucketMetadataAnnotationTableConfigurationRequest$ = [3, n0, _UBMATCR,
+    0,
+    [_B, _ATC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => AnnotationTableConfigurationUpdates$, { [_hP]: 1, [_xN]: _ATC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var UpdateBucketMetadataInventoryTableConfigurationRequest$ = [3, n0, _UBMITCR,
+    0,
+    [_B, _ITCn, _CMDo, _CA, _EBO],
+    [[0, 1], [() => InventoryTableConfigurationUpdates$, { [_hP]: 1, [_xN]: _ITCn }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var UpdateBucketMetadataJournalTableConfigurationRequest$ = [3, n0, _UBMJTCR,
+    0,
+    [_B, _JTC, _CMDo, _CA, _EBO],
+    [[0, 1], [() => JournalTableConfigurationUpdates$, { [_hP]: 1, [_xN]: _JTC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
+];
+var UpdateObjectEncryptionRequest$ = [3, n0, _UOER,
+    0,
+    [_B, _K, _OE, _VI, _RP, _EBO, _CMDo, _CA],
+    [[0, 1], [0, 1], [() => ObjectEncryption$, 16], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }]], 3
+];
+var UpdateObjectEncryptionResponse$ = [3, n0, _UOERp,
+    0,
+    [_RC],
+    [[0, { [_hH]: _xarc }]]
+];
+var UploadPartCopyOutput$ = [3, n0, _UPCO,
+    0,
+    [_CSVI, _CPR, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
+    [[0, { [_hH]: _xacsvi }], [() => CopyPartResult$, 16], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+];
+var UploadPartCopyRequest$ = [3, n0, _UPCR,
+    0,
+    [_B, _CSo, _K, _PN, _UI, _CSIM, _CSIMS, _CSINM, _CSIUS, _CSRo, _SSECA, _SSECK, _SSECKMD, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _EBO, _ESBO],
+    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [0, { [_hH]: _xacsr }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 5
+];
+var UploadPartOutput$ = [3, n0, _UPO,
+    0,
+    [_SSE, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
+    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
+];
+var UploadPartRequest$ = [3, n0, _UPR,
+    0,
+    [_B, _K, _PN, _UI, _Bo, _CLo, _CMDo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
+    [[0, 1], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [() => StreamingBlob, 16], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 4
+];
+var VersioningConfiguration$ = [3, n0, _VC,
+    0,
+    [_MFAD, _S],
+    [[0, { [_xN]: _MDf }], 0]
+];
+var WebsiteConfiguration$ = [3, n0, _WC,
+    0,
+    [_EDr, _IDn, _RART, _RR],
+    [() => ErrorDocument$, () => IndexDocument$, () => RedirectAllRequestsTo$, [() => RoutingRules, 0]]
+];
+var WriteGetObjectResponseRequest$ = [3, n0, _WGORR,
+    0,
+    [_RReq, _RTe, _Bo, _SCt, _ECr, _EM, _AR, _CC, _CDo, _CEo, _CL, _CLo, _CR, _CTo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _DM, _ET, _Exp, _Ex, _LM, _MM, _M, _OLM, _OLLHS, _OLRUD, _PC, _RS, _RC, _Re, _SSE, _SSECA, _SSEKMSKI, _SSECKMD, _SC, _TC, _VI, _BKE],
+    [[0, { [_hL]: 1, [_hH]: _xarr }], [0, { [_hH]: _xart }], [() => StreamingBlob, 16], [1, { [_hH]: _xafs }], [0, { [_hH]: _xafec }], [0, { [_hH]: _xafem }], [0, { [_hH]: _xafhar }], [0, { [_hH]: _xafhCC }], [0, { [_hH]: _xafhCD }], [0, { [_hH]: _xafhCE }], [0, { [_hH]: _xafhCL }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xafhCR }], [0, { [_hH]: _xafhCT }], [0, { [_hH]: _xafhxacc }], [0, { [_hH]: _xafhxacc_ }], [0, { [_hH]: _xafhxacc__ }], [0, { [_hH]: _xafhxacs }], [0, { [_hH]: _xafhxacs_ }], [0, { [_hH]: _xafhxacs__ }], [0, { [_hH]: _xafhxacm }], [0, { [_hH]: _xafhxacx }], [0, { [_hH]: _xafhxacx_ }], [0, { [_hH]: _xafhxacx__ }], [2, { [_hH]: _xafhxadm }], [0, { [_hH]: _xafhE }], [4, { [_hH]: _xafhE_ }], [0, { [_hH]: _xafhxae }], [4, { [_hH]: _xafhLM }], [1, { [_hH]: _xafhxamm }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xafhxaolm }], [0, { [_hH]: _xafhxaollh }], [5, { [_hH]: _xafhxaolrud }], [1, { [_hH]: _xafhxampc }], [0, { [_hH]: _xafhxars }], [0, { [_hH]: _xafhxarc }], [0, { [_hH]: _xafhxar }], [0, { [_hH]: _xafhxasse }], [0, { [_hH]: _xafhxasseca }], [() => SSEKMSKeyId, { [_hH]: _xafhxasseakki }], [0, { [_hH]: _xafhxasseckM }], [0, { [_hH]: _xafhxasc }], [1, { [_hH]: _xafhxatc }], [0, { [_hH]: _xafhxavi }], [2, { [_hH]: _xafhxassebke }]], 2
+];
+var __Unit = "unit";
+var AnalyticsConfigurationList = [1, n0, _ACLn,
+    0, [() => AnalyticsConfiguration$,
+        0]
+];
+var AnnotationList = [1, n0, _AL,
+    0, [() => AnnotationEntry$,
+        { [_xN]: _AE }]
+];
+var Buckets = [1, n0, _Bu,
+    0, [() => Bucket$,
+        { [_xN]: _B }]
+];
+var CommonPrefixList = [1, n0, _CPL,
+    0, () => CommonPrefix$
+];
+var CompletedPartList = [1, n0, _CPLo,
+    0, () => CompletedPart$
+];
+var CORSRules = [1, n0, _CORSR,
+    0, [() => CORSRule$,
+        0]
+];
+var DeletedObjects = [1, n0, _DOe,
+    0, () => DeletedObject$
+];
+var DeleteMarkers = [1, n0, _DMe,
+    0, () => DeleteMarkerEntry$
+];
+var EncryptionTypeList = [1, n0, _ETL,
+    0, [0,
+        { [_xN]: _ETn }]
+];
+var Errors = [1, n0, _Er,
+    0, () => _Error$
+];
+var FilterRuleList = [1, n0, _FRL,
+    0, () => FilterRule$
+];
+var Grants = [1, n0, _G,
+    0, [() => Grant$,
+        { [_xN]: _Gr }]
+];
+var IntelligentTieringConfigurationList = [1, n0, _ITCL,
+    0, [() => IntelligentTieringConfiguration$,
+        0]
+];
+var InventoryConfigurationList = [1, n0, _ICL,
+    0, [() => InventoryConfiguration$,
+        0]
+];
+var InventoryOptionalFields = [1, n0, _IOF,
+    0, [0,
+        { [_xN]: _Fi }]
+];
+var LambdaFunctionConfigurationList = [1, n0, _LFCL,
+    0, [() => LambdaFunctionConfiguration$,
+        0]
+];
+var LifecycleRules = [1, n0, _LRi,
+    0, [() => LifecycleRule$,
+        0]
+];
+var MetricsConfigurationList = [1, n0, _MCL,
+    0, [() => MetricsConfiguration$,
+        0]
+];
+var MultipartUploadList = [1, n0, _MUL,
+    0, () => MultipartUpload$
+];
+var NoncurrentVersionTransitionList = [1, n0, _NVTL,
+    0, () => NoncurrentVersionTransition$
+];
+var ObjectIdentifierList = [1, n0, _OIL,
+    0, () => ObjectIdentifier$
+];
+var ObjectList = [1, n0, _OLb,
+    0, [() => _Object$,
+        0]
+];
+var ObjectVersionList = [1, n0, _OVL,
+    0, [() => ObjectVersion$,
+        0]
+];
+var OwnershipControlsRules = [1, n0, _OCRw,
+    0, () => OwnershipControlsRule$
+];
+var Parts = [1, n0, _Pa,
+    0, () => Part$
+];
+var PartsList = [1, n0, _PL,
+    0, () => ObjectPart$
+];
+var QueueConfigurationList = [1, n0, _QCL,
+    0, [() => QueueConfiguration$,
+        0]
+];
+var ReplicationRules = [1, n0, _RRep,
+    0, [() => ReplicationRule$,
+        0]
+];
+var RoutingRules = [1, n0, _RR,
+    0, [() => RoutingRule$,
+        { [_xN]: _RRo }]
+];
+var ServerSideEncryptionRules = [1, n0, _SSERe,
+    0, [() => ServerSideEncryptionRule$,
+        0]
+];
+var TagSet = [1, n0, _TSa,
+    0, [() => Tag$,
+        { [_xN]: _Ta }]
+];
+var TargetGrants = [1, n0, _TG,
+    0, [() => TargetGrant$,
+        { [_xN]: _Gr }]
+];
+var TieringList = [1, n0, _TL,
+    0, () => Tiering$
+];
+var TopicConfigurationList = [1, n0, _TCL,
+    0, [() => TopicConfiguration$,
+        0]
+];
+var TransitionList = [1, n0, _TLr,
+    0, () => Transition$
+];
+var UserMetadata = [1, n0, _UM,
+    0, [() => MetadataEntry$,
+        { [_xN]: _ME }]
+];
+var AnalyticsFilter$ = [4, n0, _AF,
+    0,
+    [_P, _Ta, _An],
+    [0, () => Tag$, [() => AnalyticsAndOperator$, 0]]
+];
+var MetricsFilter$ = [4, n0, _MF,
+    0,
+    [_P, _Ta, _APAc, _An],
+    [0, () => Tag$, 0, [() => MetricsAndOperator$, 0]]
+];
+var ObjectEncryption$ = [4, n0, _OE,
+    0,
+    [_SSEKMS],
+    [[() => SSEKMSEncryption$, { [_xN]: _SK }]]
+];
+var SelectObjectContentEventStream$ = [4, n0, _SOCES,
+    { [_st]: 1 },
+    [_Rec, _Sta, _Pr, _Cont, _End],
+    [[() => RecordsEvent$, 0], [() => StatsEvent$, 0], [() => ProgressEvent$, 0], () => ContinuationEvent$, () => EndEvent$]
+];
+var AbortMultipartUpload$ = [9, n0, _AMU,
+    { [_h]: ["DELETE", "/{Key+}?x-id=AbortMultipartUpload", 204] }, () => AbortMultipartUploadRequest$, () => AbortMultipartUploadOutput$
+];
+var CompleteMultipartUpload$ = [9, n0, _CMUo,
+    { [_h]: ["POST", "/{Key+}", 200] }, () => CompleteMultipartUploadRequest$, () => CompleteMultipartUploadOutput$
+];
+var CopyObject$ = [9, n0, _CO,
+    { [_h]: ["PUT", "/{Key+}?x-id=CopyObject", 200] }, () => CopyObjectRequest$, () => CopyObjectOutput$
+];
+var CreateBucket$ = [9, n0, _CB,
+    { [_h]: ["PUT", "/", 200] }, () => CreateBucketRequest$, () => CreateBucketOutput$
+];
+var CreateBucketMetadataConfiguration$ = [9, n0, _CBMC,
+    { [_hC]: "-", [_h]: ["POST", "/?metadataConfiguration", 200] }, () => CreateBucketMetadataConfigurationRequest$, () => __Unit
+];
+var CreateBucketMetadataTableConfiguration$ = [9, n0, _CBMTC,
+    { [_hC]: "-", [_h]: ["POST", "/?metadataTable", 200] }, () => CreateBucketMetadataTableConfigurationRequest$, () => __Unit
+];
+var CreateMultipartUpload$ = [9, n0, _CMUr,
+    { [_h]: ["POST", "/{Key+}?uploads", 200] }, () => CreateMultipartUploadRequest$, () => CreateMultipartUploadOutput$
+];
+var CreateSession$ = [9, n0, _CSr,
+    { [_h]: ["GET", "/?session", 200] }, () => CreateSessionRequest$, () => CreateSessionOutput$
+];
+var DeleteBucket$ = [9, n0, _DB,
+    { [_h]: ["DELETE", "/", 204] }, () => DeleteBucketRequest$, () => __Unit
+];
+var DeleteBucketAnalyticsConfiguration$ = [9, n0, _DBAC,
+    { [_h]: ["DELETE", "/?analytics", 204] }, () => DeleteBucketAnalyticsConfigurationRequest$, () => __Unit
+];
+var DeleteBucketCors$ = [9, n0, _DBC,
+    { [_h]: ["DELETE", "/?cors", 204] }, () => DeleteBucketCorsRequest$, () => __Unit
+];
+var DeleteBucketEncryption$ = [9, n0, _DBE,
+    { [_h]: ["DELETE", "/?encryption", 204] }, () => DeleteBucketEncryptionRequest$, () => __Unit
+];
+var DeleteBucketIntelligentTieringConfiguration$ = [9, n0, _DBITC,
+    { [_h]: ["DELETE", "/?intelligent-tiering", 204] }, () => DeleteBucketIntelligentTieringConfigurationRequest$, () => __Unit
+];
+var DeleteBucketInventoryConfiguration$ = [9, n0, _DBIC,
+    { [_h]: ["DELETE", "/?inventory", 204] }, () => DeleteBucketInventoryConfigurationRequest$, () => __Unit
+];
+var DeleteBucketLifecycle$ = [9, n0, _DBL,
+    { [_h]: ["DELETE", "/?lifecycle", 204] }, () => DeleteBucketLifecycleRequest$, () => __Unit
+];
+var DeleteBucketMetadataConfiguration$ = [9, n0, _DBMC,
+    { [_h]: ["DELETE", "/?metadataConfiguration", 204] }, () => DeleteBucketMetadataConfigurationRequest$, () => __Unit
+];
+var DeleteBucketMetadataTableConfiguration$ = [9, n0, _DBMTC,
+    { [_h]: ["DELETE", "/?metadataTable", 204] }, () => DeleteBucketMetadataTableConfigurationRequest$, () => __Unit
+];
+var DeleteBucketMetricsConfiguration$ = [9, n0, _DBMCe,
+    { [_h]: ["DELETE", "/?metrics", 204] }, () => DeleteBucketMetricsConfigurationRequest$, () => __Unit
+];
+var DeleteBucketOwnershipControls$ = [9, n0, _DBOC,
+    { [_h]: ["DELETE", "/?ownershipControls", 204] }, () => DeleteBucketOwnershipControlsRequest$, () => __Unit
+];
+var DeleteBucketPolicy$ = [9, n0, _DBP,
+    { [_h]: ["DELETE", "/?policy", 204] }, () => DeleteBucketPolicyRequest$, () => __Unit
+];
+var DeleteBucketReplication$ = [9, n0, _DBRe,
+    { [_h]: ["DELETE", "/?replication", 204] }, () => DeleteBucketReplicationRequest$, () => __Unit
+];
+var DeleteBucketTagging$ = [9, n0, _DBT,
+    { [_h]: ["DELETE", "/?tagging", 204] }, () => DeleteBucketTaggingRequest$, () => __Unit
+];
+var DeleteBucketWebsite$ = [9, n0, _DBW,
+    { [_h]: ["DELETE", "/?website", 204] }, () => DeleteBucketWebsiteRequest$, () => __Unit
+];
+var DeleteObject$ = [9, n0, _DOel,
+    { [_h]: ["DELETE", "/{Key+}?x-id=DeleteObject", 204] }, () => DeleteObjectRequest$, () => DeleteObjectOutput$
+];
+var DeleteObjectAnnotation$ = [9, n0, _DOA,
+    { [_h]: ["DELETE", "/{Key+}?annotation", 204] }, () => DeleteObjectAnnotationRequest$, () => DeleteObjectAnnotationOutput$
+];
+var DeleteObjects$ = [9, n0, _DOele,
+    { [_hC]: "-", [_h]: ["POST", "/?delete", 200] }, () => DeleteObjectsRequest$, () => DeleteObjectsOutput$
+];
+var DeleteObjectTagging$ = [9, n0, _DOT,
+    { [_h]: ["DELETE", "/{Key+}?tagging", 204] }, () => DeleteObjectTaggingRequest$, () => DeleteObjectTaggingOutput$
+];
+var DeletePublicAccessBlock$ = [9, n0, _DPAB,
+    { [_h]: ["DELETE", "/?publicAccessBlock", 204] }, () => DeletePublicAccessBlockRequest$, () => __Unit
+];
+var GetBucketAbac$ = [9, n0, _GBA,
+    { [_h]: ["GET", "/?abac", 200] }, () => GetBucketAbacRequest$, () => GetBucketAbacOutput$
+];
+var GetBucketAccelerateConfiguration$ = [9, n0, _GBAC,
+    { [_h]: ["GET", "/?accelerate", 200] }, () => GetBucketAccelerateConfigurationRequest$, () => GetBucketAccelerateConfigurationOutput$
+];
+var GetBucketAcl$ = [9, n0, _GBAe,
+    { [_h]: ["GET", "/?acl", 200] }, () => GetBucketAclRequest$, () => GetBucketAclOutput$
+];
+var GetBucketAnalyticsConfiguration$ = [9, n0, _GBACe,
+    { [_h]: ["GET", "/?analytics&x-id=GetBucketAnalyticsConfiguration", 200] }, () => GetBucketAnalyticsConfigurationRequest$, () => GetBucketAnalyticsConfigurationOutput$
+];
+var GetBucketCors$ = [9, n0, _GBC,
+    { [_h]: ["GET", "/?cors", 200] }, () => GetBucketCorsRequest$, () => GetBucketCorsOutput$
+];
+var GetBucketEncryption$ = [9, n0, _GBE,
+    { [_h]: ["GET", "/?encryption", 200] }, () => GetBucketEncryptionRequest$, () => GetBucketEncryptionOutput$
+];
+var GetBucketIntelligentTieringConfiguration$ = [9, n0, _GBITC,
+    { [_h]: ["GET", "/?intelligent-tiering&x-id=GetBucketIntelligentTieringConfiguration", 200] }, () => GetBucketIntelligentTieringConfigurationRequest$, () => GetBucketIntelligentTieringConfigurationOutput$
+];
+var GetBucketInventoryConfiguration$ = [9, n0, _GBIC,
+    { [_h]: ["GET", "/?inventory&x-id=GetBucketInventoryConfiguration", 200] }, () => GetBucketInventoryConfigurationRequest$, () => GetBucketInventoryConfigurationOutput$
+];
+var GetBucketLifecycleConfiguration$ = [9, n0, _GBLC,
+    { [_h]: ["GET", "/?lifecycle", 200] }, () => GetBucketLifecycleConfigurationRequest$, () => GetBucketLifecycleConfigurationOutput$
+];
+var GetBucketLocation$ = [9, n0, _GBL,
+    { [_h]: ["GET", "/?location", 200] }, () => GetBucketLocationRequest$, () => GetBucketLocationOutput$
+];
+var GetBucketLogging$ = [9, n0, _GBLe,
+    { [_h]: ["GET", "/?logging", 200] }, () => GetBucketLoggingRequest$, () => GetBucketLoggingOutput$
+];
+var GetBucketMetadataConfiguration$ = [9, n0, _GBMC,
+    { [_h]: ["GET", "/?metadataConfiguration", 200] }, () => GetBucketMetadataConfigurationRequest$, () => GetBucketMetadataConfigurationOutput$
+];
+var GetBucketMetadataTableConfiguration$ = [9, n0, _GBMTC,
+    { [_h]: ["GET", "/?metadataTable", 200] }, () => GetBucketMetadataTableConfigurationRequest$, () => GetBucketMetadataTableConfigurationOutput$
+];
+var GetBucketMetricsConfiguration$ = [9, n0, _GBMCe,
+    { [_h]: ["GET", "/?metrics&x-id=GetBucketMetricsConfiguration", 200] }, () => GetBucketMetricsConfigurationRequest$, () => GetBucketMetricsConfigurationOutput$
+];
+var GetBucketNotificationConfiguration$ = [9, n0, _GBNC,
+    { [_h]: ["GET", "/?notification", 200] }, () => GetBucketNotificationConfigurationRequest$, () => NotificationConfiguration$
+];
+var GetBucketOwnershipControls$ = [9, n0, _GBOC,
+    { [_h]: ["GET", "/?ownershipControls", 200] }, () => GetBucketOwnershipControlsRequest$, () => GetBucketOwnershipControlsOutput$
+];
+var GetBucketPolicy$ = [9, n0, _GBP,
+    { [_h]: ["GET", "/?policy", 200] }, () => GetBucketPolicyRequest$, () => GetBucketPolicyOutput$
+];
+var GetBucketPolicyStatus$ = [9, n0, _GBPS,
+    { [_h]: ["GET", "/?policyStatus", 200] }, () => GetBucketPolicyStatusRequest$, () => GetBucketPolicyStatusOutput$
+];
+var GetBucketReplication$ = [9, n0, _GBR,
+    { [_h]: ["GET", "/?replication", 200] }, () => GetBucketReplicationRequest$, () => GetBucketReplicationOutput$
+];
+var GetBucketRequestPayment$ = [9, n0, _GBRP,
+    { [_h]: ["GET", "/?requestPayment", 200] }, () => GetBucketRequestPaymentRequest$, () => GetBucketRequestPaymentOutput$
+];
+var GetBucketTagging$ = [9, n0, _GBT,
+    { [_h]: ["GET", "/?tagging", 200] }, () => GetBucketTaggingRequest$, () => GetBucketTaggingOutput$
+];
+var GetBucketVersioning$ = [9, n0, _GBV,
+    { [_h]: ["GET", "/?versioning", 200] }, () => GetBucketVersioningRequest$, () => GetBucketVersioningOutput$
+];
+var GetBucketWebsite$ = [9, n0, _GBW,
+    { [_h]: ["GET", "/?website", 200] }, () => GetBucketWebsiteRequest$, () => GetBucketWebsiteOutput$
+];
+var GetObject$ = [9, n0, _GO,
+    { [_hC]: "-", [_h]: ["GET", "/{Key+}?x-id=GetObject", 200] }, () => GetObjectRequest$, () => GetObjectOutput$
+];
+var GetObjectAcl$ = [9, n0, _GOA,
+    { [_h]: ["GET", "/{Key+}?acl", 200] }, () => GetObjectAclRequest$, () => GetObjectAclOutput$
+];
+var GetObjectAnnotation$ = [9, n0, _GOAe,
+    { [_hC]: "-", [_h]: ["GET", "/{Key+}?annotation&x-id=GetObjectAnnotation", 200] }, () => GetObjectAnnotationRequest$, () => GetObjectAnnotationOutput$
+];
+var GetObjectAttributes$ = [9, n0, _GOAet,
+    { [_h]: ["GET", "/{Key+}?attributes", 200] }, () => GetObjectAttributesRequest$, () => GetObjectAttributesOutput$
+];
+var GetObjectLegalHold$ = [9, n0, _GOLH,
+    { [_h]: ["GET", "/{Key+}?legal-hold", 200] }, () => GetObjectLegalHoldRequest$, () => GetObjectLegalHoldOutput$
+];
+var GetObjectLockConfiguration$ = [9, n0, _GOLC,
+    { [_h]: ["GET", "/?object-lock", 200] }, () => GetObjectLockConfigurationRequest$, () => GetObjectLockConfigurationOutput$
+];
+var GetObjectRetention$ = [9, n0, _GORe,
+    { [_h]: ["GET", "/{Key+}?retention", 200] }, () => GetObjectRetentionRequest$, () => GetObjectRetentionOutput$
+];
+var GetObjectTagging$ = [9, n0, _GOT,
+    { [_h]: ["GET", "/{Key+}?tagging", 200] }, () => GetObjectTaggingRequest$, () => GetObjectTaggingOutput$
+];
+var GetObjectTorrent$ = [9, n0, _GOTe,
+    { [_h]: ["GET", "/{Key+}?torrent", 200] }, () => GetObjectTorrentRequest$, () => GetObjectTorrentOutput$
+];
+var GetPublicAccessBlock$ = [9, n0, _GPAB,
+    { [_h]: ["GET", "/?publicAccessBlock", 200] }, () => GetPublicAccessBlockRequest$, () => GetPublicAccessBlockOutput$
+];
+var HeadBucket$ = [9, n0, _HB,
+    { [_h]: ["HEAD", "/", 200] }, () => HeadBucketRequest$, () => HeadBucketOutput$
+];
+var HeadObject$ = [9, n0, _HO,
+    { [_h]: ["HEAD", "/{Key+}", 200] }, () => HeadObjectRequest$, () => HeadObjectOutput$
+];
+var ListBucketAnalyticsConfigurations$ = [9, n0, _LBAC,
+    { [_h]: ["GET", "/?analytics&x-id=ListBucketAnalyticsConfigurations", 200] }, () => ListBucketAnalyticsConfigurationsRequest$, () => ListBucketAnalyticsConfigurationsOutput$
+];
+var ListBucketIntelligentTieringConfigurations$ = [9, n0, _LBITC,
+    { [_h]: ["GET", "/?intelligent-tiering&x-id=ListBucketIntelligentTieringConfigurations", 200] }, () => ListBucketIntelligentTieringConfigurationsRequest$, () => ListBucketIntelligentTieringConfigurationsOutput$
+];
+var ListBucketInventoryConfigurations$ = [9, n0, _LBIC,
+    { [_h]: ["GET", "/?inventory&x-id=ListBucketInventoryConfigurations", 200] }, () => ListBucketInventoryConfigurationsRequest$, () => ListBucketInventoryConfigurationsOutput$
+];
+var ListBucketMetricsConfigurations$ = [9, n0, _LBMC,
+    { [_h]: ["GET", "/?metrics&x-id=ListBucketMetricsConfigurations", 200] }, () => ListBucketMetricsConfigurationsRequest$, () => ListBucketMetricsConfigurationsOutput$
+];
+var ListBuckets$ = [9, n0, _LB,
+    { [_h]: ["GET", "/?x-id=ListBuckets", 200] }, () => ListBucketsRequest$, () => ListBucketsOutput$
+];
+var ListDirectoryBuckets$ = [9, n0, _LDB,
+    { [_h]: ["GET", "/?x-id=ListDirectoryBuckets", 200] }, () => ListDirectoryBucketsRequest$, () => ListDirectoryBucketsOutput$
+];
+var ListMultipartUploads$ = [9, n0, _LMU,
+    { [_h]: ["GET", "/?uploads", 200] }, () => ListMultipartUploadsRequest$, () => ListMultipartUploadsOutput$
+];
+var ListObjectAnnotations$ = [9, n0, _LOA,
+    { [_h]: ["GET", "/{Key+}?annotation&x-id=ListObjectAnnotations", 200] }, () => ListObjectAnnotationsRequest$, () => ListObjectAnnotationsOutput$
+];
+var ListObjects$ = [9, n0, _LO,
+    { [_h]: ["GET", "/", 200] }, () => ListObjectsRequest$, () => ListObjectsOutput$
+];
+var ListObjectsV2$ = [9, n0, _LOV,
+    { [_h]: ["GET", "/?list-type=2", 200] }, () => ListObjectsV2Request$, () => ListObjectsV2Output$
+];
+var ListObjectVersions$ = [9, n0, _LOVi,
+    { [_h]: ["GET", "/?versions", 200] }, () => ListObjectVersionsRequest$, () => ListObjectVersionsOutput$
+];
+var ListParts$ = [9, n0, _LP,
+    { [_h]: ["GET", "/{Key+}?x-id=ListParts", 200] }, () => ListPartsRequest$, () => ListPartsOutput$
+];
+var PutBucketAbac$ = [9, n0, _PBA,
+    { [_hC]: "-", [_h]: ["PUT", "/?abac", 200] }, () => PutBucketAbacRequest$, () => __Unit
+];
+var PutBucketAccelerateConfiguration$ = [9, n0, _PBAC,
+    { [_hC]: "-", [_h]: ["PUT", "/?accelerate", 200] }, () => PutBucketAccelerateConfigurationRequest$, () => __Unit
+];
+var PutBucketAcl$ = [9, n0, _PBAu,
+    { [_hC]: "-", [_h]: ["PUT", "/?acl", 200] }, () => PutBucketAclRequest$, () => __Unit
+];
+var PutBucketAnalyticsConfiguration$ = [9, n0, _PBACu,
+    { [_h]: ["PUT", "/?analytics", 200] }, () => PutBucketAnalyticsConfigurationRequest$, () => __Unit
+];
+var PutBucketCors$ = [9, n0, _PBC,
+    { [_hC]: "-", [_h]: ["PUT", "/?cors", 200] }, () => PutBucketCorsRequest$, () => __Unit
+];
+var PutBucketEncryption$ = [9, n0, _PBE,
+    { [_hC]: "-", [_h]: ["PUT", "/?encryption", 200] }, () => PutBucketEncryptionRequest$, () => __Unit
+];
+var PutBucketIntelligentTieringConfiguration$ = [9, n0, _PBITC,
+    { [_h]: ["PUT", "/?intelligent-tiering", 200] }, () => PutBucketIntelligentTieringConfigurationRequest$, () => __Unit
+];
+var PutBucketInventoryConfiguration$ = [9, n0, _PBIC,
+    { [_h]: ["PUT", "/?inventory", 200] }, () => PutBucketInventoryConfigurationRequest$, () => __Unit
+];
+var PutBucketLifecycleConfiguration$ = [9, n0, _PBLC,
+    { [_hC]: "-", [_h]: ["PUT", "/?lifecycle", 200] }, () => PutBucketLifecycleConfigurationRequest$, () => PutBucketLifecycleConfigurationOutput$
+];
+var PutBucketLogging$ = [9, n0, _PBL,
+    { [_hC]: "-", [_h]: ["PUT", "/?logging", 200] }, () => PutBucketLoggingRequest$, () => __Unit
+];
+var PutBucketMetricsConfiguration$ = [9, n0, _PBMC,
+    { [_h]: ["PUT", "/?metrics", 200] }, () => PutBucketMetricsConfigurationRequest$, () => __Unit
+];
+var PutBucketNotificationConfiguration$ = [9, n0, _PBNC,
+    { [_h]: ["PUT", "/?notification", 200] }, () => PutBucketNotificationConfigurationRequest$, () => __Unit
+];
+var PutBucketOwnershipControls$ = [9, n0, _PBOC,
+    { [_hC]: "-", [_h]: ["PUT", "/?ownershipControls", 200] }, () => PutBucketOwnershipControlsRequest$, () => __Unit
+];
+var PutBucketPolicy$ = [9, n0, _PBP,
+    { [_hC]: "-", [_h]: ["PUT", "/?policy", 200] }, () => PutBucketPolicyRequest$, () => __Unit
+];
+var PutBucketReplication$ = [9, n0, _PBR,
+    { [_hC]: "-", [_h]: ["PUT", "/?replication", 200] }, () => PutBucketReplicationRequest$, () => __Unit
+];
+var PutBucketRequestPayment$ = [9, n0, _PBRP,
+    { [_hC]: "-", [_h]: ["PUT", "/?requestPayment", 200] }, () => PutBucketRequestPaymentRequest$, () => __Unit
+];
+var PutBucketTagging$ = [9, n0, _PBT,
+    { [_hC]: "-", [_h]: ["PUT", "/?tagging", 200] }, () => PutBucketTaggingRequest$, () => __Unit
+];
+var PutBucketVersioning$ = [9, n0, _PBV,
+    { [_hC]: "-", [_h]: ["PUT", "/?versioning", 200] }, () => PutBucketVersioningRequest$, () => __Unit
+];
+var PutBucketWebsite$ = [9, n0, _PBW,
+    { [_hC]: "-", [_h]: ["PUT", "/?website", 200] }, () => PutBucketWebsiteRequest$, () => __Unit
+];
+var PutObject$ = [9, n0, _PO,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?x-id=PutObject", 200] }, () => PutObjectRequest$, () => PutObjectOutput$
+];
+var PutObjectAcl$ = [9, n0, _POA,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?acl", 200] }, () => PutObjectAclRequest$, () => PutObjectAclOutput$
+];
+var PutObjectAnnotation$ = [9, n0, _POAu,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?annotation", 200] }, () => PutObjectAnnotationRequest$, () => PutObjectAnnotationOutput$
+];
+var PutObjectLegalHold$ = [9, n0, _POLH,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?legal-hold", 200] }, () => PutObjectLegalHoldRequest$, () => PutObjectLegalHoldOutput$
+];
+var PutObjectLockConfiguration$ = [9, n0, _POLC,
+    { [_hC]: "-", [_h]: ["PUT", "/?object-lock", 200] }, () => PutObjectLockConfigurationRequest$, () => PutObjectLockConfigurationOutput$
+];
+var PutObjectRetention$ = [9, n0, _PORu,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?retention", 200] }, () => PutObjectRetentionRequest$, () => PutObjectRetentionOutput$
+];
+var PutObjectTagging$ = [9, n0, _POT,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?tagging", 200] }, () => PutObjectTaggingRequest$, () => PutObjectTaggingOutput$
+];
+var PutPublicAccessBlock$ = [9, n0, _PPAB,
+    { [_hC]: "-", [_h]: ["PUT", "/?publicAccessBlock", 200] }, () => PutPublicAccessBlockRequest$, () => __Unit
+];
+var RenameObject$ = [9, n0, _RO,
+    { [_h]: ["PUT", "/{Key+}?renameObject", 200] }, () => RenameObjectRequest$, () => RenameObjectOutput$
+];
+var RestoreObject$ = [9, n0, _ROe,
+    { [_hC]: "-", [_h]: ["POST", "/{Key+}?restore", 200] }, () => RestoreObjectRequest$, () => RestoreObjectOutput$
+];
+var SelectObjectContent$ = [9, n0, _SOC,
+    { [_h]: ["POST", "/{Key+}?select&select-type=2", 200] }, () => SelectObjectContentRequest$, () => SelectObjectContentOutput$
+];
+var UpdateBucketMetadataAnnotationTableConfiguration$ = [9, n0, _UBMATC,
+    { [_hC]: "-", [_h]: ["PUT", "/?metadataAnnotationTable", 200] }, () => UpdateBucketMetadataAnnotationTableConfigurationRequest$, () => __Unit
+];
+var UpdateBucketMetadataInventoryTableConfiguration$ = [9, n0, _UBMITC,
+    { [_hC]: "-", [_h]: ["PUT", "/?metadataInventoryTable", 200] }, () => UpdateBucketMetadataInventoryTableConfigurationRequest$, () => __Unit
+];
+var UpdateBucketMetadataJournalTableConfiguration$ = [9, n0, _UBMJTC,
+    { [_hC]: "-", [_h]: ["PUT", "/?metadataJournalTable", 200] }, () => UpdateBucketMetadataJournalTableConfigurationRequest$, () => __Unit
+];
+var UpdateObjectEncryption$ = [9, n0, _UOE,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?encryption", 200] }, () => UpdateObjectEncryptionRequest$, () => UpdateObjectEncryptionResponse$
+];
+var UploadPart$ = [9, n0, _UP,
+    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?x-id=UploadPart", 200] }, () => UploadPartRequest$, () => UploadPartOutput$
+];
+var UploadPartCopy$ = [9, n0, _UPC,
+    { [_h]: ["PUT", "/{Key+}?x-id=UploadPartCopy", 200] }, () => UploadPartCopyRequest$, () => UploadPartCopyOutput$
+];
+var WriteGetObjectResponse$ = [9, n0, _WGOR,
+    { [_en]: ["{RequestRoute}."], [_h]: ["POST", "/WriteGetObjectResponse", 200] }, () => WriteGetObjectResponseRequest$, () => __Unit
+];
+
 class CreateSessionCommand extends Command
     .classBuilder()
     .ep({
@@ -5426,6 +9064,96 @@ class CreateSessionCommand extends Command
     .sc(CreateSession$)
     .build() {
 }
+
+var version = "3.1075.0";
+var packageInfo = {
+	version: version};
+
+const getRuntimeConfig$1 = (config) => {
+    return {
+        apiVersion: "2006-03-01",
+        base64Decoder: config?.base64Decoder ?? fromBase64,
+        base64Encoder: config?.base64Encoder ?? toBase64,
+        disableHostPrefix: config?.disableHostPrefix ?? false,
+        endpointProvider: config?.endpointProvider ?? defaultEndpointResolver,
+        extensions: config?.extensions ?? [],
+        getAwsChunkedEncodingStream: config?.getAwsChunkedEncodingStream ?? getAwsChunkedEncodingStream,
+        httpAuthSchemeProvider: config?.httpAuthSchemeProvider ?? defaultS3HttpAuthSchemeProvider,
+        httpAuthSchemes: config?.httpAuthSchemes ?? [
+            {
+                schemeId: "aws.auth#sigv4",
+                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4"),
+                signer: new AwsSdkSigV4Signer(),
+            },
+            {
+                schemeId: "aws.auth#sigv4a",
+                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4a"),
+                signer: new AwsSdkSigV4ASigner(),
+            },
+        ],
+        logger: config?.logger ?? new NoOpLogger(),
+        protocol: config?.protocol ?? S3RestXmlProtocol,
+        protocolSettings: config?.protocolSettings ?? {
+            defaultNamespace: "com.amazonaws.s3",
+            errorTypeRegistries,
+            xmlNamespace: "http://s3.amazonaws.com/doc/2006-03-01/",
+            version: "2006-03-01",
+            serviceTarget: "AmazonS3",
+        },
+        sdkStreamMixin: config?.sdkStreamMixin ?? sdkStreamMixin,
+        serviceId: config?.serviceId ?? "S3",
+        signerConstructor: config?.signerConstructor ?? SignatureV4MultiRegion,
+        signingEscapePath: config?.signingEscapePath ?? false,
+        urlParser: config?.urlParser ?? parseUrl,
+        useArnRegion: config?.useArnRegion ?? undefined,
+        utf8Decoder: config?.utf8Decoder ?? fromUtf8,
+        utf8Encoder: config?.utf8Encoder ?? toUtf8,
+    };
+};
+
+const getRuntimeConfig = (config) => {
+    emitWarningIfUnsupportedVersion(process.version);
+    const defaultsMode = resolveDefaultsModeConfig(config);
+    const defaultConfigProvider = () => defaultsMode().then(loadConfigsForDefaultMode);
+    const clientSharedValues = getRuntimeConfig$1(config);
+    emitWarningIfUnsupportedVersion$1(process.version);
+    const loaderConfig = {
+        profile: config?.profile,
+        logger: clientSharedValues.logger,
+    };
+    return {
+        ...clientSharedValues,
+        ...config,
+        runtime: "node",
+        defaultsMode,
+        authSchemePreference: config?.authSchemePreference ?? loadConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
+        bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
+        credentialDefaultProvider: config?.credentialDefaultProvider ?? defaultProvider,
+        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
+        disableS3ExpressSessionAuth: config?.disableS3ExpressSessionAuth ?? loadConfig(NODE_DISABLE_S3_EXPRESS_SESSION_AUTH_OPTIONS, loaderConfig),
+        eventStreamSerdeProvider: config?.eventStreamSerdeProvider ?? eventStreamSerdeProvider,
+        maxAttempts: config?.maxAttempts ?? loadConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
+        md5: config?.md5 ?? Hash.bind(null, "md5"),
+        region: config?.region ?? loadConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
+        requestChecksumCalculation: config?.requestChecksumCalculation ?? loadConfig(NODE_REQUEST_CHECKSUM_CALCULATION_CONFIG_OPTIONS, loaderConfig),
+        requestHandler: NodeHttpHandler.create(config?.requestHandler ?? defaultConfigProvider),
+        responseChecksumValidation: config?.responseChecksumValidation ?? loadConfig(NODE_RESPONSE_CHECKSUM_VALIDATION_CONFIG_OPTIONS, loaderConfig),
+        retryMode: config?.retryMode ??
+            loadConfig({
+                ...NODE_RETRY_MODE_CONFIG_OPTIONS,
+                default: async () => (await defaultConfigProvider()).retryMode || DEFAULT_RETRY_MODE,
+            }, config),
+        sha1: config?.sha1 ?? Hash.bind(null, "sha1"),
+        sha256: config?.sha256 ?? Hash.bind(null, "sha256"),
+        sigv4aSigningRegionSet: config?.sigv4aSigningRegionSet ?? loadConfig(NODE_SIGV4A_CONFIG_OPTIONS, loaderConfig),
+        streamCollector: config?.streamCollector ?? streamCollector,
+        streamHasher: config?.streamHasher ?? readableStreamHasher,
+        useArnRegion: config?.useArnRegion ?? loadConfig(NODE_USE_ARN_REGION_CONFIG_OPTIONS, loaderConfig),
+        useDualstackEndpoint: config?.useDualstackEndpoint ?? loadConfig(NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
+        useFipsEndpoint: config?.useFipsEndpoint ?? loadConfig(NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
+        userAgentAppId: config?.userAgentAppId ?? loadConfig(NODE_APP_ID_CONFIG_OPTIONS, loaderConfig),
+    };
+};
 
 const getHttpAuthExtensionConfiguration = (runtimeConfig) => {
     const _httpAuthSchemes = runtimeConfig.httpAuthSchemes;
@@ -5899,6 +9627,24 @@ class DeleteBucketWebsiteCommand extends Command
     .s("AmazonS3", "DeleteBucketWebsite", {})
     .n("S3Client", "DeleteBucketWebsiteCommand")
     .sc(DeleteBucketWebsite$)
+    .build() {
+}
+
+class DeleteObjectAnnotationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getThrow200ExceptionsPlugin(config),
+    ];
+})
+    .s("AmazonS3", "DeleteObjectAnnotation", {})
+    .n("S3Client", "DeleteObjectAnnotationCommand")
+    .sc(DeleteObjectAnnotation$)
     .build() {
 }
 
@@ -6429,6 +10175,29 @@ class GetObjectAclCommand extends Command
     .build() {
 }
 
+class GetObjectAnnotationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+    Key: { type: "contextParams", name: "Key" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getFlexibleChecksumsPlugin(config, {
+            requestChecksumRequired: false,
+            requestValidationModeMember: 'ChecksumMode',
+            'responseAlgorithms': ['CRC64NVME', 'CRC32', 'CRC32C', 'SHA256', 'SHA1', 'SHA512', 'MD5', 'XXHASH64', 'XXHASH3', 'XXHASH128'],
+        }),
+    ];
+})
+    .s("AmazonS3", "GetObjectAnnotation", {})
+    .n("S3Client", "GetObjectAnnotationCommand")
+    .sc(GetObjectAnnotation$)
+    .build() {
+}
+
 class GetObjectAttributesCommand extends Command
     .classBuilder()
     .ep({
@@ -6743,6 +10512,24 @@ class ListMultipartUploadsCommand extends Command
     .s("AmazonS3", "ListMultipartUploads", {})
     .n("S3Client", "ListMultipartUploadsCommand")
     .sc(ListMultipartUploads$)
+    .build() {
+}
+
+class ListObjectAnnotationsCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getThrow200ExceptionsPlugin(config),
+    ];
+})
+    .s("AmazonS3", "ListObjectAnnotations", {})
+    .n("S3Client", "ListObjectAnnotationsCommand")
+    .sc(ListObjectAnnotations$)
     .build() {
 }
 
@@ -7234,6 +11021,29 @@ class PutObjectAclCommand extends Command
     .build() {
 }
 
+class PutObjectAnnotationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    Bucket: { type: "contextParams", name: "Bucket" },
+    Key: { type: "contextParams", name: "Key" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getFlexibleChecksumsPlugin(config, {
+            requestAlgorithmMember: { 'httpHeader': 'x-amz-sdk-checksum-algorithm', 'name': 'ChecksumAlgorithm' },
+            requestChecksumRequired: false,
+        }),
+        getThrow200ExceptionsPlugin(config),
+    ];
+})
+    .s("AmazonS3", "PutObjectAnnotation", {})
+    .n("S3Client", "PutObjectAnnotationCommand")
+    .sc(PutObjectAnnotation$)
+    .build() {
+}
+
 class PutObjectCommand extends Command
     .classBuilder()
     .ep({
@@ -7432,6 +11242,28 @@ class SelectObjectContentCommand extends Command
     .build() {
 }
 
+class UpdateBucketMetadataAnnotationTableConfigurationCommand extends Command
+    .classBuilder()
+    .ep({
+    ...commonParams,
+    UseS3ExpressControlEndpoint: { type: "staticContextParams", value: true },
+    Bucket: { type: "contextParams", name: "Bucket" },
+})
+    .m(function (Command, cs, config, o) {
+    return [
+        getEndpointPlugin(config, Command.getEndpointParameterInstructions()),
+        getFlexibleChecksumsPlugin(config, {
+            requestAlgorithmMember: { 'httpHeader': 'x-amz-sdk-checksum-algorithm', 'name': 'ChecksumAlgorithm' },
+            requestChecksumRequired: true,
+        }),
+    ];
+})
+    .s("AmazonS3", "UpdateBucketMetadataAnnotationTableConfiguration", {})
+    .n("S3Client", "UpdateBucketMetadataAnnotationTableConfigurationCommand")
+    .sc(UpdateBucketMetadataAnnotationTableConfiguration$)
+    .build() {
+}
+
 class UpdateBucketMetadataInventoryTableConfigurationCommand extends Command
     .classBuilder()
     .ep({
@@ -7561,6 +11393,8 @@ const paginateListBuckets = createPaginator(S3Client, ListBucketsCommand, "Conti
 
 const paginateListDirectoryBuckets = createPaginator(S3Client, ListDirectoryBucketsCommand, "ContinuationToken", "ContinuationToken", "MaxDirectoryBuckets");
 
+const paginateListObjectAnnotations = createPaginator(S3Client, ListObjectAnnotationsCommand, "ContinuationToken", "NextContinuationToken", "MaxAnnotationResults");
+
 const paginateListObjectsV2 = createPaginator(S3Client, ListObjectsV2Command, "ContinuationToken", "NextContinuationToken", "MaxKeys");
 
 const paginateListParts = createPaginator(S3Client, ListPartsCommand, "PartNumberMarker", "NextPartNumberMarker", "MaxParts");
@@ -7688,6 +11522,7 @@ const commands = {
     DeleteBucketTaggingCommand,
     DeleteBucketWebsiteCommand,
     DeleteObjectCommand,
+    DeleteObjectAnnotationCommand,
     DeleteObjectsCommand,
     DeleteObjectTaggingCommand,
     DeletePublicAccessBlockCommand,
@@ -7716,6 +11551,7 @@ const commands = {
     GetBucketWebsiteCommand,
     GetObjectCommand,
     GetObjectAclCommand,
+    GetObjectAnnotationCommand,
     GetObjectAttributesCommand,
     GetObjectLegalHoldCommand,
     GetObjectLockConfigurationCommand,
@@ -7732,6 +11568,7 @@ const commands = {
     ListBucketsCommand,
     ListDirectoryBucketsCommand,
     ListMultipartUploadsCommand,
+    ListObjectAnnotationsCommand,
     ListObjectsCommand,
     ListObjectsV2Command,
     ListObjectVersionsCommand,
@@ -7757,6 +11594,7 @@ const commands = {
     PutBucketWebsiteCommand,
     PutObjectCommand,
     PutObjectAclCommand,
+    PutObjectAnnotationCommand,
     PutObjectLegalHoldCommand,
     PutObjectLockConfigurationCommand,
     PutObjectRetentionCommand,
@@ -7765,6 +11603,7 @@ const commands = {
     RenameObjectCommand,
     RestoreObjectCommand,
     SelectObjectContentCommand,
+    UpdateBucketMetadataAnnotationTableConfigurationCommand,
     UpdateBucketMetadataInventoryTableConfigurationCommand,
     UpdateBucketMetadataJournalTableConfigurationCommand,
     UpdateObjectEncryptionCommand,
@@ -7775,6 +11614,7 @@ const commands = {
 const paginators = {
     paginateListBuckets,
     paginateListDirectoryBuckets,
+    paginateListObjectAnnotations,
     paginateListObjectsV2,
     paginateListParts,
 };
@@ -7835,6 +11675,10 @@ const ObjectCannedACL = {
     private: "private",
     public_read: "public-read",
     public_read_write: "public-read-write",
+};
+const AnnotationDirective = {
+    COPY: "COPY",
+    EXCLUDE: "EXCLUDE",
 };
 const ChecksumAlgorithm = {
     CRC32: "CRC32",
@@ -7945,13 +11789,17 @@ const ObjectOwnership = {
     BucketOwnerPreferred: "BucketOwnerPreferred",
     ObjectWriter: "ObjectWriter",
 };
-const InventoryConfigurationState = {
+const AnnotationConfigurationState = {
     DISABLED: "DISABLED",
     ENABLED: "ENABLED",
 };
 const TableSseAlgorithm = {
     AES256: "AES256",
     aws_kms: "aws:kms",
+};
+const InventoryConfigurationState = {
+    DISABLED: "DISABLED",
+    ENABLED: "ENABLED",
 };
 const ExpirationState = {
     DISABLED: "DISABLED",
@@ -8046,6 +11894,9 @@ const Event = {
     s3_LifecycleExpiration_DeleteMarkerCreated: "s3:LifecycleExpiration:DeleteMarkerCreated",
     s3_LifecycleTransition: "s3:LifecycleTransition",
     s3_ObjectAcl_Put: "s3:ObjectAcl:Put",
+    s3_ObjectAnnotation_: "s3:ObjectAnnotation:*",
+    s3_ObjectAnnotation_Delete: "s3:ObjectAnnotation:Delete",
+    s3_ObjectAnnotation_Put: "s3:ObjectAnnotation:Put",
     s3_ObjectCreated_: "s3:ObjectCreated:*",
     s3_ObjectCreated_CompleteMultipartUpload: "s3:ObjectCreated:CompleteMultipartUpload",
     s3_ObjectCreated_Copy: "s3:ObjectCreated:Copy",
@@ -8202,190 +12053,701 @@ const RestoreRequestType = {
     SELECT: "SELECT",
 };
 
+exports.AbacStatus$ = AbacStatus$;
+exports.AbortIncompleteMultipartUpload$ = AbortIncompleteMultipartUpload$;
+exports.AbortMultipartUpload$ = AbortMultipartUpload$;
 exports.AbortMultipartUploadCommand = AbortMultipartUploadCommand;
+exports.AbortMultipartUploadOutput$ = AbortMultipartUploadOutput$;
+exports.AbortMultipartUploadRequest$ = AbortMultipartUploadRequest$;
+exports.AccelerateConfiguration$ = AccelerateConfiguration$;
+exports.AccessControlPolicy$ = AccessControlPolicy$;
+exports.AccessControlTranslation$ = AccessControlTranslation$;
+exports.AccessDenied = AccessDenied;
+exports.AccessDenied$ = AccessDenied$;
+exports.AnalyticsAndOperator$ = AnalyticsAndOperator$;
+exports.AnalyticsConfiguration$ = AnalyticsConfiguration$;
+exports.AnalyticsExportDestination$ = AnalyticsExportDestination$;
+exports.AnalyticsFilter$ = AnalyticsFilter$;
+exports.AnalyticsS3BucketDestination$ = AnalyticsS3BucketDestination$;
 exports.AnalyticsS3ExportFileFormat = AnalyticsS3ExportFileFormat;
+exports.AnnotationConfigurationState = AnnotationConfigurationState;
+exports.AnnotationDirective = AnnotationDirective;
+exports.AnnotationEntry$ = AnnotationEntry$;
+exports.AnnotationLimitExceeded = AnnotationLimitExceeded;
+exports.AnnotationLimitExceeded$ = AnnotationLimitExceeded$;
+exports.AnnotationNameTooLong = AnnotationNameTooLong;
+exports.AnnotationNameTooLong$ = AnnotationNameTooLong$;
+exports.AnnotationTableConfiguration$ = AnnotationTableConfiguration$;
+exports.AnnotationTableConfigurationResult$ = AnnotationTableConfigurationResult$;
+exports.AnnotationTableConfigurationUpdates$ = AnnotationTableConfigurationUpdates$;
 exports.ArchiveStatus = ArchiveStatus;
+exports.BlockedEncryptionTypes$ = BlockedEncryptionTypes$;
+exports.Bucket$ = Bucket$;
 exports.BucketAbacStatus = BucketAbacStatus;
 exports.BucketAccelerateStatus = BucketAccelerateStatus;
+exports.BucketAlreadyExists = BucketAlreadyExists;
+exports.BucketAlreadyExists$ = BucketAlreadyExists$;
+exports.BucketAlreadyOwnedByYou = BucketAlreadyOwnedByYou;
+exports.BucketAlreadyOwnedByYou$ = BucketAlreadyOwnedByYou$;
 exports.BucketCannedACL = BucketCannedACL;
+exports.BucketInfo$ = BucketInfo$;
+exports.BucketLifecycleConfiguration$ = BucketLifecycleConfiguration$;
 exports.BucketLocationConstraint = BucketLocationConstraint;
+exports.BucketLoggingStatus$ = BucketLoggingStatus$;
 exports.BucketLogsPermission = BucketLogsPermission;
 exports.BucketNamespace = BucketNamespace;
 exports.BucketType = BucketType;
 exports.BucketVersioningStatus = BucketVersioningStatus;
+exports.CORSConfiguration$ = CORSConfiguration$;
+exports.CORSRule$ = CORSRule$;
+exports.CSVInput$ = CSVInput$;
+exports.CSVOutput$ = CSVOutput$;
+exports.Checksum$ = Checksum$;
 exports.ChecksumAlgorithm = ChecksumAlgorithm;
 exports.ChecksumMode = ChecksumMode;
 exports.ChecksumType = ChecksumType;
+exports.CommonPrefix$ = CommonPrefix$;
+exports.CompleteMultipartUpload$ = CompleteMultipartUpload$;
 exports.CompleteMultipartUploadCommand = CompleteMultipartUploadCommand;
+exports.CompleteMultipartUploadOutput$ = CompleteMultipartUploadOutput$;
+exports.CompleteMultipartUploadRequest$ = CompleteMultipartUploadRequest$;
+exports.CompletedMultipartUpload$ = CompletedMultipartUpload$;
+exports.CompletedPart$ = CompletedPart$;
 exports.CompressionType = CompressionType;
+exports.Condition$ = Condition$;
+exports.ContinuationEvent$ = ContinuationEvent$;
+exports.CopyObject$ = CopyObject$;
 exports.CopyObjectCommand = CopyObjectCommand;
+exports.CopyObjectOutput$ = CopyObjectOutput$;
+exports.CopyObjectRequest$ = CopyObjectRequest$;
+exports.CopyObjectResult$ = CopyObjectResult$;
+exports.CopyPartResult$ = CopyPartResult$;
+exports.CreateBucket$ = CreateBucket$;
 exports.CreateBucketCommand = CreateBucketCommand;
+exports.CreateBucketConfiguration$ = CreateBucketConfiguration$;
+exports.CreateBucketMetadataConfiguration$ = CreateBucketMetadataConfiguration$;
 exports.CreateBucketMetadataConfigurationCommand = CreateBucketMetadataConfigurationCommand;
+exports.CreateBucketMetadataConfigurationRequest$ = CreateBucketMetadataConfigurationRequest$;
+exports.CreateBucketMetadataTableConfiguration$ = CreateBucketMetadataTableConfiguration$;
 exports.CreateBucketMetadataTableConfigurationCommand = CreateBucketMetadataTableConfigurationCommand;
+exports.CreateBucketMetadataTableConfigurationRequest$ = CreateBucketMetadataTableConfigurationRequest$;
+exports.CreateBucketOutput$ = CreateBucketOutput$;
+exports.CreateBucketRequest$ = CreateBucketRequest$;
+exports.CreateMultipartUpload$ = CreateMultipartUpload$;
 exports.CreateMultipartUploadCommand = CreateMultipartUploadCommand;
+exports.CreateMultipartUploadOutput$ = CreateMultipartUploadOutput$;
+exports.CreateMultipartUploadRequest$ = CreateMultipartUploadRequest$;
+exports.CreateSession$ = CreateSession$;
 exports.CreateSessionCommand = CreateSessionCommand;
+exports.CreateSessionOutput$ = CreateSessionOutput$;
+exports.CreateSessionRequest$ = CreateSessionRequest$;
 exports.DataRedundancy = DataRedundancy;
+exports.DefaultRetention$ = DefaultRetention$;
+exports.Delete$ = Delete$;
+exports.DeleteBucket$ = DeleteBucket$;
+exports.DeleteBucketAnalyticsConfiguration$ = DeleteBucketAnalyticsConfiguration$;
 exports.DeleteBucketAnalyticsConfigurationCommand = DeleteBucketAnalyticsConfigurationCommand;
+exports.DeleteBucketAnalyticsConfigurationRequest$ = DeleteBucketAnalyticsConfigurationRequest$;
 exports.DeleteBucketCommand = DeleteBucketCommand;
+exports.DeleteBucketCors$ = DeleteBucketCors$;
 exports.DeleteBucketCorsCommand = DeleteBucketCorsCommand;
+exports.DeleteBucketCorsRequest$ = DeleteBucketCorsRequest$;
+exports.DeleteBucketEncryption$ = DeleteBucketEncryption$;
 exports.DeleteBucketEncryptionCommand = DeleteBucketEncryptionCommand;
+exports.DeleteBucketEncryptionRequest$ = DeleteBucketEncryptionRequest$;
+exports.DeleteBucketIntelligentTieringConfiguration$ = DeleteBucketIntelligentTieringConfiguration$;
 exports.DeleteBucketIntelligentTieringConfigurationCommand = DeleteBucketIntelligentTieringConfigurationCommand;
+exports.DeleteBucketIntelligentTieringConfigurationRequest$ = DeleteBucketIntelligentTieringConfigurationRequest$;
+exports.DeleteBucketInventoryConfiguration$ = DeleteBucketInventoryConfiguration$;
 exports.DeleteBucketInventoryConfigurationCommand = DeleteBucketInventoryConfigurationCommand;
+exports.DeleteBucketInventoryConfigurationRequest$ = DeleteBucketInventoryConfigurationRequest$;
+exports.DeleteBucketLifecycle$ = DeleteBucketLifecycle$;
 exports.DeleteBucketLifecycleCommand = DeleteBucketLifecycleCommand;
+exports.DeleteBucketLifecycleRequest$ = DeleteBucketLifecycleRequest$;
+exports.DeleteBucketMetadataConfiguration$ = DeleteBucketMetadataConfiguration$;
 exports.DeleteBucketMetadataConfigurationCommand = DeleteBucketMetadataConfigurationCommand;
+exports.DeleteBucketMetadataConfigurationRequest$ = DeleteBucketMetadataConfigurationRequest$;
+exports.DeleteBucketMetadataTableConfiguration$ = DeleteBucketMetadataTableConfiguration$;
 exports.DeleteBucketMetadataTableConfigurationCommand = DeleteBucketMetadataTableConfigurationCommand;
+exports.DeleteBucketMetadataTableConfigurationRequest$ = DeleteBucketMetadataTableConfigurationRequest$;
+exports.DeleteBucketMetricsConfiguration$ = DeleteBucketMetricsConfiguration$;
 exports.DeleteBucketMetricsConfigurationCommand = DeleteBucketMetricsConfigurationCommand;
+exports.DeleteBucketMetricsConfigurationRequest$ = DeleteBucketMetricsConfigurationRequest$;
+exports.DeleteBucketOwnershipControls$ = DeleteBucketOwnershipControls$;
 exports.DeleteBucketOwnershipControlsCommand = DeleteBucketOwnershipControlsCommand;
+exports.DeleteBucketOwnershipControlsRequest$ = DeleteBucketOwnershipControlsRequest$;
+exports.DeleteBucketPolicy$ = DeleteBucketPolicy$;
 exports.DeleteBucketPolicyCommand = DeleteBucketPolicyCommand;
+exports.DeleteBucketPolicyRequest$ = DeleteBucketPolicyRequest$;
+exports.DeleteBucketReplication$ = DeleteBucketReplication$;
 exports.DeleteBucketReplicationCommand = DeleteBucketReplicationCommand;
+exports.DeleteBucketReplicationRequest$ = DeleteBucketReplicationRequest$;
+exports.DeleteBucketRequest$ = DeleteBucketRequest$;
+exports.DeleteBucketTagging$ = DeleteBucketTagging$;
 exports.DeleteBucketTaggingCommand = DeleteBucketTaggingCommand;
+exports.DeleteBucketTaggingRequest$ = DeleteBucketTaggingRequest$;
+exports.DeleteBucketWebsite$ = DeleteBucketWebsite$;
 exports.DeleteBucketWebsiteCommand = DeleteBucketWebsiteCommand;
+exports.DeleteBucketWebsiteRequest$ = DeleteBucketWebsiteRequest$;
+exports.DeleteMarkerEntry$ = DeleteMarkerEntry$;
+exports.DeleteMarkerReplication$ = DeleteMarkerReplication$;
 exports.DeleteMarkerReplicationStatus = DeleteMarkerReplicationStatus;
+exports.DeleteObject$ = DeleteObject$;
+exports.DeleteObjectAnnotation$ = DeleteObjectAnnotation$;
+exports.DeleteObjectAnnotationCommand = DeleteObjectAnnotationCommand;
+exports.DeleteObjectAnnotationOutput$ = DeleteObjectAnnotationOutput$;
+exports.DeleteObjectAnnotationRequest$ = DeleteObjectAnnotationRequest$;
 exports.DeleteObjectCommand = DeleteObjectCommand;
+exports.DeleteObjectOutput$ = DeleteObjectOutput$;
+exports.DeleteObjectRequest$ = DeleteObjectRequest$;
+exports.DeleteObjectTagging$ = DeleteObjectTagging$;
 exports.DeleteObjectTaggingCommand = DeleteObjectTaggingCommand;
+exports.DeleteObjectTaggingOutput$ = DeleteObjectTaggingOutput$;
+exports.DeleteObjectTaggingRequest$ = DeleteObjectTaggingRequest$;
+exports.DeleteObjects$ = DeleteObjects$;
 exports.DeleteObjectsCommand = DeleteObjectsCommand;
+exports.DeleteObjectsOutput$ = DeleteObjectsOutput$;
+exports.DeleteObjectsRequest$ = DeleteObjectsRequest$;
+exports.DeletePublicAccessBlock$ = DeletePublicAccessBlock$;
 exports.DeletePublicAccessBlockCommand = DeletePublicAccessBlockCommand;
+exports.DeletePublicAccessBlockRequest$ = DeletePublicAccessBlockRequest$;
+exports.DeletedObject$ = DeletedObject$;
+exports.Destination$ = Destination$;
+exports.DestinationResult$ = DestinationResult$;
 exports.EncodingType = EncodingType;
+exports.Encryption$ = Encryption$;
+exports.EncryptionConfiguration$ = EncryptionConfiguration$;
 exports.EncryptionType = EncryptionType;
+exports.EncryptionTypeMismatch = EncryptionTypeMismatch;
+exports.EncryptionTypeMismatch$ = EncryptionTypeMismatch$;
+exports.EndEvent$ = EndEvent$;
+exports.ErrorDetails$ = ErrorDetails$;
+exports.ErrorDocument$ = ErrorDocument$;
 exports.Event = Event;
+exports.EventBridgeConfiguration$ = EventBridgeConfiguration$;
+exports.ExistingObjectReplication$ = ExistingObjectReplication$;
 exports.ExistingObjectReplicationStatus = ExistingObjectReplicationStatus;
 exports.ExpirationState = ExpirationState;
 exports.ExpirationStatus = ExpirationStatus;
 exports.ExpressionType = ExpressionType;
 exports.FileHeaderInfo = FileHeaderInfo;
+exports.FilterRule$ = FilterRule$;
 exports.FilterRuleName = FilterRuleName;
+exports.GetBucketAbac$ = GetBucketAbac$;
 exports.GetBucketAbacCommand = GetBucketAbacCommand;
+exports.GetBucketAbacOutput$ = GetBucketAbacOutput$;
+exports.GetBucketAbacRequest$ = GetBucketAbacRequest$;
+exports.GetBucketAccelerateConfiguration$ = GetBucketAccelerateConfiguration$;
 exports.GetBucketAccelerateConfigurationCommand = GetBucketAccelerateConfigurationCommand;
+exports.GetBucketAccelerateConfigurationOutput$ = GetBucketAccelerateConfigurationOutput$;
+exports.GetBucketAccelerateConfigurationRequest$ = GetBucketAccelerateConfigurationRequest$;
+exports.GetBucketAcl$ = GetBucketAcl$;
 exports.GetBucketAclCommand = GetBucketAclCommand;
+exports.GetBucketAclOutput$ = GetBucketAclOutput$;
+exports.GetBucketAclRequest$ = GetBucketAclRequest$;
+exports.GetBucketAnalyticsConfiguration$ = GetBucketAnalyticsConfiguration$;
 exports.GetBucketAnalyticsConfigurationCommand = GetBucketAnalyticsConfigurationCommand;
+exports.GetBucketAnalyticsConfigurationOutput$ = GetBucketAnalyticsConfigurationOutput$;
+exports.GetBucketAnalyticsConfigurationRequest$ = GetBucketAnalyticsConfigurationRequest$;
+exports.GetBucketCors$ = GetBucketCors$;
 exports.GetBucketCorsCommand = GetBucketCorsCommand;
+exports.GetBucketCorsOutput$ = GetBucketCorsOutput$;
+exports.GetBucketCorsRequest$ = GetBucketCorsRequest$;
+exports.GetBucketEncryption$ = GetBucketEncryption$;
 exports.GetBucketEncryptionCommand = GetBucketEncryptionCommand;
+exports.GetBucketEncryptionOutput$ = GetBucketEncryptionOutput$;
+exports.GetBucketEncryptionRequest$ = GetBucketEncryptionRequest$;
+exports.GetBucketIntelligentTieringConfiguration$ = GetBucketIntelligentTieringConfiguration$;
 exports.GetBucketIntelligentTieringConfigurationCommand = GetBucketIntelligentTieringConfigurationCommand;
+exports.GetBucketIntelligentTieringConfigurationOutput$ = GetBucketIntelligentTieringConfigurationOutput$;
+exports.GetBucketIntelligentTieringConfigurationRequest$ = GetBucketIntelligentTieringConfigurationRequest$;
+exports.GetBucketInventoryConfiguration$ = GetBucketInventoryConfiguration$;
 exports.GetBucketInventoryConfigurationCommand = GetBucketInventoryConfigurationCommand;
+exports.GetBucketInventoryConfigurationOutput$ = GetBucketInventoryConfigurationOutput$;
+exports.GetBucketInventoryConfigurationRequest$ = GetBucketInventoryConfigurationRequest$;
+exports.GetBucketLifecycleConfiguration$ = GetBucketLifecycleConfiguration$;
 exports.GetBucketLifecycleConfigurationCommand = GetBucketLifecycleConfigurationCommand;
+exports.GetBucketLifecycleConfigurationOutput$ = GetBucketLifecycleConfigurationOutput$;
+exports.GetBucketLifecycleConfigurationRequest$ = GetBucketLifecycleConfigurationRequest$;
+exports.GetBucketLocation$ = GetBucketLocation$;
 exports.GetBucketLocationCommand = GetBucketLocationCommand;
+exports.GetBucketLocationOutput$ = GetBucketLocationOutput$;
+exports.GetBucketLocationRequest$ = GetBucketLocationRequest$;
+exports.GetBucketLogging$ = GetBucketLogging$;
 exports.GetBucketLoggingCommand = GetBucketLoggingCommand;
+exports.GetBucketLoggingOutput$ = GetBucketLoggingOutput$;
+exports.GetBucketLoggingRequest$ = GetBucketLoggingRequest$;
+exports.GetBucketMetadataConfiguration$ = GetBucketMetadataConfiguration$;
 exports.GetBucketMetadataConfigurationCommand = GetBucketMetadataConfigurationCommand;
+exports.GetBucketMetadataConfigurationOutput$ = GetBucketMetadataConfigurationOutput$;
+exports.GetBucketMetadataConfigurationRequest$ = GetBucketMetadataConfigurationRequest$;
+exports.GetBucketMetadataConfigurationResult$ = GetBucketMetadataConfigurationResult$;
+exports.GetBucketMetadataTableConfiguration$ = GetBucketMetadataTableConfiguration$;
 exports.GetBucketMetadataTableConfigurationCommand = GetBucketMetadataTableConfigurationCommand;
+exports.GetBucketMetadataTableConfigurationOutput$ = GetBucketMetadataTableConfigurationOutput$;
+exports.GetBucketMetadataTableConfigurationRequest$ = GetBucketMetadataTableConfigurationRequest$;
+exports.GetBucketMetadataTableConfigurationResult$ = GetBucketMetadataTableConfigurationResult$;
+exports.GetBucketMetricsConfiguration$ = GetBucketMetricsConfiguration$;
 exports.GetBucketMetricsConfigurationCommand = GetBucketMetricsConfigurationCommand;
+exports.GetBucketMetricsConfigurationOutput$ = GetBucketMetricsConfigurationOutput$;
+exports.GetBucketMetricsConfigurationRequest$ = GetBucketMetricsConfigurationRequest$;
+exports.GetBucketNotificationConfiguration$ = GetBucketNotificationConfiguration$;
 exports.GetBucketNotificationConfigurationCommand = GetBucketNotificationConfigurationCommand;
+exports.GetBucketNotificationConfigurationRequest$ = GetBucketNotificationConfigurationRequest$;
+exports.GetBucketOwnershipControls$ = GetBucketOwnershipControls$;
 exports.GetBucketOwnershipControlsCommand = GetBucketOwnershipControlsCommand;
+exports.GetBucketOwnershipControlsOutput$ = GetBucketOwnershipControlsOutput$;
+exports.GetBucketOwnershipControlsRequest$ = GetBucketOwnershipControlsRequest$;
+exports.GetBucketPolicy$ = GetBucketPolicy$;
 exports.GetBucketPolicyCommand = GetBucketPolicyCommand;
+exports.GetBucketPolicyOutput$ = GetBucketPolicyOutput$;
+exports.GetBucketPolicyRequest$ = GetBucketPolicyRequest$;
+exports.GetBucketPolicyStatus$ = GetBucketPolicyStatus$;
 exports.GetBucketPolicyStatusCommand = GetBucketPolicyStatusCommand;
+exports.GetBucketPolicyStatusOutput$ = GetBucketPolicyStatusOutput$;
+exports.GetBucketPolicyStatusRequest$ = GetBucketPolicyStatusRequest$;
+exports.GetBucketReplication$ = GetBucketReplication$;
 exports.GetBucketReplicationCommand = GetBucketReplicationCommand;
+exports.GetBucketReplicationOutput$ = GetBucketReplicationOutput$;
+exports.GetBucketReplicationRequest$ = GetBucketReplicationRequest$;
+exports.GetBucketRequestPayment$ = GetBucketRequestPayment$;
 exports.GetBucketRequestPaymentCommand = GetBucketRequestPaymentCommand;
+exports.GetBucketRequestPaymentOutput$ = GetBucketRequestPaymentOutput$;
+exports.GetBucketRequestPaymentRequest$ = GetBucketRequestPaymentRequest$;
+exports.GetBucketTagging$ = GetBucketTagging$;
 exports.GetBucketTaggingCommand = GetBucketTaggingCommand;
+exports.GetBucketTaggingOutput$ = GetBucketTaggingOutput$;
+exports.GetBucketTaggingRequest$ = GetBucketTaggingRequest$;
+exports.GetBucketVersioning$ = GetBucketVersioning$;
 exports.GetBucketVersioningCommand = GetBucketVersioningCommand;
+exports.GetBucketVersioningOutput$ = GetBucketVersioningOutput$;
+exports.GetBucketVersioningRequest$ = GetBucketVersioningRequest$;
+exports.GetBucketWebsite$ = GetBucketWebsite$;
 exports.GetBucketWebsiteCommand = GetBucketWebsiteCommand;
+exports.GetBucketWebsiteOutput$ = GetBucketWebsiteOutput$;
+exports.GetBucketWebsiteRequest$ = GetBucketWebsiteRequest$;
+exports.GetObject$ = GetObject$;
+exports.GetObjectAcl$ = GetObjectAcl$;
 exports.GetObjectAclCommand = GetObjectAclCommand;
+exports.GetObjectAclOutput$ = GetObjectAclOutput$;
+exports.GetObjectAclRequest$ = GetObjectAclRequest$;
+exports.GetObjectAnnotation$ = GetObjectAnnotation$;
+exports.GetObjectAnnotationCommand = GetObjectAnnotationCommand;
+exports.GetObjectAnnotationOutput$ = GetObjectAnnotationOutput$;
+exports.GetObjectAnnotationRequest$ = GetObjectAnnotationRequest$;
+exports.GetObjectAttributes$ = GetObjectAttributes$;
 exports.GetObjectAttributesCommand = GetObjectAttributesCommand;
+exports.GetObjectAttributesOutput$ = GetObjectAttributesOutput$;
+exports.GetObjectAttributesParts$ = GetObjectAttributesParts$;
+exports.GetObjectAttributesRequest$ = GetObjectAttributesRequest$;
 exports.GetObjectCommand = GetObjectCommand;
+exports.GetObjectLegalHold$ = GetObjectLegalHold$;
 exports.GetObjectLegalHoldCommand = GetObjectLegalHoldCommand;
+exports.GetObjectLegalHoldOutput$ = GetObjectLegalHoldOutput$;
+exports.GetObjectLegalHoldRequest$ = GetObjectLegalHoldRequest$;
+exports.GetObjectLockConfiguration$ = GetObjectLockConfiguration$;
 exports.GetObjectLockConfigurationCommand = GetObjectLockConfigurationCommand;
+exports.GetObjectLockConfigurationOutput$ = GetObjectLockConfigurationOutput$;
+exports.GetObjectLockConfigurationRequest$ = GetObjectLockConfigurationRequest$;
+exports.GetObjectOutput$ = GetObjectOutput$;
+exports.GetObjectRequest$ = GetObjectRequest$;
+exports.GetObjectRetention$ = GetObjectRetention$;
 exports.GetObjectRetentionCommand = GetObjectRetentionCommand;
+exports.GetObjectRetentionOutput$ = GetObjectRetentionOutput$;
+exports.GetObjectRetentionRequest$ = GetObjectRetentionRequest$;
+exports.GetObjectTagging$ = GetObjectTagging$;
 exports.GetObjectTaggingCommand = GetObjectTaggingCommand;
+exports.GetObjectTaggingOutput$ = GetObjectTaggingOutput$;
+exports.GetObjectTaggingRequest$ = GetObjectTaggingRequest$;
+exports.GetObjectTorrent$ = GetObjectTorrent$;
 exports.GetObjectTorrentCommand = GetObjectTorrentCommand;
+exports.GetObjectTorrentOutput$ = GetObjectTorrentOutput$;
+exports.GetObjectTorrentRequest$ = GetObjectTorrentRequest$;
+exports.GetPublicAccessBlock$ = GetPublicAccessBlock$;
 exports.GetPublicAccessBlockCommand = GetPublicAccessBlockCommand;
+exports.GetPublicAccessBlockOutput$ = GetPublicAccessBlockOutput$;
+exports.GetPublicAccessBlockRequest$ = GetPublicAccessBlockRequest$;
+exports.GlacierJobParameters$ = GlacierJobParameters$;
+exports.Grant$ = Grant$;
+exports.Grantee$ = Grantee$;
+exports.HeadBucket$ = HeadBucket$;
 exports.HeadBucketCommand = HeadBucketCommand;
+exports.HeadBucketOutput$ = HeadBucketOutput$;
+exports.HeadBucketRequest$ = HeadBucketRequest$;
+exports.HeadObject$ = HeadObject$;
 exports.HeadObjectCommand = HeadObjectCommand;
+exports.HeadObjectOutput$ = HeadObjectOutput$;
+exports.HeadObjectRequest$ = HeadObjectRequest$;
+exports.IdempotencyParameterMismatch = IdempotencyParameterMismatch;
+exports.IdempotencyParameterMismatch$ = IdempotencyParameterMismatch$;
+exports.IndexDocument$ = IndexDocument$;
+exports.Initiator$ = Initiator$;
+exports.InputSerialization$ = InputSerialization$;
 exports.IntelligentTieringAccessTier = IntelligentTieringAccessTier;
+exports.IntelligentTieringAndOperator$ = IntelligentTieringAndOperator$;
+exports.IntelligentTieringConfiguration$ = IntelligentTieringConfiguration$;
+exports.IntelligentTieringFilter$ = IntelligentTieringFilter$;
 exports.IntelligentTieringStatus = IntelligentTieringStatus;
+exports.InvalidAnnotationName = InvalidAnnotationName;
+exports.InvalidAnnotationName$ = InvalidAnnotationName$;
+exports.InvalidObjectState = InvalidObjectState;
+exports.InvalidObjectState$ = InvalidObjectState$;
+exports.InvalidPrefix = InvalidPrefix;
+exports.InvalidPrefix$ = InvalidPrefix$;
+exports.InvalidRequest = InvalidRequest;
+exports.InvalidRequest$ = InvalidRequest$;
+exports.InvalidWriteOffset = InvalidWriteOffset;
+exports.InvalidWriteOffset$ = InvalidWriteOffset$;
+exports.InventoryConfiguration$ = InventoryConfiguration$;
 exports.InventoryConfigurationState = InventoryConfigurationState;
+exports.InventoryDestination$ = InventoryDestination$;
+exports.InventoryEncryption$ = InventoryEncryption$;
+exports.InventoryFilter$ = InventoryFilter$;
 exports.InventoryFormat = InventoryFormat;
 exports.InventoryFrequency = InventoryFrequency;
 exports.InventoryIncludedObjectVersions = InventoryIncludedObjectVersions;
 exports.InventoryOptionalField = InventoryOptionalField;
+exports.InventoryS3BucketDestination$ = InventoryS3BucketDestination$;
+exports.InventorySchedule$ = InventorySchedule$;
+exports.InventoryTableConfiguration$ = InventoryTableConfiguration$;
+exports.InventoryTableConfigurationResult$ = InventoryTableConfigurationResult$;
+exports.InventoryTableConfigurationUpdates$ = InventoryTableConfigurationUpdates$;
+exports.JSONInput$ = JSONInput$;
+exports.JSONOutput$ = JSONOutput$;
 exports.JSONType = JSONType;
+exports.JournalTableConfiguration$ = JournalTableConfiguration$;
+exports.JournalTableConfigurationResult$ = JournalTableConfigurationResult$;
+exports.JournalTableConfigurationUpdates$ = JournalTableConfigurationUpdates$;
+exports.LambdaFunctionConfiguration$ = LambdaFunctionConfiguration$;
+exports.LifecycleExpiration$ = LifecycleExpiration$;
+exports.LifecycleRule$ = LifecycleRule$;
+exports.LifecycleRuleAndOperator$ = LifecycleRuleAndOperator$;
+exports.LifecycleRuleFilter$ = LifecycleRuleFilter$;
+exports.ListBucketAnalyticsConfigurations$ = ListBucketAnalyticsConfigurations$;
 exports.ListBucketAnalyticsConfigurationsCommand = ListBucketAnalyticsConfigurationsCommand;
+exports.ListBucketAnalyticsConfigurationsOutput$ = ListBucketAnalyticsConfigurationsOutput$;
+exports.ListBucketAnalyticsConfigurationsRequest$ = ListBucketAnalyticsConfigurationsRequest$;
+exports.ListBucketIntelligentTieringConfigurations$ = ListBucketIntelligentTieringConfigurations$;
 exports.ListBucketIntelligentTieringConfigurationsCommand = ListBucketIntelligentTieringConfigurationsCommand;
+exports.ListBucketIntelligentTieringConfigurationsOutput$ = ListBucketIntelligentTieringConfigurationsOutput$;
+exports.ListBucketIntelligentTieringConfigurationsRequest$ = ListBucketIntelligentTieringConfigurationsRequest$;
+exports.ListBucketInventoryConfigurations$ = ListBucketInventoryConfigurations$;
 exports.ListBucketInventoryConfigurationsCommand = ListBucketInventoryConfigurationsCommand;
+exports.ListBucketInventoryConfigurationsOutput$ = ListBucketInventoryConfigurationsOutput$;
+exports.ListBucketInventoryConfigurationsRequest$ = ListBucketInventoryConfigurationsRequest$;
+exports.ListBucketMetricsConfigurations$ = ListBucketMetricsConfigurations$;
 exports.ListBucketMetricsConfigurationsCommand = ListBucketMetricsConfigurationsCommand;
+exports.ListBucketMetricsConfigurationsOutput$ = ListBucketMetricsConfigurationsOutput$;
+exports.ListBucketMetricsConfigurationsRequest$ = ListBucketMetricsConfigurationsRequest$;
+exports.ListBuckets$ = ListBuckets$;
 exports.ListBucketsCommand = ListBucketsCommand;
+exports.ListBucketsOutput$ = ListBucketsOutput$;
+exports.ListBucketsRequest$ = ListBucketsRequest$;
+exports.ListDirectoryBuckets$ = ListDirectoryBuckets$;
 exports.ListDirectoryBucketsCommand = ListDirectoryBucketsCommand;
+exports.ListDirectoryBucketsOutput$ = ListDirectoryBucketsOutput$;
+exports.ListDirectoryBucketsRequest$ = ListDirectoryBucketsRequest$;
+exports.ListMultipartUploads$ = ListMultipartUploads$;
 exports.ListMultipartUploadsCommand = ListMultipartUploadsCommand;
+exports.ListMultipartUploadsOutput$ = ListMultipartUploadsOutput$;
+exports.ListMultipartUploadsRequest$ = ListMultipartUploadsRequest$;
+exports.ListObjectAnnotations$ = ListObjectAnnotations$;
+exports.ListObjectAnnotationsCommand = ListObjectAnnotationsCommand;
+exports.ListObjectAnnotationsOutput$ = ListObjectAnnotationsOutput$;
+exports.ListObjectAnnotationsRequest$ = ListObjectAnnotationsRequest$;
+exports.ListObjectVersions$ = ListObjectVersions$;
 exports.ListObjectVersionsCommand = ListObjectVersionsCommand;
+exports.ListObjectVersionsOutput$ = ListObjectVersionsOutput$;
+exports.ListObjectVersionsRequest$ = ListObjectVersionsRequest$;
+exports.ListObjects$ = ListObjects$;
 exports.ListObjectsCommand = ListObjectsCommand;
+exports.ListObjectsOutput$ = ListObjectsOutput$;
+exports.ListObjectsRequest$ = ListObjectsRequest$;
+exports.ListObjectsV2$ = ListObjectsV2$;
 exports.ListObjectsV2Command = ListObjectsV2Command;
+exports.ListObjectsV2Output$ = ListObjectsV2Output$;
+exports.ListObjectsV2Request$ = ListObjectsV2Request$;
+exports.ListParts$ = ListParts$;
 exports.ListPartsCommand = ListPartsCommand;
+exports.ListPartsOutput$ = ListPartsOutput$;
+exports.ListPartsRequest$ = ListPartsRequest$;
+exports.LocationInfo$ = LocationInfo$;
 exports.LocationType = LocationType;
+exports.LoggingEnabled$ = LoggingEnabled$;
 exports.MFADelete = MFADelete;
 exports.MFADeleteStatus = MFADeleteStatus;
+exports.MetadataConfiguration$ = MetadataConfiguration$;
+exports.MetadataConfigurationResult$ = MetadataConfigurationResult$;
 exports.MetadataDirective = MetadataDirective;
+exports.MetadataEntry$ = MetadataEntry$;
+exports.MetadataTableConfiguration$ = MetadataTableConfiguration$;
+exports.MetadataTableConfigurationResult$ = MetadataTableConfigurationResult$;
+exports.MetadataTableEncryptionConfiguration$ = MetadataTableEncryptionConfiguration$;
+exports.Metrics$ = Metrics$;
+exports.MetricsAndOperator$ = MetricsAndOperator$;
+exports.MetricsConfiguration$ = MetricsConfiguration$;
+exports.MetricsFilter$ = MetricsFilter$;
 exports.MetricsStatus = MetricsStatus;
+exports.MultipartUpload$ = MultipartUpload$;
+exports.NoSuchAnnotation = NoSuchAnnotation;
+exports.NoSuchAnnotation$ = NoSuchAnnotation$;
+exports.NoSuchBucket = NoSuchBucket;
+exports.NoSuchBucket$ = NoSuchBucket$;
+exports.NoSuchKey = NoSuchKey;
+exports.NoSuchKey$ = NoSuchKey$;
+exports.NoSuchUpload = NoSuchUpload;
+exports.NoSuchUpload$ = NoSuchUpload$;
+exports.NoncurrentVersionExpiration$ = NoncurrentVersionExpiration$;
+exports.NoncurrentVersionTransition$ = NoncurrentVersionTransition$;
+exports.NotFound = NotFound;
+exports.NotFound$ = NotFound$;
+exports.NotificationConfiguration$ = NotificationConfiguration$;
+exports.NotificationConfigurationFilter$ = NotificationConfigurationFilter$;
+exports.ObjectAlreadyInActiveTierError = ObjectAlreadyInActiveTierError;
+exports.ObjectAlreadyInActiveTierError$ = ObjectAlreadyInActiveTierError$;
 exports.ObjectAttributes = ObjectAttributes;
 exports.ObjectCannedACL = ObjectCannedACL;
+exports.ObjectEncryption$ = ObjectEncryption$;
+exports.ObjectIdentifier$ = ObjectIdentifier$;
+exports.ObjectLockConfiguration$ = ObjectLockConfiguration$;
 exports.ObjectLockEnabled = ObjectLockEnabled;
+exports.ObjectLockLegalHold$ = ObjectLockLegalHold$;
 exports.ObjectLockLegalHoldStatus = ObjectLockLegalHoldStatus;
 exports.ObjectLockMode = ObjectLockMode;
+exports.ObjectLockRetention$ = ObjectLockRetention$;
 exports.ObjectLockRetentionMode = ObjectLockRetentionMode;
+exports.ObjectLockRule$ = ObjectLockRule$;
+exports.ObjectNotInActiveTierError = ObjectNotInActiveTierError;
+exports.ObjectNotInActiveTierError$ = ObjectNotInActiveTierError$;
 exports.ObjectOwnership = ObjectOwnership;
+exports.ObjectPart$ = ObjectPart$;
 exports.ObjectStorageClass = ObjectStorageClass;
+exports.ObjectVersion$ = ObjectVersion$;
 exports.ObjectVersionStorageClass = ObjectVersionStorageClass;
 exports.OptionalObjectAttributes = OptionalObjectAttributes;
+exports.OutputLocation$ = OutputLocation$;
+exports.OutputSerialization$ = OutputSerialization$;
+exports.Owner$ = Owner$;
 exports.OwnerOverride = OwnerOverride;
+exports.OwnershipControls$ = OwnershipControls$;
+exports.OwnershipControlsRule$ = OwnershipControlsRule$;
+exports.ParquetInput$ = ParquetInput$;
+exports.Part$ = Part$;
 exports.PartitionDateSource = PartitionDateSource;
+exports.PartitionedPrefix$ = PartitionedPrefix$;
 exports.Payer = Payer;
 exports.Permission = Permission;
+exports.PolicyStatus$ = PolicyStatus$;
+exports.Progress$ = Progress$;
+exports.ProgressEvent$ = ProgressEvent$;
 exports.Protocol = Protocol;
+exports.PublicAccessBlockConfiguration$ = PublicAccessBlockConfiguration$;
+exports.PutBucketAbac$ = PutBucketAbac$;
 exports.PutBucketAbacCommand = PutBucketAbacCommand;
+exports.PutBucketAbacRequest$ = PutBucketAbacRequest$;
+exports.PutBucketAccelerateConfiguration$ = PutBucketAccelerateConfiguration$;
 exports.PutBucketAccelerateConfigurationCommand = PutBucketAccelerateConfigurationCommand;
+exports.PutBucketAccelerateConfigurationRequest$ = PutBucketAccelerateConfigurationRequest$;
+exports.PutBucketAcl$ = PutBucketAcl$;
 exports.PutBucketAclCommand = PutBucketAclCommand;
+exports.PutBucketAclRequest$ = PutBucketAclRequest$;
+exports.PutBucketAnalyticsConfiguration$ = PutBucketAnalyticsConfiguration$;
 exports.PutBucketAnalyticsConfigurationCommand = PutBucketAnalyticsConfigurationCommand;
+exports.PutBucketAnalyticsConfigurationRequest$ = PutBucketAnalyticsConfigurationRequest$;
+exports.PutBucketCors$ = PutBucketCors$;
 exports.PutBucketCorsCommand = PutBucketCorsCommand;
+exports.PutBucketCorsRequest$ = PutBucketCorsRequest$;
+exports.PutBucketEncryption$ = PutBucketEncryption$;
 exports.PutBucketEncryptionCommand = PutBucketEncryptionCommand;
+exports.PutBucketEncryptionRequest$ = PutBucketEncryptionRequest$;
+exports.PutBucketIntelligentTieringConfiguration$ = PutBucketIntelligentTieringConfiguration$;
 exports.PutBucketIntelligentTieringConfigurationCommand = PutBucketIntelligentTieringConfigurationCommand;
+exports.PutBucketIntelligentTieringConfigurationRequest$ = PutBucketIntelligentTieringConfigurationRequest$;
+exports.PutBucketInventoryConfiguration$ = PutBucketInventoryConfiguration$;
 exports.PutBucketInventoryConfigurationCommand = PutBucketInventoryConfigurationCommand;
+exports.PutBucketInventoryConfigurationRequest$ = PutBucketInventoryConfigurationRequest$;
+exports.PutBucketLifecycleConfiguration$ = PutBucketLifecycleConfiguration$;
 exports.PutBucketLifecycleConfigurationCommand = PutBucketLifecycleConfigurationCommand;
+exports.PutBucketLifecycleConfigurationOutput$ = PutBucketLifecycleConfigurationOutput$;
+exports.PutBucketLifecycleConfigurationRequest$ = PutBucketLifecycleConfigurationRequest$;
+exports.PutBucketLogging$ = PutBucketLogging$;
 exports.PutBucketLoggingCommand = PutBucketLoggingCommand;
+exports.PutBucketLoggingRequest$ = PutBucketLoggingRequest$;
+exports.PutBucketMetricsConfiguration$ = PutBucketMetricsConfiguration$;
 exports.PutBucketMetricsConfigurationCommand = PutBucketMetricsConfigurationCommand;
+exports.PutBucketMetricsConfigurationRequest$ = PutBucketMetricsConfigurationRequest$;
+exports.PutBucketNotificationConfiguration$ = PutBucketNotificationConfiguration$;
 exports.PutBucketNotificationConfigurationCommand = PutBucketNotificationConfigurationCommand;
+exports.PutBucketNotificationConfigurationRequest$ = PutBucketNotificationConfigurationRequest$;
+exports.PutBucketOwnershipControls$ = PutBucketOwnershipControls$;
 exports.PutBucketOwnershipControlsCommand = PutBucketOwnershipControlsCommand;
+exports.PutBucketOwnershipControlsRequest$ = PutBucketOwnershipControlsRequest$;
+exports.PutBucketPolicy$ = PutBucketPolicy$;
 exports.PutBucketPolicyCommand = PutBucketPolicyCommand;
+exports.PutBucketPolicyRequest$ = PutBucketPolicyRequest$;
+exports.PutBucketReplication$ = PutBucketReplication$;
 exports.PutBucketReplicationCommand = PutBucketReplicationCommand;
+exports.PutBucketReplicationRequest$ = PutBucketReplicationRequest$;
+exports.PutBucketRequestPayment$ = PutBucketRequestPayment$;
 exports.PutBucketRequestPaymentCommand = PutBucketRequestPaymentCommand;
+exports.PutBucketRequestPaymentRequest$ = PutBucketRequestPaymentRequest$;
+exports.PutBucketTagging$ = PutBucketTagging$;
 exports.PutBucketTaggingCommand = PutBucketTaggingCommand;
+exports.PutBucketTaggingRequest$ = PutBucketTaggingRequest$;
+exports.PutBucketVersioning$ = PutBucketVersioning$;
 exports.PutBucketVersioningCommand = PutBucketVersioningCommand;
+exports.PutBucketVersioningRequest$ = PutBucketVersioningRequest$;
+exports.PutBucketWebsite$ = PutBucketWebsite$;
 exports.PutBucketWebsiteCommand = PutBucketWebsiteCommand;
+exports.PutBucketWebsiteRequest$ = PutBucketWebsiteRequest$;
+exports.PutObject$ = PutObject$;
+exports.PutObjectAcl$ = PutObjectAcl$;
 exports.PutObjectAclCommand = PutObjectAclCommand;
+exports.PutObjectAclOutput$ = PutObjectAclOutput$;
+exports.PutObjectAclRequest$ = PutObjectAclRequest$;
+exports.PutObjectAnnotation$ = PutObjectAnnotation$;
+exports.PutObjectAnnotationCommand = PutObjectAnnotationCommand;
+exports.PutObjectAnnotationOutput$ = PutObjectAnnotationOutput$;
+exports.PutObjectAnnotationRequest$ = PutObjectAnnotationRequest$;
 exports.PutObjectCommand = PutObjectCommand;
+exports.PutObjectLegalHold$ = PutObjectLegalHold$;
 exports.PutObjectLegalHoldCommand = PutObjectLegalHoldCommand;
+exports.PutObjectLegalHoldOutput$ = PutObjectLegalHoldOutput$;
+exports.PutObjectLegalHoldRequest$ = PutObjectLegalHoldRequest$;
+exports.PutObjectLockConfiguration$ = PutObjectLockConfiguration$;
 exports.PutObjectLockConfigurationCommand = PutObjectLockConfigurationCommand;
+exports.PutObjectLockConfigurationOutput$ = PutObjectLockConfigurationOutput$;
+exports.PutObjectLockConfigurationRequest$ = PutObjectLockConfigurationRequest$;
+exports.PutObjectOutput$ = PutObjectOutput$;
+exports.PutObjectRequest$ = PutObjectRequest$;
+exports.PutObjectRetention$ = PutObjectRetention$;
 exports.PutObjectRetentionCommand = PutObjectRetentionCommand;
+exports.PutObjectRetentionOutput$ = PutObjectRetentionOutput$;
+exports.PutObjectRetentionRequest$ = PutObjectRetentionRequest$;
+exports.PutObjectTagging$ = PutObjectTagging$;
 exports.PutObjectTaggingCommand = PutObjectTaggingCommand;
+exports.PutObjectTaggingOutput$ = PutObjectTaggingOutput$;
+exports.PutObjectTaggingRequest$ = PutObjectTaggingRequest$;
+exports.PutPublicAccessBlock$ = PutPublicAccessBlock$;
 exports.PutPublicAccessBlockCommand = PutPublicAccessBlockCommand;
+exports.PutPublicAccessBlockRequest$ = PutPublicAccessBlockRequest$;
+exports.QueueConfiguration$ = QueueConfiguration$;
 exports.QuoteFields = QuoteFields;
+exports.RecordExpiration$ = RecordExpiration$;
+exports.RecordsEvent$ = RecordsEvent$;
+exports.Redirect$ = Redirect$;
+exports.RedirectAllRequestsTo$ = RedirectAllRequestsTo$;
+exports.RenameObject$ = RenameObject$;
 exports.RenameObjectCommand = RenameObjectCommand;
+exports.RenameObjectOutput$ = RenameObjectOutput$;
+exports.RenameObjectRequest$ = RenameObjectRequest$;
+exports.ReplicaModifications$ = ReplicaModifications$;
 exports.ReplicaModificationsStatus = ReplicaModificationsStatus;
+exports.ReplicationConfiguration$ = ReplicationConfiguration$;
+exports.ReplicationRule$ = ReplicationRule$;
+exports.ReplicationRuleAndOperator$ = ReplicationRuleAndOperator$;
+exports.ReplicationRuleFilter$ = ReplicationRuleFilter$;
 exports.ReplicationRuleStatus = ReplicationRuleStatus;
 exports.ReplicationStatus = ReplicationStatus;
+exports.ReplicationTime$ = ReplicationTime$;
 exports.ReplicationTimeStatus = ReplicationTimeStatus;
+exports.ReplicationTimeValue$ = ReplicationTimeValue$;
 exports.RequestCharged = RequestCharged;
 exports.RequestPayer = RequestPayer;
+exports.RequestPaymentConfiguration$ = RequestPaymentConfiguration$;
+exports.RequestProgress$ = RequestProgress$;
+exports.RestoreObject$ = RestoreObject$;
 exports.RestoreObjectCommand = RestoreObjectCommand;
+exports.RestoreObjectOutput$ = RestoreObjectOutput$;
+exports.RestoreObjectRequest$ = RestoreObjectRequest$;
+exports.RestoreRequest$ = RestoreRequest$;
 exports.RestoreRequestType = RestoreRequestType;
+exports.RestoreStatus$ = RestoreStatus$;
+exports.RoutingRule$ = RoutingRule$;
 exports.S3 = S3;
 exports.S3Client = S3Client;
+exports.S3KeyFilter$ = S3KeyFilter$;
+exports.S3Location$ = S3Location$;
+exports.S3ServiceException = S3ServiceException;
+exports.S3ServiceException$ = S3ServiceException$;
 exports.S3TablesBucketType = S3TablesBucketType;
+exports.S3TablesDestination$ = S3TablesDestination$;
+exports.S3TablesDestinationResult$ = S3TablesDestinationResult$;
+exports.SSEKMS$ = SSEKMS$;
+exports.SSEKMSEncryption$ = SSEKMSEncryption$;
+exports.SSES3$ = SSES3$;
+exports.ScanRange$ = ScanRange$;
+exports.SelectObjectContent$ = SelectObjectContent$;
 exports.SelectObjectContentCommand = SelectObjectContentCommand;
+exports.SelectObjectContentEventStream$ = SelectObjectContentEventStream$;
+exports.SelectObjectContentOutput$ = SelectObjectContentOutput$;
+exports.SelectObjectContentRequest$ = SelectObjectContentRequest$;
+exports.SelectParameters$ = SelectParameters$;
 exports.ServerSideEncryption = ServerSideEncryption;
+exports.ServerSideEncryptionByDefault$ = ServerSideEncryptionByDefault$;
+exports.ServerSideEncryptionConfiguration$ = ServerSideEncryptionConfiguration$;
+exports.ServerSideEncryptionRule$ = ServerSideEncryptionRule$;
+exports.SessionCredentials$ = SessionCredentials$;
 exports.SessionMode = SessionMode;
+exports.SimplePrefix$ = SimplePrefix$;
+exports.SourceSelectionCriteria$ = SourceSelectionCriteria$;
+exports.SseKmsEncryptedObjects$ = SseKmsEncryptedObjects$;
 exports.SseKmsEncryptedObjectsStatus = SseKmsEncryptedObjectsStatus;
+exports.Stats$ = Stats$;
+exports.StatsEvent$ = StatsEvent$;
 exports.StorageClass = StorageClass;
+exports.StorageClassAnalysis$ = StorageClassAnalysis$;
+exports.StorageClassAnalysisDataExport$ = StorageClassAnalysisDataExport$;
 exports.StorageClassAnalysisSchemaVersion = StorageClassAnalysisSchemaVersion;
 exports.TableSseAlgorithm = TableSseAlgorithm;
+exports.Tag$ = Tag$;
+exports.Tagging$ = Tagging$;
 exports.TaggingDirective = TaggingDirective;
+exports.TargetGrant$ = TargetGrant$;
+exports.TargetObjectKeyFormat$ = TargetObjectKeyFormat$;
 exports.Tier = Tier;
+exports.Tiering$ = Tiering$;
+exports.TooManyParts = TooManyParts;
+exports.TooManyParts$ = TooManyParts$;
+exports.TopicConfiguration$ = TopicConfiguration$;
+exports.Transition$ = Transition$;
 exports.TransitionDefaultMinimumObjectSize = TransitionDefaultMinimumObjectSize;
 exports.TransitionStorageClass = TransitionStorageClass;
 exports.Type = Type;
+exports.UnsupportedMediaType = UnsupportedMediaType;
+exports.UnsupportedMediaType$ = UnsupportedMediaType$;
+exports.UpdateBucketMetadataAnnotationTableConfiguration$ = UpdateBucketMetadataAnnotationTableConfiguration$;
+exports.UpdateBucketMetadataAnnotationTableConfigurationCommand = UpdateBucketMetadataAnnotationTableConfigurationCommand;
+exports.UpdateBucketMetadataAnnotationTableConfigurationRequest$ = UpdateBucketMetadataAnnotationTableConfigurationRequest$;
+exports.UpdateBucketMetadataInventoryTableConfiguration$ = UpdateBucketMetadataInventoryTableConfiguration$;
 exports.UpdateBucketMetadataInventoryTableConfigurationCommand = UpdateBucketMetadataInventoryTableConfigurationCommand;
+exports.UpdateBucketMetadataInventoryTableConfigurationRequest$ = UpdateBucketMetadataInventoryTableConfigurationRequest$;
+exports.UpdateBucketMetadataJournalTableConfiguration$ = UpdateBucketMetadataJournalTableConfiguration$;
 exports.UpdateBucketMetadataJournalTableConfigurationCommand = UpdateBucketMetadataJournalTableConfigurationCommand;
+exports.UpdateBucketMetadataJournalTableConfigurationRequest$ = UpdateBucketMetadataJournalTableConfigurationRequest$;
+exports.UpdateObjectEncryption$ = UpdateObjectEncryption$;
 exports.UpdateObjectEncryptionCommand = UpdateObjectEncryptionCommand;
+exports.UpdateObjectEncryptionRequest$ = UpdateObjectEncryptionRequest$;
+exports.UpdateObjectEncryptionResponse$ = UpdateObjectEncryptionResponse$;
+exports.UploadPart$ = UploadPart$;
 exports.UploadPartCommand = UploadPartCommand;
+exports.UploadPartCopy$ = UploadPartCopy$;
 exports.UploadPartCopyCommand = UploadPartCopyCommand;
+exports.UploadPartCopyOutput$ = UploadPartCopyOutput$;
+exports.UploadPartCopyRequest$ = UploadPartCopyRequest$;
+exports.UploadPartOutput$ = UploadPartOutput$;
+exports.UploadPartRequest$ = UploadPartRequest$;
+exports.VersioningConfiguration$ = VersioningConfiguration$;
+exports.WebsiteConfiguration$ = WebsiteConfiguration$;
+exports.WriteGetObjectResponse$ = WriteGetObjectResponse$;
 exports.WriteGetObjectResponseCommand = WriteGetObjectResponseCommand;
+exports.WriteGetObjectResponseRequest$ = WriteGetObjectResponseRequest$;
+exports._Error$ = _Error$;
+exports._Object$ = _Object$;
+exports.errorTypeRegistries = errorTypeRegistries;
 exports.paginateListBuckets = paginateListBuckets;
 exports.paginateListDirectoryBuckets = paginateListDirectoryBuckets;
+exports.paginateListObjectAnnotations = paginateListObjectAnnotations;
 exports.paginateListObjectsV2 = paginateListObjectsV2;
 exports.paginateListParts = paginateListParts;
 exports.waitForBucketExists = waitForBucketExists;
@@ -8396,3952 +12758,6 @@ exports.waitUntilBucketExists = waitUntilBucketExists;
 exports.waitUntilBucketNotExists = waitUntilBucketNotExists;
 exports.waitUntilObjectExists = waitUntilObjectExists;
 exports.waitUntilObjectNotExists = waitUntilObjectNotExists;
-
-
-/***/ }),
-
-/***/ 8354:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { ServiceException: __ServiceException } = __nccwpck_require__(2658);
-exports.__ServiceException = __ServiceException;
-exports.S3ServiceException = class S3ServiceException extends __ServiceException {
-    constructor(options) {
-        super(options);
-        Object.setPrototypeOf(this, S3ServiceException.prototype);
-    }
-};
-
-
-/***/ }),
-
-/***/ 631:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { S3ServiceException: __BaseException } = __nccwpck_require__(8354);
-exports.NoSuchUpload = class NoSuchUpload extends __BaseException {
-    name = "NoSuchUpload";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "NoSuchUpload",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, NoSuchUpload.prototype);
-    }
-};
-exports.AccessDenied = class AccessDenied extends __BaseException {
-    name = "AccessDenied";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "AccessDenied",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, AccessDenied.prototype);
-    }
-};
-exports.ObjectNotInActiveTierError = class ObjectNotInActiveTierError extends __BaseException {
-    name = "ObjectNotInActiveTierError";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "ObjectNotInActiveTierError",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, ObjectNotInActiveTierError.prototype);
-    }
-};
-exports.BucketAlreadyExists = class BucketAlreadyExists extends __BaseException {
-    name = "BucketAlreadyExists";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "BucketAlreadyExists",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, BucketAlreadyExists.prototype);
-    }
-};
-exports.BucketAlreadyOwnedByYou = class BucketAlreadyOwnedByYou extends __BaseException {
-    name = "BucketAlreadyOwnedByYou";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "BucketAlreadyOwnedByYou",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, BucketAlreadyOwnedByYou.prototype);
-    }
-};
-exports.NoSuchBucket = class NoSuchBucket extends __BaseException {
-    name = "NoSuchBucket";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "NoSuchBucket",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, NoSuchBucket.prototype);
-    }
-};
-exports.InvalidObjectState = class InvalidObjectState extends __BaseException {
-    name = "InvalidObjectState";
-    $fault = "client";
-    StorageClass;
-    AccessTier;
-    constructor(opts) {
-        super({
-            name: "InvalidObjectState",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidObjectState.prototype);
-        this.StorageClass = opts.StorageClass;
-        this.AccessTier = opts.AccessTier;
-    }
-};
-exports.NoSuchKey = class NoSuchKey extends __BaseException {
-    name = "NoSuchKey";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "NoSuchKey",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, NoSuchKey.prototype);
-    }
-};
-exports.NotFound = class NotFound extends __BaseException {
-    name = "NotFound";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "NotFound",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, NotFound.prototype);
-    }
-};
-exports.EncryptionTypeMismatch = class EncryptionTypeMismatch extends __BaseException {
-    name = "EncryptionTypeMismatch";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "EncryptionTypeMismatch",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, EncryptionTypeMismatch.prototype);
-    }
-};
-exports.InvalidRequest = class InvalidRequest extends __BaseException {
-    name = "InvalidRequest";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "InvalidRequest",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidRequest.prototype);
-    }
-};
-exports.InvalidWriteOffset = class InvalidWriteOffset extends __BaseException {
-    name = "InvalidWriteOffset";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "InvalidWriteOffset",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, InvalidWriteOffset.prototype);
-    }
-};
-exports.TooManyParts = class TooManyParts extends __BaseException {
-    name = "TooManyParts";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "TooManyParts",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, TooManyParts.prototype);
-    }
-};
-exports.IdempotencyParameterMismatch = class IdempotencyParameterMismatch extends __BaseException {
-    name = "IdempotencyParameterMismatch";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "IdempotencyParameterMismatch",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, IdempotencyParameterMismatch.prototype);
-    }
-};
-exports.ObjectAlreadyInActiveTierError = class ObjectAlreadyInActiveTierError extends __BaseException {
-    name = "ObjectAlreadyInActiveTierError";
-    $fault = "client";
-    constructor(opts) {
-        super({
-            name: "ObjectAlreadyInActiveTierError",
-            $fault: "client",
-            ...opts,
-        });
-        Object.setPrototypeOf(this, ObjectAlreadyInActiveTierError.prototype);
-    }
-};
-
-
-/***/ }),
-
-/***/ 5745:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const packageInfo = __nccwpck_require__(7413);
-const { createDefaultUserAgentProvider, emitWarningIfUnsupportedVersion: awsCheckVersion, NODE_APP_ID_CONFIG_OPTIONS } = __nccwpck_require__(5152);
-const { NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, NODE_SIGV4A_CONFIG_OPTIONS } = __nccwpck_require__(7523);
-const { defaultProvider: credentialDefaultProvider } = __nccwpck_require__(5861);
-const { NODE_REQUEST_CHECKSUM_CALCULATION_CONFIG_OPTIONS, NODE_RESPONSE_CHECKSUM_VALIDATION_CONFIG_OPTIONS } = __nccwpck_require__(9836);
-const { NODE_DISABLE_S3_EXPRESS_SESSION_AUTH_OPTIONS, NODE_USE_ARN_REGION_CONFIG_OPTIONS } = __nccwpck_require__(5028);
-const { readableStreamHasher: streamHasher } = __nccwpck_require__(9542);
-const { emitWarningIfUnsupportedVersion, loadConfigsForDefaultMode } = __nccwpck_require__(2658);
-const { loadConfig: loadNodeConfig, NODE_REGION_CONFIG_FILE_OPTIONS, NODE_REGION_CONFIG_OPTIONS, NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, resolveDefaultsModeConfig } = __nccwpck_require__(7291);
-const { eventStreamSerdeProvider } = __nccwpck_require__(6579);
-const { DEFAULT_RETRY_MODE, NODE_MAX_ATTEMPT_CONFIG_OPTIONS, NODE_RETRY_MODE_CONFIG_OPTIONS } = __nccwpck_require__(3609);
-const { calculateBodyLength, Hash } = __nccwpck_require__(2430);
-const { NodeHttpHandler: RequestHandler, streamCollector } = __nccwpck_require__(1279);
-const { getRuntimeConfig: getSharedRuntimeConfig } = __nccwpck_require__(4070);
-const getRuntimeConfig = (config) => {
-    emitWarningIfUnsupportedVersion(process.version);
-    const defaultsMode = resolveDefaultsModeConfig(config);
-    const defaultConfigProvider = () => defaultsMode().then(loadConfigsForDefaultMode);
-    const clientSharedValues = getSharedRuntimeConfig(config);
-    awsCheckVersion(process.version);
-    const loaderConfig = {
-        profile: config?.profile,
-        logger: clientSharedValues.logger,
-    };
-    return {
-        ...clientSharedValues,
-        ...config,
-        runtime: "node",
-        defaultsMode,
-        authSchemePreference: config?.authSchemePreference ?? loadNodeConfig(NODE_AUTH_SCHEME_PREFERENCE_OPTIONS, loaderConfig),
-        bodyLengthChecker: config?.bodyLengthChecker ?? calculateBodyLength,
-        credentialDefaultProvider: config?.credentialDefaultProvider ?? credentialDefaultProvider,
-        defaultUserAgentProvider: config?.defaultUserAgentProvider ?? createDefaultUserAgentProvider({ serviceId: clientSharedValues.serviceId, clientVersion: packageInfo.version }),
-        disableS3ExpressSessionAuth: config?.disableS3ExpressSessionAuth ?? loadNodeConfig(NODE_DISABLE_S3_EXPRESS_SESSION_AUTH_OPTIONS, loaderConfig),
-        eventStreamSerdeProvider: config?.eventStreamSerdeProvider ?? eventStreamSerdeProvider,
-        maxAttempts: config?.maxAttempts ?? loadNodeConfig(NODE_MAX_ATTEMPT_CONFIG_OPTIONS, config),
-        md5: config?.md5 ?? Hash.bind(null, "md5"),
-        region: config?.region ?? loadNodeConfig(NODE_REGION_CONFIG_OPTIONS, { ...NODE_REGION_CONFIG_FILE_OPTIONS, ...loaderConfig }),
-        requestChecksumCalculation: config?.requestChecksumCalculation ?? loadNodeConfig(NODE_REQUEST_CHECKSUM_CALCULATION_CONFIG_OPTIONS, loaderConfig),
-        requestHandler: RequestHandler.create(config?.requestHandler ?? defaultConfigProvider),
-        responseChecksumValidation: config?.responseChecksumValidation ?? loadNodeConfig(NODE_RESPONSE_CHECKSUM_VALIDATION_CONFIG_OPTIONS, loaderConfig),
-        retryMode: config?.retryMode ??
-            loadNodeConfig({
-                ...NODE_RETRY_MODE_CONFIG_OPTIONS,
-                default: async () => (await defaultConfigProvider()).retryMode || DEFAULT_RETRY_MODE,
-            }, config),
-        sha1: config?.sha1 ?? Hash.bind(null, "sha1"),
-        sha256: config?.sha256 ?? Hash.bind(null, "sha256"),
-        sigv4aSigningRegionSet: config?.sigv4aSigningRegionSet ?? loadNodeConfig(NODE_SIGV4A_CONFIG_OPTIONS, loaderConfig),
-        streamCollector: config?.streamCollector ?? streamCollector,
-        streamHasher: config?.streamHasher ?? streamHasher,
-        useArnRegion: config?.useArnRegion ?? loadNodeConfig(NODE_USE_ARN_REGION_CONFIG_OPTIONS, loaderConfig),
-        useDualstackEndpoint: config?.useDualstackEndpoint ?? loadNodeConfig(NODE_USE_DUALSTACK_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
-        useFipsEndpoint: config?.useFipsEndpoint ?? loadNodeConfig(NODE_USE_FIPS_ENDPOINT_CONFIG_OPTIONS, loaderConfig),
-        userAgentAppId: config?.userAgentAppId ?? loadNodeConfig(NODE_APP_ID_CONFIG_OPTIONS, loaderConfig),
-    };
-};
-exports.getRuntimeConfig = getRuntimeConfig;
-
-
-/***/ }),
-
-/***/ 4070:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { AwsSdkSigV4ASigner, AwsSdkSigV4Signer } = __nccwpck_require__(7523);
-const { S3RestXmlProtocol } = __nccwpck_require__(5028);
-const { SignatureV4MultiRegion } = __nccwpck_require__(5785);
-const { NoOpLogger } = __nccwpck_require__(2658);
-const { parseUrl } = __nccwpck_require__(3422);
-const { fromBase64, fromUtf8, getAwsChunkedEncodingStream, sdkStreamMixin, toBase64, toUtf8 } = __nccwpck_require__(2430);
-const { defaultS3HttpAuthSchemeProvider } = __nccwpck_require__(7168);
-const { defaultEndpointResolver } = __nccwpck_require__(7526);
-const { errorTypeRegistries } = __nccwpck_require__(91);
-exports.getRuntimeConfig = (config) => {
-    return {
-        apiVersion: "2006-03-01",
-        base64Decoder: config?.base64Decoder ?? fromBase64,
-        base64Encoder: config?.base64Encoder ?? toBase64,
-        disableHostPrefix: config?.disableHostPrefix ?? false,
-        endpointProvider: config?.endpointProvider ?? defaultEndpointResolver,
-        extensions: config?.extensions ?? [],
-        getAwsChunkedEncodingStream: config?.getAwsChunkedEncodingStream ?? getAwsChunkedEncodingStream,
-        httpAuthSchemeProvider: config?.httpAuthSchemeProvider ?? defaultS3HttpAuthSchemeProvider,
-        httpAuthSchemes: config?.httpAuthSchemes ?? [
-            {
-                schemeId: "aws.auth#sigv4",
-                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4"),
-                signer: new AwsSdkSigV4Signer(),
-            },
-            {
-                schemeId: "aws.auth#sigv4a",
-                identityProvider: (ipc) => ipc.getIdentityProvider("aws.auth#sigv4a"),
-                signer: new AwsSdkSigV4ASigner(),
-            },
-        ],
-        logger: config?.logger ?? new NoOpLogger(),
-        protocol: config?.protocol ?? S3RestXmlProtocol,
-        protocolSettings: config?.protocolSettings ?? {
-            defaultNamespace: "com.amazonaws.s3",
-            errorTypeRegistries,
-            xmlNamespace: "http://s3.amazonaws.com/doc/2006-03-01/",
-            version: "2006-03-01",
-            serviceTarget: "AmazonS3",
-        },
-        sdkStreamMixin: config?.sdkStreamMixin ?? sdkStreamMixin,
-        serviceId: config?.serviceId ?? "S3",
-        signerConstructor: config?.signerConstructor ?? SignatureV4MultiRegion,
-        signingEscapePath: config?.signingEscapePath ?? false,
-        urlParser: config?.urlParser ?? parseUrl,
-        useArnRegion: config?.useArnRegion ?? undefined,
-        utf8Decoder: config?.utf8Decoder ?? fromUtf8,
-        utf8Encoder: config?.utf8Encoder ?? toUtf8,
-    };
-};
-
-
-/***/ }),
-
-/***/ 91:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const _A = "Account";
-const _AAO = "AnalyticsAndOperator";
-const _AC = "AccelerateConfiguration";
-const _ACL = "AccessControlList";
-const _ACL_ = "ACL";
-const _ACLn = "AnalyticsConfigurationList";
-const _ACP = "AccessControlPolicy";
-const _ACT = "AccessControlTranslation";
-const _ACn = "AnalyticsConfiguration";
-const _AD = "AccessDenied";
-const _ADb = "AbortDate";
-const _AED = "AnalyticsExportDestination";
-const _AF = "AnalyticsFilter";
-const _AH = "AllowedHeaders";
-const _AHl = "AllowedHeader";
-const _AI = "AccountId";
-const _AIMU = "AbortIncompleteMultipartUpload";
-const _AKI = "AccessKeyId";
-const _AM = "AllowedMethods";
-const _AMU = "AbortMultipartUpload";
-const _AMUO = "AbortMultipartUploadOutput";
-const _AMUR = "AbortMultipartUploadRequest";
-const _AMl = "AllowedMethod";
-const _AO = "AllowedOrigins";
-const _AOl = "AllowedOrigin";
-const _APA = "AccessPointAlias";
-const _APAc = "AccessPointArn";
-const _AQRD = "AllowQuotedRecordDelimiter";
-const _AR = "AcceptRanges";
-const _ARI = "AbortRuleId";
-const _AS = "AbacStatus";
-const _ASBD = "AnalyticsS3BucketDestination";
-const _ASSEBD = "ApplyServerSideEncryptionByDefault";
-const _ASr = "ArchiveStatus";
-const _AT = "AccessTier";
-const _An = "And";
-const _B = "Bucket";
-const _BA = "BucketArn";
-const _BAE = "BucketAlreadyExists";
-const _BAI = "BucketAccountId";
-const _BAOBY = "BucketAlreadyOwnedByYou";
-const _BET = "BlockedEncryptionTypes";
-const _BGR = "BypassGovernanceRetention";
-const _BI = "BucketInfo";
-const _BKE = "BucketKeyEnabled";
-const _BLC = "BucketLifecycleConfiguration";
-const _BLN = "BucketLocationName";
-const _BLS = "BucketLoggingStatus";
-const _BLT = "BucketLocationType";
-const _BN = "BucketNamespace";
-const _BNu = "BucketName";
-const _BP = "BytesProcessed";
-const _BPA = "BlockPublicAcls";
-const _BPP = "BlockPublicPolicy";
-const _BR = "BucketRegion";
-const _BRy = "BytesReturned";
-const _BS = "BytesScanned";
-const _Bo = "Body";
-const _Bu = "Buckets";
-const _C = "Checksum";
-const _CA = "ChecksumAlgorithm";
-const _CACL = "CannedACL";
-const _CB = "CreateBucket";
-const _CBC = "CreateBucketConfiguration";
-const _CBMC = "CreateBucketMetadataConfiguration";
-const _CBMCR = "CreateBucketMetadataConfigurationRequest";
-const _CBMTC = "CreateBucketMetadataTableConfiguration";
-const _CBMTCR = "CreateBucketMetadataTableConfigurationRequest";
-const _CBO = "CreateBucketOutput";
-const _CBR = "CreateBucketRequest";
-const _CC = "CacheControl";
-const _CCRC = "ChecksumCRC32";
-const _CCRCC = "ChecksumCRC32C";
-const _CCRCNVME = "ChecksumCRC64NVME";
-const _CC_ = "Cache-Control";
-const _CD = "CreationDate";
-const _CD_ = "Content-Disposition";
-const _CDo = "ContentDisposition";
-const _CE = "ContinuationEvent";
-const _CE_ = "Content-Encoding";
-const _CEo = "ContentEncoding";
-const _CF = "CloudFunction";
-const _CFC = "CloudFunctionConfiguration";
-const _CL = "ContentLanguage";
-const _CL_ = "Content-Language";
-const _CL__ = "Content-Length";
-const _CLo = "ContentLength";
-const _CM = "Content-MD5";
-const _CMD = "ChecksumMD5";
-const _CMDo = "ContentMD5";
-const _CMU = "CompletedMultipartUpload";
-const _CMUO = "CompleteMultipartUploadOutput";
-const _CMUOr = "CreateMultipartUploadOutput";
-const _CMUR = "CompleteMultipartUploadResult";
-const _CMURo = "CompleteMultipartUploadRequest";
-const _CMURr = "CreateMultipartUploadRequest";
-const _CMUo = "CompleteMultipartUpload";
-const _CMUr = "CreateMultipartUpload";
-const _CMh = "ChecksumMode";
-const _CO = "CopyObject";
-const _COO = "CopyObjectOutput";
-const _COR = "CopyObjectResult";
-const _CORSC = "CORSConfiguration";
-const _CORSR = "CORSRules";
-const _CORSRu = "CORSRule";
-const _CORo = "CopyObjectRequest";
-const _CP = "CommonPrefix";
-const _CPL = "CommonPrefixList";
-const _CPLo = "CompletedPartList";
-const _CPR = "CopyPartResult";
-const _CPo = "CompletedPart";
-const _CPom = "CommonPrefixes";
-const _CR = "ContentRange";
-const _CRSBA = "ConfirmRemoveSelfBucketAccess";
-const _CR_ = "Content-Range";
-const _CS = "CopySource";
-const _CSHA = "ChecksumSHA1";
-const _CSHAh = "ChecksumSHA256";
-const _CSHAhe = "ChecksumSHA512";
-const _CSIM = "CopySourceIfMatch";
-const _CSIMS = "CopySourceIfModifiedSince";
-const _CSINM = "CopySourceIfNoneMatch";
-const _CSIUS = "CopySourceIfUnmodifiedSince";
-const _CSO = "CreateSessionOutput";
-const _CSR = "CreateSessionResult";
-const _CSRo = "CopySourceRange";
-const _CSRr = "CreateSessionRequest";
-const _CSSSECA = "CopySourceSSECustomerAlgorithm";
-const _CSSSECK = "CopySourceSSECustomerKey";
-const _CSSSECKMD = "CopySourceSSECustomerKeyMD5";
-const _CSV = "CSV";
-const _CSVI = "CopySourceVersionId";
-const _CSVIn = "CSVInput";
-const _CSVO = "CSVOutput";
-const _CSo = "ConfigurationState";
-const _CSr = "CreateSession";
-const _CT = "ChecksumType";
-const _CT_ = "Content-Type";
-const _CTl = "ClientToken";
-const _CTo = "ContentType";
-const _CTom = "CompressionType";
-const _CTon = "ContinuationToken";
-const _CXXHASH = "ChecksumXXHASH64";
-const _CXXHASHh = "ChecksumXXHASH3";
-const _CXXHASHhe = "ChecksumXXHASH128";
-const _Co = "Condition";
-const _Cod = "Code";
-const _Com = "Comments";
-const _Con = "Contents";
-const _Cont = "Cont";
-const _Cr = "Credentials";
-const _D = "Days";
-const _DAI = "DaysAfterInitiation";
-const _DB = "DeleteBucket";
-const _DBAC = "DeleteBucketAnalyticsConfiguration";
-const _DBACR = "DeleteBucketAnalyticsConfigurationRequest";
-const _DBC = "DeleteBucketCors";
-const _DBCR = "DeleteBucketCorsRequest";
-const _DBE = "DeleteBucketEncryption";
-const _DBER = "DeleteBucketEncryptionRequest";
-const _DBIC = "DeleteBucketInventoryConfiguration";
-const _DBICR = "DeleteBucketInventoryConfigurationRequest";
-const _DBITC = "DeleteBucketIntelligentTieringConfiguration";
-const _DBITCR = "DeleteBucketIntelligentTieringConfigurationRequest";
-const _DBL = "DeleteBucketLifecycle";
-const _DBLR = "DeleteBucketLifecycleRequest";
-const _DBMC = "DeleteBucketMetadataConfiguration";
-const _DBMCR = "DeleteBucketMetadataConfigurationRequest";
-const _DBMCRe = "DeleteBucketMetricsConfigurationRequest";
-const _DBMCe = "DeleteBucketMetricsConfiguration";
-const _DBMTC = "DeleteBucketMetadataTableConfiguration";
-const _DBMTCR = "DeleteBucketMetadataTableConfigurationRequest";
-const _DBOC = "DeleteBucketOwnershipControls";
-const _DBOCR = "DeleteBucketOwnershipControlsRequest";
-const _DBP = "DeleteBucketPolicy";
-const _DBPR = "DeleteBucketPolicyRequest";
-const _DBR = "DeleteBucketRequest";
-const _DBRR = "DeleteBucketReplicationRequest";
-const _DBRe = "DeleteBucketReplication";
-const _DBT = "DeleteBucketTagging";
-const _DBTR = "DeleteBucketTaggingRequest";
-const _DBW = "DeleteBucketWebsite";
-const _DBWR = "DeleteBucketWebsiteRequest";
-const _DE = "DataExport";
-const _DIM = "DestinationIfMatch";
-const _DIMS = "DestinationIfModifiedSince";
-const _DINM = "DestinationIfNoneMatch";
-const _DIUS = "DestinationIfUnmodifiedSince";
-const _DM = "DeleteMarker";
-const _DME = "DeleteMarkerEntry";
-const _DMR = "DeleteMarkerReplication";
-const _DMVI = "DeleteMarkerVersionId";
-const _DMe = "DeleteMarkers";
-const _DN = "DisplayName";
-const _DO = "DeletedObject";
-const _DOO = "DeleteObjectOutput";
-const _DOOe = "DeleteObjectsOutput";
-const _DOR = "DeleteObjectRequest";
-const _DORe = "DeleteObjectsRequest";
-const _DOT = "DeleteObjectTagging";
-const _DOTO = "DeleteObjectTaggingOutput";
-const _DOTR = "DeleteObjectTaggingRequest";
-const _DOe = "DeletedObjects";
-const _DOel = "DeleteObject";
-const _DOele = "DeleteObjects";
-const _DPAB = "DeletePublicAccessBlock";
-const _DPABR = "DeletePublicAccessBlockRequest";
-const _DR = "DataRedundancy";
-const _DRe = "DefaultRetention";
-const _DRel = "DeleteResult";
-const _DRes = "DestinationResult";
-const _Da = "Date";
-const _De = "Delete";
-const _Del = "Deleted";
-const _Deli = "Delimiter";
-const _Des = "Destination";
-const _Desc = "Description";
-const _Det = "Details";
-const _E = "Expiration";
-const _EA = "EmailAddress";
-const _EBC = "EventBridgeConfiguration";
-const _EBO = "ExpectedBucketOwner";
-const _EC = "EncryptionConfiguration";
-const _ECr = "ErrorCode";
-const _ED = "ErrorDetails";
-const _EDr = "ErrorDocument";
-const _EE = "EndEvent";
-const _EH = "ExposeHeaders";
-const _EHx = "ExposeHeader";
-const _EM = "ErrorMessage";
-const _EODM = "ExpiredObjectDeleteMarker";
-const _EOR = "ExistingObjectReplication";
-const _ES = "ExpiresString";
-const _ESBO = "ExpectedSourceBucketOwner";
-const _ET = "EncryptionType";
-const _ETL = "EncryptionTypeList";
-const _ETM = "EncryptionTypeMismatch";
-const _ETa = "ETag";
-const _ETn = "EncodingType";
-const _ETv = "EventThreshold";
-const _ETx = "ExpressionType";
-const _En = "Encryption";
-const _Ena = "Enabled";
-const _End = "End";
-const _Er = "Errors";
-const _Err = "Error";
-const _Ev = "Events";
-const _Eve = "Event";
-const _Ex = "Expires";
-const _Exp = "Expression";
-const _F = "Filter";
-const _FD = "FieldDelimiter";
-const _FHI = "FileHeaderInfo";
-const _FO = "FetchOwner";
-const _FR = "FilterRule";
-const _FRL = "FilterRuleList";
-const _FRi = "FilterRules";
-const _Fi = "Field";
-const _Fo = "Format";
-const _Fr = "Frequency";
-const _G = "Grants";
-const _GBA = "GetBucketAbac";
-const _GBAC = "GetBucketAccelerateConfiguration";
-const _GBACO = "GetBucketAccelerateConfigurationOutput";
-const _GBACOe = "GetBucketAnalyticsConfigurationOutput";
-const _GBACR = "GetBucketAccelerateConfigurationRequest";
-const _GBACRe = "GetBucketAnalyticsConfigurationRequest";
-const _GBACe = "GetBucketAnalyticsConfiguration";
-const _GBAO = "GetBucketAbacOutput";
-const _GBAOe = "GetBucketAclOutput";
-const _GBAR = "GetBucketAbacRequest";
-const _GBARe = "GetBucketAclRequest";
-const _GBAe = "GetBucketAcl";
-const _GBC = "GetBucketCors";
-const _GBCO = "GetBucketCorsOutput";
-const _GBCR = "GetBucketCorsRequest";
-const _GBE = "GetBucketEncryption";
-const _GBEO = "GetBucketEncryptionOutput";
-const _GBER = "GetBucketEncryptionRequest";
-const _GBIC = "GetBucketInventoryConfiguration";
-const _GBICO = "GetBucketInventoryConfigurationOutput";
-const _GBICR = "GetBucketInventoryConfigurationRequest";
-const _GBITC = "GetBucketIntelligentTieringConfiguration";
-const _GBITCO = "GetBucketIntelligentTieringConfigurationOutput";
-const _GBITCR = "GetBucketIntelligentTieringConfigurationRequest";
-const _GBL = "GetBucketLocation";
-const _GBLC = "GetBucketLifecycleConfiguration";
-const _GBLCO = "GetBucketLifecycleConfigurationOutput";
-const _GBLCR = "GetBucketLifecycleConfigurationRequest";
-const _GBLO = "GetBucketLocationOutput";
-const _GBLOe = "GetBucketLoggingOutput";
-const _GBLR = "GetBucketLocationRequest";
-const _GBLRe = "GetBucketLoggingRequest";
-const _GBLe = "GetBucketLogging";
-const _GBMC = "GetBucketMetadataConfiguration";
-const _GBMCO = "GetBucketMetadataConfigurationOutput";
-const _GBMCOe = "GetBucketMetricsConfigurationOutput";
-const _GBMCR = "GetBucketMetadataConfigurationResult";
-const _GBMCRe = "GetBucketMetadataConfigurationRequest";
-const _GBMCRet = "GetBucketMetricsConfigurationRequest";
-const _GBMCe = "GetBucketMetricsConfiguration";
-const _GBMTC = "GetBucketMetadataTableConfiguration";
-const _GBMTCO = "GetBucketMetadataTableConfigurationOutput";
-const _GBMTCR = "GetBucketMetadataTableConfigurationResult";
-const _GBMTCRe = "GetBucketMetadataTableConfigurationRequest";
-const _GBNC = "GetBucketNotificationConfiguration";
-const _GBNCR = "GetBucketNotificationConfigurationRequest";
-const _GBOC = "GetBucketOwnershipControls";
-const _GBOCO = "GetBucketOwnershipControlsOutput";
-const _GBOCR = "GetBucketOwnershipControlsRequest";
-const _GBP = "GetBucketPolicy";
-const _GBPO = "GetBucketPolicyOutput";
-const _GBPR = "GetBucketPolicyRequest";
-const _GBPS = "GetBucketPolicyStatus";
-const _GBPSO = "GetBucketPolicyStatusOutput";
-const _GBPSR = "GetBucketPolicyStatusRequest";
-const _GBR = "GetBucketReplication";
-const _GBRO = "GetBucketReplicationOutput";
-const _GBRP = "GetBucketRequestPayment";
-const _GBRPO = "GetBucketRequestPaymentOutput";
-const _GBRPR = "GetBucketRequestPaymentRequest";
-const _GBRR = "GetBucketReplicationRequest";
-const _GBT = "GetBucketTagging";
-const _GBTO = "GetBucketTaggingOutput";
-const _GBTR = "GetBucketTaggingRequest";
-const _GBV = "GetBucketVersioning";
-const _GBVO = "GetBucketVersioningOutput";
-const _GBVR = "GetBucketVersioningRequest";
-const _GBW = "GetBucketWebsite";
-const _GBWO = "GetBucketWebsiteOutput";
-const _GBWR = "GetBucketWebsiteRequest";
-const _GFC = "GrantFullControl";
-const _GJP = "GlacierJobParameters";
-const _GO = "GetObject";
-const _GOA = "GetObjectAcl";
-const _GOAO = "GetObjectAclOutput";
-const _GOAOe = "GetObjectAttributesOutput";
-const _GOAP = "GetObjectAttributesParts";
-const _GOAR = "GetObjectAclRequest";
-const _GOARe = "GetObjectAttributesResponse";
-const _GOARet = "GetObjectAttributesRequest";
-const _GOAe = "GetObjectAttributes";
-const _GOLC = "GetObjectLockConfiguration";
-const _GOLCO = "GetObjectLockConfigurationOutput";
-const _GOLCR = "GetObjectLockConfigurationRequest";
-const _GOLH = "GetObjectLegalHold";
-const _GOLHO = "GetObjectLegalHoldOutput";
-const _GOLHR = "GetObjectLegalHoldRequest";
-const _GOO = "GetObjectOutput";
-const _GOR = "GetObjectRequest";
-const _GORO = "GetObjectRetentionOutput";
-const _GORR = "GetObjectRetentionRequest";
-const _GORe = "GetObjectRetention";
-const _GOT = "GetObjectTagging";
-const _GOTO = "GetObjectTaggingOutput";
-const _GOTOe = "GetObjectTorrentOutput";
-const _GOTR = "GetObjectTaggingRequest";
-const _GOTRe = "GetObjectTorrentRequest";
-const _GOTe = "GetObjectTorrent";
-const _GPAB = "GetPublicAccessBlock";
-const _GPABO = "GetPublicAccessBlockOutput";
-const _GPABR = "GetPublicAccessBlockRequest";
-const _GR = "GrantRead";
-const _GRACP = "GrantReadACP";
-const _GW = "GrantWrite";
-const _GWACP = "GrantWriteACP";
-const _Gr = "Grant";
-const _Gra = "Grantee";
-const _HB = "HeadBucket";
-const _HBO = "HeadBucketOutput";
-const _HBR = "HeadBucketRequest";
-const _HECRE = "HttpErrorCodeReturnedEquals";
-const _HN = "HostName";
-const _HO = "HeadObject";
-const _HOO = "HeadObjectOutput";
-const _HOR = "HeadObjectRequest";
-const _HRC = "HttpRedirectCode";
-const _I = "Id";
-const _IC = "InventoryConfiguration";
-const _ICL = "InventoryConfigurationList";
-const _ID = "ID";
-const _IDn = "IndexDocument";
-const _IDnv = "InventoryDestination";
-const _IE = "IsEnabled";
-const _IEn = "InventoryEncryption";
-const _IF = "InventoryFilter";
-const _IL = "IsLatest";
-const _IM = "IfMatch";
-const _IMIT = "IfMatchInitiatedTime";
-const _IMLMT = "IfMatchLastModifiedTime";
-const _IMS = "IfMatchSize";
-const _IMS_ = "If-Modified-Since";
-const _IMSf = "IfModifiedSince";
-const _IMUR = "InitiateMultipartUploadResult";
-const _IM_ = "If-Match";
-const _INM = "IfNoneMatch";
-const _INM_ = "If-None-Match";
-const _IOF = "InventoryOptionalFields";
-const _IOS = "InvalidObjectState";
-const _IOV = "IncludedObjectVersions";
-const _IP = "IsPublic";
-const _IPA = "IgnorePublicAcls";
-const _IPM = "IdempotencyParameterMismatch";
-const _IR = "InvalidRequest";
-const _IRIP = "IsRestoreInProgress";
-const _IS = "InputSerialization";
-const _ISBD = "InventoryS3BucketDestination";
-const _ISn = "InventorySchedule";
-const _IT = "IsTruncated";
-const _ITAO = "IntelligentTieringAndOperator";
-const _ITC = "IntelligentTieringConfiguration";
-const _ITCL = "IntelligentTieringConfigurationList";
-const _ITCR = "InventoryTableConfigurationResult";
-const _ITCU = "InventoryTableConfigurationUpdates";
-const _ITCn = "InventoryTableConfiguration";
-const _ITF = "IntelligentTieringFilter";
-const _IUS = "IfUnmodifiedSince";
-const _IUS_ = "If-Unmodified-Since";
-const _IWO = "InvalidWriteOffset";
-const _In = "Initiator";
-const _Ini = "Initiated";
-const _JSON = "JSON";
-const _JSONI = "JSONInput";
-const _JSONO = "JSONOutput";
-const _JTC = "JournalTableConfiguration";
-const _JTCR = "JournalTableConfigurationResult";
-const _JTCU = "JournalTableConfigurationUpdates";
-const _K = "Key";
-const _KC = "KeyCount";
-const _KI = "KeyId";
-const _KKA = "KmsKeyArn";
-const _KM = "KeyMarker";
-const _KMSC = "KMSContext";
-const _KMSKA = "KMSKeyArn";
-const _KMSKI = "KMSKeyId";
-const _KMSMKID = "KMSMasterKeyID";
-const _KPE = "KeyPrefixEquals";
-const _L = "Location";
-const _LAMBR = "ListAllMyBucketsResult";
-const _LAMDBR = "ListAllMyDirectoryBucketsResult";
-const _LB = "ListBuckets";
-const _LBAC = "ListBucketAnalyticsConfigurations";
-const _LBACO = "ListBucketAnalyticsConfigurationsOutput";
-const _LBACR = "ListBucketAnalyticsConfigurationResult";
-const _LBACRi = "ListBucketAnalyticsConfigurationsRequest";
-const _LBIC = "ListBucketInventoryConfigurations";
-const _LBICO = "ListBucketInventoryConfigurationsOutput";
-const _LBICR = "ListBucketInventoryConfigurationsRequest";
-const _LBITC = "ListBucketIntelligentTieringConfigurations";
-const _LBITCO = "ListBucketIntelligentTieringConfigurationsOutput";
-const _LBITCR = "ListBucketIntelligentTieringConfigurationsRequest";
-const _LBMC = "ListBucketMetricsConfigurations";
-const _LBMCO = "ListBucketMetricsConfigurationsOutput";
-const _LBMCR = "ListBucketMetricsConfigurationsRequest";
-const _LBO = "ListBucketsOutput";
-const _LBR = "ListBucketsRequest";
-const _LBRi = "ListBucketResult";
-const _LC = "LocationConstraint";
-const _LCi = "LifecycleConfiguration";
-const _LDB = "ListDirectoryBuckets";
-const _LDBO = "ListDirectoryBucketsOutput";
-const _LDBR = "ListDirectoryBucketsRequest";
-const _LE = "LoggingEnabled";
-const _LEi = "LifecycleExpiration";
-const _LFA = "LambdaFunctionArn";
-const _LFC = "LambdaFunctionConfiguration";
-const _LFCL = "LambdaFunctionConfigurationList";
-const _LFCa = "LambdaFunctionConfigurations";
-const _LH = "LegalHold";
-const _LI = "LocationInfo";
-const _LICR = "ListInventoryConfigurationsResult";
-const _LM = "LastModified";
-const _LMCR = "ListMetricsConfigurationsResult";
-const _LMT = "LastModifiedTime";
-const _LMU = "ListMultipartUploads";
-const _LMUO = "ListMultipartUploadsOutput";
-const _LMUR = "ListMultipartUploadsResult";
-const _LMURi = "ListMultipartUploadsRequest";
-const _LM_ = "Last-Modified";
-const _LO = "ListObjects";
-const _LOO = "ListObjectsOutput";
-const _LOR = "ListObjectsRequest";
-const _LOV = "ListObjectsV2";
-const _LOVO = "ListObjectsV2Output";
-const _LOVOi = "ListObjectVersionsOutput";
-const _LOVR = "ListObjectsV2Request";
-const _LOVRi = "ListObjectVersionsRequest";
-const _LOVi = "ListObjectVersions";
-const _LP = "ListParts";
-const _LPO = "ListPartsOutput";
-const _LPR = "ListPartsResult";
-const _LPRi = "ListPartsRequest";
-const _LR = "LifecycleRule";
-const _LRAO = "LifecycleRuleAndOperator";
-const _LRF = "LifecycleRuleFilter";
-const _LRi = "LifecycleRules";
-const _LVR = "ListVersionsResult";
-const _M = "Metadata";
-const _MAO = "MetricsAndOperator";
-const _MAS = "MaxAgeSeconds";
-const _MB = "MaxBuckets";
-const _MC = "MetadataConfiguration";
-const _MCL = "MetricsConfigurationList";
-const _MCR = "MetadataConfigurationResult";
-const _MCe = "MetricsConfiguration";
-const _MD = "MetadataDirective";
-const _MDB = "MaxDirectoryBuckets";
-const _MDf = "MfaDelete";
-const _ME = "MetadataEntry";
-const _MF = "MetricsFilter";
-const _MFA = "MFA";
-const _MFAD = "MFADelete";
-const _MK = "MaxKeys";
-const _MM = "MissingMeta";
-const _MOS = "MpuObjectSize";
-const _MP = "MaxParts";
-const _MTC = "MetadataTableConfiguration";
-const _MTCR = "MetadataTableConfigurationResult";
-const _MTEC = "MetadataTableEncryptionConfiguration";
-const _MU = "MultipartUpload";
-const _MUL = "MultipartUploadList";
-const _MUa = "MaxUploads";
-const _Ma = "Marker";
-const _Me = "Metrics";
-const _Mes = "Message";
-const _Mi = "Minutes";
-const _Mo = "Mode";
-const _N = "Name";
-const _NC = "NotificationConfiguration";
-const _NCF = "NotificationConfigurationFilter";
-const _NCT = "NextContinuationToken";
-const _ND = "NoncurrentDays";
-const _NEKKAS = "NonEmptyKmsKeyArnString";
-const _NF = "NotFound";
-const _NKM = "NextKeyMarker";
-const _NM = "NextMarker";
-const _NNV = "NewerNoncurrentVersions";
-const _NPNM = "NextPartNumberMarker";
-const _NSB = "NoSuchBucket";
-const _NSK = "NoSuchKey";
-const _NSU = "NoSuchUpload";
-const _NUIM = "NextUploadIdMarker";
-const _NVE = "NoncurrentVersionExpiration";
-const _NVIM = "NextVersionIdMarker";
-const _NVT = "NoncurrentVersionTransitions";
-const _NVTL = "NoncurrentVersionTransitionList";
-const _NVTo = "NoncurrentVersionTransition";
-const _O = "Owner";
-const _OA = "ObjectAttributes";
-const _OAIATE = "ObjectAlreadyInActiveTierError";
-const _OC = "OwnershipControls";
-const _OCR = "OwnershipControlsRule";
-const _OCRw = "OwnershipControlsRules";
-const _OE = "ObjectEncryption";
-const _OF = "OptionalFields";
-const _OI = "ObjectIdentifier";
-const _OIL = "ObjectIdentifierList";
-const _OL = "OutputLocation";
-const _OLC = "ObjectLockConfiguration";
-const _OLE = "ObjectLockEnabled";
-const _OLEFB = "ObjectLockEnabledForBucket";
-const _OLLH = "ObjectLockLegalHold";
-const _OLLHS = "ObjectLockLegalHoldStatus";
-const _OLM = "ObjectLockMode";
-const _OLR = "ObjectLockRetention";
-const _OLRUD = "ObjectLockRetainUntilDate";
-const _OLRb = "ObjectLockRule";
-const _OLb = "ObjectList";
-const _ONIATE = "ObjectNotInActiveTierError";
-const _OO = "ObjectOwnership";
-const _OOA = "OptionalObjectAttributes";
-const _OP = "ObjectParts";
-const _OPb = "ObjectPart";
-const _OS = "ObjectSize";
-const _OSGT = "ObjectSizeGreaterThan";
-const _OSLT = "ObjectSizeLessThan";
-const _OSV = "OutputSchemaVersion";
-const _OSu = "OutputSerialization";
-const _OV = "ObjectVersion";
-const _OVL = "ObjectVersionList";
-const _Ob = "Objects";
-const _Obj = "Object";
-const _P = "Prefix";
-const _PABC = "PublicAccessBlockConfiguration";
-const _PBA = "PutBucketAbac";
-const _PBAC = "PutBucketAccelerateConfiguration";
-const _PBACR = "PutBucketAccelerateConfigurationRequest";
-const _PBACRu = "PutBucketAnalyticsConfigurationRequest";
-const _PBACu = "PutBucketAnalyticsConfiguration";
-const _PBAR = "PutBucketAbacRequest";
-const _PBARu = "PutBucketAclRequest";
-const _PBAu = "PutBucketAcl";
-const _PBC = "PutBucketCors";
-const _PBCR = "PutBucketCorsRequest";
-const _PBE = "PutBucketEncryption";
-const _PBER = "PutBucketEncryptionRequest";
-const _PBIC = "PutBucketInventoryConfiguration";
-const _PBICR = "PutBucketInventoryConfigurationRequest";
-const _PBITC = "PutBucketIntelligentTieringConfiguration";
-const _PBITCR = "PutBucketIntelligentTieringConfigurationRequest";
-const _PBL = "PutBucketLogging";
-const _PBLC = "PutBucketLifecycleConfiguration";
-const _PBLCO = "PutBucketLifecycleConfigurationOutput";
-const _PBLCR = "PutBucketLifecycleConfigurationRequest";
-const _PBLR = "PutBucketLoggingRequest";
-const _PBMC = "PutBucketMetricsConfiguration";
-const _PBMCR = "PutBucketMetricsConfigurationRequest";
-const _PBNC = "PutBucketNotificationConfiguration";
-const _PBNCR = "PutBucketNotificationConfigurationRequest";
-const _PBOC = "PutBucketOwnershipControls";
-const _PBOCR = "PutBucketOwnershipControlsRequest";
-const _PBP = "PutBucketPolicy";
-const _PBPR = "PutBucketPolicyRequest";
-const _PBR = "PutBucketReplication";
-const _PBRP = "PutBucketRequestPayment";
-const _PBRPR = "PutBucketRequestPaymentRequest";
-const _PBRR = "PutBucketReplicationRequest";
-const _PBT = "PutBucketTagging";
-const _PBTR = "PutBucketTaggingRequest";
-const _PBV = "PutBucketVersioning";
-const _PBVR = "PutBucketVersioningRequest";
-const _PBW = "PutBucketWebsite";
-const _PBWR = "PutBucketWebsiteRequest";
-const _PC = "PartsCount";
-const _PDS = "PartitionDateSource";
-const _PE = "ProgressEvent";
-const _PI = "ParquetInput";
-const _PL = "PartsList";
-const _PN = "PartNumber";
-const _PNM = "PartNumberMarker";
-const _PO = "PutObject";
-const _POA = "PutObjectAcl";
-const _POAO = "PutObjectAclOutput";
-const _POAR = "PutObjectAclRequest";
-const _POLC = "PutObjectLockConfiguration";
-const _POLCO = "PutObjectLockConfigurationOutput";
-const _POLCR = "PutObjectLockConfigurationRequest";
-const _POLH = "PutObjectLegalHold";
-const _POLHO = "PutObjectLegalHoldOutput";
-const _POLHR = "PutObjectLegalHoldRequest";
-const _POO = "PutObjectOutput";
-const _POR = "PutObjectRequest";
-const _PORO = "PutObjectRetentionOutput";
-const _PORR = "PutObjectRetentionRequest";
-const _PORu = "PutObjectRetention";
-const _POT = "PutObjectTagging";
-const _POTO = "PutObjectTaggingOutput";
-const _POTR = "PutObjectTaggingRequest";
-const _PP = "PartitionedPrefix";
-const _PPAB = "PutPublicAccessBlock";
-const _PPABR = "PutPublicAccessBlockRequest";
-const _PS = "PolicyStatus";
-const _Pa = "Parts";
-const _Par = "Part";
-const _Parq = "Parquet";
-const _Pay = "Payer";
-const _Payl = "Payload";
-const _Pe = "Permission";
-const _Po = "Policy";
-const _Pr = "Progress";
-const _Pri = "Priority";
-const _Pro = "Protocol";
-const _Q = "Quiet";
-const _QA = "QueueArn";
-const _QC = "QuoteCharacter";
-const _QCL = "QueueConfigurationList";
-const _QCu = "QueueConfigurations";
-const _QCue = "QueueConfiguration";
-const _QEC = "QuoteEscapeCharacter";
-const _QF = "QuoteFields";
-const _Qu = "Queue";
-const _R = "Rules";
-const _RART = "RedirectAllRequestsTo";
-const _RC = "RequestCharged";
-const _RCC = "ResponseCacheControl";
-const _RCD = "ResponseContentDisposition";
-const _RCE = "ResponseContentEncoding";
-const _RCL = "ResponseContentLanguage";
-const _RCT = "ResponseContentType";
-const _RCe = "ReplicationConfiguration";
-const _RD = "RecordDelimiter";
-const _RE = "ResponseExpires";
-const _RED = "RestoreExpiryDate";
-const _REe = "RecordExpiration";
-const _REec = "RecordsEvent";
-const _RKKID = "ReplicaKmsKeyID";
-const _RKPW = "ReplaceKeyPrefixWith";
-const _RKW = "ReplaceKeyWith";
-const _RM = "ReplicaModifications";
-const _RO = "RenameObject";
-const _ROO = "RenameObjectOutput";
-const _ROOe = "RestoreObjectOutput";
-const _ROP = "RestoreOutputPath";
-const _ROR = "RenameObjectRequest";
-const _RORe = "RestoreObjectRequest";
-const _ROe = "RestoreObject";
-const _RP = "RequestPayer";
-const _RPB = "RestrictPublicBuckets";
-const _RPC = "RequestPaymentConfiguration";
-const _RPe = "RequestProgress";
-const _RR = "RoutingRules";
-const _RRAO = "ReplicationRuleAndOperator";
-const _RRF = "ReplicationRuleFilter";
-const _RRe = "ReplicationRule";
-const _RRep = "ReplicationRules";
-const _RReq = "RequestRoute";
-const _RRes = "RestoreRequest";
-const _RRo = "RoutingRule";
-const _RS = "ReplicationStatus";
-const _RSe = "RestoreStatus";
-const _RSen = "RenameSource";
-const _RT = "ReplicationTime";
-const _RTV = "ReplicationTimeValue";
-const _RTe = "RequestToken";
-const _RUD = "RetainUntilDate";
-const _Ra = "Range";
-const _Re = "Restore";
-const _Rec = "Records";
-const _Red = "Redirect";
-const _Ret = "Retention";
-const _Ro = "Role";
-const _Ru = "Rule";
-const _S = "Status";
-const _SA = "StartAfter";
-const _SAK = "SecretAccessKey";
-const _SAs = "SseAlgorithm";
-const _SB = "StreamingBlob";
-const _SBD = "S3BucketDestination";
-const _SC = "StorageClass";
-const _SCA = "StorageClassAnalysis";
-const _SCADE = "StorageClassAnalysisDataExport";
-const _SCV = "SessionCredentialValue";
-const _SCe = "SessionCredentials";
-const _SCt = "StatusCode";
-const _SDV = "SkipDestinationValidation";
-const _SE = "StatsEvent";
-const _SIM = "SourceIfMatch";
-const _SIMS = "SourceIfModifiedSince";
-const _SINM = "SourceIfNoneMatch";
-const _SIUS = "SourceIfUnmodifiedSince";
-const _SK = "SSE-KMS";
-const _SKEO = "SseKmsEncryptedObjects";
-const _SKF = "S3KeyFilter";
-const _SKe = "S3Key";
-const _SL = "S3Location";
-const _SM = "SessionMode";
-const _SOC = "SelectObjectContent";
-const _SOCES = "SelectObjectContentEventStream";
-const _SOCO = "SelectObjectContentOutput";
-const _SOCR = "SelectObjectContentRequest";
-const _SP = "SelectParameters";
-const _SPi = "SimplePrefix";
-const _SR = "ScanRange";
-const _SS = "SSE-S3";
-const _SSC = "SourceSelectionCriteria";
-const _SSE = "ServerSideEncryption";
-const _SSEA = "SSEAlgorithm";
-const _SSEBD = "ServerSideEncryptionByDefault";
-const _SSEC = "ServerSideEncryptionConfiguration";
-const _SSECA = "SSECustomerAlgorithm";
-const _SSECK = "SSECustomerKey";
-const _SSECKMD = "SSECustomerKeyMD5";
-const _SSEKMS = "SSEKMS";
-const _SSEKMSE = "SSEKMSEncryption";
-const _SSEKMSEC = "SSEKMSEncryptionContext";
-const _SSEKMSKI = "SSEKMSKeyId";
-const _SSER = "ServerSideEncryptionRule";
-const _SSERe = "ServerSideEncryptionRules";
-const _SSES = "SSES3";
-const _ST = "SessionToken";
-const _STD = "S3TablesDestination";
-const _STDR = "S3TablesDestinationResult";
-const _S_ = "S3";
-const _Sc = "Schedule";
-const _Si = "Size";
-const _St = "Start";
-const _Sta = "Stats";
-const _Su = "Suffix";
-const _T = "Tags";
-const _TA = "TableArn";
-const _TAo = "TopicArn";
-const _TB = "TargetBucket";
-const _TBA = "TableBucketArn";
-const _TBT = "TableBucketType";
-const _TC = "TagCount";
-const _TCL = "TopicConfigurationList";
-const _TCo = "TopicConfigurations";
-const _TCop = "TopicConfiguration";
-const _TD = "TaggingDirective";
-const _TDMOS = "TransitionDefaultMinimumObjectSize";
-const _TG = "TargetGrants";
-const _TGa = "TargetGrant";
-const _TL = "TieringList";
-const _TLr = "TransitionList";
-const _TMP = "TooManyParts";
-const _TN = "TableNamespace";
-const _TNa = "TableName";
-const _TOKF = "TargetObjectKeyFormat";
-const _TP = "TargetPrefix";
-const _TPC = "TotalPartsCount";
-const _TS = "TagSet";
-const _TSa = "TableStatus";
-const _Ta = "Tag";
-const _Tag = "Tagging";
-const _Ti = "Tier";
-const _Tie = "Tierings";
-const _Tier = "Tiering";
-const _Tim = "Time";
-const _To = "Token";
-const _Top = "Topic";
-const _Tr = "Transitions";
-const _Tra = "Transition";
-const _Ty = "Type";
-const _U = "Uploads";
-const _UBMITC = "UpdateBucketMetadataInventoryTableConfiguration";
-const _UBMITCR = "UpdateBucketMetadataInventoryTableConfigurationRequest";
-const _UBMJTC = "UpdateBucketMetadataJournalTableConfiguration";
-const _UBMJTCR = "UpdateBucketMetadataJournalTableConfigurationRequest";
-const _UI = "UploadId";
-const _UIM = "UploadIdMarker";
-const _UM = "UserMetadata";
-const _UOE = "UpdateObjectEncryption";
-const _UOER = "UpdateObjectEncryptionRequest";
-const _UOERp = "UpdateObjectEncryptionResponse";
-const _UP = "UploadPart";
-const _UPC = "UploadPartCopy";
-const _UPCO = "UploadPartCopyOutput";
-const _UPCR = "UploadPartCopyRequest";
-const _UPO = "UploadPartOutput";
-const _UPR = "UploadPartRequest";
-const _URI = "URI";
-const _Up = "Upload";
-const _V = "Value";
-const _VC = "VersioningConfiguration";
-const _VI = "VersionId";
-const _VIM = "VersionIdMarker";
-const _Ve = "Versions";
-const _Ver = "Version";
-const _WC = "WebsiteConfiguration";
-const _WGOR = "WriteGetObjectResponse";
-const _WGORR = "WriteGetObjectResponseRequest";
-const _WOB = "WriteOffsetBytes";
-const _WRL = "WebsiteRedirectLocation";
-const _Y = "Years";
-const _ar = "accept-ranges";
-const _br = "bucket-region";
-const _c = "client";
-const _ct = "continuation-token";
-const _d = "delimiter";
-const _e = "error";
-const _eP = "eventPayload";
-const _en = "endpoint";
-const _et = "encoding-type";
-const _fo = "fetch-owner";
-const _h = "http";
-const _hC = "httpChecksum";
-const _hE = "httpError";
-const _hH = "httpHeader";
-const _hL = "hostLabel";
-const _hP = "httpPayload";
-const _hPH = "httpPrefixHeaders";
-const _hQ = "httpQuery";
-const _hi = "http://www.w3.org/2001/XMLSchema-instance";
-const _i = "id";
-const _iT = "idempotencyToken";
-const _km = "key-marker";
-const _m = "marker";
-const _mb = "max-buckets";
-const _mdb = "max-directory-buckets";
-const _mk = "max-keys";
-const _mp = "max-parts";
-const _mu = "max-uploads";
-const _p = "prefix";
-const _pN = "partNumber";
-const _pnm = "part-number-marker";
-const _rcc = "response-cache-control";
-const _rcd = "response-content-disposition";
-const _rce = "response-content-encoding";
-const _rcl = "response-content-language";
-const _rct = "response-content-type";
-const _re = "response-expires";
-const _s = "smithy.ts.sdk.synthetic.com.amazonaws.s3";
-const _sa = "start-after";
-const _st = "streaming";
-const _uI = "uploadId";
-const _uim = "upload-id-marker";
-const _vI = "versionId";
-const _vim = "version-id-marker";
-const _x = "xsi";
-const _xA = "xmlAttribute";
-const _xF = "xmlFlattened";
-const _xN = "xmlName";
-const _xNm = "xmlNamespace";
-const _xaa = "x-amz-acl";
-const _xaad = "x-amz-abort-date";
-const _xaapa = "x-amz-access-point-alias";
-const _xaari = "x-amz-abort-rule-id";
-const _xaas = "x-amz-archive-status";
-const _xaba = "x-amz-bucket-arn";
-const _xabgr = "x-amz-bypass-governance-retention";
-const _xabln = "x-amz-bucket-location-name";
-const _xablt = "x-amz-bucket-location-type";
-const _xabn = "x-amz-bucket-namespace";
-const _xabole = "x-amz-bucket-object-lock-enabled";
-const _xabolt = "x-amz-bucket-object-lock-token";
-const _xabr = "x-amz-bucket-region";
-const _xaca = "x-amz-checksum-algorithm";
-const _xacc = "x-amz-checksum-crc32";
-const _xacc_ = "x-amz-checksum-crc32c";
-const _xacc__ = "x-amz-checksum-crc64nvme";
-const _xacm = "x-amz-checksum-md5";
-const _xacm_ = "x-amz-checksum-mode";
-const _xacrsba = "x-amz-confirm-remove-self-bucket-access";
-const _xacs = "x-amz-checksum-sha1";
-const _xacs_ = "x-amz-checksum-sha256";
-const _xacs__ = "x-amz-checksum-sha512";
-const _xacs___ = "x-amz-copy-source";
-const _xacsim = "x-amz-copy-source-if-match";
-const _xacsims = "x-amz-copy-source-if-modified-since";
-const _xacsinm = "x-amz-copy-source-if-none-match";
-const _xacsius = "x-amz-copy-source-if-unmodified-since";
-const _xacsm = "x-amz-create-session-mode";
-const _xacsr = "x-amz-copy-source-range";
-const _xacssseca = "x-amz-copy-source-server-side-encryption-customer-algorithm";
-const _xacssseck = "x-amz-copy-source-server-side-encryption-customer-key";
-const _xacssseckM = "x-amz-copy-source-server-side-encryption-customer-key-MD5";
-const _xacsvi = "x-amz-copy-source-version-id";
-const _xact = "x-amz-checksum-type";
-const _xact_ = "x-amz-client-token";
-const _xacx = "x-amz-checksum-xxhash64";
-const _xacx_ = "x-amz-checksum-xxhash3";
-const _xacx__ = "x-amz-checksum-xxhash128";
-const _xadm = "x-amz-delete-marker";
-const _xae = "x-amz-expiration";
-const _xaebo = "x-amz-expected-bucket-owner";
-const _xafec = "x-amz-fwd-error-code";
-const _xafem = "x-amz-fwd-error-message";
-const _xafhCC = "x-amz-fwd-header-Cache-Control";
-const _xafhCD = "x-amz-fwd-header-Content-Disposition";
-const _xafhCE = "x-amz-fwd-header-Content-Encoding";
-const _xafhCL = "x-amz-fwd-header-Content-Language";
-const _xafhCR = "x-amz-fwd-header-Content-Range";
-const _xafhCT = "x-amz-fwd-header-Content-Type";
-const _xafhE = "x-amz-fwd-header-ETag";
-const _xafhE_ = "x-amz-fwd-header-Expires";
-const _xafhLM = "x-amz-fwd-header-Last-Modified";
-const _xafhar = "x-amz-fwd-header-accept-ranges";
-const _xafhxacc = "x-amz-fwd-header-x-amz-checksum-crc32";
-const _xafhxacc_ = "x-amz-fwd-header-x-amz-checksum-crc32c";
-const _xafhxacc__ = "x-amz-fwd-header-x-amz-checksum-crc64nvme";
-const _xafhxacm = "x-amz-fwd-header-x-amz-checksum-md5";
-const _xafhxacs = "x-amz-fwd-header-x-amz-checksum-sha1";
-const _xafhxacs_ = "x-amz-fwd-header-x-amz-checksum-sha256";
-const _xafhxacs__ = "x-amz-fwd-header-x-amz-checksum-sha512";
-const _xafhxacx = "x-amz-fwd-header-x-amz-checksum-xxhash64";
-const _xafhxacx_ = "x-amz-fwd-header-x-amz-checksum-xxhash3";
-const _xafhxacx__ = "x-amz-fwd-header-x-amz-checksum-xxhash128";
-const _xafhxadm = "x-amz-fwd-header-x-amz-delete-marker";
-const _xafhxae = "x-amz-fwd-header-x-amz-expiration";
-const _xafhxamm = "x-amz-fwd-header-x-amz-missing-meta";
-const _xafhxampc = "x-amz-fwd-header-x-amz-mp-parts-count";
-const _xafhxaollh = "x-amz-fwd-header-x-amz-object-lock-legal-hold";
-const _xafhxaolm = "x-amz-fwd-header-x-amz-object-lock-mode";
-const _xafhxaolrud = "x-amz-fwd-header-x-amz-object-lock-retain-until-date";
-const _xafhxar = "x-amz-fwd-header-x-amz-restore";
-const _xafhxarc = "x-amz-fwd-header-x-amz-request-charged";
-const _xafhxars = "x-amz-fwd-header-x-amz-replication-status";
-const _xafhxasc = "x-amz-fwd-header-x-amz-storage-class";
-const _xafhxasse = "x-amz-fwd-header-x-amz-server-side-encryption";
-const _xafhxasseakki = "x-amz-fwd-header-x-amz-server-side-encryption-aws-kms-key-id";
-const _xafhxassebke = "x-amz-fwd-header-x-amz-server-side-encryption-bucket-key-enabled";
-const _xafhxasseca = "x-amz-fwd-header-x-amz-server-side-encryption-customer-algorithm";
-const _xafhxasseckM = "x-amz-fwd-header-x-amz-server-side-encryption-customer-key-MD5";
-const _xafhxatc = "x-amz-fwd-header-x-amz-tagging-count";
-const _xafhxavi = "x-amz-fwd-header-x-amz-version-id";
-const _xafs = "x-amz-fwd-status";
-const _xagfc = "x-amz-grant-full-control";
-const _xagr = "x-amz-grant-read";
-const _xagra = "x-amz-grant-read-acp";
-const _xagw = "x-amz-grant-write";
-const _xagwa = "x-amz-grant-write-acp";
-const _xaimit = "x-amz-if-match-initiated-time";
-const _xaimlmt = "x-amz-if-match-last-modified-time";
-const _xaims = "x-amz-if-match-size";
-const _xam = "x-amz-meta-";
-const _xam_ = "x-amz-mfa";
-const _xamd = "x-amz-metadata-directive";
-const _xamm = "x-amz-missing-meta";
-const _xamos = "x-amz-mp-object-size";
-const _xamp = "x-amz-max-parts";
-const _xampc = "x-amz-mp-parts-count";
-const _xaoa = "x-amz-object-attributes";
-const _xaollh = "x-amz-object-lock-legal-hold";
-const _xaolm = "x-amz-object-lock-mode";
-const _xaolrud = "x-amz-object-lock-retain-until-date";
-const _xaoo = "x-amz-object-ownership";
-const _xaooa = "x-amz-optional-object-attributes";
-const _xaos = "x-amz-object-size";
-const _xapnm = "x-amz-part-number-marker";
-const _xar = "x-amz-restore";
-const _xarc = "x-amz-request-charged";
-const _xarop = "x-amz-restore-output-path";
-const _xarp = "x-amz-request-payer";
-const _xarr = "x-amz-request-route";
-const _xars = "x-amz-replication-status";
-const _xars_ = "x-amz-rename-source";
-const _xarsim = "x-amz-rename-source-if-match";
-const _xarsims = "x-amz-rename-source-if-modified-since";
-const _xarsinm = "x-amz-rename-source-if-none-match";
-const _xarsius = "x-amz-rename-source-if-unmodified-since";
-const _xart = "x-amz-request-token";
-const _xasc = "x-amz-storage-class";
-const _xasca = "x-amz-sdk-checksum-algorithm";
-const _xasdv = "x-amz-skip-destination-validation";
-const _xasebo = "x-amz-source-expected-bucket-owner";
-const _xasse = "x-amz-server-side-encryption";
-const _xasseakki = "x-amz-server-side-encryption-aws-kms-key-id";
-const _xassebke = "x-amz-server-side-encryption-bucket-key-enabled";
-const _xassec = "x-amz-server-side-encryption-context";
-const _xasseca = "x-amz-server-side-encryption-customer-algorithm";
-const _xasseck = "x-amz-server-side-encryption-customer-key";
-const _xasseckM = "x-amz-server-side-encryption-customer-key-MD5";
-const _xat = "x-amz-tagging";
-const _xatc = "x-amz-tagging-count";
-const _xatd = "x-amz-tagging-directive";
-const _xatdmos = "x-amz-transition-default-minimum-object-size";
-const _xavi = "x-amz-version-id";
-const _xawob = "x-amz-write-offset-bytes";
-const _xawrl = "x-amz-website-redirect-location";
-const _xs = "xsi:type";
-const n0 = "com.amazonaws.s3";
-const { TypeRegistry } = __nccwpck_require__(6890);
-const { AccessDenied, BucketAlreadyExists, BucketAlreadyOwnedByYou, EncryptionTypeMismatch, IdempotencyParameterMismatch, InvalidObjectState, InvalidRequest, InvalidWriteOffset, NoSuchBucket, NoSuchKey, NoSuchUpload, NotFound, ObjectAlreadyInActiveTierError, ObjectNotInActiveTierError, TooManyParts } = __nccwpck_require__(631);
-const { S3ServiceException } = __nccwpck_require__(8354);
-const _s_registry = TypeRegistry.for(_s);
-const S3ServiceException$ = [-3, _s, "S3ServiceException", 0, [], []];
-exports.S3ServiceException$ = S3ServiceException$;
-_s_registry.registerError(S3ServiceException$, S3ServiceException);
-const n0_registry = TypeRegistry.for(n0);
-const AccessDenied$ = [-3, n0, _AD,
-    { [_e]: _c, [_hE]: 403 },
-    [],
-    []
-];
-exports.AccessDenied$ = AccessDenied$;
-n0_registry.registerError(AccessDenied$, AccessDenied);
-const BucketAlreadyExists$ = [-3, n0, _BAE,
-    { [_e]: _c, [_hE]: 409 },
-    [],
-    []
-];
-exports.BucketAlreadyExists$ = BucketAlreadyExists$;
-n0_registry.registerError(BucketAlreadyExists$, BucketAlreadyExists);
-const BucketAlreadyOwnedByYou$ = [-3, n0, _BAOBY,
-    { [_e]: _c, [_hE]: 409 },
-    [],
-    []
-];
-exports.BucketAlreadyOwnedByYou$ = BucketAlreadyOwnedByYou$;
-n0_registry.registerError(BucketAlreadyOwnedByYou$, BucketAlreadyOwnedByYou);
-const EncryptionTypeMismatch$ = [-3, n0, _ETM,
-    { [_e]: _c, [_hE]: 400 },
-    [],
-    []
-];
-exports.EncryptionTypeMismatch$ = EncryptionTypeMismatch$;
-n0_registry.registerError(EncryptionTypeMismatch$, EncryptionTypeMismatch);
-const IdempotencyParameterMismatch$ = [-3, n0, _IPM,
-    { [_e]: _c, [_hE]: 400 },
-    [],
-    []
-];
-exports.IdempotencyParameterMismatch$ = IdempotencyParameterMismatch$;
-n0_registry.registerError(IdempotencyParameterMismatch$, IdempotencyParameterMismatch);
-const InvalidObjectState$ = [-3, n0, _IOS,
-    { [_e]: _c, [_hE]: 403 },
-    [_SC, _AT],
-    [0, 0]
-];
-exports.InvalidObjectState$ = InvalidObjectState$;
-n0_registry.registerError(InvalidObjectState$, InvalidObjectState);
-const InvalidRequest$ = [-3, n0, _IR,
-    { [_e]: _c, [_hE]: 400 },
-    [],
-    []
-];
-exports.InvalidRequest$ = InvalidRequest$;
-n0_registry.registerError(InvalidRequest$, InvalidRequest);
-const InvalidWriteOffset$ = [-3, n0, _IWO,
-    { [_e]: _c, [_hE]: 400 },
-    [],
-    []
-];
-exports.InvalidWriteOffset$ = InvalidWriteOffset$;
-n0_registry.registerError(InvalidWriteOffset$, InvalidWriteOffset);
-const NoSuchBucket$ = [-3, n0, _NSB,
-    { [_e]: _c, [_hE]: 404 },
-    [],
-    []
-];
-exports.NoSuchBucket$ = NoSuchBucket$;
-n0_registry.registerError(NoSuchBucket$, NoSuchBucket);
-const NoSuchKey$ = [-3, n0, _NSK,
-    { [_e]: _c, [_hE]: 404 },
-    [],
-    []
-];
-exports.NoSuchKey$ = NoSuchKey$;
-n0_registry.registerError(NoSuchKey$, NoSuchKey);
-const NoSuchUpload$ = [-3, n0, _NSU,
-    { [_e]: _c, [_hE]: 404 },
-    [],
-    []
-];
-exports.NoSuchUpload$ = NoSuchUpload$;
-n0_registry.registerError(NoSuchUpload$, NoSuchUpload);
-const NotFound$ = [-3, n0, _NF,
-    { [_e]: _c },
-    [],
-    []
-];
-exports.NotFound$ = NotFound$;
-n0_registry.registerError(NotFound$, NotFound);
-const ObjectAlreadyInActiveTierError$ = [-3, n0, _OAIATE,
-    { [_e]: _c, [_hE]: 403 },
-    [],
-    []
-];
-exports.ObjectAlreadyInActiveTierError$ = ObjectAlreadyInActiveTierError$;
-n0_registry.registerError(ObjectAlreadyInActiveTierError$, ObjectAlreadyInActiveTierError);
-const ObjectNotInActiveTierError$ = [-3, n0, _ONIATE,
-    { [_e]: _c, [_hE]: 403 },
-    [],
-    []
-];
-exports.ObjectNotInActiveTierError$ = ObjectNotInActiveTierError$;
-n0_registry.registerError(ObjectNotInActiveTierError$, ObjectNotInActiveTierError);
-const TooManyParts$ = [-3, n0, _TMP,
-    { [_e]: _c, [_hE]: 400 },
-    [],
-    []
-];
-exports.TooManyParts$ = TooManyParts$;
-n0_registry.registerError(TooManyParts$, TooManyParts);
-exports.errorTypeRegistries = [
-    _s_registry,
-    n0_registry,
-];
-var CopySourceSSECustomerKey = [0, n0, _CSSSECK, 8, 0];
-var NonEmptyKmsKeyArnString = [0, n0, _NEKKAS, 8, 0];
-var SessionCredentialValue = [0, n0, _SCV, 8, 0];
-var SSECustomerKey = [0, n0, _SSECK, 8, 0];
-var SSEKMSEncryptionContext = [0, n0, _SSEKMSEC, 8, 0];
-var SSEKMSKeyId = [0, n0, _SSEKMSKI, 8, 0];
-var StreamingBlob = [0, n0, _SB, { [_st]: 1 }, 42];
-const AbacStatus$ = [3, n0, _AS,
-    0,
-    [_S],
-    [0]
-];
-exports.AbacStatus$ = AbacStatus$;
-const AbortIncompleteMultipartUpload$ = [3, n0, _AIMU,
-    0,
-    [_DAI],
-    [1]
-];
-exports.AbortIncompleteMultipartUpload$ = AbortIncompleteMultipartUpload$;
-const AbortMultipartUploadOutput$ = [3, n0, _AMUO,
-    0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
-];
-exports.AbortMultipartUploadOutput$ = AbortMultipartUploadOutput$;
-const AbortMultipartUploadRequest$ = [3, n0, _AMUR,
-    0,
-    [_B, _K, _UI, _RP, _EBO, _IMIT],
-    [[0, 1], [0, 1], [0, { [_hQ]: _uI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [6, { [_hH]: _xaimit }]], 3
-];
-exports.AbortMultipartUploadRequest$ = AbortMultipartUploadRequest$;
-const AccelerateConfiguration$ = [3, n0, _AC,
-    0,
-    [_S],
-    [0]
-];
-exports.AccelerateConfiguration$ = AccelerateConfiguration$;
-const AccessControlPolicy$ = [3, n0, _ACP,
-    0,
-    [_G, _O],
-    [[() => Grants, { [_xN]: _ACL }], () => Owner$]
-];
-exports.AccessControlPolicy$ = AccessControlPolicy$;
-const AccessControlTranslation$ = [3, n0, _ACT,
-    0,
-    [_O],
-    [0], 1
-];
-exports.AccessControlTranslation$ = AccessControlTranslation$;
-const AnalyticsAndOperator$ = [3, n0, _AAO,
-    0,
-    [_P, _T],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
-];
-exports.AnalyticsAndOperator$ = AnalyticsAndOperator$;
-const AnalyticsConfiguration$ = [3, n0, _ACn,
-    0,
-    [_I, _SCA, _F],
-    [0, () => StorageClassAnalysis$, [() => AnalyticsFilter$, 0]], 2
-];
-exports.AnalyticsConfiguration$ = AnalyticsConfiguration$;
-const AnalyticsExportDestination$ = [3, n0, _AED,
-    0,
-    [_SBD],
-    [() => AnalyticsS3BucketDestination$], 1
-];
-exports.AnalyticsExportDestination$ = AnalyticsExportDestination$;
-const AnalyticsS3BucketDestination$ = [3, n0, _ASBD,
-    0,
-    [_Fo, _B, _BAI, _P],
-    [0, 0, 0, 0], 2
-];
-exports.AnalyticsS3BucketDestination$ = AnalyticsS3BucketDestination$;
-const BlockedEncryptionTypes$ = [3, n0, _BET,
-    0,
-    [_ET],
-    [[() => EncryptionTypeList, { [_xF]: 1 }]]
-];
-exports.BlockedEncryptionTypes$ = BlockedEncryptionTypes$;
-const Bucket$ = [3, n0, _B,
-    0,
-    [_N, _CD, _BR, _BA],
-    [0, 4, 0, 0]
-];
-exports.Bucket$ = Bucket$;
-const BucketInfo$ = [3, n0, _BI,
-    0,
-    [_DR, _Ty],
-    [0, 0]
-];
-exports.BucketInfo$ = BucketInfo$;
-const BucketLifecycleConfiguration$ = [3, n0, _BLC,
-    0,
-    [_R],
-    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Ru }]], 1
-];
-exports.BucketLifecycleConfiguration$ = BucketLifecycleConfiguration$;
-const BucketLoggingStatus$ = [3, n0, _BLS,
-    0,
-    [_LE],
-    [[() => LoggingEnabled$, 0]]
-];
-exports.BucketLoggingStatus$ = BucketLoggingStatus$;
-const Checksum$ = [3, n0, _C,
-    0,
-    [_CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-];
-exports.Checksum$ = Checksum$;
-const CommonPrefix$ = [3, n0, _CP,
-    0,
-    [_P],
-    [0]
-];
-exports.CommonPrefix$ = CommonPrefix$;
-const CompletedMultipartUpload$ = [3, n0, _CMU,
-    0,
-    [_Pa],
-    [[() => CompletedPartList, { [_xF]: 1, [_xN]: _Par }]]
-];
-exports.CompletedMultipartUpload$ = CompletedMultipartUpload$;
-const CompletedPart$ = [3, n0, _CPo,
-    0,
-    [_ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _PN],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-];
-exports.CompletedPart$ = CompletedPart$;
-const CompleteMultipartUploadOutput$ = [3, n0, _CMUO,
-    { [_xN]: _CMUR },
-    [_L, _B, _K, _E, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSEKMSKI, _BKE, _RC],
-    [0, 0, 0, [0, { [_hH]: _xae }], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
-];
-exports.CompleteMultipartUploadOutput$ = CompleteMultipartUploadOutput$;
-const CompleteMultipartUploadRequest$ = [3, n0, _CMURo,
-    0,
-    [_B, _K, _UI, _MU, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MOS, _RP, _EBO, _IM, _INM, _SSECA, _SSECK, _SSECKMD],
-    [[0, 1], [0, 1], [0, { [_hQ]: _uI }], [() => CompletedMultipartUpload$, { [_hP]: 1, [_xN]: _CMUo }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamos }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }]], 3
-];
-exports.CompleteMultipartUploadRequest$ = CompleteMultipartUploadRequest$;
-const Condition$ = [3, n0, _Co,
-    0,
-    [_HECRE, _KPE],
-    [0, 0]
-];
-exports.Condition$ = Condition$;
-const ContinuationEvent$ = [3, n0, _CE,
-    0,
-    [],
-    []
-];
-exports.ContinuationEvent$ = ContinuationEvent$;
-const CopyObjectOutput$ = [3, n0, _COO,
-    0,
-    [_COR, _E, _CSVI, _VI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC],
-    [[() => CopyObjectResult$, 16], [0, { [_hH]: _xae }], [0, { [_hH]: _xacsvi }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
-];
-exports.CopyObjectOutput$ = CopyObjectOutput$;
-const CopyObjectRequest$ = [3, n0, _CORo,
-    0,
-    [_B, _CS, _K, _ACL_, _CC, _CA, _CDo, _CEo, _CL, _CTo, _CSIM, _CSIMS, _CSINM, _CSIUS, _Ex, _GFC, _GR, _GRACP, _GWACP, _IM, _INM, _M, _MD, _TD, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _ESBO],
-    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _xaca }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [4, { [_hH]: _Ex }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xamd }], [0, { [_hH]: _xatd }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 3
-];
-exports.CopyObjectRequest$ = CopyObjectRequest$;
-const CopyObjectResult$ = [3, n0, _COR,
-    0,
-    [_ETa, _LM, _CT, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
-    [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-];
-exports.CopyObjectResult$ = CopyObjectResult$;
-const CopyPartResult$ = [3, n0, _CPR,
-    0,
-    [_ETa, _LM, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
-    [0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-];
-exports.CopyPartResult$ = CopyPartResult$;
-const CORSConfiguration$ = [3, n0, _CORSC,
-    0,
-    [_CORSR],
-    [[() => CORSRules, { [_xF]: 1, [_xN]: _CORSRu }]], 1
-];
-exports.CORSConfiguration$ = CORSConfiguration$;
-const CORSRule$ = [3, n0, _CORSRu,
-    0,
-    [_AM, _AO, _ID, _AH, _EH, _MAS],
-    [[64 | 0, { [_xF]: 1, [_xN]: _AMl }], [64 | 0, { [_xF]: 1, [_xN]: _AOl }], 0, [64 | 0, { [_xF]: 1, [_xN]: _AHl }], [64 | 0, { [_xF]: 1, [_xN]: _EHx }], 1], 2
-];
-exports.CORSRule$ = CORSRule$;
-const CreateBucketConfiguration$ = [3, n0, _CBC,
-    0,
-    [_LC, _L, _B, _T],
-    [0, () => LocationInfo$, () => BucketInfo$, [() => TagSet, 0]]
-];
-exports.CreateBucketConfiguration$ = CreateBucketConfiguration$;
-const CreateBucketMetadataConfigurationRequest$ = [3, n0, _CBMCR,
-    0,
-    [_B, _MC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => MetadataConfiguration$, { [_hP]: 1, [_xN]: _MC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.CreateBucketMetadataConfigurationRequest$ = CreateBucketMetadataConfigurationRequest$;
-const CreateBucketMetadataTableConfigurationRequest$ = [3, n0, _CBMTCR,
-    0,
-    [_B, _MTC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => MetadataTableConfiguration$, { [_hP]: 1, [_xN]: _MTC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.CreateBucketMetadataTableConfigurationRequest$ = CreateBucketMetadataTableConfigurationRequest$;
-const CreateBucketOutput$ = [3, n0, _CBO,
-    0,
-    [_L, _BA],
-    [[0, { [_hH]: _L }], [0, { [_hH]: _xaba }]]
-];
-exports.CreateBucketOutput$ = CreateBucketOutput$;
-const CreateBucketRequest$ = [3, n0, _CBR,
-    0,
-    [_B, _ACL_, _CBC, _GFC, _GR, _GRACP, _GW, _GWACP, _OLEFB, _OO, _BN],
-    [[0, 1], [0, { [_hH]: _xaa }], [() => CreateBucketConfiguration$, { [_hP]: 1, [_xN]: _CBC }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [2, { [_hH]: _xabole }], [0, { [_hH]: _xaoo }], [0, { [_hH]: _xabn }]], 1
-];
-exports.CreateBucketRequest$ = CreateBucketRequest$;
-const CreateMultipartUploadOutput$ = [3, n0, _CMUOr,
-    { [_xN]: _IMUR },
-    [_ADb, _ARI, _B, _K, _UI, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RC, _CA, _CT],
-    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], [0, { [_xN]: _B }], 0, 0, [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]]
-];
-exports.CreateMultipartUploadOutput$ = CreateMultipartUploadOutput$;
-const CreateMultipartUploadRequest$ = [3, n0, _CMURr,
-    0,
-    [_B, _K, _ACL_, _CC, _CDo, _CEo, _CL, _CTo, _Ex, _GFC, _GR, _GRACP, _GWACP, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _CA, _CT],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]], 2
-];
-exports.CreateMultipartUploadRequest$ = CreateMultipartUploadRequest$;
-const CreateSessionOutput$ = [3, n0, _CSO,
-    { [_xN]: _CSR },
-    [_Cr, _SSE, _SSEKMSKI, _SSEKMSEC, _BKE],
-    [[() => SessionCredentials$, { [_xN]: _Cr }], [0, { [_hH]: _xasse }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }]], 1
-];
-exports.CreateSessionOutput$ = CreateSessionOutput$;
-const CreateSessionRequest$ = [3, n0, _CSRr,
-    0,
-    [_B, _SM, _SSE, _SSEKMSKI, _SSEKMSEC, _BKE],
-    [[0, 1], [0, { [_hH]: _xacsm }], [0, { [_hH]: _xasse }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }]], 1
-];
-exports.CreateSessionRequest$ = CreateSessionRequest$;
-const CSVInput$ = [3, n0, _CSVIn,
-    0,
-    [_FHI, _Com, _QEC, _RD, _FD, _QC, _AQRD],
-    [0, 0, 0, 0, 0, 0, 2]
-];
-exports.CSVInput$ = CSVInput$;
-const CSVOutput$ = [3, n0, _CSVO,
-    0,
-    [_QF, _QEC, _RD, _FD, _QC],
-    [0, 0, 0, 0, 0]
-];
-exports.CSVOutput$ = CSVOutput$;
-const DefaultRetention$ = [3, n0, _DRe,
-    0,
-    [_Mo, _D, _Y],
-    [0, 1, 1]
-];
-exports.DefaultRetention$ = DefaultRetention$;
-const Delete$ = [3, n0, _De,
-    0,
-    [_Ob, _Q],
-    [[() => ObjectIdentifierList, { [_xF]: 1, [_xN]: _Obj }], 2], 1
-];
-exports.Delete$ = Delete$;
-const DeleteBucketAnalyticsConfigurationRequest$ = [3, n0, _DBACR,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.DeleteBucketAnalyticsConfigurationRequest$ = DeleteBucketAnalyticsConfigurationRequest$;
-const DeleteBucketCorsRequest$ = [3, n0, _DBCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketCorsRequest$ = DeleteBucketCorsRequest$;
-const DeleteBucketEncryptionRequest$ = [3, n0, _DBER,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketEncryptionRequest$ = DeleteBucketEncryptionRequest$;
-const DeleteBucketIntelligentTieringConfigurationRequest$ = [3, n0, _DBITCR,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.DeleteBucketIntelligentTieringConfigurationRequest$ = DeleteBucketIntelligentTieringConfigurationRequest$;
-const DeleteBucketInventoryConfigurationRequest$ = [3, n0, _DBICR,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.DeleteBucketInventoryConfigurationRequest$ = DeleteBucketInventoryConfigurationRequest$;
-const DeleteBucketLifecycleRequest$ = [3, n0, _DBLR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketLifecycleRequest$ = DeleteBucketLifecycleRequest$;
-const DeleteBucketMetadataConfigurationRequest$ = [3, n0, _DBMCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketMetadataConfigurationRequest$ = DeleteBucketMetadataConfigurationRequest$;
-const DeleteBucketMetadataTableConfigurationRequest$ = [3, n0, _DBMTCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketMetadataTableConfigurationRequest$ = DeleteBucketMetadataTableConfigurationRequest$;
-const DeleteBucketMetricsConfigurationRequest$ = [3, n0, _DBMCRe,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.DeleteBucketMetricsConfigurationRequest$ = DeleteBucketMetricsConfigurationRequest$;
-const DeleteBucketOwnershipControlsRequest$ = [3, n0, _DBOCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketOwnershipControlsRequest$ = DeleteBucketOwnershipControlsRequest$;
-const DeleteBucketPolicyRequest$ = [3, n0, _DBPR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketPolicyRequest$ = DeleteBucketPolicyRequest$;
-const DeleteBucketReplicationRequest$ = [3, n0, _DBRR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketReplicationRequest$ = DeleteBucketReplicationRequest$;
-const DeleteBucketRequest$ = [3, n0, _DBR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketRequest$ = DeleteBucketRequest$;
-const DeleteBucketTaggingRequest$ = [3, n0, _DBTR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketTaggingRequest$ = DeleteBucketTaggingRequest$;
-const DeleteBucketWebsiteRequest$ = [3, n0, _DBWR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeleteBucketWebsiteRequest$ = DeleteBucketWebsiteRequest$;
-const DeletedObject$ = [3, n0, _DO,
-    0,
-    [_K, _VI, _DM, _DMVI],
-    [0, 0, 2, 0]
-];
-exports.DeletedObject$ = DeletedObject$;
-const DeleteMarkerEntry$ = [3, n0, _DME,
-    0,
-    [_O, _K, _VI, _IL, _LM],
-    [() => Owner$, 0, 0, 2, 4]
-];
-exports.DeleteMarkerEntry$ = DeleteMarkerEntry$;
-const DeleteMarkerReplication$ = [3, n0, _DMR,
-    0,
-    [_S],
-    [0]
-];
-exports.DeleteMarkerReplication$ = DeleteMarkerReplication$;
-const DeleteObjectOutput$ = [3, n0, _DOO,
-    0,
-    [_DM, _VI, _RC],
-    [[2, { [_hH]: _xadm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xarc }]]
-];
-exports.DeleteObjectOutput$ = DeleteObjectOutput$;
-const DeleteObjectRequest$ = [3, n0, _DOR,
-    0,
-    [_B, _K, _MFA, _VI, _RP, _BGR, _EBO, _IM, _IMLMT, _IMS],
-    [[0, 1], [0, 1], [0, { [_hH]: _xam_ }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [2, { [_hH]: _xabgr }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _IM_ }], [6, { [_hH]: _xaimlmt }], [1, { [_hH]: _xaims }]], 2
-];
-exports.DeleteObjectRequest$ = DeleteObjectRequest$;
-const DeleteObjectsOutput$ = [3, n0, _DOOe,
-    { [_xN]: _DRel },
-    [_Del, _RC, _Er],
-    [[() => DeletedObjects, { [_xF]: 1 }], [0, { [_hH]: _xarc }], [() => Errors, { [_xF]: 1, [_xN]: _Err }]]
-];
-exports.DeleteObjectsOutput$ = DeleteObjectsOutput$;
-const DeleteObjectsRequest$ = [3, n0, _DORe,
-    0,
-    [_B, _De, _MFA, _RP, _BGR, _EBO, _CA],
-    [[0, 1], [() => Delete$, { [_hP]: 1, [_xN]: _De }], [0, { [_hH]: _xam_ }], [0, { [_hH]: _xarp }], [2, { [_hH]: _xabgr }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasca }]], 2
-];
-exports.DeleteObjectsRequest$ = DeleteObjectsRequest$;
-const DeleteObjectTaggingOutput$ = [3, n0, _DOTO,
-    0,
-    [_VI],
-    [[0, { [_hH]: _xavi }]]
-];
-exports.DeleteObjectTaggingOutput$ = DeleteObjectTaggingOutput$;
-const DeleteObjectTaggingRequest$ = [3, n0, _DOTR,
-    0,
-    [_B, _K, _VI, _EBO],
-    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.DeleteObjectTaggingRequest$ = DeleteObjectTaggingRequest$;
-const DeletePublicAccessBlockRequest$ = [3, n0, _DPABR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.DeletePublicAccessBlockRequest$ = DeletePublicAccessBlockRequest$;
-const Destination$ = [3, n0, _Des,
-    0,
-    [_B, _A, _SC, _ACT, _EC, _RT, _Me],
-    [0, 0, 0, () => AccessControlTranslation$, () => EncryptionConfiguration$, () => ReplicationTime$, () => Metrics$], 1
-];
-exports.Destination$ = Destination$;
-const DestinationResult$ = [3, n0, _DRes,
-    0,
-    [_TBT, _TBA, _TN],
-    [0, 0, 0]
-];
-exports.DestinationResult$ = DestinationResult$;
-const Encryption$ = [3, n0, _En,
-    0,
-    [_ET, _KMSKI, _KMSC],
-    [0, [() => SSEKMSKeyId, 0], 0], 1
-];
-exports.Encryption$ = Encryption$;
-const EncryptionConfiguration$ = [3, n0, _EC,
-    0,
-    [_RKKID],
-    [0]
-];
-exports.EncryptionConfiguration$ = EncryptionConfiguration$;
-const EndEvent$ = [3, n0, _EE,
-    0,
-    [],
-    []
-];
-exports.EndEvent$ = EndEvent$;
-const _Error$ = [3, n0, _Err,
-    0,
-    [_K, _VI, _Cod, _Mes],
-    [0, 0, 0, 0]
-];
-exports._Error$ = _Error$;
-const ErrorDetails$ = [3, n0, _ED,
-    0,
-    [_ECr, _EM],
-    [0, 0]
-];
-exports.ErrorDetails$ = ErrorDetails$;
-const ErrorDocument$ = [3, n0, _EDr,
-    0,
-    [_K],
-    [0], 1
-];
-exports.ErrorDocument$ = ErrorDocument$;
-const EventBridgeConfiguration$ = [3, n0, _EBC,
-    0,
-    [],
-    []
-];
-exports.EventBridgeConfiguration$ = EventBridgeConfiguration$;
-const ExistingObjectReplication$ = [3, n0, _EOR,
-    0,
-    [_S],
-    [0], 1
-];
-exports.ExistingObjectReplication$ = ExistingObjectReplication$;
-const FilterRule$ = [3, n0, _FR,
-    0,
-    [_N, _V],
-    [0, 0]
-];
-exports.FilterRule$ = FilterRule$;
-const GetBucketAbacOutput$ = [3, n0, _GBAO,
-    0,
-    [_AS],
-    [[() => AbacStatus$, 16]]
-];
-exports.GetBucketAbacOutput$ = GetBucketAbacOutput$;
-const GetBucketAbacRequest$ = [3, n0, _GBAR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketAbacRequest$ = GetBucketAbacRequest$;
-const GetBucketAccelerateConfigurationOutput$ = [3, n0, _GBACO,
-    { [_xN]: _AC },
-    [_S, _RC],
-    [0, [0, { [_hH]: _xarc }]]
-];
-exports.GetBucketAccelerateConfigurationOutput$ = GetBucketAccelerateConfigurationOutput$;
-const GetBucketAccelerateConfigurationRequest$ = [3, n0, _GBACR,
-    0,
-    [_B, _EBO, _RP],
-    [[0, 1], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 1
-];
-exports.GetBucketAccelerateConfigurationRequest$ = GetBucketAccelerateConfigurationRequest$;
-const GetBucketAclOutput$ = [3, n0, _GBAOe,
-    { [_xN]: _ACP },
-    [_O, _G],
-    [() => Owner$, [() => Grants, { [_xN]: _ACL }]]
-];
-exports.GetBucketAclOutput$ = GetBucketAclOutput$;
-const GetBucketAclRequest$ = [3, n0, _GBARe,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketAclRequest$ = GetBucketAclRequest$;
-const GetBucketAnalyticsConfigurationOutput$ = [3, n0, _GBACOe,
-    0,
-    [_ACn],
-    [[() => AnalyticsConfiguration$, 16]]
-];
-exports.GetBucketAnalyticsConfigurationOutput$ = GetBucketAnalyticsConfigurationOutput$;
-const GetBucketAnalyticsConfigurationRequest$ = [3, n0, _GBACRe,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetBucketAnalyticsConfigurationRequest$ = GetBucketAnalyticsConfigurationRequest$;
-const GetBucketCorsOutput$ = [3, n0, _GBCO,
-    { [_xN]: _CORSC },
-    [_CORSR],
-    [[() => CORSRules, { [_xF]: 1, [_xN]: _CORSRu }]]
-];
-exports.GetBucketCorsOutput$ = GetBucketCorsOutput$;
-const GetBucketCorsRequest$ = [3, n0, _GBCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketCorsRequest$ = GetBucketCorsRequest$;
-const GetBucketEncryptionOutput$ = [3, n0, _GBEO,
-    0,
-    [_SSEC],
-    [[() => ServerSideEncryptionConfiguration$, 16]]
-];
-exports.GetBucketEncryptionOutput$ = GetBucketEncryptionOutput$;
-const GetBucketEncryptionRequest$ = [3, n0, _GBER,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketEncryptionRequest$ = GetBucketEncryptionRequest$;
-const GetBucketIntelligentTieringConfigurationOutput$ = [3, n0, _GBITCO,
-    0,
-    [_ITC],
-    [[() => IntelligentTieringConfiguration$, 16]]
-];
-exports.GetBucketIntelligentTieringConfigurationOutput$ = GetBucketIntelligentTieringConfigurationOutput$;
-const GetBucketIntelligentTieringConfigurationRequest$ = [3, n0, _GBITCR,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetBucketIntelligentTieringConfigurationRequest$ = GetBucketIntelligentTieringConfigurationRequest$;
-const GetBucketInventoryConfigurationOutput$ = [3, n0, _GBICO,
-    0,
-    [_IC],
-    [[() => InventoryConfiguration$, 16]]
-];
-exports.GetBucketInventoryConfigurationOutput$ = GetBucketInventoryConfigurationOutput$;
-const GetBucketInventoryConfigurationRequest$ = [3, n0, _GBICR,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetBucketInventoryConfigurationRequest$ = GetBucketInventoryConfigurationRequest$;
-const GetBucketLifecycleConfigurationOutput$ = [3, n0, _GBLCO,
-    { [_xN]: _LCi },
-    [_R, _TDMOS],
-    [[() => LifecycleRules, { [_xF]: 1, [_xN]: _Ru }], [0, { [_hH]: _xatdmos }]]
-];
-exports.GetBucketLifecycleConfigurationOutput$ = GetBucketLifecycleConfigurationOutput$;
-const GetBucketLifecycleConfigurationRequest$ = [3, n0, _GBLCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketLifecycleConfigurationRequest$ = GetBucketLifecycleConfigurationRequest$;
-const GetBucketLocationOutput$ = [3, n0, _GBLO,
-    { [_xN]: _LC },
-    [_LC],
-    [0]
-];
-exports.GetBucketLocationOutput$ = GetBucketLocationOutput$;
-const GetBucketLocationRequest$ = [3, n0, _GBLR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketLocationRequest$ = GetBucketLocationRequest$;
-const GetBucketLoggingOutput$ = [3, n0, _GBLOe,
-    { [_xN]: _BLS },
-    [_LE],
-    [[() => LoggingEnabled$, 0]]
-];
-exports.GetBucketLoggingOutput$ = GetBucketLoggingOutput$;
-const GetBucketLoggingRequest$ = [3, n0, _GBLRe,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketLoggingRequest$ = GetBucketLoggingRequest$;
-const GetBucketMetadataConfigurationOutput$ = [3, n0, _GBMCO,
-    0,
-    [_GBMCR],
-    [[() => GetBucketMetadataConfigurationResult$, 16]]
-];
-exports.GetBucketMetadataConfigurationOutput$ = GetBucketMetadataConfigurationOutput$;
-const GetBucketMetadataConfigurationRequest$ = [3, n0, _GBMCRe,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketMetadataConfigurationRequest$ = GetBucketMetadataConfigurationRequest$;
-const GetBucketMetadataConfigurationResult$ = [3, n0, _GBMCR,
-    0,
-    [_MCR],
-    [() => MetadataConfigurationResult$], 1
-];
-exports.GetBucketMetadataConfigurationResult$ = GetBucketMetadataConfigurationResult$;
-const GetBucketMetadataTableConfigurationOutput$ = [3, n0, _GBMTCO,
-    0,
-    [_GBMTCR],
-    [[() => GetBucketMetadataTableConfigurationResult$, 16]]
-];
-exports.GetBucketMetadataTableConfigurationOutput$ = GetBucketMetadataTableConfigurationOutput$;
-const GetBucketMetadataTableConfigurationRequest$ = [3, n0, _GBMTCRe,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketMetadataTableConfigurationRequest$ = GetBucketMetadataTableConfigurationRequest$;
-const GetBucketMetadataTableConfigurationResult$ = [3, n0, _GBMTCR,
-    0,
-    [_MTCR, _S, _Err],
-    [() => MetadataTableConfigurationResult$, 0, () => ErrorDetails$], 2
-];
-exports.GetBucketMetadataTableConfigurationResult$ = GetBucketMetadataTableConfigurationResult$;
-const GetBucketMetricsConfigurationOutput$ = [3, n0, _GBMCOe,
-    0,
-    [_MCe],
-    [[() => MetricsConfiguration$, 16]]
-];
-exports.GetBucketMetricsConfigurationOutput$ = GetBucketMetricsConfigurationOutput$;
-const GetBucketMetricsConfigurationRequest$ = [3, n0, _GBMCRet,
-    0,
-    [_B, _I, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetBucketMetricsConfigurationRequest$ = GetBucketMetricsConfigurationRequest$;
-const GetBucketNotificationConfigurationRequest$ = [3, n0, _GBNCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketNotificationConfigurationRequest$ = GetBucketNotificationConfigurationRequest$;
-const GetBucketOwnershipControlsOutput$ = [3, n0, _GBOCO,
-    0,
-    [_OC],
-    [[() => OwnershipControls$, 16]]
-];
-exports.GetBucketOwnershipControlsOutput$ = GetBucketOwnershipControlsOutput$;
-const GetBucketOwnershipControlsRequest$ = [3, n0, _GBOCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketOwnershipControlsRequest$ = GetBucketOwnershipControlsRequest$;
-const GetBucketPolicyOutput$ = [3, n0, _GBPO,
-    0,
-    [_Po],
-    [[0, 16]]
-];
-exports.GetBucketPolicyOutput$ = GetBucketPolicyOutput$;
-const GetBucketPolicyRequest$ = [3, n0, _GBPR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketPolicyRequest$ = GetBucketPolicyRequest$;
-const GetBucketPolicyStatusOutput$ = [3, n0, _GBPSO,
-    0,
-    [_PS],
-    [[() => PolicyStatus$, 16]]
-];
-exports.GetBucketPolicyStatusOutput$ = GetBucketPolicyStatusOutput$;
-const GetBucketPolicyStatusRequest$ = [3, n0, _GBPSR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketPolicyStatusRequest$ = GetBucketPolicyStatusRequest$;
-const GetBucketReplicationOutput$ = [3, n0, _GBRO,
-    0,
-    [_RCe],
-    [[() => ReplicationConfiguration$, 16]]
-];
-exports.GetBucketReplicationOutput$ = GetBucketReplicationOutput$;
-const GetBucketReplicationRequest$ = [3, n0, _GBRR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketReplicationRequest$ = GetBucketReplicationRequest$;
-const GetBucketRequestPaymentOutput$ = [3, n0, _GBRPO,
-    { [_xN]: _RPC },
-    [_Pay],
-    [0]
-];
-exports.GetBucketRequestPaymentOutput$ = GetBucketRequestPaymentOutput$;
-const GetBucketRequestPaymentRequest$ = [3, n0, _GBRPR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketRequestPaymentRequest$ = GetBucketRequestPaymentRequest$;
-const GetBucketTaggingOutput$ = [3, n0, _GBTO,
-    { [_xN]: _Tag },
-    [_TS],
-    [[() => TagSet, 0]], 1
-];
-exports.GetBucketTaggingOutput$ = GetBucketTaggingOutput$;
-const GetBucketTaggingRequest$ = [3, n0, _GBTR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketTaggingRequest$ = GetBucketTaggingRequest$;
-const GetBucketVersioningOutput$ = [3, n0, _GBVO,
-    { [_xN]: _VC },
-    [_S, _MFAD],
-    [0, [0, { [_xN]: _MDf }]]
-];
-exports.GetBucketVersioningOutput$ = GetBucketVersioningOutput$;
-const GetBucketVersioningRequest$ = [3, n0, _GBVR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketVersioningRequest$ = GetBucketVersioningRequest$;
-const GetBucketWebsiteOutput$ = [3, n0, _GBWO,
-    { [_xN]: _WC },
-    [_RART, _IDn, _EDr, _RR],
-    [() => RedirectAllRequestsTo$, () => IndexDocument$, () => ErrorDocument$, [() => RoutingRules, 0]]
-];
-exports.GetBucketWebsiteOutput$ = GetBucketWebsiteOutput$;
-const GetBucketWebsiteRequest$ = [3, n0, _GBWR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetBucketWebsiteRequest$ = GetBucketWebsiteRequest$;
-const GetObjectAclOutput$ = [3, n0, _GOAO,
-    { [_xN]: _ACP },
-    [_O, _G, _RC],
-    [() => Owner$, [() => Grants, { [_xN]: _ACL }], [0, { [_hH]: _xarc }]]
-];
-exports.GetObjectAclOutput$ = GetObjectAclOutput$;
-const GetObjectAclRequest$ = [3, n0, _GOAR,
-    0,
-    [_B, _K, _VI, _RP, _EBO],
-    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetObjectAclRequest$ = GetObjectAclRequest$;
-const GetObjectAttributesOutput$ = [3, n0, _GOAOe,
-    { [_xN]: _GOARe },
-    [_DM, _LM, _VI, _RC, _ETa, _C, _OP, _SC, _OS],
-    [[2, { [_hH]: _xadm }], [4, { [_hH]: _LM_ }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xarc }], 0, () => Checksum$, [() => GetObjectAttributesParts$, 0], 0, 1]
-];
-exports.GetObjectAttributesOutput$ = GetObjectAttributesOutput$;
-const GetObjectAttributesParts$ = [3, n0, _GOAP,
-    0,
-    [_TPC, _PNM, _NPNM, _MP, _IT, _Pa],
-    [[1, { [_xN]: _PC }], 0, 0, 1, 2, [() => PartsList, { [_xF]: 1, [_xN]: _Par }]]
-];
-exports.GetObjectAttributesParts$ = GetObjectAttributesParts$;
-const GetObjectAttributesRequest$ = [3, n0, _GOARet,
-    0,
-    [_B, _K, _OA, _VI, _MP, _PNM, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
-    [[0, 1], [0, 1], [64 | 0, { [_hH]: _xaoa }], [0, { [_hQ]: _vI }], [1, { [_hH]: _xamp }], [0, { [_hH]: _xapnm }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 3
-];
-exports.GetObjectAttributesRequest$ = GetObjectAttributesRequest$;
-const GetObjectLegalHoldOutput$ = [3, n0, _GOLHO,
-    0,
-    [_LH],
-    [[() => ObjectLockLegalHold$, { [_hP]: 1, [_xN]: _LH }]]
-];
-exports.GetObjectLegalHoldOutput$ = GetObjectLegalHoldOutput$;
-const GetObjectLegalHoldRequest$ = [3, n0, _GOLHR,
-    0,
-    [_B, _K, _VI, _RP, _EBO],
-    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetObjectLegalHoldRequest$ = GetObjectLegalHoldRequest$;
-const GetObjectLockConfigurationOutput$ = [3, n0, _GOLCO,
-    0,
-    [_OLC],
-    [[() => ObjectLockConfiguration$, 16]]
-];
-exports.GetObjectLockConfigurationOutput$ = GetObjectLockConfigurationOutput$;
-const GetObjectLockConfigurationRequest$ = [3, n0, _GOLCR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetObjectLockConfigurationRequest$ = GetObjectLockConfigurationRequest$;
-const GetObjectOutput$ = [3, n0, _GOO,
-    0,
-    [_Bo, _DM, _AR, _E, _Re, _LM, _CLo, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MM, _VI, _CC, _CDo, _CEo, _CL, _CR, _CTo, _Ex, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
-    [[() => StreamingBlob, 16], [2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ETa }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CR_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
-];
-exports.GetObjectOutput$ = GetObjectOutput$;
-const GetObjectRequest$ = [3, n0, _GOR,
-    0,
-    [_B, _K, _IM, _IMSf, _INM, _IUS, _Ra, _RCC, _RCD, _RCE, _RCL, _RCT, _RE, _VI, _SSECA, _SSECK, _SSECKMD, _RP, _PN, _EBO, _CMh],
-    [[0, 1], [0, 1], [0, { [_hH]: _IM_ }], [4, { [_hH]: _IMS_ }], [0, { [_hH]: _INM_ }], [4, { [_hH]: _IUS_ }], [0, { [_hH]: _Ra }], [0, { [_hQ]: _rcc }], [0, { [_hQ]: _rcd }], [0, { [_hQ]: _rce }], [0, { [_hQ]: _rcl }], [0, { [_hQ]: _rct }], [6, { [_hQ]: _re }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [1, { [_hQ]: _pN }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xacm_ }]], 2
-];
-exports.GetObjectRequest$ = GetObjectRequest$;
-const GetObjectRetentionOutput$ = [3, n0, _GORO,
-    0,
-    [_Ret],
-    [[() => ObjectLockRetention$, { [_hP]: 1, [_xN]: _Ret }]]
-];
-exports.GetObjectRetentionOutput$ = GetObjectRetentionOutput$;
-const GetObjectRetentionRequest$ = [3, n0, _GORR,
-    0,
-    [_B, _K, _VI, _RP, _EBO],
-    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetObjectRetentionRequest$ = GetObjectRetentionRequest$;
-const GetObjectTaggingOutput$ = [3, n0, _GOTO,
-    { [_xN]: _Tag },
-    [_TS, _VI],
-    [[() => TagSet, 0], [0, { [_hH]: _xavi }]], 1
-];
-exports.GetObjectTaggingOutput$ = GetObjectTaggingOutput$;
-const GetObjectTaggingRequest$ = [3, n0, _GOTR,
-    0,
-    [_B, _K, _VI, _EBO, _RP],
-    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 2
-];
-exports.GetObjectTaggingRequest$ = GetObjectTaggingRequest$;
-const GetObjectTorrentOutput$ = [3, n0, _GOTOe,
-    0,
-    [_Bo, _RC],
-    [[() => StreamingBlob, 16], [0, { [_hH]: _xarc }]]
-];
-exports.GetObjectTorrentOutput$ = GetObjectTorrentOutput$;
-const GetObjectTorrentRequest$ = [3, n0, _GOTRe,
-    0,
-    [_B, _K, _RP, _EBO],
-    [[0, 1], [0, 1], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.GetObjectTorrentRequest$ = GetObjectTorrentRequest$;
-const GetPublicAccessBlockOutput$ = [3, n0, _GPABO,
-    0,
-    [_PABC],
-    [[() => PublicAccessBlockConfiguration$, 16]]
-];
-exports.GetPublicAccessBlockOutput$ = GetPublicAccessBlockOutput$;
-const GetPublicAccessBlockRequest$ = [3, n0, _GPABR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.GetPublicAccessBlockRequest$ = GetPublicAccessBlockRequest$;
-const GlacierJobParameters$ = [3, n0, _GJP,
-    0,
-    [_Ti],
-    [0], 1
-];
-exports.GlacierJobParameters$ = GlacierJobParameters$;
-const Grant$ = [3, n0, _Gr,
-    0,
-    [_Gra, _Pe],
-    [[() => Grantee$, { [_xNm]: [_x, _hi] }], 0]
-];
-exports.Grant$ = Grant$;
-const Grantee$ = [3, n0, _Gra,
-    0,
-    [_Ty, _DN, _EA, _ID, _URI],
-    [[0, { [_xA]: 1, [_xN]: _xs }], 0, 0, 0, 0], 1
-];
-exports.Grantee$ = Grantee$;
-const HeadBucketOutput$ = [3, n0, _HBO,
-    0,
-    [_BA, _BLT, _BLN, _BR, _APA],
-    [[0, { [_hH]: _xaba }], [0, { [_hH]: _xablt }], [0, { [_hH]: _xabln }], [0, { [_hH]: _xabr }], [2, { [_hH]: _xaapa }]]
-];
-exports.HeadBucketOutput$ = HeadBucketOutput$;
-const HeadBucketRequest$ = [3, n0, _HBR,
-    0,
-    [_B, _EBO],
-    [[0, 1], [0, { [_hH]: _xaebo }]], 1
-];
-exports.HeadBucketRequest$ = HeadBucketRequest$;
-const HeadObjectOutput$ = [3, n0, _HOO,
-    0,
-    [_DM, _AR, _E, _Re, _ASr, _LM, _CLo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _ETa, _MM, _VI, _CC, _CDo, _CEo, _CL, _CTo, _CR, _Ex, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
-    [[2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [0, { [_hH]: _xaas }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _ETa }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _CR_ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
-];
-exports.HeadObjectOutput$ = HeadObjectOutput$;
-const HeadObjectRequest$ = [3, n0, _HOR,
-    0,
-    [_B, _K, _IM, _IMSf, _INM, _IUS, _Ra, _RCC, _RCD, _RCE, _RCL, _RCT, _RE, _VI, _SSECA, _SSECK, _SSECKMD, _RP, _PN, _EBO, _CMh],
-    [[0, 1], [0, 1], [0, { [_hH]: _IM_ }], [4, { [_hH]: _IMS_ }], [0, { [_hH]: _INM_ }], [4, { [_hH]: _IUS_ }], [0, { [_hH]: _Ra }], [0, { [_hQ]: _rcc }], [0, { [_hQ]: _rcd }], [0, { [_hQ]: _rce }], [0, { [_hQ]: _rcl }], [0, { [_hQ]: _rct }], [6, { [_hQ]: _re }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [1, { [_hQ]: _pN }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xacm_ }]], 2
-];
-exports.HeadObjectRequest$ = HeadObjectRequest$;
-const IndexDocument$ = [3, n0, _IDn,
-    0,
-    [_Su],
-    [0], 1
-];
-exports.IndexDocument$ = IndexDocument$;
-const Initiator$ = [3, n0, _In,
-    0,
-    [_ID, _DN],
-    [0, 0]
-];
-exports.Initiator$ = Initiator$;
-const InputSerialization$ = [3, n0, _IS,
-    0,
-    [_CSV, _CTom, _JSON, _Parq],
-    [() => CSVInput$, 0, () => JSONInput$, () => ParquetInput$]
-];
-exports.InputSerialization$ = InputSerialization$;
-const IntelligentTieringAndOperator$ = [3, n0, _ITAO,
-    0,
-    [_P, _T],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
-];
-exports.IntelligentTieringAndOperator$ = IntelligentTieringAndOperator$;
-const IntelligentTieringConfiguration$ = [3, n0, _ITC,
-    0,
-    [_I, _S, _Tie, _F],
-    [0, 0, [() => TieringList, { [_xF]: 1, [_xN]: _Tier }], [() => IntelligentTieringFilter$, 0]], 3
-];
-exports.IntelligentTieringConfiguration$ = IntelligentTieringConfiguration$;
-const IntelligentTieringFilter$ = [3, n0, _ITF,
-    0,
-    [_P, _Ta, _An],
-    [0, () => Tag$, [() => IntelligentTieringAndOperator$, 0]]
-];
-exports.IntelligentTieringFilter$ = IntelligentTieringFilter$;
-const InventoryConfiguration$ = [3, n0, _IC,
-    0,
-    [_Des, _IE, _I, _IOV, _Sc, _F, _OF],
-    [[() => InventoryDestination$, 0], 2, 0, 0, () => InventorySchedule$, () => InventoryFilter$, [() => InventoryOptionalFields, 0]], 5
-];
-exports.InventoryConfiguration$ = InventoryConfiguration$;
-const InventoryDestination$ = [3, n0, _IDnv,
-    0,
-    [_SBD],
-    [[() => InventoryS3BucketDestination$, 0]], 1
-];
-exports.InventoryDestination$ = InventoryDestination$;
-const InventoryEncryption$ = [3, n0, _IEn,
-    0,
-    [_SSES, _SSEKMS],
-    [[() => SSES3$, { [_xN]: _SS }], [() => SSEKMS$, { [_xN]: _SK }]]
-];
-exports.InventoryEncryption$ = InventoryEncryption$;
-const InventoryFilter$ = [3, n0, _IF,
-    0,
-    [_P],
-    [0], 1
-];
-exports.InventoryFilter$ = InventoryFilter$;
-const InventoryS3BucketDestination$ = [3, n0, _ISBD,
-    0,
-    [_B, _Fo, _AI, _P, _En],
-    [0, 0, 0, 0, [() => InventoryEncryption$, 0]], 2
-];
-exports.InventoryS3BucketDestination$ = InventoryS3BucketDestination$;
-const InventorySchedule$ = [3, n0, _ISn,
-    0,
-    [_Fr],
-    [0], 1
-];
-exports.InventorySchedule$ = InventorySchedule$;
-const InventoryTableConfiguration$ = [3, n0, _ITCn,
-    0,
-    [_CSo, _EC],
-    [0, () => MetadataTableEncryptionConfiguration$], 1
-];
-exports.InventoryTableConfiguration$ = InventoryTableConfiguration$;
-const InventoryTableConfigurationResult$ = [3, n0, _ITCR,
-    0,
-    [_CSo, _TSa, _Err, _TNa, _TA],
-    [0, 0, () => ErrorDetails$, 0, 0], 1
-];
-exports.InventoryTableConfigurationResult$ = InventoryTableConfigurationResult$;
-const InventoryTableConfigurationUpdates$ = [3, n0, _ITCU,
-    0,
-    [_CSo, _EC],
-    [0, () => MetadataTableEncryptionConfiguration$], 1
-];
-exports.InventoryTableConfigurationUpdates$ = InventoryTableConfigurationUpdates$;
-const JournalTableConfiguration$ = [3, n0, _JTC,
-    0,
-    [_REe, _EC],
-    [() => RecordExpiration$, () => MetadataTableEncryptionConfiguration$], 1
-];
-exports.JournalTableConfiguration$ = JournalTableConfiguration$;
-const JournalTableConfigurationResult$ = [3, n0, _JTCR,
-    0,
-    [_TSa, _TNa, _REe, _Err, _TA],
-    [0, 0, () => RecordExpiration$, () => ErrorDetails$, 0], 3
-];
-exports.JournalTableConfigurationResult$ = JournalTableConfigurationResult$;
-const JournalTableConfigurationUpdates$ = [3, n0, _JTCU,
-    0,
-    [_REe],
-    [() => RecordExpiration$], 1
-];
-exports.JournalTableConfigurationUpdates$ = JournalTableConfigurationUpdates$;
-const JSONInput$ = [3, n0, _JSONI,
-    0,
-    [_Ty],
-    [0]
-];
-exports.JSONInput$ = JSONInput$;
-const JSONOutput$ = [3, n0, _JSONO,
-    0,
-    [_RD],
-    [0]
-];
-exports.JSONOutput$ = JSONOutput$;
-const LambdaFunctionConfiguration$ = [3, n0, _LFC,
-    0,
-    [_LFA, _Ev, _I, _F],
-    [[0, { [_xN]: _CF }], [64 | 0, { [_xF]: 1, [_xN]: _Eve }], 0, [() => NotificationConfigurationFilter$, 0]], 2
-];
-exports.LambdaFunctionConfiguration$ = LambdaFunctionConfiguration$;
-const LifecycleExpiration$ = [3, n0, _LEi,
-    0,
-    [_Da, _D, _EODM],
-    [5, 1, 2]
-];
-exports.LifecycleExpiration$ = LifecycleExpiration$;
-const LifecycleRule$ = [3, n0, _LR,
-    0,
-    [_S, _E, _ID, _P, _F, _Tr, _NVT, _NVE, _AIMU],
-    [0, () => LifecycleExpiration$, 0, 0, [() => LifecycleRuleFilter$, 0], [() => TransitionList, { [_xF]: 1, [_xN]: _Tra }], [() => NoncurrentVersionTransitionList, { [_xF]: 1, [_xN]: _NVTo }], () => NoncurrentVersionExpiration$, () => AbortIncompleteMultipartUpload$], 1
-];
-exports.LifecycleRule$ = LifecycleRule$;
-const LifecycleRuleAndOperator$ = [3, n0, _LRAO,
-    0,
-    [_P, _T, _OSGT, _OSLT],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }], 1, 1]
-];
-exports.LifecycleRuleAndOperator$ = LifecycleRuleAndOperator$;
-const LifecycleRuleFilter$ = [3, n0, _LRF,
-    0,
-    [_P, _Ta, _OSGT, _OSLT, _An],
-    [0, () => Tag$, 1, 1, [() => LifecycleRuleAndOperator$, 0]]
-];
-exports.LifecycleRuleFilter$ = LifecycleRuleFilter$;
-const ListBucketAnalyticsConfigurationsOutput$ = [3, n0, _LBACO,
-    { [_xN]: _LBACR },
-    [_IT, _CTon, _NCT, _ACLn],
-    [2, 0, 0, [() => AnalyticsConfigurationList, { [_xF]: 1, [_xN]: _ACn }]]
-];
-exports.ListBucketAnalyticsConfigurationsOutput$ = ListBucketAnalyticsConfigurationsOutput$;
-const ListBucketAnalyticsConfigurationsRequest$ = [3, n0, _LBACRi,
-    0,
-    [_B, _CTon, _EBO],
-    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
-];
-exports.ListBucketAnalyticsConfigurationsRequest$ = ListBucketAnalyticsConfigurationsRequest$;
-const ListBucketIntelligentTieringConfigurationsOutput$ = [3, n0, _LBITCO,
-    0,
-    [_IT, _CTon, _NCT, _ITCL],
-    [2, 0, 0, [() => IntelligentTieringConfigurationList, { [_xF]: 1, [_xN]: _ITC }]]
-];
-exports.ListBucketIntelligentTieringConfigurationsOutput$ = ListBucketIntelligentTieringConfigurationsOutput$;
-const ListBucketIntelligentTieringConfigurationsRequest$ = [3, n0, _LBITCR,
-    0,
-    [_B, _CTon, _EBO],
-    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
-];
-exports.ListBucketIntelligentTieringConfigurationsRequest$ = ListBucketIntelligentTieringConfigurationsRequest$;
-const ListBucketInventoryConfigurationsOutput$ = [3, n0, _LBICO,
-    { [_xN]: _LICR },
-    [_CTon, _ICL, _IT, _NCT],
-    [0, [() => InventoryConfigurationList, { [_xF]: 1, [_xN]: _IC }], 2, 0]
-];
-exports.ListBucketInventoryConfigurationsOutput$ = ListBucketInventoryConfigurationsOutput$;
-const ListBucketInventoryConfigurationsRequest$ = [3, n0, _LBICR,
-    0,
-    [_B, _CTon, _EBO],
-    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
-];
-exports.ListBucketInventoryConfigurationsRequest$ = ListBucketInventoryConfigurationsRequest$;
-const ListBucketMetricsConfigurationsOutput$ = [3, n0, _LBMCO,
-    { [_xN]: _LMCR },
-    [_IT, _CTon, _NCT, _MCL],
-    [2, 0, 0, [() => MetricsConfigurationList, { [_xF]: 1, [_xN]: _MCe }]]
-];
-exports.ListBucketMetricsConfigurationsOutput$ = ListBucketMetricsConfigurationsOutput$;
-const ListBucketMetricsConfigurationsRequest$ = [3, n0, _LBMCR,
-    0,
-    [_B, _CTon, _EBO],
-    [[0, 1], [0, { [_hQ]: _ct }], [0, { [_hH]: _xaebo }]], 1
-];
-exports.ListBucketMetricsConfigurationsRequest$ = ListBucketMetricsConfigurationsRequest$;
-const ListBucketsOutput$ = [3, n0, _LBO,
-    { [_xN]: _LAMBR },
-    [_Bu, _O, _CTon, _P],
-    [[() => Buckets, 0], () => Owner$, 0, 0]
-];
-exports.ListBucketsOutput$ = ListBucketsOutput$;
-const ListBucketsRequest$ = [3, n0, _LBR,
-    0,
-    [_MB, _CTon, _P, _BR],
-    [[1, { [_hQ]: _mb }], [0, { [_hQ]: _ct }], [0, { [_hQ]: _p }], [0, { [_hQ]: _br }]]
-];
-exports.ListBucketsRequest$ = ListBucketsRequest$;
-const ListDirectoryBucketsOutput$ = [3, n0, _LDBO,
-    { [_xN]: _LAMDBR },
-    [_Bu, _CTon],
-    [[() => Buckets, 0], 0]
-];
-exports.ListDirectoryBucketsOutput$ = ListDirectoryBucketsOutput$;
-const ListDirectoryBucketsRequest$ = [3, n0, _LDBR,
-    0,
-    [_CTon, _MDB],
-    [[0, { [_hQ]: _ct }], [1, { [_hQ]: _mdb }]]
-];
-exports.ListDirectoryBucketsRequest$ = ListDirectoryBucketsRequest$;
-const ListMultipartUploadsOutput$ = [3, n0, _LMUO,
-    { [_xN]: _LMUR },
-    [_B, _KM, _UIM, _NKM, _P, _Deli, _NUIM, _MUa, _IT, _U, _CPom, _ETn, _RC],
-    [0, 0, 0, 0, 0, 0, 0, 1, 2, [() => MultipartUploadList, { [_xF]: 1, [_xN]: _Up }], [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
-];
-exports.ListMultipartUploadsOutput$ = ListMultipartUploadsOutput$;
-const ListMultipartUploadsRequest$ = [3, n0, _LMURi,
-    0,
-    [_B, _Deli, _ETn, _KM, _MUa, _P, _UIM, _EBO, _RP],
-    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _km }], [1, { [_hQ]: _mu }], [0, { [_hQ]: _p }], [0, { [_hQ]: _uim }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 1
-];
-exports.ListMultipartUploadsRequest$ = ListMultipartUploadsRequest$;
-const ListObjectsOutput$ = [3, n0, _LOO,
-    { [_xN]: _LBRi },
-    [_IT, _Ma, _NM, _Con, _N, _P, _Deli, _MK, _CPom, _ETn, _RC],
-    [2, 0, 0, [() => ObjectList, { [_xF]: 1 }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
-];
-exports.ListObjectsOutput$ = ListObjectsOutput$;
-const ListObjectsRequest$ = [3, n0, _LOR,
-    0,
-    [_B, _Deli, _ETn, _Ma, _MK, _P, _RP, _EBO, _OOA],
-    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _m }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [64 | 0, { [_hH]: _xaooa }]], 1
-];
-exports.ListObjectsRequest$ = ListObjectsRequest$;
-const ListObjectsV2Output$ = [3, n0, _LOVO,
-    { [_xN]: _LBRi },
-    [_IT, _Con, _N, _P, _Deli, _MK, _CPom, _ETn, _KC, _CTon, _NCT, _SA, _RC],
-    [2, [() => ObjectList, { [_xF]: 1 }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, 1, 0, 0, 0, [0, { [_hH]: _xarc }]]
-];
-exports.ListObjectsV2Output$ = ListObjectsV2Output$;
-const ListObjectsV2Request$ = [3, n0, _LOVR,
-    0,
-    [_B, _Deli, _ETn, _MK, _P, _CTon, _FO, _SA, _RP, _EBO, _OOA],
-    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hQ]: _ct }], [2, { [_hQ]: _fo }], [0, { [_hQ]: _sa }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [64 | 0, { [_hH]: _xaooa }]], 1
-];
-exports.ListObjectsV2Request$ = ListObjectsV2Request$;
-const ListObjectVersionsOutput$ = [3, n0, _LOVOi,
-    { [_xN]: _LVR },
-    [_IT, _KM, _VIM, _NKM, _NVIM, _Ve, _DMe, _N, _P, _Deli, _MK, _CPom, _ETn, _RC],
-    [2, 0, 0, 0, 0, [() => ObjectVersionList, { [_xF]: 1, [_xN]: _Ver }], [() => DeleteMarkers, { [_xF]: 1, [_xN]: _DM }], 0, 0, 0, 1, [() => CommonPrefixList, { [_xF]: 1 }], 0, [0, { [_hH]: _xarc }]]
-];
-exports.ListObjectVersionsOutput$ = ListObjectVersionsOutput$;
-const ListObjectVersionsRequest$ = [3, n0, _LOVRi,
-    0,
-    [_B, _Deli, _ETn, _KM, _MK, _P, _VIM, _EBO, _RP, _OOA],
-    [[0, 1], [0, { [_hQ]: _d }], [0, { [_hQ]: _et }], [0, { [_hQ]: _km }], [1, { [_hQ]: _mk }], [0, { [_hQ]: _p }], [0, { [_hQ]: _vim }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }], [64 | 0, { [_hH]: _xaooa }]], 1
-];
-exports.ListObjectVersionsRequest$ = ListObjectVersionsRequest$;
-const ListPartsOutput$ = [3, n0, _LPO,
-    { [_xN]: _LPR },
-    [_ADb, _ARI, _B, _K, _UI, _PNM, _NPNM, _MP, _IT, _Pa, _In, _O, _SC, _RC, _CA, _CT],
-    [[4, { [_hH]: _xaad }], [0, { [_hH]: _xaari }], 0, 0, 0, 0, 0, 1, 2, [() => Parts, { [_xF]: 1, [_xN]: _Par }], () => Initiator$, () => Owner$, 0, [0, { [_hH]: _xarc }], 0, 0]
-];
-exports.ListPartsOutput$ = ListPartsOutput$;
-const ListPartsRequest$ = [3, n0, _LPRi,
-    0,
-    [_B, _K, _UI, _MP, _PNM, _RP, _EBO, _SSECA, _SSECK, _SSECKMD],
-    [[0, 1], [0, 1], [0, { [_hQ]: _uI }], [1, { [_hQ]: _mp }], [0, { [_hQ]: _pnm }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }]], 3
-];
-exports.ListPartsRequest$ = ListPartsRequest$;
-const LocationInfo$ = [3, n0, _LI,
-    0,
-    [_Ty, _N],
-    [0, 0]
-];
-exports.LocationInfo$ = LocationInfo$;
-const LoggingEnabled$ = [3, n0, _LE,
-    0,
-    [_TB, _TP, _TG, _TOKF],
-    [0, 0, [() => TargetGrants, 0], [() => TargetObjectKeyFormat$, 0]], 2
-];
-exports.LoggingEnabled$ = LoggingEnabled$;
-const MetadataConfiguration$ = [3, n0, _MC,
-    0,
-    [_JTC, _ITCn],
-    [() => JournalTableConfiguration$, () => InventoryTableConfiguration$], 1
-];
-exports.MetadataConfiguration$ = MetadataConfiguration$;
-const MetadataConfigurationResult$ = [3, n0, _MCR,
-    0,
-    [_DRes, _JTCR, _ITCR],
-    [() => DestinationResult$, () => JournalTableConfigurationResult$, () => InventoryTableConfigurationResult$], 1
-];
-exports.MetadataConfigurationResult$ = MetadataConfigurationResult$;
-const MetadataEntry$ = [3, n0, _ME,
-    0,
-    [_N, _V],
-    [0, 0]
-];
-exports.MetadataEntry$ = MetadataEntry$;
-const MetadataTableConfiguration$ = [3, n0, _MTC,
-    0,
-    [_STD],
-    [() => S3TablesDestination$], 1
-];
-exports.MetadataTableConfiguration$ = MetadataTableConfiguration$;
-const MetadataTableConfigurationResult$ = [3, n0, _MTCR,
-    0,
-    [_STDR],
-    [() => S3TablesDestinationResult$], 1
-];
-exports.MetadataTableConfigurationResult$ = MetadataTableConfigurationResult$;
-const MetadataTableEncryptionConfiguration$ = [3, n0, _MTEC,
-    0,
-    [_SAs, _KKA],
-    [0, 0], 1
-];
-exports.MetadataTableEncryptionConfiguration$ = MetadataTableEncryptionConfiguration$;
-const Metrics$ = [3, n0, _Me,
-    0,
-    [_S, _ETv],
-    [0, () => ReplicationTimeValue$], 1
-];
-exports.Metrics$ = Metrics$;
-const MetricsAndOperator$ = [3, n0, _MAO,
-    0,
-    [_P, _T, _APAc],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }], 0]
-];
-exports.MetricsAndOperator$ = MetricsAndOperator$;
-const MetricsConfiguration$ = [3, n0, _MCe,
-    0,
-    [_I, _F],
-    [0, [() => MetricsFilter$, 0]], 1
-];
-exports.MetricsConfiguration$ = MetricsConfiguration$;
-const MultipartUpload$ = [3, n0, _MU,
-    0,
-    [_UI, _K, _Ini, _SC, _O, _In, _CA, _CT],
-    [0, 0, 4, 0, () => Owner$, () => Initiator$, 0, 0]
-];
-exports.MultipartUpload$ = MultipartUpload$;
-const NoncurrentVersionExpiration$ = [3, n0, _NVE,
-    0,
-    [_ND, _NNV],
-    [1, 1]
-];
-exports.NoncurrentVersionExpiration$ = NoncurrentVersionExpiration$;
-const NoncurrentVersionTransition$ = [3, n0, _NVTo,
-    0,
-    [_ND, _SC, _NNV],
-    [1, 0, 1]
-];
-exports.NoncurrentVersionTransition$ = NoncurrentVersionTransition$;
-const NotificationConfiguration$ = [3, n0, _NC,
-    0,
-    [_TCo, _QCu, _LFCa, _EBC],
-    [[() => TopicConfigurationList, { [_xF]: 1, [_xN]: _TCop }], [() => QueueConfigurationList, { [_xF]: 1, [_xN]: _QCue }], [() => LambdaFunctionConfigurationList, { [_xF]: 1, [_xN]: _CFC }], () => EventBridgeConfiguration$]
-];
-exports.NotificationConfiguration$ = NotificationConfiguration$;
-const NotificationConfigurationFilter$ = [3, n0, _NCF,
-    0,
-    [_K],
-    [[() => S3KeyFilter$, { [_xN]: _SKe }]]
-];
-exports.NotificationConfigurationFilter$ = NotificationConfigurationFilter$;
-const _Object$ = [3, n0, _Obj,
-    0,
-    [_K, _LM, _ETa, _CA, _CT, _Si, _SC, _O, _RSe],
-    [0, 4, 0, [64 | 0, { [_xF]: 1 }], 0, 1, 0, () => Owner$, () => RestoreStatus$]
-];
-exports._Object$ = _Object$;
-const ObjectIdentifier$ = [3, n0, _OI,
-    0,
-    [_K, _VI, _ETa, _LMT, _Si],
-    [0, 0, 0, 6, 1], 1
-];
-exports.ObjectIdentifier$ = ObjectIdentifier$;
-const ObjectLockConfiguration$ = [3, n0, _OLC,
-    0,
-    [_OLE, _Ru],
-    [0, () => ObjectLockRule$]
-];
-exports.ObjectLockConfiguration$ = ObjectLockConfiguration$;
-const ObjectLockLegalHold$ = [3, n0, _OLLH,
-    0,
-    [_S],
-    [0]
-];
-exports.ObjectLockLegalHold$ = ObjectLockLegalHold$;
-const ObjectLockRetention$ = [3, n0, _OLR,
-    0,
-    [_Mo, _RUD],
-    [0, 5]
-];
-exports.ObjectLockRetention$ = ObjectLockRetention$;
-const ObjectLockRule$ = [3, n0, _OLRb,
-    0,
-    [_DRe],
-    [() => DefaultRetention$]
-];
-exports.ObjectLockRule$ = ObjectLockRule$;
-const ObjectPart$ = [3, n0, _OPb,
-    0,
-    [_PN, _Si, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-];
-exports.ObjectPart$ = ObjectPart$;
-const ObjectVersion$ = [3, n0, _OV,
-    0,
-    [_ETa, _CA, _CT, _Si, _SC, _K, _VI, _IL, _LM, _O, _RSe],
-    [0, [64 | 0, { [_xF]: 1 }], 0, 1, 0, 0, 0, 2, 4, () => Owner$, () => RestoreStatus$]
-];
-exports.ObjectVersion$ = ObjectVersion$;
-const OutputLocation$ = [3, n0, _OL,
-    0,
-    [_S_],
-    [[() => S3Location$, 0]]
-];
-exports.OutputLocation$ = OutputLocation$;
-const OutputSerialization$ = [3, n0, _OSu,
-    0,
-    [_CSV, _JSON],
-    [() => CSVOutput$, () => JSONOutput$]
-];
-exports.OutputSerialization$ = OutputSerialization$;
-const Owner$ = [3, n0, _O,
-    0,
-    [_DN, _ID],
-    [0, 0]
-];
-exports.Owner$ = Owner$;
-const OwnershipControls$ = [3, n0, _OC,
-    0,
-    [_R],
-    [[() => OwnershipControlsRules, { [_xF]: 1, [_xN]: _Ru }]], 1
-];
-exports.OwnershipControls$ = OwnershipControls$;
-const OwnershipControlsRule$ = [3, n0, _OCR,
-    0,
-    [_OO],
-    [0], 1
-];
-exports.OwnershipControlsRule$ = OwnershipControlsRule$;
-const ParquetInput$ = [3, n0, _PI,
-    0,
-    [],
-    []
-];
-exports.ParquetInput$ = ParquetInput$;
-const Part$ = [3, n0, _Par,
-    0,
-    [_PN, _LM, _ETa, _Si, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe],
-    [1, 4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-];
-exports.Part$ = Part$;
-const PartitionedPrefix$ = [3, n0, _PP,
-    { [_xN]: _PP },
-    [_PDS],
-    [0]
-];
-exports.PartitionedPrefix$ = PartitionedPrefix$;
-const PolicyStatus$ = [3, n0, _PS,
-    0,
-    [_IP],
-    [[2, { [_xN]: _IP }]]
-];
-exports.PolicyStatus$ = PolicyStatus$;
-const Progress$ = [3, n0, _Pr,
-    0,
-    [_BS, _BP, _BRy],
-    [1, 1, 1]
-];
-exports.Progress$ = Progress$;
-const ProgressEvent$ = [3, n0, _PE,
-    0,
-    [_Det],
-    [[() => Progress$, { [_eP]: 1 }]]
-];
-exports.ProgressEvent$ = ProgressEvent$;
-const PublicAccessBlockConfiguration$ = [3, n0, _PABC,
-    0,
-    [_BPA, _IPA, _BPP, _RPB],
-    [[2, { [_xN]: _BPA }], [2, { [_xN]: _IPA }], [2, { [_xN]: _BPP }], [2, { [_xN]: _RPB }]]
-];
-exports.PublicAccessBlockConfiguration$ = PublicAccessBlockConfiguration$;
-const PutBucketAbacRequest$ = [3, n0, _PBAR,
-    0,
-    [_B, _AS, _CMDo, _CA, _EBO],
-    [[0, 1], [() => AbacStatus$, { [_hP]: 1, [_xN]: _AS }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketAbacRequest$ = PutBucketAbacRequest$;
-const PutBucketAccelerateConfigurationRequest$ = [3, n0, _PBACR,
-    0,
-    [_B, _AC, _EBO, _CA],
-    [[0, 1], [() => AccelerateConfiguration$, { [_hP]: 1, [_xN]: _AC }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasca }]], 2
-];
-exports.PutBucketAccelerateConfigurationRequest$ = PutBucketAccelerateConfigurationRequest$;
-const PutBucketAclRequest$ = [3, n0, _PBARu,
-    0,
-    [_B, _ACL_, _ACP, _CMDo, _CA, _GFC, _GR, _GRACP, _GW, _GWACP, _EBO],
-    [[0, 1], [0, { [_hH]: _xaa }], [() => AccessControlPolicy$, { [_hP]: 1, [_xN]: _ACP }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _xaebo }]], 1
-];
-exports.PutBucketAclRequest$ = PutBucketAclRequest$;
-const PutBucketAnalyticsConfigurationRequest$ = [3, n0, _PBACRu,
-    0,
-    [_B, _I, _ACn, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [() => AnalyticsConfiguration$, { [_hP]: 1, [_xN]: _ACn }], [0, { [_hH]: _xaebo }]], 3
-];
-exports.PutBucketAnalyticsConfigurationRequest$ = PutBucketAnalyticsConfigurationRequest$;
-const PutBucketCorsRequest$ = [3, n0, _PBCR,
-    0,
-    [_B, _CORSC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => CORSConfiguration$, { [_hP]: 1, [_xN]: _CORSC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketCorsRequest$ = PutBucketCorsRequest$;
-const PutBucketEncryptionRequest$ = [3, n0, _PBER,
-    0,
-    [_B, _SSEC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => ServerSideEncryptionConfiguration$, { [_hP]: 1, [_xN]: _SSEC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketEncryptionRequest$ = PutBucketEncryptionRequest$;
-const PutBucketIntelligentTieringConfigurationRequest$ = [3, n0, _PBITCR,
-    0,
-    [_B, _I, _ITC, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [() => IntelligentTieringConfiguration$, { [_hP]: 1, [_xN]: _ITC }], [0, { [_hH]: _xaebo }]], 3
-];
-exports.PutBucketIntelligentTieringConfigurationRequest$ = PutBucketIntelligentTieringConfigurationRequest$;
-const PutBucketInventoryConfigurationRequest$ = [3, n0, _PBICR,
-    0,
-    [_B, _I, _IC, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [() => InventoryConfiguration$, { [_hP]: 1, [_xN]: _IC }], [0, { [_hH]: _xaebo }]], 3
-];
-exports.PutBucketInventoryConfigurationRequest$ = PutBucketInventoryConfigurationRequest$;
-const PutBucketLifecycleConfigurationOutput$ = [3, n0, _PBLCO,
-    0,
-    [_TDMOS],
-    [[0, { [_hH]: _xatdmos }]]
-];
-exports.PutBucketLifecycleConfigurationOutput$ = PutBucketLifecycleConfigurationOutput$;
-const PutBucketLifecycleConfigurationRequest$ = [3, n0, _PBLCR,
-    0,
-    [_B, _CA, _LCi, _EBO, _TDMOS],
-    [[0, 1], [0, { [_hH]: _xasca }], [() => BucketLifecycleConfiguration$, { [_hP]: 1, [_xN]: _LCi }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xatdmos }]], 1
-];
-exports.PutBucketLifecycleConfigurationRequest$ = PutBucketLifecycleConfigurationRequest$;
-const PutBucketLoggingRequest$ = [3, n0, _PBLR,
-    0,
-    [_B, _BLS, _CMDo, _CA, _EBO],
-    [[0, 1], [() => BucketLoggingStatus$, { [_hP]: 1, [_xN]: _BLS }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketLoggingRequest$ = PutBucketLoggingRequest$;
-const PutBucketMetricsConfigurationRequest$ = [3, n0, _PBMCR,
-    0,
-    [_B, _I, _MCe, _EBO],
-    [[0, 1], [0, { [_hQ]: _i }], [() => MetricsConfiguration$, { [_hP]: 1, [_xN]: _MCe }], [0, { [_hH]: _xaebo }]], 3
-];
-exports.PutBucketMetricsConfigurationRequest$ = PutBucketMetricsConfigurationRequest$;
-const PutBucketNotificationConfigurationRequest$ = [3, n0, _PBNCR,
-    0,
-    [_B, _NC, _EBO, _SDV],
-    [[0, 1], [() => NotificationConfiguration$, { [_hP]: 1, [_xN]: _NC }], [0, { [_hH]: _xaebo }], [2, { [_hH]: _xasdv }]], 2
-];
-exports.PutBucketNotificationConfigurationRequest$ = PutBucketNotificationConfigurationRequest$;
-const PutBucketOwnershipControlsRequest$ = [3, n0, _PBOCR,
-    0,
-    [_B, _OC, _CMDo, _EBO, _CA],
-    [[0, 1], [() => OwnershipControls$, { [_hP]: 1, [_xN]: _OC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasca }]], 2
-];
-exports.PutBucketOwnershipControlsRequest$ = PutBucketOwnershipControlsRequest$;
-const PutBucketPolicyRequest$ = [3, n0, _PBPR,
-    0,
-    [_B, _Po, _CMDo, _CA, _CRSBA, _EBO],
-    [[0, 1], [0, 16], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [2, { [_hH]: _xacrsba }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketPolicyRequest$ = PutBucketPolicyRequest$;
-const PutBucketReplicationRequest$ = [3, n0, _PBRR,
-    0,
-    [_B, _RCe, _CMDo, _CA, _To, _EBO],
-    [[0, 1], [() => ReplicationConfiguration$, { [_hP]: 1, [_xN]: _RCe }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xabolt }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketReplicationRequest$ = PutBucketReplicationRequest$;
-const PutBucketRequestPaymentRequest$ = [3, n0, _PBRPR,
-    0,
-    [_B, _RPC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => RequestPaymentConfiguration$, { [_hP]: 1, [_xN]: _RPC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketRequestPaymentRequest$ = PutBucketRequestPaymentRequest$;
-const PutBucketTaggingRequest$ = [3, n0, _PBTR,
-    0,
-    [_B, _Tag, _CMDo, _CA, _EBO],
-    [[0, 1], [() => Tagging$, { [_hP]: 1, [_xN]: _Tag }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketTaggingRequest$ = PutBucketTaggingRequest$;
-const PutBucketVersioningRequest$ = [3, n0, _PBVR,
-    0,
-    [_B, _VC, _CMDo, _CA, _MFA, _EBO],
-    [[0, 1], [() => VersioningConfiguration$, { [_hP]: 1, [_xN]: _VC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xam_ }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketVersioningRequest$ = PutBucketVersioningRequest$;
-const PutBucketWebsiteRequest$ = [3, n0, _PBWR,
-    0,
-    [_B, _WC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => WebsiteConfiguration$, { [_hP]: 1, [_xN]: _WC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutBucketWebsiteRequest$ = PutBucketWebsiteRequest$;
-const PutObjectAclOutput$ = [3, n0, _POAO,
-    0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
-];
-exports.PutObjectAclOutput$ = PutObjectAclOutput$;
-const PutObjectAclRequest$ = [3, n0, _POAR,
-    0,
-    [_B, _K, _ACL_, _ACP, _CMDo, _CA, _GFC, _GR, _GRACP, _GW, _GWACP, _RP, _VI, _EBO],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => AccessControlPolicy$, { [_hP]: 1, [_xN]: _ACP }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagw }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutObjectAclRequest$ = PutObjectAclRequest$;
-const PutObjectLegalHoldOutput$ = [3, n0, _POLHO,
-    0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
-];
-exports.PutObjectLegalHoldOutput$ = PutObjectLegalHoldOutput$;
-const PutObjectLegalHoldRequest$ = [3, n0, _POLHR,
-    0,
-    [_B, _K, _LH, _RP, _VI, _CMDo, _CA, _EBO],
-    [[0, 1], [0, 1], [() => ObjectLockLegalHold$, { [_hP]: 1, [_xN]: _LH }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutObjectLegalHoldRequest$ = PutObjectLegalHoldRequest$;
-const PutObjectLockConfigurationOutput$ = [3, n0, _POLCO,
-    0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
-];
-exports.PutObjectLockConfigurationOutput$ = PutObjectLockConfigurationOutput$;
-const PutObjectLockConfigurationRequest$ = [3, n0, _POLCR,
-    0,
-    [_B, _OLC, _RP, _To, _CMDo, _CA, _EBO],
-    [[0, 1], [() => ObjectLockConfiguration$, { [_hP]: 1, [_xN]: _OLC }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xabolt }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 1
-];
-exports.PutObjectLockConfigurationRequest$ = PutObjectLockConfigurationRequest$;
-const PutObjectOutput$ = [3, n0, _POO,
-    0,
-    [_E, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _SSE, _VI, _SSECA, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _Si, _RC],
-    [[0, { [_hH]: _xae }], [0, { [_hH]: _ETa }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xavi }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [1, { [_hH]: _xaos }], [0, { [_hH]: _xarc }]]
-];
-exports.PutObjectOutput$ = PutObjectOutput$;
-const PutObjectRequest$ = [3, n0, _POR,
-    0,
-    [_B, _K, _ACL_, _Bo, _CC, _CDo, _CEo, _CL, _CLo, _CMDo, _CTo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _Ex, _IM, _INM, _GFC, _GR, _GRACP, _GWACP, _WOB, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => StreamingBlob, 16], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [4, { [_hH]: _Ex }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [1, { [_hH]: _xawob }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutObjectRequest$ = PutObjectRequest$;
-const PutObjectRetentionOutput$ = [3, n0, _PORO,
-    0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
-];
-exports.PutObjectRetentionOutput$ = PutObjectRetentionOutput$;
-const PutObjectRetentionRequest$ = [3, n0, _PORR,
-    0,
-    [_B, _K, _Ret, _RP, _VI, _BGR, _CMDo, _CA, _EBO],
-    [[0, 1], [0, 1], [() => ObjectLockRetention$, { [_hP]: 1, [_xN]: _Ret }], [0, { [_hH]: _xarp }], [0, { [_hQ]: _vI }], [2, { [_hH]: _xabgr }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutObjectRetentionRequest$ = PutObjectRetentionRequest$;
-const PutObjectTaggingOutput$ = [3, n0, _POTO,
-    0,
-    [_VI],
-    [[0, { [_hH]: _xavi }]]
-];
-exports.PutObjectTaggingOutput$ = PutObjectTaggingOutput$;
-const PutObjectTaggingRequest$ = [3, n0, _POTR,
-    0,
-    [_B, _K, _Tag, _VI, _CMDo, _CA, _EBO, _RP],
-    [[0, 1], [0, 1], [() => Tagging$, { [_hP]: 1, [_xN]: _Tag }], [0, { [_hQ]: _vI }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xarp }]], 3
-];
-exports.PutObjectTaggingRequest$ = PutObjectTaggingRequest$;
-const PutPublicAccessBlockRequest$ = [3, n0, _PPABR,
-    0,
-    [_B, _PABC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => PublicAccessBlockConfiguration$, { [_hP]: 1, [_xN]: _PABC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.PutPublicAccessBlockRequest$ = PutPublicAccessBlockRequest$;
-const QueueConfiguration$ = [3, n0, _QCue,
-    0,
-    [_QA, _Ev, _I, _F],
-    [[0, { [_xN]: _Qu }], [64 | 0, { [_xF]: 1, [_xN]: _Eve }], 0, [() => NotificationConfigurationFilter$, 0]], 2
-];
-exports.QueueConfiguration$ = QueueConfiguration$;
-const RecordExpiration$ = [3, n0, _REe,
-    0,
-    [_E, _D],
-    [0, 1], 1
-];
-exports.RecordExpiration$ = RecordExpiration$;
-const RecordsEvent$ = [3, n0, _REec,
-    0,
-    [_Payl],
-    [[21, { [_eP]: 1 }]]
-];
-exports.RecordsEvent$ = RecordsEvent$;
-const Redirect$ = [3, n0, _Red,
-    0,
-    [_HN, _HRC, _Pro, _RKPW, _RKW],
-    [0, 0, 0, 0, 0]
-];
-exports.Redirect$ = Redirect$;
-const RedirectAllRequestsTo$ = [3, n0, _RART,
-    0,
-    [_HN, _Pro],
-    [0, 0], 1
-];
-exports.RedirectAllRequestsTo$ = RedirectAllRequestsTo$;
-const RenameObjectOutput$ = [3, n0, _ROO,
-    0,
-    [],
-    []
-];
-exports.RenameObjectOutput$ = RenameObjectOutput$;
-const RenameObjectRequest$ = [3, n0, _ROR,
-    0,
-    [_B, _K, _RSen, _DIM, _DINM, _DIMS, _DIUS, _SIM, _SINM, _SIMS, _SIUS, _CTl],
-    [[0, 1], [0, 1], [0, { [_hH]: _xars_ }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [4, { [_hH]: _IMS_ }], [4, { [_hH]: _IUS_ }], [0, { [_hH]: _xarsim }], [0, { [_hH]: _xarsinm }], [6, { [_hH]: _xarsims }], [6, { [_hH]: _xarsius }], [0, { [_hH]: _xact_, [_iT]: 1 }]], 3
-];
-exports.RenameObjectRequest$ = RenameObjectRequest$;
-const ReplicaModifications$ = [3, n0, _RM,
-    0,
-    [_S],
-    [0], 1
-];
-exports.ReplicaModifications$ = ReplicaModifications$;
-const ReplicationConfiguration$ = [3, n0, _RCe,
-    0,
-    [_Ro, _R],
-    [0, [() => ReplicationRules, { [_xF]: 1, [_xN]: _Ru }]], 2
-];
-exports.ReplicationConfiguration$ = ReplicationConfiguration$;
-const ReplicationRule$ = [3, n0, _RRe,
-    0,
-    [_S, _Des, _ID, _Pri, _P, _F, _SSC, _EOR, _DMR],
-    [0, () => Destination$, 0, 1, 0, [() => ReplicationRuleFilter$, 0], () => SourceSelectionCriteria$, () => ExistingObjectReplication$, () => DeleteMarkerReplication$], 2
-];
-exports.ReplicationRule$ = ReplicationRule$;
-const ReplicationRuleAndOperator$ = [3, n0, _RRAO,
-    0,
-    [_P, _T],
-    [0, [() => TagSet, { [_xF]: 1, [_xN]: _Ta }]]
-];
-exports.ReplicationRuleAndOperator$ = ReplicationRuleAndOperator$;
-const ReplicationRuleFilter$ = [3, n0, _RRF,
-    0,
-    [_P, _Ta, _An],
-    [0, () => Tag$, [() => ReplicationRuleAndOperator$, 0]]
-];
-exports.ReplicationRuleFilter$ = ReplicationRuleFilter$;
-const ReplicationTime$ = [3, n0, _RT,
-    0,
-    [_S, _Tim],
-    [0, () => ReplicationTimeValue$], 2
-];
-exports.ReplicationTime$ = ReplicationTime$;
-const ReplicationTimeValue$ = [3, n0, _RTV,
-    0,
-    [_Mi],
-    [1]
-];
-exports.ReplicationTimeValue$ = ReplicationTimeValue$;
-const RequestPaymentConfiguration$ = [3, n0, _RPC,
-    0,
-    [_Pay],
-    [0], 1
-];
-exports.RequestPaymentConfiguration$ = RequestPaymentConfiguration$;
-const RequestProgress$ = [3, n0, _RPe,
-    0,
-    [_Ena],
-    [2]
-];
-exports.RequestProgress$ = RequestProgress$;
-const RestoreObjectOutput$ = [3, n0, _ROOe,
-    0,
-    [_RC, _ROP],
-    [[0, { [_hH]: _xarc }], [0, { [_hH]: _xarop }]]
-];
-exports.RestoreObjectOutput$ = RestoreObjectOutput$;
-const RestoreObjectRequest$ = [3, n0, _RORe,
-    0,
-    [_B, _K, _VI, _RRes, _RP, _CA, _EBO],
-    [[0, 1], [0, 1], [0, { [_hQ]: _vI }], [() => RestoreRequest$, { [_hP]: 1, [_xN]: _RRes }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.RestoreObjectRequest$ = RestoreObjectRequest$;
-const RestoreRequest$ = [3, n0, _RRes,
-    0,
-    [_D, _GJP, _Ty, _Ti, _Desc, _SP, _OL],
-    [1, () => GlacierJobParameters$, 0, 0, 0, () => SelectParameters$, [() => OutputLocation$, 0]]
-];
-exports.RestoreRequest$ = RestoreRequest$;
-const RestoreStatus$ = [3, n0, _RSe,
-    0,
-    [_IRIP, _RED],
-    [2, 4]
-];
-exports.RestoreStatus$ = RestoreStatus$;
-const RoutingRule$ = [3, n0, _RRo,
-    0,
-    [_Red, _Co],
-    [() => Redirect$, () => Condition$], 1
-];
-exports.RoutingRule$ = RoutingRule$;
-const S3KeyFilter$ = [3, n0, _SKF,
-    0,
-    [_FRi],
-    [[() => FilterRuleList, { [_xF]: 1, [_xN]: _FR }]]
-];
-exports.S3KeyFilter$ = S3KeyFilter$;
-const S3Location$ = [3, n0, _SL,
-    0,
-    [_BNu, _P, _En, _CACL, _ACL, _Tag, _UM, _SC],
-    [0, 0, [() => Encryption$, 0], 0, [() => Grants, 0], [() => Tagging$, 0], [() => UserMetadata, 0], 0], 2
-];
-exports.S3Location$ = S3Location$;
-const S3TablesDestination$ = [3, n0, _STD,
-    0,
-    [_TBA, _TNa],
-    [0, 0], 2
-];
-exports.S3TablesDestination$ = S3TablesDestination$;
-const S3TablesDestinationResult$ = [3, n0, _STDR,
-    0,
-    [_TBA, _TNa, _TA, _TN],
-    [0, 0, 0, 0], 4
-];
-exports.S3TablesDestinationResult$ = S3TablesDestinationResult$;
-const ScanRange$ = [3, n0, _SR,
-    0,
-    [_St, _End],
-    [1, 1]
-];
-exports.ScanRange$ = ScanRange$;
-const SelectObjectContentOutput$ = [3, n0, _SOCO,
-    0,
-    [_Payl],
-    [[() => SelectObjectContentEventStream$, 16]]
-];
-exports.SelectObjectContentOutput$ = SelectObjectContentOutput$;
-const SelectObjectContentRequest$ = [3, n0, _SOCR,
-    0,
-    [_B, _K, _Exp, _ETx, _IS, _OSu, _SSECA, _SSECK, _SSECKMD, _RPe, _SR, _EBO],
-    [[0, 1], [0, 1], 0, 0, () => InputSerialization$, () => OutputSerialization$, [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], () => RequestProgress$, () => ScanRange$, [0, { [_hH]: _xaebo }]], 6
-];
-exports.SelectObjectContentRequest$ = SelectObjectContentRequest$;
-const SelectParameters$ = [3, n0, _SP,
-    0,
-    [_IS, _ETx, _Exp, _OSu],
-    [() => InputSerialization$, 0, 0, () => OutputSerialization$], 4
-];
-exports.SelectParameters$ = SelectParameters$;
-const ServerSideEncryptionByDefault$ = [3, n0, _SSEBD,
-    0,
-    [_SSEA, _KMSMKID],
-    [0, [() => SSEKMSKeyId, 0]], 1
-];
-exports.ServerSideEncryptionByDefault$ = ServerSideEncryptionByDefault$;
-const ServerSideEncryptionConfiguration$ = [3, n0, _SSEC,
-    0,
-    [_R],
-    [[() => ServerSideEncryptionRules, { [_xF]: 1, [_xN]: _Ru }]], 1
-];
-exports.ServerSideEncryptionConfiguration$ = ServerSideEncryptionConfiguration$;
-const ServerSideEncryptionRule$ = [3, n0, _SSER,
-    0,
-    [_ASSEBD, _BKE, _BET],
-    [[() => ServerSideEncryptionByDefault$, 0], 2, [() => BlockedEncryptionTypes$, 0]]
-];
-exports.ServerSideEncryptionRule$ = ServerSideEncryptionRule$;
-const SessionCredentials$ = [3, n0, _SCe,
-    0,
-    [_AKI, _SAK, _ST, _E],
-    [[0, { [_xN]: _AKI }], [() => SessionCredentialValue, { [_xN]: _SAK }], [() => SessionCredentialValue, { [_xN]: _ST }], [4, { [_xN]: _E }]], 4
-];
-exports.SessionCredentials$ = SessionCredentials$;
-const SimplePrefix$ = [3, n0, _SPi,
-    { [_xN]: _SPi },
-    [],
-    []
-];
-exports.SimplePrefix$ = SimplePrefix$;
-const SourceSelectionCriteria$ = [3, n0, _SSC,
-    0,
-    [_SKEO, _RM],
-    [() => SseKmsEncryptedObjects$, () => ReplicaModifications$]
-];
-exports.SourceSelectionCriteria$ = SourceSelectionCriteria$;
-const SSEKMS$ = [3, n0, _SSEKMS,
-    { [_xN]: _SK },
-    [_KI],
-    [[() => SSEKMSKeyId, 0]], 1
-];
-exports.SSEKMS$ = SSEKMS$;
-const SseKmsEncryptedObjects$ = [3, n0, _SKEO,
-    0,
-    [_S],
-    [0], 1
-];
-exports.SseKmsEncryptedObjects$ = SseKmsEncryptedObjects$;
-const SSEKMSEncryption$ = [3, n0, _SSEKMSE,
-    { [_xN]: _SK },
-    [_KMSKA, _BKE],
-    [[() => NonEmptyKmsKeyArnString, 0], 2], 1
-];
-exports.SSEKMSEncryption$ = SSEKMSEncryption$;
-const SSES3$ = [3, n0, _SSES,
-    { [_xN]: _SS },
-    [],
-    []
-];
-exports.SSES3$ = SSES3$;
-const Stats$ = [3, n0, _Sta,
-    0,
-    [_BS, _BP, _BRy],
-    [1, 1, 1]
-];
-exports.Stats$ = Stats$;
-const StatsEvent$ = [3, n0, _SE,
-    0,
-    [_Det],
-    [[() => Stats$, { [_eP]: 1 }]]
-];
-exports.StatsEvent$ = StatsEvent$;
-const StorageClassAnalysis$ = [3, n0, _SCA,
-    0,
-    [_DE],
-    [() => StorageClassAnalysisDataExport$]
-];
-exports.StorageClassAnalysis$ = StorageClassAnalysis$;
-const StorageClassAnalysisDataExport$ = [3, n0, _SCADE,
-    0,
-    [_OSV, _Des],
-    [0, () => AnalyticsExportDestination$], 2
-];
-exports.StorageClassAnalysisDataExport$ = StorageClassAnalysisDataExport$;
-const Tag$ = [3, n0, _Ta,
-    0,
-    [_K, _V],
-    [0, 0], 2
-];
-exports.Tag$ = Tag$;
-const Tagging$ = [3, n0, _Tag,
-    0,
-    [_TS],
-    [[() => TagSet, 0]], 1
-];
-exports.Tagging$ = Tagging$;
-const TargetGrant$ = [3, n0, _TGa,
-    0,
-    [_Gra, _Pe],
-    [[() => Grantee$, { [_xNm]: [_x, _hi] }], 0]
-];
-exports.TargetGrant$ = TargetGrant$;
-const TargetObjectKeyFormat$ = [3, n0, _TOKF,
-    0,
-    [_SPi, _PP],
-    [[() => SimplePrefix$, { [_xN]: _SPi }], [() => PartitionedPrefix$, { [_xN]: _PP }]]
-];
-exports.TargetObjectKeyFormat$ = TargetObjectKeyFormat$;
-const Tiering$ = [3, n0, _Tier,
-    0,
-    [_D, _AT],
-    [1, 0], 2
-];
-exports.Tiering$ = Tiering$;
-const TopicConfiguration$ = [3, n0, _TCop,
-    0,
-    [_TAo, _Ev, _I, _F],
-    [[0, { [_xN]: _Top }], [64 | 0, { [_xF]: 1, [_xN]: _Eve }], 0, [() => NotificationConfigurationFilter$, 0]], 2
-];
-exports.TopicConfiguration$ = TopicConfiguration$;
-const Transition$ = [3, n0, _Tra,
-    0,
-    [_Da, _D, _SC],
-    [5, 1, 0]
-];
-exports.Transition$ = Transition$;
-const UpdateBucketMetadataInventoryTableConfigurationRequest$ = [3, n0, _UBMITCR,
-    0,
-    [_B, _ITCn, _CMDo, _CA, _EBO],
-    [[0, 1], [() => InventoryTableConfigurationUpdates$, { [_hP]: 1, [_xN]: _ITCn }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.UpdateBucketMetadataInventoryTableConfigurationRequest$ = UpdateBucketMetadataInventoryTableConfigurationRequest$;
-const UpdateBucketMetadataJournalTableConfigurationRequest$ = [3, n0, _UBMJTCR,
-    0,
-    [_B, _JTC, _CMDo, _CA, _EBO],
-    [[0, 1], [() => JournalTableConfigurationUpdates$, { [_hP]: 1, [_xN]: _JTC }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xaebo }]], 2
-];
-exports.UpdateBucketMetadataJournalTableConfigurationRequest$ = UpdateBucketMetadataJournalTableConfigurationRequest$;
-const UpdateObjectEncryptionRequest$ = [3, n0, _UOER,
-    0,
-    [_B, _K, _OE, _VI, _RP, _EBO, _CMDo, _CA],
-    [[0, 1], [0, 1], [() => ObjectEncryption$, 16], [0, { [_hQ]: _vI }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }]], 3
-];
-exports.UpdateObjectEncryptionRequest$ = UpdateObjectEncryptionRequest$;
-const UpdateObjectEncryptionResponse$ = [3, n0, _UOERp,
-    0,
-    [_RC],
-    [[0, { [_hH]: _xarc }]]
-];
-exports.UpdateObjectEncryptionResponse$ = UpdateObjectEncryptionResponse$;
-const UploadPartCopyOutput$ = [3, n0, _UPCO,
-    0,
-    [_CSVI, _CPR, _SSE, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xacsvi }], [() => CopyPartResult$, 16], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
-];
-exports.UploadPartCopyOutput$ = UploadPartCopyOutput$;
-const UploadPartCopyRequest$ = [3, n0, _UPCR,
-    0,
-    [_B, _CS, _K, _PN, _UI, _CSIM, _CSIMS, _CSINM, _CSIUS, _CSRo, _SSECA, _SSECK, _SSECKMD, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _EBO, _ESBO],
-    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [0, { [_hH]: _xacsr }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 5
-];
-exports.UploadPartCopyRequest$ = UploadPartCopyRequest$;
-const UploadPartOutput$ = [3, n0, _UPO,
-    0,
-    [_SSE, _ETa, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _RC],
-    [[0, { [_hH]: _xasse }], [0, { [_hH]: _ETa }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarc }]]
-];
-exports.UploadPartOutput$ = UploadPartOutput$;
-const UploadPartRequest$ = [3, n0, _UPR,
-    0,
-    [_B, _K, _PN, _UI, _Bo, _CLo, _CMDo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _SSECA, _SSECK, _SSECKMD, _RP, _EBO],
-    [[0, 1], [0, 1], [1, { [_hQ]: _pN }], [0, { [_hQ]: _uI }], [() => StreamingBlob, 16], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xaebo }]], 4
-];
-exports.UploadPartRequest$ = UploadPartRequest$;
-const VersioningConfiguration$ = [3, n0, _VC,
-    0,
-    [_MFAD, _S],
-    [[0, { [_xN]: _MDf }], 0]
-];
-exports.VersioningConfiguration$ = VersioningConfiguration$;
-const WebsiteConfiguration$ = [3, n0, _WC,
-    0,
-    [_EDr, _IDn, _RART, _RR],
-    [() => ErrorDocument$, () => IndexDocument$, () => RedirectAllRequestsTo$, [() => RoutingRules, 0]]
-];
-exports.WebsiteConfiguration$ = WebsiteConfiguration$;
-const WriteGetObjectResponseRequest$ = [3, n0, _WGORR,
-    0,
-    [_RReq, _RTe, _Bo, _SCt, _ECr, _EM, _AR, _CC, _CDo, _CEo, _CL, _CLo, _CR, _CTo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _DM, _ETa, _Ex, _E, _LM, _MM, _M, _OLM, _OLLHS, _OLRUD, _PC, _RS, _RC, _Re, _SSE, _SSECA, _SSEKMSKI, _SSECKMD, _SC, _TC, _VI, _BKE],
-    [[0, { [_hL]: 1, [_hH]: _xarr }], [0, { [_hH]: _xart }], [() => StreamingBlob, 16], [1, { [_hH]: _xafs }], [0, { [_hH]: _xafec }], [0, { [_hH]: _xafem }], [0, { [_hH]: _xafhar }], [0, { [_hH]: _xafhCC }], [0, { [_hH]: _xafhCD }], [0, { [_hH]: _xafhCE }], [0, { [_hH]: _xafhCL }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xafhCR }], [0, { [_hH]: _xafhCT }], [0, { [_hH]: _xafhxacc }], [0, { [_hH]: _xafhxacc_ }], [0, { [_hH]: _xafhxacc__ }], [0, { [_hH]: _xafhxacs }], [0, { [_hH]: _xafhxacs_ }], [0, { [_hH]: _xafhxacs__ }], [0, { [_hH]: _xafhxacm }], [0, { [_hH]: _xafhxacx }], [0, { [_hH]: _xafhxacx_ }], [0, { [_hH]: _xafhxacx__ }], [2, { [_hH]: _xafhxadm }], [0, { [_hH]: _xafhE }], [4, { [_hH]: _xafhE_ }], [0, { [_hH]: _xafhxae }], [4, { [_hH]: _xafhLM }], [1, { [_hH]: _xafhxamm }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xafhxaolm }], [0, { [_hH]: _xafhxaollh }], [5, { [_hH]: _xafhxaolrud }], [1, { [_hH]: _xafhxampc }], [0, { [_hH]: _xafhxars }], [0, { [_hH]: _xafhxarc }], [0, { [_hH]: _xafhxar }], [0, { [_hH]: _xafhxasse }], [0, { [_hH]: _xafhxasseca }], [() => SSEKMSKeyId, { [_hH]: _xafhxasseakki }], [0, { [_hH]: _xafhxasseckM }], [0, { [_hH]: _xafhxasc }], [1, { [_hH]: _xafhxatc }], [0, { [_hH]: _xafhxavi }], [2, { [_hH]: _xafhxassebke }]], 2
-];
-exports.WriteGetObjectResponseRequest$ = WriteGetObjectResponseRequest$;
-var __Unit = "unit";
-var AllowedHeaders = (/* unused pure expression or super */ null && (64 | 0));
-var AllowedMethods = (/* unused pure expression or super */ null && (64 | 0));
-var AllowedOrigins = (/* unused pure expression or super */ null && (64 | 0));
-var AnalyticsConfigurationList = [1, n0, _ACLn,
-    0, [() => AnalyticsConfiguration$,
-        0]
-];
-var Buckets = [1, n0, _Bu,
-    0, [() => Bucket$,
-        { [_xN]: _B }]
-];
-var ChecksumAlgorithmList = (/* unused pure expression or super */ null && (64 | 0));
-var CommonPrefixList = [1, n0, _CPL,
-    0, () => CommonPrefix$
-];
-var CompletedPartList = [1, n0, _CPLo,
-    0, () => CompletedPart$
-];
-var CORSRules = [1, n0, _CORSR,
-    0, [() => CORSRule$,
-        0]
-];
-var DeletedObjects = [1, n0, _DOe,
-    0, () => DeletedObject$
-];
-var DeleteMarkers = [1, n0, _DMe,
-    0, () => DeleteMarkerEntry$
-];
-var EncryptionTypeList = [1, n0, _ETL,
-    0, [0,
-        { [_xN]: _ET }]
-];
-var Errors = [1, n0, _Er,
-    0, () => _Error$
-];
-var EventList = (/* unused pure expression or super */ null && (64 | 0));
-var ExposeHeaders = (/* unused pure expression or super */ null && (64 | 0));
-var FilterRuleList = [1, n0, _FRL,
-    0, () => FilterRule$
-];
-var Grants = [1, n0, _G,
-    0, [() => Grant$,
-        { [_xN]: _Gr }]
-];
-var IntelligentTieringConfigurationList = [1, n0, _ITCL,
-    0, [() => IntelligentTieringConfiguration$,
-        0]
-];
-var InventoryConfigurationList = [1, n0, _ICL,
-    0, [() => InventoryConfiguration$,
-        0]
-];
-var InventoryOptionalFields = [1, n0, _IOF,
-    0, [0,
-        { [_xN]: _Fi }]
-];
-var LambdaFunctionConfigurationList = [1, n0, _LFCL,
-    0, [() => LambdaFunctionConfiguration$,
-        0]
-];
-var LifecycleRules = [1, n0, _LRi,
-    0, [() => LifecycleRule$,
-        0]
-];
-var MetricsConfigurationList = [1, n0, _MCL,
-    0, [() => MetricsConfiguration$,
-        0]
-];
-var MultipartUploadList = [1, n0, _MUL,
-    0, () => MultipartUpload$
-];
-var NoncurrentVersionTransitionList = [1, n0, _NVTL,
-    0, () => NoncurrentVersionTransition$
-];
-var ObjectAttributesList = (/* unused pure expression or super */ null && (64 | 0));
-var ObjectIdentifierList = [1, n0, _OIL,
-    0, () => ObjectIdentifier$
-];
-var ObjectList = [1, n0, _OLb,
-    0, [() => _Object$,
-        0]
-];
-var ObjectVersionList = [1, n0, _OVL,
-    0, [() => ObjectVersion$,
-        0]
-];
-var OptionalObjectAttributesList = (/* unused pure expression or super */ null && (64 | 0));
-var OwnershipControlsRules = [1, n0, _OCRw,
-    0, () => OwnershipControlsRule$
-];
-var Parts = [1, n0, _Pa,
-    0, () => Part$
-];
-var PartsList = [1, n0, _PL,
-    0, () => ObjectPart$
-];
-var QueueConfigurationList = [1, n0, _QCL,
-    0, [() => QueueConfiguration$,
-        0]
-];
-var ReplicationRules = [1, n0, _RRep,
-    0, [() => ReplicationRule$,
-        0]
-];
-var RoutingRules = [1, n0, _RR,
-    0, [() => RoutingRule$,
-        { [_xN]: _RRo }]
-];
-var ServerSideEncryptionRules = [1, n0, _SSERe,
-    0, [() => ServerSideEncryptionRule$,
-        0]
-];
-var TagSet = [1, n0, _TS,
-    0, [() => Tag$,
-        { [_xN]: _Ta }]
-];
-var TargetGrants = [1, n0, _TG,
-    0, [() => TargetGrant$,
-        { [_xN]: _Gr }]
-];
-var TieringList = [1, n0, _TL,
-    0, () => Tiering$
-];
-var TopicConfigurationList = [1, n0, _TCL,
-    0, [() => TopicConfiguration$,
-        0]
-];
-var TransitionList = [1, n0, _TLr,
-    0, () => Transition$
-];
-var UserMetadata = [1, n0, _UM,
-    0, [() => MetadataEntry$,
-        { [_xN]: _ME }]
-];
-var Metadata = (/* unused pure expression or super */ null && (128 | 0));
-const AnalyticsFilter$ = [4, n0, _AF,
-    0,
-    [_P, _Ta, _An],
-    [0, () => Tag$, [() => AnalyticsAndOperator$, 0]]
-];
-exports.AnalyticsFilter$ = AnalyticsFilter$;
-const MetricsFilter$ = [4, n0, _MF,
-    0,
-    [_P, _Ta, _APAc, _An],
-    [0, () => Tag$, 0, [() => MetricsAndOperator$, 0]]
-];
-exports.MetricsFilter$ = MetricsFilter$;
-const ObjectEncryption$ = [4, n0, _OE,
-    0,
-    [_SSEKMS],
-    [[() => SSEKMSEncryption$, { [_xN]: _SK }]]
-];
-exports.ObjectEncryption$ = ObjectEncryption$;
-const SelectObjectContentEventStream$ = [4, n0, _SOCES,
-    { [_st]: 1 },
-    [_Rec, _Sta, _Pr, _Cont, _End],
-    [[() => RecordsEvent$, 0], [() => StatsEvent$, 0], [() => ProgressEvent$, 0], () => ContinuationEvent$, () => EndEvent$]
-];
-exports.SelectObjectContentEventStream$ = SelectObjectContentEventStream$;
-exports.AbortMultipartUpload$ = [9, n0, _AMU,
-    { [_h]: ["DELETE", "/{Key+}?x-id=AbortMultipartUpload", 204] }, () => AbortMultipartUploadRequest$, () => AbortMultipartUploadOutput$
-];
-exports.CompleteMultipartUpload$ = [9, n0, _CMUo,
-    { [_h]: ["POST", "/{Key+}", 200] }, () => CompleteMultipartUploadRequest$, () => CompleteMultipartUploadOutput$
-];
-exports.CopyObject$ = [9, n0, _CO,
-    { [_h]: ["PUT", "/{Key+}?x-id=CopyObject", 200] }, () => CopyObjectRequest$, () => CopyObjectOutput$
-];
-exports.CreateBucket$ = [9, n0, _CB,
-    { [_h]: ["PUT", "/", 200] }, () => CreateBucketRequest$, () => CreateBucketOutput$
-];
-exports.CreateBucketMetadataConfiguration$ = [9, n0, _CBMC,
-    { [_hC]: "-", [_h]: ["POST", "/?metadataConfiguration", 200] }, () => CreateBucketMetadataConfigurationRequest$, () => __Unit
-];
-exports.CreateBucketMetadataTableConfiguration$ = [9, n0, _CBMTC,
-    { [_hC]: "-", [_h]: ["POST", "/?metadataTable", 200] }, () => CreateBucketMetadataTableConfigurationRequest$, () => __Unit
-];
-exports.CreateMultipartUpload$ = [9, n0, _CMUr,
-    { [_h]: ["POST", "/{Key+}?uploads", 200] }, () => CreateMultipartUploadRequest$, () => CreateMultipartUploadOutput$
-];
-exports.CreateSession$ = [9, n0, _CSr,
-    { [_h]: ["GET", "/?session", 200] }, () => CreateSessionRequest$, () => CreateSessionOutput$
-];
-exports.DeleteBucket$ = [9, n0, _DB,
-    { [_h]: ["DELETE", "/", 204] }, () => DeleteBucketRequest$, () => __Unit
-];
-exports.DeleteBucketAnalyticsConfiguration$ = [9, n0, _DBAC,
-    { [_h]: ["DELETE", "/?analytics", 204] }, () => DeleteBucketAnalyticsConfigurationRequest$, () => __Unit
-];
-exports.DeleteBucketCors$ = [9, n0, _DBC,
-    { [_h]: ["DELETE", "/?cors", 204] }, () => DeleteBucketCorsRequest$, () => __Unit
-];
-exports.DeleteBucketEncryption$ = [9, n0, _DBE,
-    { [_h]: ["DELETE", "/?encryption", 204] }, () => DeleteBucketEncryptionRequest$, () => __Unit
-];
-exports.DeleteBucketIntelligentTieringConfiguration$ = [9, n0, _DBITC,
-    { [_h]: ["DELETE", "/?intelligent-tiering", 204] }, () => DeleteBucketIntelligentTieringConfigurationRequest$, () => __Unit
-];
-exports.DeleteBucketInventoryConfiguration$ = [9, n0, _DBIC,
-    { [_h]: ["DELETE", "/?inventory", 204] }, () => DeleteBucketInventoryConfigurationRequest$, () => __Unit
-];
-exports.DeleteBucketLifecycle$ = [9, n0, _DBL,
-    { [_h]: ["DELETE", "/?lifecycle", 204] }, () => DeleteBucketLifecycleRequest$, () => __Unit
-];
-exports.DeleteBucketMetadataConfiguration$ = [9, n0, _DBMC,
-    { [_h]: ["DELETE", "/?metadataConfiguration", 204] }, () => DeleteBucketMetadataConfigurationRequest$, () => __Unit
-];
-exports.DeleteBucketMetadataTableConfiguration$ = [9, n0, _DBMTC,
-    { [_h]: ["DELETE", "/?metadataTable", 204] }, () => DeleteBucketMetadataTableConfigurationRequest$, () => __Unit
-];
-exports.DeleteBucketMetricsConfiguration$ = [9, n0, _DBMCe,
-    { [_h]: ["DELETE", "/?metrics", 204] }, () => DeleteBucketMetricsConfigurationRequest$, () => __Unit
-];
-exports.DeleteBucketOwnershipControls$ = [9, n0, _DBOC,
-    { [_h]: ["DELETE", "/?ownershipControls", 204] }, () => DeleteBucketOwnershipControlsRequest$, () => __Unit
-];
-exports.DeleteBucketPolicy$ = [9, n0, _DBP,
-    { [_h]: ["DELETE", "/?policy", 204] }, () => DeleteBucketPolicyRequest$, () => __Unit
-];
-exports.DeleteBucketReplication$ = [9, n0, _DBRe,
-    { [_h]: ["DELETE", "/?replication", 204] }, () => DeleteBucketReplicationRequest$, () => __Unit
-];
-exports.DeleteBucketTagging$ = [9, n0, _DBT,
-    { [_h]: ["DELETE", "/?tagging", 204] }, () => DeleteBucketTaggingRequest$, () => __Unit
-];
-exports.DeleteBucketWebsite$ = [9, n0, _DBW,
-    { [_h]: ["DELETE", "/?website", 204] }, () => DeleteBucketWebsiteRequest$, () => __Unit
-];
-exports.DeleteObject$ = [9, n0, _DOel,
-    { [_h]: ["DELETE", "/{Key+}?x-id=DeleteObject", 204] }, () => DeleteObjectRequest$, () => DeleteObjectOutput$
-];
-exports.DeleteObjects$ = [9, n0, _DOele,
-    { [_hC]: "-", [_h]: ["POST", "/?delete", 200] }, () => DeleteObjectsRequest$, () => DeleteObjectsOutput$
-];
-exports.DeleteObjectTagging$ = [9, n0, _DOT,
-    { [_h]: ["DELETE", "/{Key+}?tagging", 204] }, () => DeleteObjectTaggingRequest$, () => DeleteObjectTaggingOutput$
-];
-exports.DeletePublicAccessBlock$ = [9, n0, _DPAB,
-    { [_h]: ["DELETE", "/?publicAccessBlock", 204] }, () => DeletePublicAccessBlockRequest$, () => __Unit
-];
-exports.GetBucketAbac$ = [9, n0, _GBA,
-    { [_h]: ["GET", "/?abac", 200] }, () => GetBucketAbacRequest$, () => GetBucketAbacOutput$
-];
-exports.GetBucketAccelerateConfiguration$ = [9, n0, _GBAC,
-    { [_h]: ["GET", "/?accelerate", 200] }, () => GetBucketAccelerateConfigurationRequest$, () => GetBucketAccelerateConfigurationOutput$
-];
-exports.GetBucketAcl$ = [9, n0, _GBAe,
-    { [_h]: ["GET", "/?acl", 200] }, () => GetBucketAclRequest$, () => GetBucketAclOutput$
-];
-exports.GetBucketAnalyticsConfiguration$ = [9, n0, _GBACe,
-    { [_h]: ["GET", "/?analytics&x-id=GetBucketAnalyticsConfiguration", 200] }, () => GetBucketAnalyticsConfigurationRequest$, () => GetBucketAnalyticsConfigurationOutput$
-];
-exports.GetBucketCors$ = [9, n0, _GBC,
-    { [_h]: ["GET", "/?cors", 200] }, () => GetBucketCorsRequest$, () => GetBucketCorsOutput$
-];
-exports.GetBucketEncryption$ = [9, n0, _GBE,
-    { [_h]: ["GET", "/?encryption", 200] }, () => GetBucketEncryptionRequest$, () => GetBucketEncryptionOutput$
-];
-exports.GetBucketIntelligentTieringConfiguration$ = [9, n0, _GBITC,
-    { [_h]: ["GET", "/?intelligent-tiering&x-id=GetBucketIntelligentTieringConfiguration", 200] }, () => GetBucketIntelligentTieringConfigurationRequest$, () => GetBucketIntelligentTieringConfigurationOutput$
-];
-exports.GetBucketInventoryConfiguration$ = [9, n0, _GBIC,
-    { [_h]: ["GET", "/?inventory&x-id=GetBucketInventoryConfiguration", 200] }, () => GetBucketInventoryConfigurationRequest$, () => GetBucketInventoryConfigurationOutput$
-];
-exports.GetBucketLifecycleConfiguration$ = [9, n0, _GBLC,
-    { [_h]: ["GET", "/?lifecycle", 200] }, () => GetBucketLifecycleConfigurationRequest$, () => GetBucketLifecycleConfigurationOutput$
-];
-exports.GetBucketLocation$ = [9, n0, _GBL,
-    { [_h]: ["GET", "/?location", 200] }, () => GetBucketLocationRequest$, () => GetBucketLocationOutput$
-];
-exports.GetBucketLogging$ = [9, n0, _GBLe,
-    { [_h]: ["GET", "/?logging", 200] }, () => GetBucketLoggingRequest$, () => GetBucketLoggingOutput$
-];
-exports.GetBucketMetadataConfiguration$ = [9, n0, _GBMC,
-    { [_h]: ["GET", "/?metadataConfiguration", 200] }, () => GetBucketMetadataConfigurationRequest$, () => GetBucketMetadataConfigurationOutput$
-];
-exports.GetBucketMetadataTableConfiguration$ = [9, n0, _GBMTC,
-    { [_h]: ["GET", "/?metadataTable", 200] }, () => GetBucketMetadataTableConfigurationRequest$, () => GetBucketMetadataTableConfigurationOutput$
-];
-exports.GetBucketMetricsConfiguration$ = [9, n0, _GBMCe,
-    { [_h]: ["GET", "/?metrics&x-id=GetBucketMetricsConfiguration", 200] }, () => GetBucketMetricsConfigurationRequest$, () => GetBucketMetricsConfigurationOutput$
-];
-exports.GetBucketNotificationConfiguration$ = [9, n0, _GBNC,
-    { [_h]: ["GET", "/?notification", 200] }, () => GetBucketNotificationConfigurationRequest$, () => NotificationConfiguration$
-];
-exports.GetBucketOwnershipControls$ = [9, n0, _GBOC,
-    { [_h]: ["GET", "/?ownershipControls", 200] }, () => GetBucketOwnershipControlsRequest$, () => GetBucketOwnershipControlsOutput$
-];
-exports.GetBucketPolicy$ = [9, n0, _GBP,
-    { [_h]: ["GET", "/?policy", 200] }, () => GetBucketPolicyRequest$, () => GetBucketPolicyOutput$
-];
-exports.GetBucketPolicyStatus$ = [9, n0, _GBPS,
-    { [_h]: ["GET", "/?policyStatus", 200] }, () => GetBucketPolicyStatusRequest$, () => GetBucketPolicyStatusOutput$
-];
-exports.GetBucketReplication$ = [9, n0, _GBR,
-    { [_h]: ["GET", "/?replication", 200] }, () => GetBucketReplicationRequest$, () => GetBucketReplicationOutput$
-];
-exports.GetBucketRequestPayment$ = [9, n0, _GBRP,
-    { [_h]: ["GET", "/?requestPayment", 200] }, () => GetBucketRequestPaymentRequest$, () => GetBucketRequestPaymentOutput$
-];
-exports.GetBucketTagging$ = [9, n0, _GBT,
-    { [_h]: ["GET", "/?tagging", 200] }, () => GetBucketTaggingRequest$, () => GetBucketTaggingOutput$
-];
-exports.GetBucketVersioning$ = [9, n0, _GBV,
-    { [_h]: ["GET", "/?versioning", 200] }, () => GetBucketVersioningRequest$, () => GetBucketVersioningOutput$
-];
-exports.GetBucketWebsite$ = [9, n0, _GBW,
-    { [_h]: ["GET", "/?website", 200] }, () => GetBucketWebsiteRequest$, () => GetBucketWebsiteOutput$
-];
-exports.GetObject$ = [9, n0, _GO,
-    { [_hC]: "-", [_h]: ["GET", "/{Key+}?x-id=GetObject", 200] }, () => GetObjectRequest$, () => GetObjectOutput$
-];
-exports.GetObjectAcl$ = [9, n0, _GOA,
-    { [_h]: ["GET", "/{Key+}?acl", 200] }, () => GetObjectAclRequest$, () => GetObjectAclOutput$
-];
-exports.GetObjectAttributes$ = [9, n0, _GOAe,
-    { [_h]: ["GET", "/{Key+}?attributes", 200] }, () => GetObjectAttributesRequest$, () => GetObjectAttributesOutput$
-];
-exports.GetObjectLegalHold$ = [9, n0, _GOLH,
-    { [_h]: ["GET", "/{Key+}?legal-hold", 200] }, () => GetObjectLegalHoldRequest$, () => GetObjectLegalHoldOutput$
-];
-exports.GetObjectLockConfiguration$ = [9, n0, _GOLC,
-    { [_h]: ["GET", "/?object-lock", 200] }, () => GetObjectLockConfigurationRequest$, () => GetObjectLockConfigurationOutput$
-];
-exports.GetObjectRetention$ = [9, n0, _GORe,
-    { [_h]: ["GET", "/{Key+}?retention", 200] }, () => GetObjectRetentionRequest$, () => GetObjectRetentionOutput$
-];
-exports.GetObjectTagging$ = [9, n0, _GOT,
-    { [_h]: ["GET", "/{Key+}?tagging", 200] }, () => GetObjectTaggingRequest$, () => GetObjectTaggingOutput$
-];
-exports.GetObjectTorrent$ = [9, n0, _GOTe,
-    { [_h]: ["GET", "/{Key+}?torrent", 200] }, () => GetObjectTorrentRequest$, () => GetObjectTorrentOutput$
-];
-exports.GetPublicAccessBlock$ = [9, n0, _GPAB,
-    { [_h]: ["GET", "/?publicAccessBlock", 200] }, () => GetPublicAccessBlockRequest$, () => GetPublicAccessBlockOutput$
-];
-exports.HeadBucket$ = [9, n0, _HB,
-    { [_h]: ["HEAD", "/", 200] }, () => HeadBucketRequest$, () => HeadBucketOutput$
-];
-exports.HeadObject$ = [9, n0, _HO,
-    { [_h]: ["HEAD", "/{Key+}", 200] }, () => HeadObjectRequest$, () => HeadObjectOutput$
-];
-exports.ListBucketAnalyticsConfigurations$ = [9, n0, _LBAC,
-    { [_h]: ["GET", "/?analytics&x-id=ListBucketAnalyticsConfigurations", 200] }, () => ListBucketAnalyticsConfigurationsRequest$, () => ListBucketAnalyticsConfigurationsOutput$
-];
-exports.ListBucketIntelligentTieringConfigurations$ = [9, n0, _LBITC,
-    { [_h]: ["GET", "/?intelligent-tiering&x-id=ListBucketIntelligentTieringConfigurations", 200] }, () => ListBucketIntelligentTieringConfigurationsRequest$, () => ListBucketIntelligentTieringConfigurationsOutput$
-];
-exports.ListBucketInventoryConfigurations$ = [9, n0, _LBIC,
-    { [_h]: ["GET", "/?inventory&x-id=ListBucketInventoryConfigurations", 200] }, () => ListBucketInventoryConfigurationsRequest$, () => ListBucketInventoryConfigurationsOutput$
-];
-exports.ListBucketMetricsConfigurations$ = [9, n0, _LBMC,
-    { [_h]: ["GET", "/?metrics&x-id=ListBucketMetricsConfigurations", 200] }, () => ListBucketMetricsConfigurationsRequest$, () => ListBucketMetricsConfigurationsOutput$
-];
-exports.ListBuckets$ = [9, n0, _LB,
-    { [_h]: ["GET", "/?x-id=ListBuckets", 200] }, () => ListBucketsRequest$, () => ListBucketsOutput$
-];
-exports.ListDirectoryBuckets$ = [9, n0, _LDB,
-    { [_h]: ["GET", "/?x-id=ListDirectoryBuckets", 200] }, () => ListDirectoryBucketsRequest$, () => ListDirectoryBucketsOutput$
-];
-exports.ListMultipartUploads$ = [9, n0, _LMU,
-    { [_h]: ["GET", "/?uploads", 200] }, () => ListMultipartUploadsRequest$, () => ListMultipartUploadsOutput$
-];
-exports.ListObjects$ = [9, n0, _LO,
-    { [_h]: ["GET", "/", 200] }, () => ListObjectsRequest$, () => ListObjectsOutput$
-];
-exports.ListObjectsV2$ = [9, n0, _LOV,
-    { [_h]: ["GET", "/?list-type=2", 200] }, () => ListObjectsV2Request$, () => ListObjectsV2Output$
-];
-exports.ListObjectVersions$ = [9, n0, _LOVi,
-    { [_h]: ["GET", "/?versions", 200] }, () => ListObjectVersionsRequest$, () => ListObjectVersionsOutput$
-];
-exports.ListParts$ = [9, n0, _LP,
-    { [_h]: ["GET", "/{Key+}?x-id=ListParts", 200] }, () => ListPartsRequest$, () => ListPartsOutput$
-];
-exports.PutBucketAbac$ = [9, n0, _PBA,
-    { [_hC]: "-", [_h]: ["PUT", "/?abac", 200] }, () => PutBucketAbacRequest$, () => __Unit
-];
-exports.PutBucketAccelerateConfiguration$ = [9, n0, _PBAC,
-    { [_hC]: "-", [_h]: ["PUT", "/?accelerate", 200] }, () => PutBucketAccelerateConfigurationRequest$, () => __Unit
-];
-exports.PutBucketAcl$ = [9, n0, _PBAu,
-    { [_hC]: "-", [_h]: ["PUT", "/?acl", 200] }, () => PutBucketAclRequest$, () => __Unit
-];
-exports.PutBucketAnalyticsConfiguration$ = [9, n0, _PBACu,
-    { [_h]: ["PUT", "/?analytics", 200] }, () => PutBucketAnalyticsConfigurationRequest$, () => __Unit
-];
-exports.PutBucketCors$ = [9, n0, _PBC,
-    { [_hC]: "-", [_h]: ["PUT", "/?cors", 200] }, () => PutBucketCorsRequest$, () => __Unit
-];
-exports.PutBucketEncryption$ = [9, n0, _PBE,
-    { [_hC]: "-", [_h]: ["PUT", "/?encryption", 200] }, () => PutBucketEncryptionRequest$, () => __Unit
-];
-exports.PutBucketIntelligentTieringConfiguration$ = [9, n0, _PBITC,
-    { [_h]: ["PUT", "/?intelligent-tiering", 200] }, () => PutBucketIntelligentTieringConfigurationRequest$, () => __Unit
-];
-exports.PutBucketInventoryConfiguration$ = [9, n0, _PBIC,
-    { [_h]: ["PUT", "/?inventory", 200] }, () => PutBucketInventoryConfigurationRequest$, () => __Unit
-];
-exports.PutBucketLifecycleConfiguration$ = [9, n0, _PBLC,
-    { [_hC]: "-", [_h]: ["PUT", "/?lifecycle", 200] }, () => PutBucketLifecycleConfigurationRequest$, () => PutBucketLifecycleConfigurationOutput$
-];
-exports.PutBucketLogging$ = [9, n0, _PBL,
-    { [_hC]: "-", [_h]: ["PUT", "/?logging", 200] }, () => PutBucketLoggingRequest$, () => __Unit
-];
-exports.PutBucketMetricsConfiguration$ = [9, n0, _PBMC,
-    { [_h]: ["PUT", "/?metrics", 200] }, () => PutBucketMetricsConfigurationRequest$, () => __Unit
-];
-exports.PutBucketNotificationConfiguration$ = [9, n0, _PBNC,
-    { [_h]: ["PUT", "/?notification", 200] }, () => PutBucketNotificationConfigurationRequest$, () => __Unit
-];
-exports.PutBucketOwnershipControls$ = [9, n0, _PBOC,
-    { [_hC]: "-", [_h]: ["PUT", "/?ownershipControls", 200] }, () => PutBucketOwnershipControlsRequest$, () => __Unit
-];
-exports.PutBucketPolicy$ = [9, n0, _PBP,
-    { [_hC]: "-", [_h]: ["PUT", "/?policy", 200] }, () => PutBucketPolicyRequest$, () => __Unit
-];
-exports.PutBucketReplication$ = [9, n0, _PBR,
-    { [_hC]: "-", [_h]: ["PUT", "/?replication", 200] }, () => PutBucketReplicationRequest$, () => __Unit
-];
-exports.PutBucketRequestPayment$ = [9, n0, _PBRP,
-    { [_hC]: "-", [_h]: ["PUT", "/?requestPayment", 200] }, () => PutBucketRequestPaymentRequest$, () => __Unit
-];
-exports.PutBucketTagging$ = [9, n0, _PBT,
-    { [_hC]: "-", [_h]: ["PUT", "/?tagging", 200] }, () => PutBucketTaggingRequest$, () => __Unit
-];
-exports.PutBucketVersioning$ = [9, n0, _PBV,
-    { [_hC]: "-", [_h]: ["PUT", "/?versioning", 200] }, () => PutBucketVersioningRequest$, () => __Unit
-];
-exports.PutBucketWebsite$ = [9, n0, _PBW,
-    { [_hC]: "-", [_h]: ["PUT", "/?website", 200] }, () => PutBucketWebsiteRequest$, () => __Unit
-];
-exports.PutObject$ = [9, n0, _PO,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?x-id=PutObject", 200] }, () => PutObjectRequest$, () => PutObjectOutput$
-];
-exports.PutObjectAcl$ = [9, n0, _POA,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?acl", 200] }, () => PutObjectAclRequest$, () => PutObjectAclOutput$
-];
-exports.PutObjectLegalHold$ = [9, n0, _POLH,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?legal-hold", 200] }, () => PutObjectLegalHoldRequest$, () => PutObjectLegalHoldOutput$
-];
-exports.PutObjectLockConfiguration$ = [9, n0, _POLC,
-    { [_hC]: "-", [_h]: ["PUT", "/?object-lock", 200] }, () => PutObjectLockConfigurationRequest$, () => PutObjectLockConfigurationOutput$
-];
-exports.PutObjectRetention$ = [9, n0, _PORu,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?retention", 200] }, () => PutObjectRetentionRequest$, () => PutObjectRetentionOutput$
-];
-exports.PutObjectTagging$ = [9, n0, _POT,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?tagging", 200] }, () => PutObjectTaggingRequest$, () => PutObjectTaggingOutput$
-];
-exports.PutPublicAccessBlock$ = [9, n0, _PPAB,
-    { [_hC]: "-", [_h]: ["PUT", "/?publicAccessBlock", 200] }, () => PutPublicAccessBlockRequest$, () => __Unit
-];
-exports.RenameObject$ = [9, n0, _RO,
-    { [_h]: ["PUT", "/{Key+}?renameObject", 200] }, () => RenameObjectRequest$, () => RenameObjectOutput$
-];
-exports.RestoreObject$ = [9, n0, _ROe,
-    { [_hC]: "-", [_h]: ["POST", "/{Key+}?restore", 200] }, () => RestoreObjectRequest$, () => RestoreObjectOutput$
-];
-exports.SelectObjectContent$ = [9, n0, _SOC,
-    { [_h]: ["POST", "/{Key+}?select&select-type=2", 200] }, () => SelectObjectContentRequest$, () => SelectObjectContentOutput$
-];
-exports.UpdateBucketMetadataInventoryTableConfiguration$ = [9, n0, _UBMITC,
-    { [_hC]: "-", [_h]: ["PUT", "/?metadataInventoryTable", 200] }, () => UpdateBucketMetadataInventoryTableConfigurationRequest$, () => __Unit
-];
-exports.UpdateBucketMetadataJournalTableConfiguration$ = [9, n0, _UBMJTC,
-    { [_hC]: "-", [_h]: ["PUT", "/?metadataJournalTable", 200] }, () => UpdateBucketMetadataJournalTableConfigurationRequest$, () => __Unit
-];
-exports.UpdateObjectEncryption$ = [9, n0, _UOE,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?encryption", 200] }, () => UpdateObjectEncryptionRequest$, () => UpdateObjectEncryptionResponse$
-];
-exports.UploadPart$ = [9, n0, _UP,
-    { [_hC]: "-", [_h]: ["PUT", "/{Key+}?x-id=UploadPart", 200] }, () => UploadPartRequest$, () => UploadPartOutput$
-];
-exports.UploadPartCopy$ = [9, n0, _UPC,
-    { [_h]: ["PUT", "/{Key+}?x-id=UploadPartCopy", 200] }, () => UploadPartCopyRequest$, () => UploadPartCopyOutput$
-];
-exports.WriteGetObjectResponse$ = [9, n0, _WGOR,
-    { [_en]: ["{RequestRoute}."], [_h]: ["POST", "/WriteGetObjectResponse", 200] }, () => WriteGetObjectResponseRequest$, () => __Unit
-];
 
 
 /***/ }),
@@ -12586,7 +13002,282 @@ function resolveUserAgentConfig(input) {
     });
 }
 
-const partitionsInfo = { "partitions": [{ "id": "aws", "outputs": { "dnsSuffix": "amazonaws.com", "dualStackDnsSuffix": "api.aws", "implicitGlobalRegion": "us-east-1", "name": "aws", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$", "regions": { "af-south-1": { "description": "Africa (Cape Town)" }, "ap-east-1": { "description": "Asia Pacific (Hong Kong)" }, "ap-east-2": { "description": "Asia Pacific (Taipei)" }, "ap-northeast-1": { "description": "Asia Pacific (Tokyo)" }, "ap-northeast-2": { "description": "Asia Pacific (Seoul)" }, "ap-northeast-3": { "description": "Asia Pacific (Osaka)" }, "ap-south-1": { "description": "Asia Pacific (Mumbai)" }, "ap-south-2": { "description": "Asia Pacific (Hyderabad)" }, "ap-southeast-1": { "description": "Asia Pacific (Singapore)" }, "ap-southeast-2": { "description": "Asia Pacific (Sydney)" }, "ap-southeast-3": { "description": "Asia Pacific (Jakarta)" }, "ap-southeast-4": { "description": "Asia Pacific (Melbourne)" }, "ap-southeast-5": { "description": "Asia Pacific (Malaysia)" }, "ap-southeast-6": { "description": "Asia Pacific (New Zealand)" }, "ap-southeast-7": { "description": "Asia Pacific (Thailand)" }, "aws-global": { "description": "aws global region" }, "ca-central-1": { "description": "Canada (Central)" }, "ca-west-1": { "description": "Canada West (Calgary)" }, "eu-central-1": { "description": "Europe (Frankfurt)" }, "eu-central-2": { "description": "Europe (Zurich)" }, "eu-north-1": { "description": "Europe (Stockholm)" }, "eu-south-1": { "description": "Europe (Milan)" }, "eu-south-2": { "description": "Europe (Spain)" }, "eu-west-1": { "description": "Europe (Ireland)" }, "eu-west-2": { "description": "Europe (London)" }, "eu-west-3": { "description": "Europe (Paris)" }, "il-central-1": { "description": "Israel (Tel Aviv)" }, "me-central-1": { "description": "Middle East (UAE)" }, "me-south-1": { "description": "Middle East (Bahrain)" }, "mx-central-1": { "description": "Mexico (Central)" }, "sa-east-1": { "description": "South America (Sao Paulo)" }, "us-east-1": { "description": "US East (N. Virginia)" }, "us-east-2": { "description": "US East (Ohio)" }, "us-west-1": { "description": "US West (N. California)" }, "us-west-2": { "description": "US West (Oregon)" } } }, { "id": "aws-cn", "outputs": { "dnsSuffix": "amazonaws.com.cn", "dualStackDnsSuffix": "api.amazonwebservices.com.cn", "implicitGlobalRegion": "cn-northwest-1", "name": "aws-cn", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^cn\\-\\w+\\-\\d+$", "regions": { "aws-cn-global": { "description": "aws-cn global region" }, "cn-north-1": { "description": "China (Beijing)" }, "cn-northwest-1": { "description": "China (Ningxia)" } } }, { "id": "aws-eusc", "outputs": { "dnsSuffix": "amazonaws.eu", "dualStackDnsSuffix": "api.amazonwebservices.eu", "implicitGlobalRegion": "eusc-de-east-1", "name": "aws-eusc", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^eusc\\-(de)\\-\\w+\\-\\d+$", "regions": { "eusc-de-east-1": { "description": "AWS European Sovereign Cloud (Germany)" } } }, { "id": "aws-iso", "outputs": { "dnsSuffix": "c2s.ic.gov", "dualStackDnsSuffix": "api.aws.ic.gov", "implicitGlobalRegion": "us-iso-east-1", "name": "aws-iso", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-iso\\-\\w+\\-\\d+$", "regions": { "aws-iso-global": { "description": "aws-iso global region" }, "us-iso-east-1": { "description": "US ISO East" }, "us-iso-west-1": { "description": "US ISO WEST" } } }, { "id": "aws-iso-b", "outputs": { "dnsSuffix": "sc2s.sgov.gov", "dualStackDnsSuffix": "api.aws.scloud", "implicitGlobalRegion": "us-isob-east-1", "name": "aws-iso-b", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-isob\\-\\w+\\-\\d+$", "regions": { "aws-iso-b-global": { "description": "aws-iso-b global region" }, "us-isob-east-1": { "description": "US ISOB East (Ohio)" }, "us-isob-west-1": { "description": "US ISOB West" } } }, { "id": "aws-iso-e", "outputs": { "dnsSuffix": "cloud.adc-e.uk", "dualStackDnsSuffix": "api.cloud-aws.adc-e.uk", "implicitGlobalRegion": "eu-isoe-west-1", "name": "aws-iso-e", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^eu\\-isoe\\-\\w+\\-\\d+$", "regions": { "aws-iso-e-global": { "description": "aws-iso-e global region" }, "eu-isoe-west-1": { "description": "EU ISOE West" } } }, { "id": "aws-iso-f", "outputs": { "dnsSuffix": "csp.hci.ic.gov", "dualStackDnsSuffix": "api.aws.hci.ic.gov", "implicitGlobalRegion": "us-isof-south-1", "name": "aws-iso-f", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-isof\\-\\w+\\-\\d+$", "regions": { "aws-iso-f-global": { "description": "aws-iso-f global region" }, "us-isof-east-1": { "description": "US ISOF EAST" }, "us-isof-south-1": { "description": "US ISOF SOUTH" } } }, { "id": "aws-us-gov", "outputs": { "dnsSuffix": "amazonaws.com", "dualStackDnsSuffix": "api.aws", "implicitGlobalRegion": "us-gov-west-1", "name": "aws-us-gov", "supportsDualStack": true, "supportsFIPS": true }, "regionRegex": "^us\\-gov\\-\\w+\\-\\d+$", "regions": { "aws-us-gov-global": { "description": "aws-us-gov global region" }, "us-gov-east-1": { "description": "AWS GovCloud (US-East)" }, "us-gov-west-1": { "description": "AWS GovCloud (US-West)" } } }], "version": "1.1" };
+const partitionsInfo = {
+    "partitions": [
+        {
+            "id": "aws",
+            "outputs": {
+                "dnsSuffix": "amazonaws.com",
+                "dualStackDnsSuffix": "api.aws",
+                "implicitGlobalRegion": "us-east-1",
+                "name": "aws",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
+            "regions": {
+                "af-south-1": {
+                    "description": "Africa (Cape Town)"
+                },
+                "ap-east-1": {
+                    "description": "Asia Pacific (Hong Kong)"
+                },
+                "ap-east-2": {
+                    "description": "Asia Pacific (Taipei)"
+                },
+                "ap-northeast-1": {
+                    "description": "Asia Pacific (Tokyo)"
+                },
+                "ap-northeast-2": {
+                    "description": "Asia Pacific (Seoul)"
+                },
+                "ap-northeast-3": {
+                    "description": "Asia Pacific (Osaka)"
+                },
+                "ap-south-1": {
+                    "description": "Asia Pacific (Mumbai)"
+                },
+                "ap-south-2": {
+                    "description": "Asia Pacific (Hyderabad)"
+                },
+                "ap-southeast-1": {
+                    "description": "Asia Pacific (Singapore)"
+                },
+                "ap-southeast-2": {
+                    "description": "Asia Pacific (Sydney)"
+                },
+                "ap-southeast-3": {
+                    "description": "Asia Pacific (Jakarta)"
+                },
+                "ap-southeast-4": {
+                    "description": "Asia Pacific (Melbourne)"
+                },
+                "ap-southeast-5": {
+                    "description": "Asia Pacific (Malaysia)"
+                },
+                "ap-southeast-6": {
+                    "description": "Asia Pacific (New Zealand)"
+                },
+                "ap-southeast-7": {
+                    "description": "Asia Pacific (Thailand)"
+                },
+                "aws-global": {
+                    "description": "aws global region"
+                },
+                "ca-central-1": {
+                    "description": "Canada (Central)"
+                },
+                "ca-west-1": {
+                    "description": "Canada West (Calgary)"
+                },
+                "eu-central-1": {
+                    "description": "Europe (Frankfurt)"
+                },
+                "eu-central-2": {
+                    "description": "Europe (Zurich)"
+                },
+                "eu-north-1": {
+                    "description": "Europe (Stockholm)"
+                },
+                "eu-south-1": {
+                    "description": "Europe (Milan)"
+                },
+                "eu-south-2": {
+                    "description": "Europe (Spain)"
+                },
+                "eu-west-1": {
+                    "description": "Europe (Ireland)"
+                },
+                "eu-west-2": {
+                    "description": "Europe (London)"
+                },
+                "eu-west-3": {
+                    "description": "Europe (Paris)"
+                },
+                "il-central-1": {
+                    "description": "Israel (Tel Aviv)"
+                },
+                "me-central-1": {
+                    "description": "Middle East (UAE)"
+                },
+                "me-south-1": {
+                    "description": "Middle East (Bahrain)"
+                },
+                "mx-central-1": {
+                    "description": "Mexico (Central)"
+                },
+                "sa-east-1": {
+                    "description": "South America (Sao Paulo)"
+                },
+                "us-east-1": {
+                    "description": "US East (N. Virginia)"
+                },
+                "us-east-2": {
+                    "description": "US East (Ohio)"
+                },
+                "us-west-1": {
+                    "description": "US West (N. California)"
+                },
+                "us-west-2": {
+                    "description": "US West (Oregon)"
+                }
+            }
+        },
+        {
+            "id": "aws-cn",
+            "outputs": {
+                "dnsSuffix": "amazonaws.com.cn",
+                "dualStackDnsSuffix": "api.amazonwebservices.com.cn",
+                "implicitGlobalRegion": "cn-northwest-1",
+                "name": "aws-cn",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^cn\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-cn-global": {
+                    "description": "aws-cn global region"
+                },
+                "cn-north-1": {
+                    "description": "China (Beijing)"
+                },
+                "cn-northwest-1": {
+                    "description": "China (Ningxia)"
+                }
+            }
+        },
+        {
+            "id": "aws-eusc",
+            "outputs": {
+                "dnsSuffix": "amazonaws.eu",
+                "dualStackDnsSuffix": "api.amazonwebservices.eu",
+                "implicitGlobalRegion": "eusc-de-east-1",
+                "name": "aws-eusc",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^eusc\\-(de)\\-\\w+\\-\\d+$",
+            "regions": {
+                "eusc-de-east-1": {
+                    "description": "AWS European Sovereign Cloud (Germany)"
+                }
+            }
+        },
+        {
+            "id": "aws-iso",
+            "outputs": {
+                "dnsSuffix": "c2s.ic.gov",
+                "dualStackDnsSuffix": "api.aws.ic.gov",
+                "implicitGlobalRegion": "us-iso-east-1",
+                "name": "aws-iso",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-iso\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-global": {
+                    "description": "aws-iso global region"
+                },
+                "us-iso-east-1": {
+                    "description": "US ISO East"
+                },
+                "us-iso-west-1": {
+                    "description": "US ISO WEST"
+                }
+            }
+        },
+        {
+            "id": "aws-iso-b",
+            "outputs": {
+                "dnsSuffix": "sc2s.sgov.gov",
+                "dualStackDnsSuffix": "api.aws.scloud",
+                "implicitGlobalRegion": "us-isob-east-1",
+                "name": "aws-iso-b",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-isob\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-b-global": {
+                    "description": "aws-iso-b global region"
+                },
+                "us-isob-east-1": {
+                    "description": "US ISOB East (Ohio)"
+                },
+                "us-isob-west-1": {
+                    "description": "US ISOB West"
+                }
+            }
+        },
+        {
+            "id": "aws-iso-e",
+            "outputs": {
+                "dnsSuffix": "cloud.adc-e.uk",
+                "dualStackDnsSuffix": "api.cloud-aws.adc-e.uk",
+                "implicitGlobalRegion": "eu-isoe-west-1",
+                "name": "aws-iso-e",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^eu\\-isoe\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-e-global": {
+                    "description": "aws-iso-e global region"
+                },
+                "eu-isoe-west-1": {
+                    "description": "EU ISOE West"
+                }
+            }
+        },
+        {
+            "id": "aws-iso-f",
+            "outputs": {
+                "dnsSuffix": "csp.hci.ic.gov",
+                "dualStackDnsSuffix": "api.aws.hci.ic.gov",
+                "implicitGlobalRegion": "us-isof-south-1",
+                "name": "aws-iso-f",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-isof\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-iso-f-global": {
+                    "description": "aws-iso-f global region"
+                },
+                "us-isof-east-1": {
+                    "description": "US ISOF EAST"
+                },
+                "us-isof-south-1": {
+                    "description": "US ISOF SOUTH"
+                }
+            }
+        },
+        {
+            "id": "aws-us-gov",
+            "outputs": {
+                "dnsSuffix": "amazonaws.com",
+                "dualStackDnsSuffix": "api.aws",
+                "implicitGlobalRegion": "us-gov-west-1",
+                "name": "aws-us-gov",
+                "supportsDualStack": true,
+                "supportsFIPS": true
+            },
+            "regionRegex": "^us\\-gov\\-\\w+\\-\\d+$",
+            "regions": {
+                "aws-us-gov-global": {
+                    "description": "aws-us-gov global region"
+                },
+                "us-gov-east-1": {
+                    "description": "AWS GovCloud (US-East)"
+                },
+                "us-gov-west-1": {
+                    "description": "AWS GovCloud (US-West)"
+                }
+            }
+        }
+    ],
+    "version": "1.1"
+};
 
 let selectedPartitionsInfo = partitionsInfo;
 let selectedUserAgentPrefix = "";
@@ -15497,16 +16188,20 @@ exports.fromEnv = fromEnv;
 
 /***/ }),
 
-/***/ 1509:
+/***/ 8605:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
+const { setCredentialFeature } = __nccwpck_require__(5152);
 const { CredentialsProviderError } = __nccwpck_require__(7291);
-const LOOPBACK_CIDR_IPv4 = "127.0.0.0/8";
-const LOOPBACK_CIDR_IPv6 = "::1/128";
+const { NodeHttpHandler } = __nccwpck_require__(1279);
+const fs = __nccwpck_require__(1455);
+const { HttpRequest } = __nccwpck_require__(3422);
+const { sdkStreamMixin, parseRfc3339DateTime } = __nccwpck_require__(2430);
+
 const ECS_CONTAINER_HOST = "169.254.170.2";
 const EKS_CONTAINER_HOST_IPv4 = "169.254.170.23";
 const EKS_CONTAINER_HOST_IPv6 = "[fd00:ec2::23]";
-exports.checkUrl = (url, logger) => {
+const checkUrl = (url, logger) => {
     if (url.protocol === "https:") {
         return;
     }
@@ -15543,25 +16238,72 @@ exports.checkUrl = (url, logger) => {
   - EKS container host 169.254.170.23 or [fd00:ec2::23]`, { logger });
 };
 
+function createGetRequest(url) {
+    return new HttpRequest({
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: Number(url.port),
+        path: url.pathname,
+        query: Array.from(url.searchParams.entries()).reduce((acc, [k, v]) => {
+            acc[k] = v;
+            return acc;
+        }, {}),
+        fragment: url.hash,
+    });
+}
+async function getCredentials(response, logger) {
+    const stream = sdkStreamMixin(response.body);
+    const str = await stream.transformToString();
+    if (response.statusCode === 200) {
+        const parsed = JSON.parse(str);
+        if (typeof parsed.AccessKeyId !== "string" ||
+            typeof parsed.SecretAccessKey !== "string" ||
+            typeof parsed.Token !== "string" ||
+            typeof parsed.Expiration !== "string") {
+            throw new CredentialsProviderError("HTTP credential provider response not of the required format, an object matching: " +
+                "{ AccessKeyId: string, SecretAccessKey: string, Token: string, Expiration: string(rfc3339) }", { logger });
+        }
+        return {
+            accessKeyId: parsed.AccessKeyId,
+            secretAccessKey: parsed.SecretAccessKey,
+            sessionToken: parsed.Token,
+            expiration: parseRfc3339DateTime(parsed.Expiration),
+        };
+    }
+    if (response.statusCode >= 400 && response.statusCode < 500) {
+        let parsedBody = {};
+        try {
+            parsedBody = JSON.parse(str);
+        }
+        catch (e) { }
+        throw Object.assign(new CredentialsProviderError(`Server responded with status: ${response.statusCode}`, { logger }), {
+            Code: parsedBody.Code,
+            Message: parsedBody.Message,
+        });
+    }
+    throw new CredentialsProviderError(`Server responded with status: ${response.statusCode}`, { logger });
+}
 
-/***/ }),
+const retryWrapper = (toRetry, maxRetries, delayMs) => {
+    return async () => {
+        for (let i = 0; i < maxRetries; ++i) {
+            try {
+                return await toRetry();
+            }
+            catch (e) {
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+        }
+        return await toRetry();
+    };
+};
 
-/***/ 8712:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { setCredentialFeature } = __nccwpck_require__(5152);
-const { CredentialsProviderError } = __nccwpck_require__(7291);
-const { NodeHttpHandler } = __nccwpck_require__(1279);
-const fs = __nccwpck_require__(1455);
-const { checkUrl } = __nccwpck_require__(1509);
-const { createGetRequest, getCredentials } = __nccwpck_require__(8914);
-const { retryWrapper } = __nccwpck_require__(1122);
 const AWS_CONTAINER_CREDENTIALS_RELATIVE_URI = "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI";
 const DEFAULT_LINK_LOCAL_HOST = "http://169.254.170.2";
 const AWS_CONTAINER_CREDENTIALS_FULL_URI = "AWS_CONTAINER_CREDENTIALS_FULL_URI";
 const AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE = "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE";
 const AWS_CONTAINER_AUTHORIZATION_TOKEN = "AWS_CONTAINER_AUTHORIZATION_TOKEN";
-exports.fromHttp = (options = {}) => {
+const fromHttp = (options = {}) => {
     options.logger?.debug("@aws-sdk/credential-provider-http - fromHttp");
     let host;
     const relative = options.awsContainerCredentialsRelativeUri ?? process.env[AWS_CONTAINER_CREDENTIALS_RELATIVE_URI];
@@ -15621,89 +16363,6 @@ Set AWS_CONTAINER_CREDENTIALS_FULL_URI or AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
     };
 };
 
-
-/***/ }),
-
-/***/ 8914:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { CredentialsProviderError } = __nccwpck_require__(7291);
-const { HttpRequest } = __nccwpck_require__(3422);
-const { parseRfc3339DateTime } = __nccwpck_require__(2430);
-const { sdkStreamMixin } = __nccwpck_require__(2430);
-exports.createGetRequest = function createGetRequest(url) {
-    return new HttpRequest({
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: Number(url.port),
-        path: url.pathname,
-        query: Array.from(url.searchParams.entries()).reduce((acc, [k, v]) => {
-            acc[k] = v;
-            return acc;
-        }, {}),
-        fragment: url.hash,
-    });
-};
-exports.getCredentials = async function getCredentials(response, logger) {
-    const stream = sdkStreamMixin(response.body);
-    const str = await stream.transformToString();
-    if (response.statusCode === 200) {
-        const parsed = JSON.parse(str);
-        if (typeof parsed.AccessKeyId !== "string" ||
-            typeof parsed.SecretAccessKey !== "string" ||
-            typeof parsed.Token !== "string" ||
-            typeof parsed.Expiration !== "string") {
-            throw new CredentialsProviderError("HTTP credential provider response not of the required format, an object matching: " +
-                "{ AccessKeyId: string, SecretAccessKey: string, Token: string, Expiration: string(rfc3339) }", { logger });
-        }
-        return {
-            accessKeyId: parsed.AccessKeyId,
-            secretAccessKey: parsed.SecretAccessKey,
-            sessionToken: parsed.Token,
-            expiration: parseRfc3339DateTime(parsed.Expiration),
-        };
-    }
-    if (response.statusCode >= 400 && response.statusCode < 500) {
-        let parsedBody = {};
-        try {
-            parsedBody = JSON.parse(str);
-        }
-        catch (e) { }
-        throw Object.assign(new CredentialsProviderError(`Server responded with status: ${response.statusCode}`, { logger }), {
-            Code: parsedBody.Code,
-            Message: parsedBody.Message,
-        });
-    }
-    throw new CredentialsProviderError(`Server responded with status: ${response.statusCode}`, { logger });
-};
-
-
-/***/ }),
-
-/***/ 1122:
-/***/ ((__unused_webpack_module, exports) => {
-
-exports.retryWrapper = (toRetry, maxRetries, delayMs) => {
-    return async () => {
-        for (let i = 0; i < maxRetries; ++i) {
-            try {
-                return await toRetry();
-            }
-            catch (e) {
-                await new Promise((resolve) => setTimeout(resolve, delayMs));
-            }
-        }
-        return await toRetry();
-    };
-};
-
-
-/***/ }),
-
-/***/ 8605:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { fromHttp } = __nccwpck_require__(8712);
 exports.fromHttp = fromHttp;
 
 
@@ -16698,46 +17357,14 @@ exports.SSOClient = SSOClient;
 
 /***/ }),
 
-/***/ 8079:
+/***/ 9956:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 const { setCredentialFeature } = __nccwpck_require__(5152);
 const { CredentialsProviderError, externalDataInterceptor } = __nccwpck_require__(7291);
 const { readFileSync } = __nccwpck_require__(3024);
-const { fromWebToken } = __nccwpck_require__(4453);
-const ENV_TOKEN_FILE = "AWS_WEB_IDENTITY_TOKEN_FILE";
-const ENV_ROLE_ARN = "AWS_ROLE_ARN";
-const ENV_ROLE_SESSION_NAME = "AWS_ROLE_SESSION_NAME";
-exports.fromTokenFile = (init = {}) => async (awsIdentityProperties) => {
-    init.logger?.debug("@aws-sdk/credential-provider-web-identity - fromTokenFile");
-    const webIdentityTokenFile = init?.webIdentityTokenFile ?? process.env[ENV_TOKEN_FILE];
-    const roleArn = init?.roleArn ?? process.env[ENV_ROLE_ARN];
-    const roleSessionName = init?.roleSessionName ?? process.env[ENV_ROLE_SESSION_NAME];
-    if (!webIdentityTokenFile || !roleArn) {
-        throw new CredentialsProviderError("Web identity configuration not specified", {
-            logger: init.logger,
-        });
-    }
-    const credentials = await fromWebToken({
-        ...init,
-        webIdentityToken: externalDataInterceptor?.getTokenRecord?.()[webIdentityTokenFile] ??
-            readFileSync(webIdentityTokenFile, { encoding: "ascii" }),
-        roleArn,
-        roleSessionName,
-    })(awsIdentityProperties);
-    if (webIdentityTokenFile === process.env[ENV_TOKEN_FILE]) {
-        setCredentialFeature(credentials, "CREDENTIALS_ENV_VARS_STS_WEB_ID_TOKEN", "h");
-    }
-    return credentials;
-};
 
-
-/***/ }),
-
-/***/ 4453:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-exports.fromWebToken = (init) => async (awsIdentityProperties) => {
+const fromWebToken = (init) => async (awsIdentityProperties) => {
     init.logger?.debug("@aws-sdk/credential-provider-web-identity - fromWebToken");
     const { roleArn, roleSessionName, webIdentityToken, providerId, policyArns, policy, durationSeconds } = init;
     let { roleAssumerWithWebIdentity } = init;
@@ -16763,15 +17390,34 @@ exports.fromWebToken = (init) => async (awsIdentityProperties) => {
     });
 };
 
+const ENV_TOKEN_FILE = "AWS_WEB_IDENTITY_TOKEN_FILE";
+const ENV_ROLE_ARN = "AWS_ROLE_ARN";
+const ENV_ROLE_SESSION_NAME = "AWS_ROLE_SESSION_NAME";
+const fromTokenFile = (init = {}) => async (awsIdentityProperties) => {
+    init.logger?.debug("@aws-sdk/credential-provider-web-identity - fromTokenFile");
+    const webIdentityTokenFile = init?.webIdentityTokenFile ?? process.env[ENV_TOKEN_FILE];
+    const roleArn = init?.roleArn ?? process.env[ENV_ROLE_ARN];
+    const roleSessionName = init?.roleSessionName ?? process.env[ENV_ROLE_SESSION_NAME];
+    if (!webIdentityTokenFile || !roleArn) {
+        throw new CredentialsProviderError("Web identity configuration not specified", {
+            logger: init.logger,
+        });
+    }
+    const credentials = await fromWebToken({
+        ...init,
+        webIdentityToken: externalDataInterceptor?.getTokenRecord?.()[webIdentityTokenFile] ??
+            readFileSync(webIdentityTokenFile, { encoding: "ascii" }),
+        roleArn,
+        roleSessionName,
+    })(awsIdentityProperties);
+    if (webIdentityTokenFile === process.env[ENV_TOKEN_FILE]) {
+        setCredentialFeature(credentials, "CREDENTIALS_ENV_VARS_STS_WEB_ID_TOKEN", "h");
+    }
+    return credentials;
+};
 
-/***/ }),
-
-/***/ 9956:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-var __exportStar = (m, e) => { Object.assign(e, m); };
-__exportStar(__nccwpck_require__(8079), exports);
-__exportStar(__nccwpck_require__(4453), exports);
+exports.fromTokenFile = fromTokenFile;
+exports.fromWebToken = fromWebToken;
 
 
 /***/ }),
@@ -17928,7 +18574,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.23";
 var packageInfo = {
 	version: version};
 
@@ -18484,7 +19130,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.23";
 var packageInfo = {
 	version: version};
 
@@ -19167,7 +19813,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.23";
 var packageInfo = {
 	version: version};
 
@@ -19825,7 +20471,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.20";
+var version = "3.997.23";
 var packageInfo = {
 	version: version};
 
@@ -20785,10 +21431,7 @@ exports.nodeProvider = nodeProvider;
 /***/ }),
 
 /***/ 4274:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { parseXML } = __nccwpck_require__(3343);
-exports.parseXML = parseXML;
+/***/ ((__unused_webpack_module, exports) => {
 
 const ATTR_ESCAPE_RE = /[&<>"]/g;
 const ATTR_ESCAPE_MAP = {
@@ -20914,399 +21557,244 @@ class XmlNode {
     }
 }
 
-exports.XmlNode = XmlNode;
-exports.XmlText = XmlText;
-
-
-/***/ }),
-
-/***/ 7051:
-/***/ ((__unused_webpack_module, exports) => {
-
-const XML = {
-    amp: "&",
-    apos: "'",
-    gt: ">",
-    lt: "<",
-    quot: '"',
-};
-exports.XML = XML;
-exports.COMMON_HTML = {
-    nbsp: "\u00a0",
-    copy: "\u00a9",
-    reg: "\u00ae",
-    trade: "\u2122",
-    mdash: "\u2014",
-    ndash: "\u2013",
-    hellip: "\u2026",
-    laquo: "\u00ab",
-    raquo: "\u00bb",
-    lsquo: "\u2018",
-    rsquo: "\u2019",
-    ldquo: "\u201c",
-    rdquo: "\u201d",
-    bull: "\u2022",
-    para: "\u00b6",
-    sect: "\u00a7",
-    deg: "\u00b0",
-    frac12: "\u00bd",
-    frac14: "\u00bc",
-    frac34: "\u00be",
-};
-exports.CURRENCY = {
-    cent: "\u00a2",
-    pound: "\u00a3",
-    curren: "\u00a4",
-    yen: "\u00a5",
-    euro: "\u20ac",
-    dollar: "$",
-    fnof: "\u0192",
-    inr: "\u20b9",
-    af: "\u060b",
-    birr: "\u1265\u122d",
-    peso: "\u20b1",
-    rub: "\u20bd",
-    won: "\u20a9",
-    yuan: "\u00a5",
-    cedil: "\u00b8",
-};
-const SPECIAL_CHARS = new Set("!?\\/[]$%{}^&*()<>|+");
-function validateEntityName(name) {
-    if (name[0] === "#") {
-        throw new Error(`[EntityReplacer] Invalid character '#' in entity name: "${name}"`);
-    }
-    for (const ch of name) {
-        if (SPECIAL_CHARS.has(ch)) {
-            throw new Error(`[EntityReplacer] Invalid character '${ch}' in entity name: "${name}"`);
-        }
-    }
-    return name;
+function parseXML(xml) {
+    const state = new AwsXmlParser(xml);
+    return state.parse();
 }
-function mergeEntityMaps(...maps) {
-    const out = Object.create(null);
-    for (const map of maps) {
-        if (!map) {
-            continue;
-        }
-        for (const key of Object.keys(map)) {
-            const raw = map[key];
-            if (typeof raw === "string") {
-                out[key] = raw;
+class AwsXmlParser {
+    x;
+    i = 0;
+    z;
+    constructor(x) {
+        this.x = x;
+        this.x = x.replace(/\r\n?/g, "\n");
+        this.z = this.x.length;
+    }
+    parse() {
+        const p = this;
+        const { z } = p;
+        while (p.i < z) {
+            p.trim();
+            if (p.i >= z) {
+                break;
             }
-            else if (raw && typeof raw === "object" && raw.val !== undefined) {
-                const val = raw.val;
-                if (typeof val === "string") {
-                    out[key] = val;
-                }
+            if (p.isNext("<?")) {
+                p.readTo("?>");
+                p.trim();
             }
-        }
-    }
-    return out;
-}
-const LIMIT_TIER_EXTERNAL = "external";
-const LIMIT_TIER_BASE = "base";
-const LIMIT_TIER_ALL = "all";
-function parseLimitTiers(raw) {
-    if (!raw || raw === LIMIT_TIER_EXTERNAL) {
-        return new Set([LIMIT_TIER_EXTERNAL]);
-    }
-    if (raw === LIMIT_TIER_ALL) {
-        return new Set([LIMIT_TIER_ALL]);
-    }
-    if (raw === LIMIT_TIER_BASE) {
-        return new Set([LIMIT_TIER_BASE]);
-    }
-    if (Array.isArray(raw)) {
-        return new Set(raw);
-    }
-    return new Set([LIMIT_TIER_EXTERNAL]);
-}
-const NCR_LEVEL = Object.freeze({ allow: 0, leave: 1, remove: 2, throw: 3 });
-const XML10_ALLOWED_C0 = new Set([0x09, 0x0a, 0x0d]);
-function parseNCRConfig(ncr) {
-    if (!ncr) {
-        return { xmlVersion: 1.0, onLevel: NCR_LEVEL.allow, nullLevel: NCR_LEVEL.remove };
-    }
-    const xmlVersion = ncr.xmlVersion === 1.1 ? 1.1 : 1.0;
-    const onLevel = NCR_LEVEL[ncr.onNCR ?? "allow"] ?? NCR_LEVEL.allow;
-    const nullLevel = NCR_LEVEL[ncr.nullNCR ?? "remove"] ?? NCR_LEVEL.remove;
-    const clampedNull = Math.max(nullLevel, NCR_LEVEL.remove);
-    return { xmlVersion, onLevel, nullLevel: clampedNull };
-}
-exports.EntityDecoderImpl = class EntityDecoderImpl {
-    _limit;
-    _maxTotalExpansions;
-    _maxExpandedLength;
-    _postCheck;
-    _limitTiers;
-    _numericAllowed;
-    _baseMap;
-    _externalMap;
-    _inputMap;
-    _totalExpansions;
-    _expandedLength;
-    _removeSet;
-    _leaveSet;
-    _ncrXmlVersion;
-    _ncrOnLevel;
-    _ncrNullLevel;
-    constructor(options = {}) {
-        this._limit = options.limit || {};
-        this._maxTotalExpansions = this._limit.maxTotalExpansions || 0;
-        this._maxExpandedLength = this._limit.maxExpandedLength || 0;
-        this._postCheck = typeof options.postCheck === "function" ? options.postCheck : (r) => r;
-        this._limitTiers = parseLimitTiers(this._limit.applyLimitsTo ?? LIMIT_TIER_EXTERNAL);
-        this._numericAllowed = options.numericAllowed ?? true;
-        this._baseMap = mergeEntityMaps(XML, options.namedEntities || null);
-        this._externalMap = Object.create(null);
-        this._inputMap = Object.create(null);
-        this._totalExpansions = 0;
-        this._expandedLength = 0;
-        this._removeSet = new Set(options.remove && Array.isArray(options.remove) ? options.remove : []);
-        this._leaveSet = new Set(options.leave && Array.isArray(options.leave) ? options.leave : []);
-        const ncrCfg = parseNCRConfig(options.ncr);
-        this._ncrXmlVersion = ncrCfg.xmlVersion;
-        this._ncrOnLevel = ncrCfg.onLevel;
-        this._ncrNullLevel = ncrCfg.nullLevel;
-    }
-    setExternalEntities(map) {
-        if (map) {
-            for (const key of Object.keys(map)) {
-                validateEntityName(key);
+            else if (p.isNext("<!--")) {
+                p.readTo("-->");
+                p.trim();
             }
-        }
-        this._externalMap = mergeEntityMaps(map);
-    }
-    addExternalEntity(key, value) {
-        validateEntityName(key);
-        if (typeof value === "string" && value.indexOf("&") === -1) {
-            this._externalMap[key] = value;
-        }
-    }
-    addInputEntities(map) {
-        this._totalExpansions = 0;
-        this._expandedLength = 0;
-        this._inputMap = mergeEntityMaps(map);
-    }
-    reset() {
-        this._inputMap = Object.create(null);
-        this._totalExpansions = 0;
-        this._expandedLength = 0;
-        return this;
-    }
-    setXmlVersion(version) {
-        this._ncrXmlVersion = version === "1.1" || version === 1.1 ? 1.1 : 1.0;
-    }
-    decode(str) {
-        if (typeof str !== "string" || str.length === 0) {
-            return str;
-        }
-        const original = str;
-        const chunks = [];
-        const len = str.length;
-        let last = 0;
-        let i = 0;
-        const limitExpansions = this._maxTotalExpansions > 0;
-        const limitLength = this._maxExpandedLength > 0;
-        const checkLimits = limitExpansions || limitLength;
-        while (i < len) {
-            if (str.charCodeAt(i) !== 38) {
-                i++;
-                continue;
+            else if (p.isNext("<!DOCTYPE", false)) {
+                p.skipDoctype();
+                p.trim();
             }
-            let j = i + 1;
-            while (j < len && str.charCodeAt(j) !== 59 && j - i <= 32) {
-                j++;
-            }
-            if (j >= len || str.charCodeAt(j) !== 59) {
-                i++;
-                continue;
-            }
-            const token = str.slice(i + 1, j);
-            if (token.length === 0) {
-                i++;
-                continue;
-            }
-            let replacement;
-            let tier;
-            if (this._removeSet.has(token)) {
-                replacement = "";
-                if (tier === undefined) {
-                    tier = LIMIT_TIER_EXTERNAL;
-                }
-            }
-            else if (this._leaveSet.has(token)) {
-                i++;
-                continue;
-            }
-            else if (token.charCodeAt(0) === 35) {
-                const ncrResult = this._resolveNCR(token);
-                if (ncrResult === undefined) {
-                    i++;
-                    continue;
-                }
-                replacement = ncrResult;
-                tier = LIMIT_TIER_BASE;
+            else if (p.x[p.i] === "<") {
+                const root = p.parseTag();
+                return { [root.tag]: root.value };
             }
             else {
-                const resolved = this._resolveName(token);
-                replacement = resolved?.value;
-                tier = resolved?.tier;
+                throw new Error("@aws-sdk XML parse error: unexpected content.");
             }
-            if (replacement === undefined) {
-                i++;
+        }
+        throw new Error("@aws-sdk XML parse error: no root element.");
+    }
+    isNext(s, caseSensitive = true) {
+        const p = this;
+        if (caseSensitive) {
+            return p.x.startsWith(s, p.i);
+        }
+        return p.x.toLowerCase().startsWith(s.toLowerCase(), p.i);
+    }
+    readTo(stop) {
+        const p = this;
+        const _i = p.x.indexOf(stop, p.i);
+        if (_i === -1) {
+            throw new Error(`@aws-sdk XML parse error: expected "${stop}" not found.`);
+        }
+        const result = p.x.slice(p.i, _i);
+        p.i = _i + stop.length;
+        return result;
+    }
+    trim() {
+        const p = this;
+        while (p.i < p.z && " \t\r\n".includes(p.x[p.i])) {
+            ++p.i;
+        }
+    }
+    readAttrValue() {
+        const p = this;
+        const quote = p.x[p.i];
+        ++p.i;
+        let value = "";
+        while (p.i < p.z && p.x[p.i] !== quote) {
+            value += p.x[p.i++];
+        }
+        ++p.i;
+        return p.decodeEntities(value);
+    }
+    parseTag() {
+        const p = this;
+        ++p.i;
+        let tag = "";
+        while (p.i < p.z && !" \t\r\n>/".includes(p.x[p.i])) {
+            tag += p.x[p.i++];
+        }
+        let hasAttrs = false;
+        const attrs = Object.create(null);
+        while (p.i < p.z) {
+            p.trim();
+            if (">/".includes(p.x[p.i])) {
+                break;
+            }
+            let name = "";
+            while (p.i < p.z && !"= \t\r\n>/?".includes(p.x[p.i])) {
+                name += p.x[p.i++];
+            }
+            p.trim();
+            if (p.x[p.i] !== "=") {
+                break;
+            }
+            ++p.i;
+            p.trim();
+            attrs[name] = p.readAttrValue();
+            hasAttrs = true;
+        }
+        if (p.i >= p.z) {
+            throw new Error("@aws-sdk XML parse error: unexpected end of input.");
+        }
+        if (p.x[p.i] === "/") {
+            ++p.i;
+            if (p.i >= p.z || p.x[p.i] !== ">") {
+                throw new Error("@aws-sdk XML parse error: expected > at the end of self-closing tag.");
+            }
+            ++p.i;
+            Object.setPrototypeOf(attrs, Object.prototype);
+            return { tag, value: hasAttrs ? attrs : "" };
+        }
+        if (p.x[p.i] !== ">") {
+            throw new Error("@aws-sdk XML parse error: expected > at the end of opening tag.");
+        }
+        ++p.i;
+        const textParts = [];
+        const childTags = [];
+        let hasElementChild = false;
+        while (p.i < p.z) {
+            if (p.isNext("</")) {
+                break;
+            }
+            if (p.x[p.i] === "<") {
+                if (p.isNext("<!--")) {
+                    p.readTo("-->");
+                }
+                else if (p.isNext("<![CDATA[")) {
+                    p.i += 9;
+                    textParts.push(p.readTo("]]>"));
+                }
+                else if (p.isNext("<?")) {
+                    p.readTo("?>");
+                }
+                else {
+                    hasElementChild = true;
+                    childTags.push(p.parseTag());
+                }
+            }
+            else {
+                let text = "";
+                while (p.i < p.z && p.x[p.i] !== "<") {
+                    text += p.x[p.i++];
+                }
+                textParts.push(p.decodeEntities(text));
+            }
+        }
+        if (!p.isNext("</")) {
+            throw new Error(`@aws-sdk XML parse error: missing closing tag </${tag}>.`);
+        }
+        p.i += 2;
+        const closeTag = p.readTo(">").trim();
+        if (closeTag !== tag) {
+            throw new Error(`@aws-sdk XML parse error: mismatched tags <${tag}> and </${closeTag}>.`);
+        }
+        if (!hasAttrs && textParts.length === 0 && !hasElementChild) {
+            return { tag, value: "" };
+        }
+        if (!hasAttrs && !hasElementChild) {
+            const text = textParts.length === 1 ? textParts[0] : textParts.join("");
+            if (text.trim() === "" && text.includes("\n")) {
+                return { tag, value: "" };
+            }
+            return { tag, value: text };
+        }
+        const obj = Object.create(null);
+        for (const text of textParts) {
+            if (text.trim() === "" && text.includes("\n")) {
                 continue;
             }
-            if (i > last) {
-                chunks.push(str.slice(last, i));
-            }
-            chunks.push(replacement);
-            last = j + 1;
-            i = last;
-            if (checkLimits && this._tierCounts(tier)) {
-                if (limitExpansions) {
-                    this._totalExpansions++;
-                    if (this._totalExpansions > this._maxTotalExpansions) {
-                        throw new Error(`[EntityReplacer] Entity expansion count limit exceeded: ` +
-                            `${this._totalExpansions} > ${this._maxTotalExpansions}`);
-                    }
+            obj["#text"] = "#text" in obj ? obj["#text"] + text : text;
+        }
+        for (const child of childTags) {
+            if (child.tag in obj) {
+                if (Array.isArray(obj[child.tag])) {
+                    obj[child.tag].push(child.value);
                 }
-                if (limitLength) {
-                    const delta = replacement.length - (token.length + 2);
-                    if (delta > 0) {
-                        this._expandedLength += delta;
-                        if (this._expandedLength > this._maxExpandedLength) {
-                            throw new Error(`[EntityReplacer] Expanded content length limit exceeded: ` +
-                                `${this._expandedLength} > ${this._maxExpandedLength}`);
-                        }
-                    }
+                else {
+                    obj[child.tag] = [obj[child.tag], child.value];
                 }
             }
-        }
-        if (last < len) {
-            chunks.push(str.slice(last));
-        }
-        const result = chunks.length === 0 ? str : chunks.join("");
-        return this._postCheck(result, original);
-    }
-    _tierCounts(tier) {
-        if (this._limitTiers.has(LIMIT_TIER_ALL)) {
-            return true;
-        }
-        return this._limitTiers.has(tier);
-    }
-    _resolveName(name) {
-        if (name in this._inputMap) {
-            return { value: this._inputMap[name], tier: LIMIT_TIER_EXTERNAL };
-        }
-        if (name in this._externalMap) {
-            return { value: this._externalMap[name], tier: LIMIT_TIER_EXTERNAL };
-        }
-        if (name in this._baseMap) {
-            return { value: this._baseMap[name], tier: LIMIT_TIER_BASE };
-        }
-        return undefined;
-    }
-    _classifyNCR(cp) {
-        if (cp === 0) {
-            return this._ncrNullLevel;
-        }
-        if (cp >= 0xd800 && cp <= 0xdfff) {
-            return NCR_LEVEL.remove;
-        }
-        if (this._ncrXmlVersion === 1.0) {
-            if (cp >= 0x01 && cp <= 0x1f && !XML10_ALLOWED_C0.has(cp)) {
-                return NCR_LEVEL.remove;
+            else {
+                obj[child.tag] = child.value;
             }
         }
-        return -1;
+        for (const [k, v] of Object.entries(attrs)) {
+            obj[k] = v;
+        }
+        Object.setPrototypeOf(obj, Object.prototype);
+        return { tag, value: obj };
     }
-    _applyNCRAction(action, token, cp) {
-        switch (action) {
-            case NCR_LEVEL.allow:
-                return String.fromCodePoint(cp);
-            case NCR_LEVEL.remove:
-                return "";
-            case NCR_LEVEL.leave:
-                return undefined;
-            case NCR_LEVEL.throw:
-                throw new Error(`[EntityDecoder] Prohibited numeric character reference ` +
-                    `&${token}; (U+${cp.toString(16).toUpperCase().padStart(4, "0")})`);
-            default:
-                return String.fromCodePoint(cp);
+    static ENTITIES = {
+        amp: "&",
+        lt: "<",
+        gt: ">",
+        quot: '"',
+        apos: "'",
+    };
+    skipDoctype() {
+        const p = this;
+        p.i += 9;
+        let depth = 0;
+        while (p.i < p.z) {
+            const c = p.x[p.i];
+            if (c === "[") {
+                ++depth;
+            }
+            else if (c === "]") {
+                --depth;
+            }
+            else if (c === ">" && depth === 0) {
+                ++p.i;
+                return;
+            }
+            ++p.i;
         }
+        throw new Error("@aws-sdk XML parse error: unclosed DOCTYPE.");
     }
-    _resolveNCR(token) {
-        const second = token.charCodeAt(1);
-        let cp;
-        if (second === 120 || second === 88) {
-            cp = parseInt(token.slice(2), 16);
-        }
-        else {
-            cp = parseInt(token.slice(1), 10);
-        }
-        if (Number.isNaN(cp) || cp < 0 || cp > 0x10ffff) {
-            return undefined;
-        }
-        const minimum = this._classifyNCR(cp);
-        if (!this._numericAllowed && minimum < NCR_LEVEL.remove) {
-            return undefined;
-        }
-        const effective = minimum === -1 ? this._ncrOnLevel : Math.max(this._ncrOnLevel, minimum);
-        return this._applyNCRAction(effective, token, cp);
+    decodeEntities(s) {
+        return s.replace(/&(?:#x([0-9a-fA-F]{1,6})|#(\d{1,7})|([a-zA-Z][a-zA-Z0-9]{0,30}));/g, (_, hex, dec, named) => {
+            if (hex) {
+                return String.fromCharCode(parseInt(hex, 16));
+            }
+            if (dec) {
+                return String.fromCharCode(parseInt(dec, 10));
+            }
+            return AwsXmlParser.ENTITIES[named] ?? "";
+        });
     }
-};
+}
 
-
-/***/ }),
-
-/***/ 3343:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const { XMLParser } = __nccwpck_require__(591);
-const { COMMON_HTML, CURRENCY, EntityDecoderImpl, XML } = __nccwpck_require__(7051);
-const entityDecoder = new EntityDecoderImpl({
-    namedEntities: { ...XML, ...COMMON_HTML, ...CURRENCY },
-    numericAllowed: true,
-    limit: {
-        maxTotalExpansions: Infinity,
-    },
-    ncr: {
-        xmlVersion: 1.1,
-    },
-});
-const parser = new XMLParser({
-    attributeNamePrefix: "",
-    processEntities: {
-        enabled: true,
-        maxTotalExpansions: Infinity,
-    },
-    htmlEntities: true,
-    entityDecoder: {
-        setExternalEntities: (entities) => {
-            entityDecoder.setExternalEntities(entities);
-        },
-        addInputEntities: (entities) => {
-            entityDecoder.addInputEntities(entities);
-        },
-        reset: () => {
-            entityDecoder.reset();
-        },
-        decode: (text) => {
-            return entityDecoder.decode(text);
-        },
-        setXmlVersion: (version) => void {},
-    },
-    ignoreAttributes: false,
-    ignoreDeclaration: true,
-    parseTagValue: false,
-    trimValues: false,
-    tagValueProcessor: (_, val) => (val.trim() === "" && val.includes("\n") ? "" : undefined),
-    maxNestedTags: Infinity,
-});
-exports.parseXML = function parseXML(xmlString) {
-    return parser.parse(xmlString, true);
-};
+exports.XmlNode = XmlNode;
+exports.XmlText = XmlText;
+exports.parseXML = parseXML;
 
 
 /***/ }),
@@ -29443,7 +29931,7 @@ exports.setFeature = setFeature;
 /***/ 4645:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
-const { nv, toUtf8, fromUtf8, NumericValue, calculateBodyLength, _parseEpochTimestamp, fromBase64, generateIdempotencyToken } = __nccwpck_require__(2430);
+const { nv, NumericValue, calculateBodyLength, _parseEpochTimestamp, fromBase64, generateIdempotencyToken } = __nccwpck_require__(2430);
 const { HttpRequest, collectBody, SerdeContext, RpcProtocol } = __nccwpck_require__(3422);
 const { NormalizedSchema, deref, TypeRegistry } = __nccwpck_require__(6890);
 const { getSmithyContext } = __nccwpck_require__(4534);
@@ -29474,14 +29962,15 @@ function tag(data) {
     return data;
 }
 
-const USE_TEXT_DECODER = typeof TextDecoder !== "undefined";
 const USE_BUFFER$1 = typeof Buffer !== "undefined";
+const textDecoder = new TextDecoder();
 let payload = alloc(0);
+let isBuffer = false;
 let dataView$1 = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
-const textDecoder = USE_TEXT_DECODER ? new TextDecoder() : null;
 let _offset = 0;
 function setPayload(bytes) {
     payload = bytes;
+    isBuffer = USE_BUFFER$1 && payload instanceof Buffer;
     dataView$1 = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
 }
 function decode(at, to) {
@@ -29490,10 +29979,13 @@ function decode(at, to) {
     }
     const major = (payload[at] & 0b1110_0000) >> 5;
     const minor = payload[at] & 0b0001_1111;
+    if (minor === minorIndefinite && 2 <= major && major <= 5) {
+        return decodeIndefinite(at, to);
+    }
     switch (major) {
         case majorUint64:
         case majorNegativeInt64:
-        case majorTag:
+        case majorTag: {
             let unsignedInt;
             let offset;
             if (minor < 24) {
@@ -29503,31 +29995,43 @@ function decode(at, to) {
             else {
                 switch (minor) {
                     case extendedOneByte:
+                        if (to - at < 2) {
+                            overflow(1);
+                        }
+                        unsignedInt = payload[at + 1];
+                        offset = 2;
+                        break;
                     case extendedFloat16:
+                        if (to - at < 3) {
+                            overflow(2);
+                        }
+                        unsignedInt = dataView$1.getUint16(at + 1);
+                        offset = 3;
+                        break;
                     case extendedFloat32:
+                        if (to - at < 5) {
+                            overflow(4);
+                        }
+                        unsignedInt = dataView$1.getUint32(at + 1);
+                        offset = 5;
+                        break;
                     case extendedFloat64:
-                        const countLength = minorValueToArgumentLength[minor];
-                        const countOffset = (countLength + 1);
-                        offset = countOffset;
-                        if (to - at < countOffset) {
-                            throw new Error(`countLength ${countLength} greater than remaining buf len.`);
+                        if (to - at < 9) {
+                            overflow(8);
                         }
-                        const countIndex = at + 1;
-                        if (countLength === 1) {
-                            unsignedInt = payload[countIndex];
+                        {
+                            const hi = dataView$1.getUint32(at + 1);
+                            if (hi < 0x00200000) {
+                                unsignedInt = hi * 4294967296 + dataView$1.getUint32(at + 5);
+                            }
+                            else {
+                                unsignedInt = dataView$1.getBigUint64(at + 1);
+                            }
                         }
-                        else if (countLength === 2) {
-                            unsignedInt = dataView$1.getUint16(countIndex);
-                        }
-                        else if (countLength === 4) {
-                            unsignedInt = dataView$1.getUint32(countIndex);
-                        }
-                        else {
-                            unsignedInt = dataView$1.getBigUint64(countIndex);
-                        }
+                        offset = 9;
                         break;
                     default:
-                        throw new Error(`unexpected minor value ${minor}.`);
+                        unexpectedMinor(minor);
                 }
             }
             if (major === majorUint64) {
@@ -29546,234 +30050,97 @@ function decode(at, to) {
                 return castBigInt(negativeInt);
             }
             else {
-                if (minor === 2 || minor === 3) {
-                    const length = decodeCount(at + offset, to);
-                    let b = BigInt(0);
-                    const start = at + offset + _offset;
-                    for (let i = start; i < start + length; ++i) {
-                        b = (b << BigInt(8)) | BigInt(payload[i]);
-                    }
-                    _offset = offset + _offset + length;
-                    return minor === 3 ? -b - BigInt(1) : b;
-                }
-                else if (minor === 4) {
-                    const decimalFraction = decode(at + offset, to);
-                    const [exponent, mantissa] = decimalFraction;
-                    const normalizer = mantissa < 0 ? -1 : 1;
-                    const mantissaStr = "0".repeat(Math.abs(exponent) + 1) + String(BigInt(normalizer) * BigInt(mantissa));
-                    let numericString;
-                    const sign = mantissa < 0 ? "-" : "";
-                    numericString =
-                        exponent === 0
-                            ? mantissaStr
-                            : mantissaStr.slice(0, mantissaStr.length + exponent) + "." + mantissaStr.slice(exponent);
-                    numericString = numericString.replace(/^0+/g, "");
-                    if (numericString === "") {
-                        numericString = "0";
-                    }
-                    if (numericString[0] === ".") {
-                        numericString = "0" + numericString;
-                    }
-                    numericString = sign + numericString;
-                    _offset = offset + _offset;
-                    return nv(numericString);
-                }
-                else {
-                    const value = decode(at + offset, to);
-                    const valueOffset = _offset;
-                    _offset = offset + valueOffset;
-                    return tag({ tag: castBigInt(unsignedInt), value });
-                }
+                return decodeTagValue(at, to, minor, unsignedInt, offset);
             }
+        }
         case majorUtf8String:
+            return decodeUtf8String(at, to);
         case majorMap:
+            return decodeMap(at, to);
         case majorList:
+            return decodeList(at, to);
         case majorUnstructuredByteString:
-            if (minor === minorIndefinite) {
-                switch (major) {
-                    case majorUtf8String:
-                        return decodeUtf8StringIndefinite(at, to);
-                    case majorMap:
-                        return decodeMapIndefinite(at, to);
-                    case majorList:
-                        return decodeListIndefinite(at, to);
-                    case majorUnstructuredByteString:
-                        return decodeUnstructuredByteStringIndefinite(at, to);
-                }
-            }
-            else {
-                switch (major) {
-                    case majorUtf8String:
-                        return decodeUtf8String(at, to);
-                    case majorMap:
-                        return decodeMap(at, to);
-                    case majorList:
-                        return decodeList(at, to);
-                    case majorUnstructuredByteString:
-                        return decodeUnstructuredByteString(at, to);
-                }
-            }
+            return decodeUnstructuredByteString(at, to);
         default:
             return decodeSpecial(at, to);
     }
 }
-function bytesToUtf8(bytes, at, to) {
-    if (USE_BUFFER$1 && bytes.constructor?.name === "Buffer") {
-        return bytes.toString("utf-8", at, to);
+function decodeIndefinite(at, to) {
+    const major = (payload[at] & 0b1110_0000) >> 5;
+    const minor = payload[at] & 0b0001_1111;
+    if (minor === minorIndefinite) {
+        switch (major) {
+            case majorUtf8String:
+                return decodeUtf8StringIndefinite(at, to);
+            case majorMap:
+                return decodeMapIndefinite(at, to);
+            case majorList:
+                return decodeListIndefinite(at, to);
+            case majorUnstructuredByteString:
+                return decodeUnstructuredByteStringIndefinite(at, to);
+        }
     }
-    if (textDecoder) {
-        return textDecoder.decode(bytes.subarray(at, to));
-    }
-    return toUtf8(bytes.subarray(at, to));
 }
-function demote(bigInteger) {
-    const num = Number(bigInteger);
-    if (num < Number.MIN_SAFE_INTEGER || Number.MAX_SAFE_INTEGER < num) {
-        console.warn(new Error(`@smithy/core/cbor - truncating BigInt(${bigInteger}) to ${num} with loss of precision.`));
-    }
-    return num;
-}
-const minorValueToArgumentLength = {
-    [extendedOneByte]: 1,
-    [extendedFloat16]: 2,
-    [extendedFloat32]: 4,
-    [extendedFloat64]: 8,
-};
 function bytesToFloat16(a, b) {
     const sign = a >> 7;
     const exponent = (a & 0b0111_1100) >> 2;
     const fraction = ((a & 0b0000_0011) << 8) | b;
     const scalar = sign === 0 ? 1 : -1;
-    let exponentComponent;
-    let summation;
     if (exponent === 0b00000) {
-        if (fraction === 0b00000_00000) {
+        if (fraction === 0) {
             return 0;
         }
-        else {
-            exponentComponent = Math.pow(2, 1 - 15);
-            summation = 0;
-        }
+        return scalar * (Math.pow(2, 1 - 15) * (fraction / 1024));
     }
     else if (exponent === 0b11111) {
-        if (fraction === 0b00000_00000) {
+        if (fraction === 0) {
             return scalar * Infinity;
         }
+        return NaN;
+    }
+    return scalar * (Math.pow(2, exponent - 15) * (1 + fraction / 1024));
+}
+function decodeMap(at, to) {
+    const mapDataLength = decodeCount(at, to);
+    if (mapDataLength < 15) {
+        return decodeMapSmall(at, to, mapDataLength);
+    }
+    return decodeMapLarge(at, to, mapDataLength);
+}
+function decodeMapLarge(at, to, mapDataLength) {
+    const offset = _offset;
+    at += offset;
+    const base = at;
+    const map = Object.create(null);
+    for (let i = 0; i < mapDataLength; ++i) {
+        const key = decodeUtf8String(at, to);
+        at += _offset;
+        const valMajor = (payload[at] & 0b1110_0000) >> 5;
+        if (valMajor === majorUtf8String) {
+            map[key] = decodeUtf8String(at, to);
+        }
         else {
-            return NaN;
+            map[key] = decode(at, to);
         }
+        at += _offset;
     }
-    else {
-        exponentComponent = Math.pow(2, exponent - 15);
-        summation = 1;
-    }
-    summation += fraction / 1024;
-    return scalar * (exponentComponent * summation);
+    _offset = offset + (at - base);
+    Object.setPrototypeOf(map, Object.prototype);
+    return map;
 }
-function decodeCount(at, to) {
-    const minor = payload[at] & 0b0001_1111;
-    if (minor < 24) {
-        _offset = 1;
-        return minor;
-    }
-    if (minor === extendedOneByte ||
-        minor === extendedFloat16 ||
-        minor === extendedFloat32 ||
-        minor === extendedFloat64) {
-        const countLength = minorValueToArgumentLength[minor];
-        _offset = (countLength + 1);
-        if (to - at < _offset) {
-            throw new Error(`countLength ${countLength} greater than remaining buf len.`);
-        }
-        const countIndex = at + 1;
-        if (countLength === 1) {
-            return payload[countIndex];
-        }
-        else if (countLength === 2) {
-            return dataView$1.getUint16(countIndex);
-        }
-        else if (countLength === 4) {
-            return dataView$1.getUint32(countIndex);
-        }
-        return demote(dataView$1.getBigUint64(countIndex));
-    }
-    throw new Error(`unexpected minor value ${minor}.`);
-}
-function decodeUtf8String(at, to) {
-    const length = decodeCount(at, to);
+function decodeMapSmall(at, to, mapDataLength) {
     const offset = _offset;
     at += offset;
-    if (to - at < length) {
-        throw new Error(`string len ${length} greater than remaining buf len.`);
+    const base = at;
+    const map = {};
+    for (let i = 0; i < mapDataLength; ++i) {
+        const key = decodeUtf8String(at, to);
+        at += _offset;
+        map[key] = decode(at, to);
+        at += _offset;
     }
-    const value = bytesToUtf8(payload, at, at + length);
-    _offset = offset + length;
-    return value;
-}
-function decodeUtf8StringIndefinite(at, to) {
-    at += 1;
-    const vector = [];
-    for (const base = at; at < to;) {
-        if (payload[at] === 0b1111_1111) {
-            const data = alloc(vector.length);
-            data.set(vector, 0);
-            _offset = at - base + 2;
-            return bytesToUtf8(data, 0, data.length);
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        const minor = payload[at] & 0b0001_1111;
-        if (major !== majorUtf8String) {
-            throw new Error(`unexpected major type ${major} in indefinite string.`);
-        }
-        if (minor === minorIndefinite) {
-            throw new Error("nested indefinite string.");
-        }
-        const bytes = decodeUnstructuredByteString(at, to);
-        const length = _offset;
-        at += length;
-        for (let i = 0; i < bytes.length; ++i) {
-            vector.push(bytes[i]);
-        }
-    }
-    throw new Error("expected break marker.");
-}
-function decodeUnstructuredByteString(at, to) {
-    const length = decodeCount(at, to);
-    const offset = _offset;
-    at += offset;
-    if (to - at < length) {
-        throw new Error(`unstructured byte string len ${length} greater than remaining buf len.`);
-    }
-    const value = payload.subarray(at, at + length);
-    _offset = offset + length;
-    return value;
-}
-function decodeUnstructuredByteStringIndefinite(at, to) {
-    at += 1;
-    const vector = [];
-    for (const base = at; at < to;) {
-        if (payload[at] === 0b1111_1111) {
-            const data = alloc(vector.length);
-            data.set(vector, 0);
-            _offset = at - base + 2;
-            return data;
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        const minor = payload[at] & 0b0001_1111;
-        if (major !== majorUnstructuredByteString) {
-            throw new Error(`unexpected major type ${major} in indefinite string.`);
-        }
-        if (minor === minorIndefinite) {
-            throw new Error("nested indefinite string.");
-        }
-        const bytes = decodeUnstructuredByteString(at, to);
-        const length = _offset;
-        at += length;
-        for (let i = 0; i < bytes.length; ++i) {
-            vector.push(bytes[i]);
-        }
-    }
-    throw new Error("expected break marker.");
+    _offset = offset + (at - base);
+    return map;
 }
 function decodeList(at, to) {
     const listDataLength = decodeCount(at, to);
@@ -29782,75 +30149,115 @@ function decodeList(at, to) {
     const base = at;
     const list = Array(listDataLength);
     for (let i = 0; i < listDataLength; ++i) {
-        const item = decode(at, to);
-        const itemOffset = _offset;
-        list[i] = item;
-        at += itemOffset;
+        list[i] = decode(at, to);
+        at += _offset;
     }
     _offset = offset + (at - base);
     return list;
 }
-function decodeListIndefinite(at, to) {
-    at += 1;
-    const list = [];
-    for (const base = at; at < to;) {
-        if (payload[at] === 0b1111_1111) {
-            _offset = at - base + 2;
-            return list;
-        }
-        const item = decode(at, to);
-        const n = _offset;
-        at += n;
-        list.push(item);
-    }
-    throw new Error("expected break marker.");
-}
-function decodeMap(at, to) {
-    const mapDataLength = decodeCount(at, to);
+function decodeUtf8String(at, to) {
+    const length = decodeCount(at, to);
     const offset = _offset;
     at += offset;
-    const base = at;
-    const map = {};
-    for (let i = 0; i < mapDataLength; ++i) {
-        if (at >= to) {
-            throw new Error("unexpected end of map payload.");
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        if (major !== majorUtf8String) {
-            throw new Error(`unexpected major type ${major} for map key at index ${at}.`);
-        }
-        const key = decode(at, to);
-        at += _offset;
-        const value = decode(at, to);
-        at += _offset;
-        map[key] = value;
+    if (to - at < length) {
+        overflow(length);
     }
-    _offset = offset + (at - base);
-    return map;
+    _offset = offset + length;
+    if (length < 24) {
+        return decodeUtf8StringCached(at, length);
+    }
+    if (isBuffer) {
+        return payload.toString("utf-8", at, at + length);
+    }
+    return textDecoder.decode(payload.subarray(at, at + length));
 }
-function decodeMapIndefinite(at, to) {
-    at += 1;
-    const base = at;
-    const map = {};
-    for (; at < to;) {
-        if (at >= to) {
-            throw new Error("unexpected end of map payload.");
-        }
-        if (payload[at] === 0b1111_1111) {
-            _offset = at - base + 2;
-            return map;
-        }
-        const major = (payload[at] & 0b1110_0000) >> 5;
-        if (major !== majorUtf8String) {
-            throw new Error(`unexpected major type ${major} for map key.`);
-        }
-        const key = decode(at, to);
-        at += _offset;
-        const value = decode(at, to);
-        at += _offset;
-        map[key] = value;
+const stringCache = new Array(2048);
+const stringCacheEpochs = new Uint16Array(2048);
+let cacheEpoch = 0;
+function advanceDecodingEpoch() {
+    cacheEpoch = (cacheEpoch + 1) & 0b1111_1111_1111_1111;
+}
+function decodeUtf8StringCached(at, length) {
+    let h = length;
+    for (let i = 0; i < length; ++i) {
+        h = (h * 31 + payload[at + i]) | 0;
     }
-    throw new Error("expected break marker.");
+    const slot = (h >>> 0) & 2047;
+    const cached = stringCache[slot];
+    if (cached !== undefined) {
+        if (cached.length === length) {
+            let match = true;
+            for (let i = 0; i < length; ++i) {
+                if (cached.charCodeAt(i) !== payload[at + i]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                stringCacheEpochs[slot] = cacheEpoch;
+                return cached;
+            }
+        }
+    }
+    const result = isBuffer
+        ? payload.toString("utf-8", at, at + length)
+        : textDecoder.decode(payload.subarray(at, at + length));
+    if (stringCacheEpochs[slot] !== cacheEpoch) {
+        stringCache[slot] = result;
+        stringCacheEpochs[slot] = cacheEpoch;
+    }
+    return result;
+}
+function decodeUnstructuredByteString(at, to) {
+    const length = decodeCount(at, to);
+    const offset = _offset;
+    at += offset;
+    if (to - at < length) {
+        overflow(length);
+    }
+    const value = payload.subarray(at, at + length);
+    _offset = offset + length;
+    return value;
+}
+function decodeTagValue(at, to, minor, unsignedInt, offset) {
+    if (minor === 2 || minor === 3) {
+        const length = decodeCount(at + offset, to);
+        let b = BigInt(0);
+        const start = at + offset + _offset;
+        for (let i = start; i < start + length; ++i) {
+            b = (b << BigInt(8)) | BigInt(payload[i]);
+        }
+        _offset = offset + _offset + length;
+        return minor === 3 ? -b - BigInt(1) : b;
+    }
+    else if (minor === 4) {
+        const decimalFraction = decode(at + offset, to);
+        const [exponent, mantissa] = decimalFraction;
+        const normalizer = mantissa < 0 ? -1 : 1;
+        const mantissaStr = "0".repeat(Math.abs(exponent) + 1) + String(BigInt(normalizer) * BigInt(mantissa));
+        let numericString;
+        const sign = mantissa < 0 ? "-" : "";
+        numericString =
+            exponent === 0
+                ? mantissaStr
+                : mantissaStr.slice(0, mantissaStr.length + exponent) + "." + mantissaStr.slice(exponent);
+        numericString = numericString.replace(/^0+/g, "");
+        if (numericString === "") {
+            numericString = "0";
+        }
+        if (numericString[0] === ".") {
+            numericString = "0" + numericString;
+        }
+        numericString = sign + numericString;
+        _offset = offset + _offset;
+        return nv(numericString);
+    }
+    else {
+        const value = decode(at + offset, to);
+        const valueOffset = _offset;
+        _offset = offset + valueOffset;
+        return tag({ tag: castBigInt(unsignedInt), value });
+    }
 }
 function decodeSpecial(at, to) {
     const minor = payload[at] & 0b0001_1111;
@@ -29884,8 +30291,129 @@ function decodeSpecial(at, to) {
             _offset = 9;
             return dataView$1.getFloat64(at + 1);
         default:
-            throw new Error(`unexpected minor value ${minor}.`);
+            unexpectedMinor(minor);
     }
+}
+function decodeCount(at, to) {
+    const minor = payload[at] & 0b0001_1111;
+    if (minor < 24) {
+        _offset = 1;
+        return minor;
+    }
+    switch (minor) {
+        case extendedOneByte:
+            if (to - at < 2) {
+                overflow(1);
+            }
+            _offset = 2;
+            return payload[at + 1];
+        case extendedFloat16:
+            if (to - at < 3) {
+                overflow(2);
+            }
+            _offset = 3;
+            return dataView$1.getUint16(at + 1);
+        case extendedFloat32:
+            if (to - at < 5) {
+                overflow(4);
+            }
+            _offset = 5;
+            return dataView$1.getUint32(at + 1);
+        case extendedFloat64:
+            if (to - at < 9) {
+                overflow(8);
+            }
+            _offset = 9;
+            return demote(dataView$1.getBigUint64(at + 1));
+        default:
+            unexpectedMinor(minor);
+    }
+}
+function decodeMapIndefinite(at, to) {
+    at += 1;
+    const base = at;
+    const map = {};
+    for (; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            _offset = at - base + 2;
+            return map;
+        }
+        const key = decodeUtf8String(at, to);
+        at += _offset;
+        map[key] = decode(at, to);
+        at += _offset;
+    }
+    throw new Error("expected break marker.");
+}
+function decodeListIndefinite(at, to) {
+    at += 1;
+    const list = [];
+    for (const base = at; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            _offset = at - base + 2;
+            return list;
+        }
+        list.push(decode(at, to));
+        at += _offset;
+    }
+    throw new Error("expected break marker.");
+}
+function decodeUtf8StringIndefinite(at, to) {
+    at += 1;
+    const vector = [];
+    for (const base = at; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            const data = alloc(vector.length);
+            data.set(vector, 0);
+            _offset = at - base + 2;
+            if (USE_BUFFER$1) {
+                return data.toString("utf-8", 0, data.length);
+            }
+            return textDecoder.decode(data);
+        }
+        const major = (payload[at] & 0b1110_0000) >> 5;
+        const minor = payload[at] & 0b0001_1111;
+        if (major !== majorUtf8String) {
+            unexpectedMajorInIndefiniteString(major);
+        }
+        if (minor === minorIndefinite) {
+            throw new Error("nested indefinite string.");
+        }
+        const bytes = decodeUnstructuredByteString(at, to);
+        const length = _offset;
+        at += length;
+        for (let i = 0; i < bytes.length; ++i) {
+            vector.push(bytes[i]);
+        }
+    }
+    throw new Error("expected break marker.");
+}
+function decodeUnstructuredByteStringIndefinite(at, to) {
+    at += 1;
+    const vector = [];
+    for (const base = at; at < to;) {
+        if (payload[at] === 0b1111_1111) {
+            const data = alloc(vector.length);
+            data.set(vector, 0);
+            _offset = at - base + 2;
+            return data;
+        }
+        const major = (payload[at] & 0b1110_0000) >> 5;
+        const minor = payload[at] & 0b0001_1111;
+        if (major !== majorUnstructuredByteString) {
+            unexpectedMajorInIndefiniteString(major);
+        }
+        if (minor === minorIndefinite) {
+            throw new Error("nested indefinite string.");
+        }
+        const bytes = decodeUnstructuredByteString(at, to);
+        const length = _offset;
+        at += length;
+        for (let i = 0; i < bytes.length; ++i) {
+            vector.push(bytes[i]);
+        }
+    }
+    throw new Error("expected break marker.");
 }
 function castBigInt(bigInt) {
     if (typeof bigInt === "number") {
@@ -29897,22 +30425,212 @@ function castBigInt(bigInt) {
     }
     return bigInt;
 }
+function demote(bigInteger) {
+    const num = Number(bigInteger);
+    if (num < Number.MIN_SAFE_INTEGER || Number.MAX_SAFE_INTEGER < num) {
+        console.warn(new Error(`@smithy/core/cbor - truncating BigInt(${bigInteger}) to ${num} with loss of precision.`));
+    }
+    return num;
+}
+function overflow(n) {
+    throw new Error(`length ${n} greater than remaining buf len.`);
+}
+function unexpectedMinor(minor) {
+    throw new Error(`unexpected minor value ${minor}.`);
+}
+function unexpectedMajorInIndefiniteString(major) {
+    throw new Error(`unexpected major type ${major} in indefinite string.`);
+}
 
 const USE_BUFFER = typeof Buffer !== "undefined";
+const encodeStringCache = new Map();
+let encodeCacheEpoch = 0;
+let encodeCacheSaturated = false;
 const initialSize = 2048;
 let data = alloc(initialSize);
 let dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
 let cursor = 0;
-function ensureSpace(bytes) {
-    const remaining = data.byteLength - cursor;
-    if (remaining < bytes) {
-        if (cursor < 16_000_000) {
-            resize(Math.max(data.byteLength * 4, data.byteLength + bytes));
+function encode(_input) {
+    const encodeStack = [_input];
+    while (encodeStack.length) {
+        const input = encodeStack.pop();
+        if (typeof input === "string") {
+            const len = input.length;
+            if (USE_BUFFER) {
+                ensureSpace(len * 3 + 9);
+                if (len > 23) {
+                    encodeHeader(majorUtf8String, Buffer.byteLength(input));
+                    cursor += data.write(input, cursor);
+                }
+                else {
+                    encodeStringCached(input);
+                }
+            }
+            else {
+                const maxBytes = len * 3;
+                ensureSpace(maxBytes + 9);
+                const headerPos = cursor;
+                const result = new TextEncoder().encodeInto(input, data.subarray(cursor + 9));
+                const byteLen = result.written;
+                let headerSize;
+                if (byteLen < 24) {
+                    headerSize = 1;
+                }
+                else if (byteLen < 256) {
+                    headerSize = 2;
+                }
+                else if (byteLen < 65536) {
+                    headerSize = 3;
+                }
+                else if (byteLen < 4294967296) {
+                    headerSize = 5;
+                }
+                else {
+                    headerSize = 9;
+                }
+                if (headerSize < 9) {
+                    data.copyWithin(headerPos + headerSize, headerPos + 9, headerPos + 9 + byteLen);
+                }
+                cursor = headerPos;
+                encodeInteger(majorUtf8String, byteLen);
+                cursor += byteLen;
+            }
+            continue;
         }
-        else {
-            resize(data.byteLength + bytes + 16_000_000);
+        if (data.byteLength - cursor < 9) {
+            ensureSpace(64);
         }
+        if (typeof input === "number") {
+            if (Number.isInteger(input)) {
+                const nonNegative = input >= 0;
+                const major = nonNegative ? majorUint64 : majorNegativeInt64;
+                const value = nonNegative ? input : -input - 1;
+                if (value < 24) {
+                    data[cursor++] = (major << 5) | value;
+                }
+                else if (value < 256) {
+                    data[cursor++] = (major << 5) | 24;
+                    data[cursor++] = value;
+                }
+                else if (value < 65536) {
+                    data[cursor++] = (major << 5) | extendedFloat16;
+                    data[cursor++] = value >> 8;
+                    data[cursor++] = value & 0xff;
+                }
+                else if (value < 4294967296) {
+                    data[cursor++] = (major << 5) | extendedFloat32;
+                    dataView.setUint32(cursor, value);
+                    cursor += 4;
+                }
+                else {
+                    data[cursor++] = (major << 5) | extendedFloat64;
+                    const hi = (value / 4294967296) | 0;
+                    const lo = (value - hi * 4294967296) | 0;
+                    dataView.setUint32(cursor, hi);
+                    dataView.setUint32(cursor + 4, lo);
+                    cursor += 8;
+                }
+                continue;
+            }
+            data[cursor++] = (majorSpecial << 5) | extendedFloat64;
+            dataView.setFloat64(cursor, input);
+            cursor += 8;
+            continue;
+        }
+        else if (typeof input === "bigint") {
+            const nonNegative = input >= 0;
+            const major = nonNegative ? majorUint64 : majorNegativeInt64;
+            const value = nonNegative ? input : -input - BigInt(1);
+            if (value < BigInt("18446744073709551616")) {
+                const n = Number(value);
+                if (n < 4294967296) {
+                    encodeInteger(major, n);
+                }
+                else {
+                    data[cursor++] = (major << 5) | extendedFloat64;
+                    dataView.setBigUint64(cursor, value);
+                    cursor += 8;
+                }
+            }
+            else {
+                const binaryBigInt = value.toString(2);
+                const bigIntBytes = new Uint8Array(Math.ceil(binaryBigInt.length / 8));
+                let b = value;
+                let i = 0;
+                while (bigIntBytes.byteLength - ++i >= 0) {
+                    bigIntBytes[bigIntBytes.byteLength - i] = Number(b & BigInt(255));
+                    b >>= BigInt(8);
+                }
+                ensureSpace(bigIntBytes.byteLength * 2 + 16);
+                data[cursor++] = nonNegative ? 0b110_00010 : 0b110_00011;
+                encodeHeader(majorUnstructuredByteString, bigIntBytes.byteLength);
+                data.set(bigIntBytes, cursor);
+                cursor += bigIntBytes.byteLength;
+            }
+            continue;
+        }
+        else if (input === null) {
+            data[cursor++] = (majorSpecial << 5) | specialNull;
+            continue;
+        }
+        else if (typeof input === "boolean") {
+            data[cursor++] = (majorSpecial << 5) | (input ? specialTrue : specialFalse);
+            continue;
+        }
+        else if (typeof input === "undefined") {
+            throw new Error("@smithy/core/cbor: client may not serialize undefined value.");
+        }
+        else if (Array.isArray(input)) {
+            encodeInteger(majorList, input.length);
+            ensureSpace(input.length * 9 + 64);
+            for (let i = input.length - 1; i >= 0; --i) {
+                encodeStack.push(input[i]);
+            }
+            continue;
+        }
+        else if (typeof input.byteLength === "number") {
+            ensureSpace(input.length * 2 + 9);
+            encodeInteger(majorUnstructuredByteString, input.length);
+            data.set(input, cursor);
+            cursor += input.byteLength;
+            continue;
+        }
+        else if (typeof input === "object") {
+            if (input instanceof NumericValue) {
+                const decimalIndex = input.string.indexOf(".");
+                const exponent = decimalIndex === -1 ? 0 : decimalIndex - input.string.length + 1;
+                const mantissa = BigInt(input.string.replace(".", ""));
+                data[cursor++] = 0b110_00100;
+                encodeInteger(majorList, 2);
+                encodeStack.push(mantissa);
+                encodeStack.push(exponent);
+                continue;
+            }
+            if (input[tagSymbol]) {
+                if ("tag" in input && "value" in input) {
+                    encodeStack.push(input.value);
+                    encodeHeader(majorTag, input.tag);
+                    continue;
+                }
+                else {
+                    throw new Error("tag encountered with missing fields, need 'tag' and 'value', found: " + JSON.stringify(input));
+                }
+            }
+            const keys = Object.keys(input);
+            const len = keys.length;
+            encodeInteger(majorMap, len);
+            for (let i = len - 1; i >= 0; --i) {
+                encodeStack.push(input[keys[i]]);
+                encodeStack.push(keys[i]);
+            }
+            continue;
+        }
+        throw new Error(`data type ${input?.constructor?.name ?? typeof input} not compatible for encoding.`);
     }
+}
+function advanceEncodingEpoch() {
+    encodeCacheEpoch = (encodeCacheEpoch + 1) & 0b1111_1111_1111_1111;
+    encodeCacheSaturated = false;
 }
 function toUint8Array() {
     const out = alloc(cursor);
@@ -29933,20 +30651,67 @@ function resize(size) {
     }
     dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
 }
+function encodeStringCached(input) {
+    const cached = encodeStringCache.get(input);
+    if (cached !== undefined) {
+        data.set(cached.bytes, cursor);
+        cursor += cached.bytes.length;
+        cached.epoch = encodeCacheEpoch;
+        return;
+    }
+    const start = cursor;
+    const byteLen = Buffer.byteLength(input);
+    encodeInteger(majorUtf8String, byteLen);
+    cursor += data.write(input, cursor);
+    const bytes = Uint8Array.prototype.slice.call(data, start, cursor);
+    if (encodeStringCache.size >= 2048) {
+        if (encodeCacheSaturated) {
+            return;
+        }
+        let evicted = 0;
+        for (const [key, entry] of encodeStringCache) {
+            if (evicted >= 1024) {
+                break;
+            }
+            if (entry.epoch !== encodeCacheEpoch) {
+                encodeStringCache.delete(key);
+                evicted++;
+            }
+        }
+        if (evicted === 0) {
+            encodeCacheSaturated = true;
+            return;
+        }
+    }
+    if (encodeStringCache.size < 2048) {
+        encodeStringCache.set(input, { epoch: encodeCacheEpoch, bytes });
+    }
+}
+function ensureSpace(bytes) {
+    const remaining = data.byteLength - cursor;
+    if (remaining < bytes) {
+        if (cursor < 16_000_000) {
+            resize(Math.max(data.byteLength * 4, data.byteLength + bytes));
+        }
+        else {
+            resize(data.byteLength + bytes + 16_000_000);
+        }
+    }
+}
 function encodeHeader(major, value) {
     if (value < 24) {
         data[cursor++] = (major << 5) | value;
     }
-    else if (value < 1 << 8) {
+    else if (value < 256) {
         data[cursor++] = (major << 5) | 24;
         data[cursor++] = value;
     }
-    else if (value < 1 << 16) {
+    else if (value < 65536) {
         data[cursor++] = (major << 5) | extendedFloat16;
         dataView.setUint16(cursor, value);
         cursor += 2;
     }
-    else if (value < 2 ** 32) {
+    else if (value < 4294967296) {
         data[cursor++] = (major << 5) | extendedFloat32;
         dataView.setUint32(cursor, value);
         cursor += 4;
@@ -29957,172 +30722,42 @@ function encodeHeader(major, value) {
         cursor += 8;
     }
 }
-function encode(_input) {
-    const encodeStack = [_input];
-    while (encodeStack.length) {
-        const input = encodeStack.pop();
-        ensureSpace(typeof input === "string" ? input.length * 4 : 64);
-        if (typeof input === "string") {
-            if (USE_BUFFER) {
-                encodeHeader(majorUtf8String, Buffer.byteLength(input));
-                cursor += data.write(input, cursor);
-            }
-            else {
-                const bytes = fromUtf8(input);
-                encodeHeader(majorUtf8String, bytes.byteLength);
-                data.set(bytes, cursor);
-                cursor += bytes.byteLength;
-            }
-            continue;
-        }
-        else if (typeof input === "number") {
-            if (Number.isInteger(input)) {
-                const nonNegative = input >= 0;
-                const major = nonNegative ? majorUint64 : majorNegativeInt64;
-                const value = nonNegative ? input : -input - 1;
-                if (value < 24) {
-                    data[cursor++] = (major << 5) | value;
-                }
-                else if (value < 256) {
-                    data[cursor++] = (major << 5) | 24;
-                    data[cursor++] = value;
-                }
-                else if (value < 65536) {
-                    data[cursor++] = (major << 5) | extendedFloat16;
-                    data[cursor++] = value >> 8;
-                    data[cursor++] = value;
-                }
-                else if (value < 4294967296) {
-                    data[cursor++] = (major << 5) | extendedFloat32;
-                    dataView.setUint32(cursor, value);
-                    cursor += 4;
-                }
-                else {
-                    data[cursor++] = (major << 5) | extendedFloat64;
-                    dataView.setBigUint64(cursor, BigInt(value));
-                    cursor += 8;
-                }
-                continue;
-            }
-            data[cursor++] = (majorSpecial << 5) | extendedFloat64;
-            dataView.setFloat64(cursor, input);
-            cursor += 8;
-            continue;
-        }
-        else if (typeof input === "bigint") {
-            const nonNegative = input >= 0;
-            const major = nonNegative ? majorUint64 : majorNegativeInt64;
-            const value = nonNegative ? input : -input - BigInt(1);
-            const n = Number(value);
-            if (n < 24) {
-                data[cursor++] = (major << 5) | n;
-            }
-            else if (n < 256) {
-                data[cursor++] = (major << 5) | 24;
-                data[cursor++] = n;
-            }
-            else if (n < 65536) {
-                data[cursor++] = (major << 5) | extendedFloat16;
-                data[cursor++] = n >> 8;
-                data[cursor++] = n & 0b1111_1111;
-            }
-            else if (n < 4294967296) {
-                data[cursor++] = (major << 5) | extendedFloat32;
-                dataView.setUint32(cursor, n);
-                cursor += 4;
-            }
-            else if (value < BigInt("18446744073709551616")) {
-                data[cursor++] = (major << 5) | extendedFloat64;
-                dataView.setBigUint64(cursor, value);
-                cursor += 8;
-            }
-            else {
-                const binaryBigInt = value.toString(2);
-                const bigIntBytes = new Uint8Array(Math.ceil(binaryBigInt.length / 8));
-                let b = value;
-                let i = 0;
-                while (bigIntBytes.byteLength - ++i >= 0) {
-                    bigIntBytes[bigIntBytes.byteLength - i] = Number(b & BigInt(255));
-                    b >>= BigInt(8);
-                }
-                ensureSpace(bigIntBytes.byteLength * 2);
-                data[cursor++] = nonNegative ? 0b110_00010 : 0b110_00011;
-                if (USE_BUFFER) {
-                    encodeHeader(majorUnstructuredByteString, Buffer.byteLength(bigIntBytes));
-                }
-                else {
-                    encodeHeader(majorUnstructuredByteString, bigIntBytes.byteLength);
-                }
-                data.set(bigIntBytes, cursor);
-                cursor += bigIntBytes.byteLength;
-            }
-            continue;
-        }
-        else if (input === null) {
-            data[cursor++] = (majorSpecial << 5) | specialNull;
-            continue;
-        }
-        else if (typeof input === "boolean") {
-            data[cursor++] = (majorSpecial << 5) | (input ? specialTrue : specialFalse);
-            continue;
-        }
-        else if (typeof input === "undefined") {
-            throw new Error("@smithy/core/cbor: client may not serialize undefined value.");
-        }
-        else if (Array.isArray(input)) {
-            for (let i = input.length - 1; i >= 0; --i) {
-                encodeStack.push(input[i]);
-            }
-            encodeHeader(majorList, input.length);
-            continue;
-        }
-        else if (typeof input.byteLength === "number") {
-            ensureSpace(input.length * 2);
-            encodeHeader(majorUnstructuredByteString, input.length);
-            data.set(input, cursor);
-            cursor += input.byteLength;
-            continue;
-        }
-        else if (typeof input === "object") {
-            if (input instanceof NumericValue) {
-                const decimalIndex = input.string.indexOf(".");
-                const exponent = decimalIndex === -1 ? 0 : decimalIndex - input.string.length + 1;
-                const mantissa = BigInt(input.string.replace(".", ""));
-                data[cursor++] = 0b110_00100;
-                encodeStack.push(mantissa);
-                encodeStack.push(exponent);
-                encodeHeader(majorList, 2);
-                continue;
-            }
-            if (input[tagSymbol]) {
-                if ("tag" in input && "value" in input) {
-                    encodeStack.push(input.value);
-                    encodeHeader(majorTag, input.tag);
-                    continue;
-                }
-                else {
-                    throw new Error("tag encountered with missing fields, need 'tag' and 'value', found: " + JSON.stringify(input));
-                }
-            }
-            const keys = Object.keys(input);
-            for (let i = keys.length - 1; i >= 0; --i) {
-                const key = keys[i];
-                encodeStack.push(input[key]);
-                encodeStack.push(key);
-            }
-            encodeHeader(majorMap, keys.length);
-            continue;
-        }
-        throw new Error(`data type ${input?.constructor?.name ?? typeof input} not compatible for encoding.`);
+function encodeInteger(major, value) {
+    if (value < 24) {
+        data[cursor++] = (major << 5) | value;
+    }
+    else if (value < 256) {
+        data[cursor++] = (major << 5) | 24;
+        data[cursor++] = value;
+    }
+    else if (value < 65536) {
+        data[cursor++] = (major << 5) | extendedFloat16;
+        data[cursor++] = value >> 8;
+        data[cursor++] = value & 0xff;
+    }
+    else if (value < 4294967296) {
+        data[cursor++] = (major << 5) | extendedFloat32;
+        dataView.setUint32(cursor, value);
+        cursor += 4;
+    }
+    else {
+        data[cursor++] = (major << 5) | extendedFloat64;
+        const hi = (value / 4294967296) | 0;
+        const lo = (value - hi * 4294967296) | 0;
+        dataView.setUint32(cursor, hi);
+        dataView.setUint32(cursor + 4, lo);
+        cursor += 8;
     }
 }
 
 const cbor = {
     deserialize(payload) {
+        advanceDecodingEpoch();
         setPayload(payload);
         return decode(0, payload.length);
     },
     serialize(input) {
+        advanceEncodingEpoch();
         try {
             encode(input);
             return toUint8Array();
@@ -30560,7 +31195,9 @@ exports.tagSymbol = tagSymbol;
 
 const { createReadStream } = __nccwpck_require__(3024);
 const { Writable } = __nccwpck_require__(7075);
-const { toUint8Array, fromUtf8 } = __nccwpck_require__(2430);
+const { toUint8Array, concatBytes } = __nccwpck_require__(2430);
+const { createHash, createHmac } = __nccwpck_require__(7598);
+const zlib = __nccwpck_require__(8522);
 
 async function blobReader(blob, onChunk, chunkSize = 1024 * 1024) {
     const size = blob.size;
@@ -30639,178 +31276,496 @@ const readableStreamHasher = (hashCtor, readableStream) => {
     });
 };
 
-const BLOCK_SIZE = 64;
-const DIGEST_LENGTH = 16;
-const INIT = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476];
-
-class Md5 {
-    state;
-    buffer;
-    bufferLength;
-    bytesHashed;
-    finished;
-    constructor() {
-        this.reset();
-    }
+class Md5Js {
+    digestLength = 16;
+    state = Uint32Array.from(INIT$1);
+    writeBuffer = new DataView(new ArrayBuffer(64));
+    bufferLength = 0;
+    bytesHashed = 0;
     update(sourceData) {
-        if (isEmptyData(sourceData)) {
+        const data = toUint8Array(sourceData);
+        let pos = 0;
+        let len = data.byteLength;
+        this.bytesHashed += len;
+        while (len > 0) {
+            this.writeBuffer.setUint8(this.bufferLength++, data[pos++]);
+            --len;
+            if (this.bufferLength === 64) {
+                compress(this.state, this.writeBuffer);
+                this.bufferLength = 0;
+            }
+        }
+    }
+    async digest() {
+        const state = Uint32Array.from(this.state);
+        const buf = new DataView(this.writeBuffer.buffer.slice(0));
+        let bufLen = this.bufferLength;
+        const bits = this.bytesHashed * 8;
+        buf.setUint8(bufLen++, 0x80);
+        if (this.bufferLength % 64 >= 56) {
+            for (let i = bufLen; i < 64; ++i) {
+                buf.setUint8(i, 0);
+            }
+            compress(state, buf);
+            bufLen = 0;
+        }
+        for (let i = bufLen; i < 56; ++i) {
+            buf.setUint8(i, 0);
+        }
+        buf.setUint32(56, bits >>> 0, true);
+        buf.setUint32(60, Math.floor(bits / 2 ** 32), true);
+        compress(state, buf);
+        const out = new Uint8Array(16);
+        const view = new DataView(out.buffer);
+        for (let i = 0; i < 4; ++i) {
+            view.setUint32(i * 4, state[i], true);
+        }
+        return out;
+    }
+    reset() {
+        this.state.set(INIT$1);
+        this.writeBuffer = new DataView(new ArrayBuffer(64));
+        this.bufferLength = 0;
+        this.bytesHashed = 0;
+    }
+}
+const INIT$1 = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476];
+const M = 0xffffffff;
+const S = Uint8Array.of(7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21);
+const T = Array.from({ length: 64 }, (_, i) => (Math.abs(Math.sin(i + 1)) * 2 ** 32) >>> 0);
+function compress(state, block) {
+    let a = state[0], b = state[1], c = state[2], d = state[3];
+    for (let i = 0; i < 64; ++i) {
+        let f, g;
+        if (i < 16) {
+            f = (b & c) | (~b & d);
+            g = i;
+        }
+        else if (i < 32) {
+            f = (d & b) | (c & ~d);
+            g = (5 * i + 1) % 16;
+        }
+        else if (i < 48) {
+            f = b ^ c ^ d;
+            g = (3 * i + 5) % 16;
+        }
+        else {
+            f = c ^ (b | ~d);
+            g = (7 * i) % 16;
+        }
+        const x = block.getUint32(g * 4, true);
+        const tmp = d;
+        d = c;
+        c = b;
+        const s = S[(i >> 4) * 4 + (i & 3)];
+        const sum = (((a + f) & M) + ((x + T[i]) & M)) & M;
+        b = (b + (((sum << s) | (sum >>> (32 - s))) >>> 0)) & M;
+        a = tmp;
+    }
+    state[0] = (state[0] + a) & M;
+    state[1] = (state[1] + b) & M;
+    state[2] = (state[2] + c) & M;
+    state[3] = (state[3] + d) & M;
+}
+
+const hasNativeCrypto$1 = (() => {
+    try {
+        createHash("md5");
+        return true;
+    }
+    catch {
+        return false;
+    }
+})();
+const Md5Node = hasNativeCrypto$1 ? buildNativeClass$2() : Md5Js;
+function buildNativeClass$2() {
+    return class Md5Node {
+        digestLength = 16;
+        hash = createHash("md5");
+        update(data) {
+            this.hash.update(toUint8Array(data));
+        }
+        async digest() {
+            const buf = this.hash.copy().digest();
+            return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+        }
+        reset() {
+            this.hash = createHash("md5");
+        }
+    };
+}
+
+const CRC32_TABLE = new Uint32Array(256);
+for (let i = 0; i < 256; ++i) {
+    let c = i;
+    for (let j = 0; j < 8; ++j) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    CRC32_TABLE[i] = c >>> 0;
+}
+const ONES = 0xffff_ffff;
+class Crc32Js {
+    digestLength = 4;
+    checksum = ONES;
+    update(data) {
+        for (let i = 0; i < data.length; ++i) {
+            this.checksum = (this.checksum >>> 8) ^ CRC32_TABLE[(this.checksum ^ data[i]) & 0xff];
+        }
+    }
+    digestSync() {
+        return (this.checksum ^ ONES) >>> 0;
+    }
+    async digest() {
+        const value = this.digestSync();
+        const out = new Uint8Array(4);
+        new DataView(out.buffer).setUint32(0, value, false);
+        return out;
+    }
+    reset() {
+        this.checksum = ONES;
+    }
+}
+
+const zlibCrc32 = typeof zlib.crc32 === "function" ? zlib.crc32 : undefined;
+const Crc32Node = zlibCrc32 ? buildNativeClass$1(zlibCrc32) : Crc32Js;
+function buildNativeClass$1(nativeCrc32) {
+    return class Crc32Node {
+        digestLength = 4;
+        value = 0;
+        update(data) {
+            this.value = nativeCrc32(data, this.value);
+        }
+        digestSync() {
+            return this.value >>> 0;
+        }
+        async digest() {
+            const out = new Uint8Array(4);
+            new DataView(out.buffer).setUint32(0, this.digestSync(), false);
+            return out;
+        }
+        reset() {
+            this.value = 0;
+        }
+    };
+}
+
+const BLOCK = 64;
+const DIGEST_LENGTH = 32;
+const MAX_HASHABLE_LENGTH = 2 ** 53 - 1;
+class Sha256Js {
+    digestLength = DIGEST_LENGTH;
+    state = Int32Array.from(INIT);
+    w;
+    buffer = new Uint8Array(64);
+    bufferLength = 0;
+    bytesHashed = 0;
+    finished = false;
+    inner;
+    outer;
+    constructor(secret) {
+        if (secret) {
+            const key = Sha256Js.normalizeKey(secret);
+            this.inner = new Sha256Js();
+            this.outer = new Sha256Js();
+            const { inner, outer } = this;
+            const pad = new Uint8Array(BLOCK * 2);
+            for (let i = 0; i < BLOCK; ++i) {
+                pad[i] = 0x36 ^ key[i];
+                pad[i + BLOCK] = 0x5c ^ key[i];
+            }
+            inner.update(pad.subarray(0, BLOCK));
+            outer.update(pad.subarray(BLOCK));
+        }
+    }
+    update(data) {
+        if (this.finished) {
+            throw new Error("Attempted to update an already finished HMAC.");
+        }
+        if (this.inner) {
+            this.inner.update(data);
             return;
         }
-        else if (this.finished) {
-            throw new Error("Attempted to update an already finished hash.");
-        }
-        const data = convertToBuffer(sourceData);
+        const chunk = toUint8Array(data);
         let position = 0;
-        let { byteLength } = data;
+        let { byteLength } = chunk;
         this.bytesHashed += byteLength;
+        if (this.bytesHashed * 8 > MAX_HASHABLE_LENGTH) {
+            throw new Error("Cannot hash more than 2^53 - 1 bits");
+        }
         while (byteLength > 0) {
-            this.buffer.setUint8(this.bufferLength++, data[position++]);
+            this.buffer[this.bufferLength++] = chunk[position++];
             byteLength--;
-            if (this.bufferLength === BLOCK_SIZE) {
+            if (this.bufferLength === BLOCK) {
                 this.hashBuffer();
                 this.bufferLength = 0;
             }
         }
     }
     async digest() {
-        if (!this.finished) {
-            const { buffer, bufferLength: undecoratedLength, bytesHashed } = this;
-            const bitsHashed = bytesHashed * 8;
-            buffer.setUint8(this.bufferLength++, 0b10000000);
-            if (undecoratedLength % BLOCK_SIZE >= BLOCK_SIZE - 8) {
-                for (let i = this.bufferLength; i < BLOCK_SIZE; i++) {
-                    buffer.setUint8(i, 0);
-                }
-                this.hashBuffer();
-                this.bufferLength = 0;
+        const { inner, outer } = this;
+        if (inner && outer) {
+            if (this.finished) {
+                throw new Error("Attempted to digest an already finished HMAC.");
             }
-            for (let i = this.bufferLength; i < BLOCK_SIZE - 8; i++) {
-                buffer.setUint8(i, 0);
-            }
-            buffer.setUint32(BLOCK_SIZE - 8, bitsHashed >>> 0, true);
-            buffer.setUint32(BLOCK_SIZE - 4, Math.floor(bitsHashed / 0x100000000), true);
-            this.hashBuffer();
             this.finished = true;
+            const innerDigest = inner.digestSync();
+            outer.update(innerDigest);
+            return outer.digestSync();
         }
-        const out = new DataView(new ArrayBuffer(DIGEST_LENGTH));
-        for (let i = 0; i < 4; i++) {
-            out.setUint32(i * 4, this.state[i], true);
-        }
-        return new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
-    }
-    hashBuffer() {
-        const { buffer, state } = this;
-        let a = state[0], b = state[1], c = state[2], d = state[3];
-        a = ff(a, b, c, d, buffer.getUint32(0, true), 7, 0xd76aa478);
-        d = ff(d, a, b, c, buffer.getUint32(4, true), 12, 0xe8c7b756);
-        c = ff(c, d, a, b, buffer.getUint32(8, true), 17, 0x242070db);
-        b = ff(b, c, d, a, buffer.getUint32(12, true), 22, 0xc1bdceee);
-        a = ff(a, b, c, d, buffer.getUint32(16, true), 7, 0xf57c0faf);
-        d = ff(d, a, b, c, buffer.getUint32(20, true), 12, 0x4787c62a);
-        c = ff(c, d, a, b, buffer.getUint32(24, true), 17, 0xa8304613);
-        b = ff(b, c, d, a, buffer.getUint32(28, true), 22, 0xfd469501);
-        a = ff(a, b, c, d, buffer.getUint32(32, true), 7, 0x698098d8);
-        d = ff(d, a, b, c, buffer.getUint32(36, true), 12, 0x8b44f7af);
-        c = ff(c, d, a, b, buffer.getUint32(40, true), 17, 0xffff5bb1);
-        b = ff(b, c, d, a, buffer.getUint32(44, true), 22, 0x895cd7be);
-        a = ff(a, b, c, d, buffer.getUint32(48, true), 7, 0x6b901122);
-        d = ff(d, a, b, c, buffer.getUint32(52, true), 12, 0xfd987193);
-        c = ff(c, d, a, b, buffer.getUint32(56, true), 17, 0xa679438e);
-        b = ff(b, c, d, a, buffer.getUint32(60, true), 22, 0x49b40821);
-        a = gg(a, b, c, d, buffer.getUint32(4, true), 5, 0xf61e2562);
-        d = gg(d, a, b, c, buffer.getUint32(24, true), 9, 0xc040b340);
-        c = gg(c, d, a, b, buffer.getUint32(44, true), 14, 0x265e5a51);
-        b = gg(b, c, d, a, buffer.getUint32(0, true), 20, 0xe9b6c7aa);
-        a = gg(a, b, c, d, buffer.getUint32(20, true), 5, 0xd62f105d);
-        d = gg(d, a, b, c, buffer.getUint32(40, true), 9, 0x02441453);
-        c = gg(c, d, a, b, buffer.getUint32(60, true), 14, 0xd8a1e681);
-        b = gg(b, c, d, a, buffer.getUint32(16, true), 20, 0xe7d3fbc8);
-        a = gg(a, b, c, d, buffer.getUint32(36, true), 5, 0x21e1cde6);
-        d = gg(d, a, b, c, buffer.getUint32(56, true), 9, 0xc33707d6);
-        c = gg(c, d, a, b, buffer.getUint32(12, true), 14, 0xf4d50d87);
-        b = gg(b, c, d, a, buffer.getUint32(32, true), 20, 0x455a14ed);
-        a = gg(a, b, c, d, buffer.getUint32(52, true), 5, 0xa9e3e905);
-        d = gg(d, a, b, c, buffer.getUint32(8, true), 9, 0xfcefa3f8);
-        c = gg(c, d, a, b, buffer.getUint32(28, true), 14, 0x676f02d9);
-        b = gg(b, c, d, a, buffer.getUint32(48, true), 20, 0x8d2a4c8a);
-        a = hh(a, b, c, d, buffer.getUint32(20, true), 4, 0xfffa3942);
-        d = hh(d, a, b, c, buffer.getUint32(32, true), 11, 0x8771f681);
-        c = hh(c, d, a, b, buffer.getUint32(44, true), 16, 0x6d9d6122);
-        b = hh(b, c, d, a, buffer.getUint32(56, true), 23, 0xfde5380c);
-        a = hh(a, b, c, d, buffer.getUint32(4, true), 4, 0xa4beea44);
-        d = hh(d, a, b, c, buffer.getUint32(16, true), 11, 0x4bdecfa9);
-        c = hh(c, d, a, b, buffer.getUint32(28, true), 16, 0xf6bb4b60);
-        b = hh(b, c, d, a, buffer.getUint32(40, true), 23, 0xbebfbc70);
-        a = hh(a, b, c, d, buffer.getUint32(52, true), 4, 0x289b7ec6);
-        d = hh(d, a, b, c, buffer.getUint32(0, true), 11, 0xeaa127fa);
-        c = hh(c, d, a, b, buffer.getUint32(12, true), 16, 0xd4ef3085);
-        b = hh(b, c, d, a, buffer.getUint32(24, true), 23, 0x04881d05);
-        a = hh(a, b, c, d, buffer.getUint32(36, true), 4, 0xd9d4d039);
-        d = hh(d, a, b, c, buffer.getUint32(48, true), 11, 0xe6db99e5);
-        c = hh(c, d, a, b, buffer.getUint32(60, true), 16, 0x1fa27cf8);
-        b = hh(b, c, d, a, buffer.getUint32(8, true), 23, 0xc4ac5665);
-        a = ii(a, b, c, d, buffer.getUint32(0, true), 6, 0xf4292244);
-        d = ii(d, a, b, c, buffer.getUint32(28, true), 10, 0x432aff97);
-        c = ii(c, d, a, b, buffer.getUint32(56, true), 15, 0xab9423a7);
-        b = ii(b, c, d, a, buffer.getUint32(20, true), 21, 0xfc93a039);
-        a = ii(a, b, c, d, buffer.getUint32(48, true), 6, 0x655b59c3);
-        d = ii(d, a, b, c, buffer.getUint32(12, true), 10, 0x8f0ccc92);
-        c = ii(c, d, a, b, buffer.getUint32(40, true), 15, 0xffeff47d);
-        b = ii(b, c, d, a, buffer.getUint32(4, true), 21, 0x85845dd1);
-        a = ii(a, b, c, d, buffer.getUint32(32, true), 6, 0x6fa87e4f);
-        d = ii(d, a, b, c, buffer.getUint32(60, true), 10, 0xfe2ce6e0);
-        c = ii(c, d, a, b, buffer.getUint32(24, true), 15, 0xa3014314);
-        b = ii(b, c, d, a, buffer.getUint32(52, true), 21, 0x4e0811a1);
-        a = ii(a, b, c, d, buffer.getUint32(16, true), 6, 0xf7537e82);
-        d = ii(d, a, b, c, buffer.getUint32(44, true), 10, 0xbd3af235);
-        c = ii(c, d, a, b, buffer.getUint32(8, true), 15, 0x2ad7d2bb);
-        b = ii(b, c, d, a, buffer.getUint32(36, true), 21, 0xeb86d391);
-        state[0] = (a + state[0]) & 0xffffffff;
-        state[1] = (b + state[1]) & 0xffffffff;
-        state[2] = (c + state[2]) & 0xffffffff;
-        state[3] = (d + state[3]) & 0xffffffff;
+        return this.digestSync();
     }
     reset() {
-        this.state = Uint32Array.from(INIT);
-        this.buffer = new DataView(new ArrayBuffer(BLOCK_SIZE));
+        this.state = Int32Array.from(INIT);
+        this.buffer = new Uint8Array(64);
         this.bufferLength = 0;
         this.bytesHashed = 0;
-        this.finished = false;
+    }
+    digestSync() {
+        const state = this.state.slice();
+        const buffer = this.buffer.slice();
+        let bufferLength = this.bufferLength;
+        const bitsHashed = this.bytesHashed * 8;
+        const bufferView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+        bufferView.setUint8(bufferLength++, 0x80);
+        if ((bufferLength - 1) % BLOCK >= BLOCK - 8) {
+            for (let i = bufferLength; i < BLOCK; ++i) {
+                bufferView.setUint8(i, 0);
+            }
+            this.hashBufferWith(state, buffer);
+            bufferLength = 0;
+        }
+        for (let i = bufferLength; i < BLOCK - 8; ++i) {
+            bufferView.setUint8(i, 0);
+        }
+        bufferView.setUint32(BLOCK - 8, Math.floor(bitsHashed / 0x100000000), false);
+        bufferView.setUint32(BLOCK - 4, bitsHashed, false);
+        this.hashBufferWith(state, buffer);
+        const out = new Uint8Array(DIGEST_LENGTH);
+        for (let i = 0; i < 8; ++i) {
+            out[i * 4] = (state[i] >>> 24) & 0xff;
+            out[i * 4 + 1] = (state[i] >>> 16) & 0xff;
+            out[i * 4 + 2] = (state[i] >>> 8) & 0xff;
+            out[i * 4 + 3] = (state[i] >>> 0) & 0xff;
+        }
+        return out;
+    }
+    static normalizeKey(secret) {
+        const key = toUint8Array(secret);
+        if (key.byteLength > BLOCK) {
+            const h = new Sha256Js();
+            h.update(key);
+            const out = h.digestSync();
+            const padded = new Uint8Array(BLOCK);
+            padded.set(out);
+            return padded;
+        }
+        if (key.byteLength < BLOCK) {
+            const padded = new Uint8Array(BLOCK);
+            padded.set(key);
+            return padded;
+        }
+        return key;
+    }
+    hashBuffer() {
+        this.hashBufferWith(this.state, this.buffer);
+    }
+    hashBufferWith(state, buffer) {
+        const w = (this.w ??= new Int32Array(64));
+        let s0 = state[0], s1 = state[1], s2 = state[2], s3 = state[3], s4 = state[4], s5 = state[5], s6 = state[6], s7 = state[7];
+        for (let i = 0; i < BLOCK; ++i) {
+            if (i < 16) {
+                w[i] =
+                    ((buffer[i * 4] & 0xff) << 24) |
+                        ((buffer[i * 4 + 1] & 0xff) << 16) |
+                        ((buffer[i * 4 + 2] & 0xff) << 8) |
+                        (buffer[i * 4 + 3] & 0xff);
+            }
+            else {
+                let u = w[i - 2];
+                const t1 = ((u >>> 17) | (u << 15)) ^ ((u >>> 19) | (u << 13)) ^ (u >>> 10);
+                u = w[i - 15];
+                const t2 = ((u >>> 7) | (u << 25)) ^ ((u >>> 18) | (u << 14)) ^ (u >>> 3);
+                w[i] = ((t1 + w[i - 7]) | 0) + ((t2 + w[i - 16]) | 0);
+            }
+            const t1 = ((((((s4 >>> 6) | (s4 << 26)) ^ ((s4 >>> 11) | (s4 << 21)) ^ ((s4 >>> 25) | (s4 << 7))) +
+                ((s4 & s5) ^ (~s4 & s6))) |
+                0) +
+                ((s7 + ((K[i] + w[i]) | 0)) | 0)) |
+                0;
+            const t2 = ((((s0 >>> 2) | (s0 << 30)) ^ ((s0 >>> 13) | (s0 << 19)) ^ ((s0 >>> 22) | (s0 << 10))) +
+                ((s0 & s1) ^ (s0 & s2) ^ (s1 & s2))) |
+                0;
+            s7 = s6;
+            s6 = s5;
+            s5 = s4;
+            s4 = (s3 + t1) | 0;
+            s3 = s2;
+            s2 = s1;
+            s1 = s0;
+            s0 = (t1 + t2) | 0;
+        }
+        state[0] += s0;
+        state[1] += s1;
+        state[2] += s2;
+        state[3] += s3;
+        state[4] += s4;
+        state[5] += s5;
+        state[6] += s6;
+        state[7] += s7;
     }
 }
-function cmn(q, a, b, x, s, t) {
-    a = (((a + q) & 0xffffffff) + ((x + t) & 0xffffffff)) & 0xffffffff;
-    return (((a << s) | (a >>> (32 - s))) + b) & 0xffffffff;
-}
-function ff(a, b, c, d, x, s, t) {
-    return cmn((b & c) | (~b & d), a, b, x, s, t);
-}
-function gg(a, b, c, d, x, s, t) {
-    return cmn((b & d) | (c & ~d), a, b, x, s, t);
-}
-function hh(a, b, c, d, x, s, t) {
-    return cmn(b ^ c ^ d, a, b, x, s, t);
-}
-function ii(a, b, c, d, x, s, t) {
-    return cmn(c ^ (b | ~d), a, b, x, s, t);
-}
-function isEmptyData(data) {
-    if (typeof data === "string") {
-        return data.length === 0;
+const INIT = new Int32Array([
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+]);
+const K = new Int32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+
+const hasNativeCrypto = (() => {
+    try {
+        createHash("sha256");
+        return true;
     }
-    return data.byteLength === 0;
+    catch {
+        return false;
+    }
+})();
+const Sha256Node = hasNativeCrypto ? buildNativeClass() : Sha256Js;
+function buildNativeClass() {
+    return class Sha256Node {
+        digestLength = 32;
+        secret;
+        hash;
+        isHmac;
+        finished = false;
+        constructor(secret) {
+            this.secret = secret;
+            this.isHmac = !!secret;
+            this.hash = this.createHash();
+        }
+        update(data) {
+            if (this.finished) {
+                throw new Error("Attempted to update an already finished hash.");
+            }
+            this.hash.update(data);
+        }
+        async digest() {
+            let buf;
+            if (this.isHmac) {
+                this.finished = true;
+                buf = this.hash.digest();
+            }
+            else {
+                buf = this.hash.copy().digest();
+            }
+            return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+        }
+        reset() {
+            this.hash = this.createHash();
+            this.finished = false;
+        }
+        createHash() {
+            return this.secret ? createHmac("sha256", toBuffer(this.secret)) : createHash("sha256");
+        }
+    };
 }
-function convertToBuffer(data) {
+function toBuffer(data) {
     if (typeof data === "string") {
-        return fromUtf8(data);
+        return data;
     }
     if (ArrayBuffer.isView(data)) {
-        return new Uint8Array(data.buffer, data.byteOffset, data.byteLength / Uint8Array.BYTES_PER_ELEMENT);
+        return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
     }
-    return new Uint8Array(data);
+    return Buffer.from(data);
 }
 
-exports.Md5 = Md5;
+const { digest, sign, importKey } = globalThis?.crypto?.subtle ?? {};
+const subtle = typeof digest === "function" && typeof sign === "function" && typeof importKey === "function"
+    ? globalThis.crypto.subtle
+    : undefined;
+const MAX_PENDING_BYTES = 8 * 1024 * 1024;
+class Sha256WebCrypto {
+    digestLength = 32;
+    secret;
+    pending = [];
+    pendingBytes = 0;
+    fallback;
+    finished = false;
+    constructor(secret) {
+        if (secret) {
+            this.secret = toUint8Array(secret);
+        }
+    }
+    update(data) {
+        if (this.finished) {
+            throw new Error("Attempted to update an already finished HMAC.");
+        }
+        if (this.fallback) {
+            this.fallback.update(data);
+            return;
+        }
+        this.pending.push(data.slice());
+        this.pendingBytes += data.byteLength;
+        if (this.pendingBytes >= MAX_PENDING_BYTES) {
+            this.switchToFallback();
+        }
+    }
+    async digest() {
+        if (this.fallback) {
+            return this.fallback.digest();
+        }
+        if (this.secret && this.finished) {
+            throw new Error("Attempted to digest an already finished HMAC.");
+        }
+        const data = concatBytes(this.pending);
+        if (subtle) {
+            if (this.secret) {
+                this.finished = true;
+                const key = await subtle.importKey("raw", this.secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+                const sig = await subtle.sign("HMAC", key, data);
+                return new Uint8Array(sig);
+            }
+            const hash = await subtle.digest("SHA-256", data);
+            return new Uint8Array(hash);
+        }
+        const sha256 = new Sha256Js(this.secret);
+        sha256.update(data);
+        return sha256.digest();
+    }
+    reset() {
+        this.pending = [];
+        this.pendingBytes = 0;
+        this.fallback = undefined;
+        this.finished = false;
+    }
+    switchToFallback() {
+        const sha256Js = new Sha256Js(this.secret);
+        for (const chunk of this.pending) {
+            sha256Js.update(chunk);
+        }
+        this.fallback = sha256Js;
+        this.pending = [];
+        this.pendingBytes = 0;
+    }
+}
+
+exports.Crc32 = Crc32Node;
+exports.Crc32Js = Crc32Js;
+exports.Crc32Node = Crc32Node;
+exports.Md5 = Md5Node;
+exports.Md5Js = Md5Js;
+exports.Md5Node = Md5Node;
+exports.Sha256 = Sha256Node;
+exports.Sha256Js = Sha256Js;
+exports.Sha256Node = Sha256Node;
+exports.Sha256WebCrypto = Sha256WebCrypto;
 exports.blobHasher = blobHasher;
 exports.blobReader = blobReader;
 exports.fileStreamHasher = fileStreamHasher;
@@ -31764,7 +32719,7 @@ const getArrayIfSingleItem = (mayBeArray) => Array.isArray(mayBeArray) ? mayBeAr
 const getValueFromTextNode = (obj) => {
     const textNodeName = "#text";
     for (const key in obj) {
-        if (obj.hasOwnProperty(key) && obj[key][textNodeName] !== undefined) {
+        if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key][textNodeName] !== undefined) {
             obj[key] = obj[key][textNodeName];
         }
         else if (typeof obj[key] === "object" && obj[key] !== null) {
@@ -32428,12 +33383,118 @@ const resolveEndpointsConfig = (input) => {
     });
 };
 
+const AWS_EXECUTION_ENV = "AWS_EXECUTION_ENV";
+const AWS_REGION_ENV = "AWS_REGION";
+const AWS_DEFAULT_REGION_ENV = "AWS_DEFAULT_REGION";
+const ENV_IMDS_DISABLED = "AWS_EC2_METADATA_DISABLED";
+const DEFAULTS_MODE_OPTIONS = ["in-region", "cross-region", "mobile", "standard", "legacy"];
+const IMDS_REGION_PATH = "/latest/meta-data/placement/region";
+const IMDS_TOKEN_PATH = "/latest/api/token";
+const X_AWS_EC2_METADATA_TOKEN = "x-aws-ec2-metadata-token";
+const X_AWS_EC2_METADATA_TOKEN_TTL = "x-aws-ec2-metadata-token-ttl-seconds";
+
+const TIMEOUT_MS = 1000;
+const NEG_CACHE_TTL_MS = 60_000;
+let negativeCacheUntil = 0;
+const getInstanceMetadataRegion = async () => {
+    if (process.env[ENV_IMDS_DISABLED]) {
+        return undefined;
+    }
+    if (Date.now() < negativeCacheUntil) {
+        return undefined;
+    }
+    try {
+        const endpoint = resolveImdsEndpoint();
+        const token = (await imdsRequest({
+            ...endpoint,
+            path: IMDS_TOKEN_PATH,
+            method: "PUT",
+            headers: {
+                [X_AWS_EC2_METADATA_TOKEN_TTL]: "21600",
+            },
+        })).toString();
+        const region = (await imdsRequest({
+            ...endpoint,
+            path: IMDS_REGION_PATH,
+            method: "GET",
+            headers: {
+                [X_AWS_EC2_METADATA_TOKEN]: token,
+            },
+        }))
+            .toString()
+            .trim();
+        return region || cacheNegativeAndReturnUndefined();
+    }
+    catch {
+        return cacheNegativeAndReturnUndefined();
+    }
+};
+const cacheNegativeAndReturnUndefined = () => {
+    negativeCacheUntil = Date.now() + NEG_CACHE_TTL_MS;
+    return undefined;
+};
+const resolveImdsEndpoint = () => {
+    const envEndpoint = process.env.AWS_EC2_METADATA_SERVICE_ENDPOINT;
+    if (envEndpoint) {
+        const url = new URL(envEndpoint);
+        return {
+            hostname: url.hostname.replace(/^\[(.+)]$/, "$1"),
+            port: url.port ? Number(url.port) : undefined,
+        };
+    }
+    if (process.env.AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE === "IPv6") {
+        return { hostname: "fd00:ec2::254" };
+    }
+    return { hostname: "169.254.169.254" };
+};
+const imdsRequest = async (options) => {
+    const { request } = __nccwpck_require__(7067);
+    return new Promise((resolve, reject) => {
+        const req = request({
+            hostname: options.hostname,
+            port: options.port,
+            path: options.path,
+            method: options.method,
+            headers: options.headers,
+            timeout: TIMEOUT_MS,
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+        req.on("error", (err) => {
+            reject(err);
+            req.destroy();
+        });
+        req.on("timeout", () => {
+            reject(new Error("TimeoutError from instance metadata service"));
+            req.destroy();
+        });
+        req.on("response", (res) => {
+            const { statusCode = 400 } = res;
+            if (statusCode < 200 || statusCode >= 300) {
+                reject(Object.assign(new Error("Error response received from instance metadata service"), { statusCode }));
+                req.destroy();
+                return;
+            }
+            const chunks = [];
+            res.on("data", (chunk) => chunks.push(chunk));
+            res.on("end", () => {
+                resolve(Buffer.concat(chunks));
+                req.destroy();
+            });
+        });
+        req.end();
+    });
+};
+
 const REGION_ENV_NAME = "AWS_REGION";
 const REGION_INI_NAME = "region";
 const NODE_REGION_CONFIG_OPTIONS = {
     environmentVariableSelector: (env) => env[REGION_ENV_NAME],
     configFileSelector: (profile) => profile[REGION_INI_NAME],
-    default: () => {
+    default: async () => {
+        const region = await getInstanceMetadataRegion();
+        if (region) {
+            return region;
+        }
         throw new Error("Region is missing");
     },
 };
@@ -32535,13 +33596,6 @@ const getRegionInfo = (region, { useFipsEndpoint = false, useDualstackEndpoint =
     };
 };
 
-const AWS_EXECUTION_ENV = "AWS_EXECUTION_ENV";
-const AWS_REGION_ENV = "AWS_REGION";
-const AWS_DEFAULT_REGION_ENV = "AWS_DEFAULT_REGION";
-const ENV_IMDS_DISABLED = "AWS_EC2_METADATA_DISABLED";
-const DEFAULTS_MODE_OPTIONS = ["in-region", "cross-region", "mobile", "standard", "legacy"];
-const IMDS_REGION_PATH = "/latest/meta-data/placement/region";
-
 const AWS_DEFAULTS_MODE_ENV = "AWS_DEFAULTS_MODE";
 const AWS_DEFAULTS_MODE_CONFIG = "defaults_mode";
 const NODE_DEFAULTS_MODE_CONFIG_OPTIONS = {
@@ -32591,61 +33645,7 @@ const inferPhysicalRegion = async () => {
     if (process.env[AWS_EXECUTION_ENV] && (process.env[AWS_REGION_ENV] || process.env[AWS_DEFAULT_REGION_ENV])) {
         return process.env[AWS_REGION_ENV] ?? process.env[AWS_DEFAULT_REGION_ENV];
     }
-    if (!process.env[ENV_IMDS_DISABLED]) {
-        try {
-            const endpoint = await getImdsEndpoint();
-            return (await imdsHttpGet({ hostname: endpoint.hostname, path: IMDS_REGION_PATH })).toString();
-        }
-        catch (e) {
-        }
-    }
-};
-const getImdsEndpoint = async () => {
-    const envEndpoint = process.env.AWS_EC2_METADATA_SERVICE_ENDPOINT;
-    if (envEndpoint) {
-        const url = new URL(envEndpoint);
-        return { hostname: url.hostname, path: url.pathname };
-    }
-    const envMode = process.env.AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE;
-    if (envMode === "IPv6") {
-        return { hostname: "fd00:ec2::254", path: "/" };
-    }
-    return { hostname: "169.254.169.254", path: "/" };
-};
-const imdsHttpGet = async ({ hostname, path }) => {
-    const { request } = __nccwpck_require__(7067);
-    return new Promise((resolve, reject) => {
-        const req = request({
-            method: "GET",
-            hostname: hostname.replace(/^\[(.+)]$/, "$1"),
-            path,
-            timeout: 1000,
-            signal: AbortSignal.timeout(1000),
-        });
-        req.on("error", (err) => {
-            reject(err);
-            req.destroy();
-        });
-        req.on("timeout", () => {
-            reject(new Error("TimeoutError from instance metadata service"));
-            req.destroy();
-        });
-        req.on("response", (res) => {
-            const { statusCode = 400 } = res;
-            if (statusCode < 200 || 300 <= statusCode) {
-                reject(Object.assign(new Error("Error response received from instance metadata service"), { statusCode }));
-                req.destroy();
-                return;
-            }
-            const chunks = [];
-            res.on("data", (chunk) => chunks.push(chunk));
-            res.on("end", () => {
-                resolve(Buffer.concat(chunks));
-                req.destroy();
-            });
-        });
-        req.end();
-    });
+    return getInstanceMetadataRegion();
 };
 
 exports.CONFIG_PREFIX_SEPARATOR = CONFIG_PREFIX_SEPARATOR;
@@ -33562,7 +34562,7 @@ exports.resolveParams = resolveParams;
 /***/ 6579:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
-const { Crc32 } = __nccwpck_require__(2110);
+const { Crc32 } = __nccwpck_require__(9542);
 const { toHex, fromHex, toUtf8, fromUtf8 } = __nccwpck_require__(2430);
 const { Readable } = __nccwpck_require__(7075);
 
@@ -33809,13 +34809,14 @@ function splitMessage({ byteLength, byteOffset, buffer }) {
     const headerLength = view.getUint32(PRELUDE_MEMBER_LENGTH, false);
     const expectedPreludeChecksum = view.getUint32(PRELUDE_LENGTH, false);
     const expectedMessageChecksum = view.getUint32(byteLength - CHECKSUM_LENGTH, false);
-    const checksummer = new Crc32().update(new Uint8Array(buffer, byteOffset, PRELUDE_LENGTH));
-    if (expectedPreludeChecksum !== checksummer.digest()) {
-        throw new Error(`The prelude checksum specified in the message (${expectedPreludeChecksum}) does not match the calculated CRC32 checksum (${checksummer.digest()})`);
+    const checksummer = new Crc32();
+    checksummer.update(new Uint8Array(buffer, byteOffset, PRELUDE_LENGTH));
+    if (expectedPreludeChecksum !== checksummer.digestSync()) {
+        throw new Error(`The prelude checksum specified in the message (${expectedPreludeChecksum}) does not match the calculated CRC32 checksum (${checksummer.digestSync()})`);
     }
     checksummer.update(new Uint8Array(buffer, byteOffset + PRELUDE_LENGTH, byteLength - (PRELUDE_LENGTH + CHECKSUM_LENGTH)));
-    if (expectedMessageChecksum !== checksummer.digest()) {
-        throw new Error(`The message checksum (${checksummer.digest()}) did not match the expected value of ${expectedMessageChecksum}`);
+    if (expectedMessageChecksum !== checksummer.digestSync()) {
+        throw new Error(`The message checksum (${checksummer.digestSync()}) did not match the expected value of ${expectedMessageChecksum}`);
     }
     return {
         headers: new DataView(buffer, byteOffset + PRELUDE_LENGTH + CHECKSUM_LENGTH, headerLength),
@@ -33871,10 +34872,12 @@ class EventStreamCodec {
         const checksum = new Crc32();
         view.setUint32(0, length, false);
         view.setUint32(4, headers.byteLength, false);
-        view.setUint32(8, checksum.update(out.subarray(0, 8)).digest(), false);
+        checksum.update(out.subarray(0, 8));
+        view.setUint32(8, checksum.digestSync(), false);
         out.set(headers, 12);
         out.set(body, headers.byteLength + 12);
-        view.setUint32(length - 4, checksum.update(out.subarray(8, length - 4)).digest(), false);
+        checksum.update(out.subarray(8, length - 4));
+        view.setUint32(length - 4, checksum.digestSync(), false);
         return out;
     }
     decode(message) {
@@ -34460,8 +35463,8 @@ exports.universalEventStreamSerdeProvider = eventStreamSerdeProvider$1;
 
 const { Uint8ArrayBlobAdapter, sdkStreamMixin, splitEvery, splitHeader, fromBase64, _parseEpochTimestamp, _parseRfc7231DateTime, _parseRfc3339DateTimeWithOffset, LazyJsonString, NumericValue, toUtf8, fromUtf8, generateIdempotencyToken, toBase64, dateToUtcString, quoteHeader } = __nccwpck_require__(2430);
 const { TypeRegistry, NormalizedSchema, translateTraits } = __nccwpck_require__(6890);
-const { HttpRequest, HttpResponse } = __nccwpck_require__(4534);
-const { isValidHostname, parseQueryString, parseUrl } = __nccwpck_require__(4534);
+const { HttpRequest, HttpResponse, isValidHostname } = __nccwpck_require__(4534);
+const { parseQueryString, parseUrl } = __nccwpck_require__(4534);
 exports.HttpRequest = HttpRequest;
 exports.HttpResponse = HttpResponse;
 exports.isValidHostname = isValidHostname;
@@ -34576,6 +35579,9 @@ class HttpProtocol extends SerdeContext {
                     hostPrefix = hostPrefix.replace(`{${name}}`, replacement);
                 }
                 request.hostname = hostPrefix + request.hostname;
+                if (!isValidHostname(request.hostname)) {
+                    throw new Error(`[${request.hostname}] is not a valid hostname.`);
+                }
             }
         }
     }
@@ -34604,14 +35610,22 @@ class HttpProtocol extends SerdeContext {
         });
     }
     async loadEventStreamCapability() {
-        const { EventStreamSerde } = __nccwpck_require__(6579);
+        const { EventStreamSerde, eventStreamSerdeProvider } = __nccwpck_require__(6579);
+        const marshaller = this.resolveEventStreamMarshaller(eventStreamSerdeProvider);
         return new EventStreamSerde({
-            marshaller: this.getEventStreamMarshaller(),
+            marshaller,
             serializer: this.serializer,
             deserializer: this.deserializer,
             serdeContext: this.serdeContext,
             defaultContentType: this.getDefaultContentType(),
         });
+    }
+    resolveEventStreamMarshaller(importedProvider) {
+        const context = this.serdeContext;
+        if (context.eventStreamMarshaller) {
+            return context.eventStreamMarshaller;
+        }
+        return importedProvider(this.serdeContext);
     }
     getDefaultContentType() {
         throw new Error(`@smithy/core/protocols - ${this.constructor.name} getDefaultContentType() implementation missing.`);
@@ -37084,7 +38098,7 @@ const fromString = (input, encoding) => {
 };
 
 const BASE64_REGEX = /^[A-Za-z0-9+/]*={0,2}$/;
-const fromBase64$1 = (input) => {
+const fromBase64 = (input) => {
     if ((input.length * 3) % 4 !== 0) {
         throw new TypeError(`Incorrect padding on base64 string.`);
     }
@@ -37894,6 +38908,9 @@ const calculateBodyLength = (body) => {
 };
 
 const toUint8Array = (data) => {
+    if (data instanceof Uint8Array) {
+        return data;
+    }
     if (typeof data === "string") {
         return fromUtf8$1(data);
     }
@@ -37902,6 +38919,22 @@ const toUint8Array = (data) => {
     }
     return new Uint8Array(data);
 };
+
+function concatBytes(arrays, length) {
+    if (length === undefined) {
+        length = 0;
+        for (const bytes of arrays) {
+            length += bytes.byteLength;
+        }
+    }
+    const result = new Uint8Array(length);
+    let offset = 0;
+    for (const buf of arrays) {
+        result.set(buf, offset);
+        offset += buf.byteLength;
+    }
+    return result;
+}
 
 const deserializerMiddleware = (options, deserializer) => (next, context) => async (args) => {
     const { response } = await next(args);
@@ -38088,6 +39121,10 @@ let ChecksumStream$1 = class ChecksumStream extends Duplex {
         this.push(null);
         return callback();
     }
+    _destroy(error, callback) {
+        this.source?.destroy();
+        callback(error);
+    }
 };
 
 const isReadableStream = (stream) => typeof ReadableStream === "function" &&
@@ -38099,7 +39136,7 @@ const isBlob = (blob) => {
 const fromUtf8 = (input) => new TextEncoder().encode(input);
 
 const chars = `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`;
-const alphabetByEncoding = Object.entries(chars).reduce((acc, [i, c]) => {
+Object.entries(chars).reduce((acc, [i, c]) => {
     acc[c] = Number(i);
     return acc;
 }, {});
@@ -38477,7 +39514,7 @@ const headStream = (stream, bytes) => {
         });
         collector.on("error", reject);
         collector.on("finish", function () {
-            const bytes = new Uint8Array(Buffer.concat(this.buffers));
+            const bytes = concatBytes(this.buffers);
             resolve(bytes);
         });
     });
@@ -38509,93 +39546,30 @@ const toUtf8 = (input) => {
     return new TextDecoder("utf-8").decode(input);
 };
 
-const fromBase64 = (input) => {
-    let totalByteLength = (input.length / 4) * 3;
-    if (input.slice(-2) === "==") {
-        totalByteLength -= 2;
-    }
-    else if (input.slice(-1) === "=") {
-        totalByteLength--;
-    }
-    const out = new ArrayBuffer(totalByteLength);
-    const dataView = new DataView(out);
-    for (let i = 0; i < input.length; i += 4) {
-        let bits = 0;
-        let bitLength = 0;
-        for (let j = i, limit = i + 3; j <= limit; j++) {
-            if (input[j] !== "=") {
-                if (!(input[j] in alphabetByEncoding)) {
-                    throw new TypeError(`Invalid character ${input[j]} in base64 string.`);
-                }
-                bits |= alphabetByEncoding[input[j]] << ((limit - j) * bitsPerLetter);
-                bitLength += bitsPerLetter;
-            }
-            else {
-                bits >>= bitsPerLetter;
-            }
-        }
-        const chunkOffset = (i / 4) * 3;
-        bits >>= bitLength % bitsPerByte;
-        const byteLength = Math.floor(bitLength / bitsPerByte);
-        for (let k = 0; k < byteLength; k++) {
-            const offset = (byteLength - k - 1) * bitsPerByte;
-            dataView.setUint8(chunkOffset + k, (bits & (255 << offset)) >> offset);
-        }
-    }
-    return new Uint8Array(out);
-};
-
 const streamCollector$1 = async (stream) => {
-    if ((typeof Blob === "function" && stream instanceof Blob) || stream.constructor?.name === "Blob") {
-        if (Blob.prototype.arrayBuffer !== undefined) {
-            return new Uint8Array(await stream.arrayBuffer());
-        }
+    if (isBlob(stream)) {
         return collectBlob(stream);
     }
-    return collectStream(stream);
+    return collectReadableStream(stream);
 };
 async function collectBlob(blob) {
-    const base64 = await readToBase64(blob);
-    const arrayBuffer = fromBase64(base64);
-    return new Uint8Array(arrayBuffer);
+    return blob.arrayBuffer().then((ab) => new Uint8Array(ab));
 }
-async function collectStream(stream) {
+async function collectReadableStream(stream) {
     const chunks = [];
     const reader = stream.getReader();
-    let isDone = false;
     let length = 0;
-    while (!isDone) {
+    while (true) {
         const { done, value } = await reader.read();
         if (value) {
             chunks.push(value);
             length += value.length;
         }
-        isDone = done;
+        if (done) {
+            break;
+        }
     }
-    const collected = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) {
-        collected.set(chunk, offset);
-        offset += chunk.length;
-    }
-    return collected;
-}
-function readToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            if (reader.readyState !== 2) {
-                return reject(new Error("Reader aborted too early"));
-            }
-            const result = (reader.result ?? "");
-            const commaIndex = result.indexOf(",");
-            const dataOffset = commaIndex > -1 ? commaIndex + 1 : result.length;
-            resolve(result.substring(dataOffset));
-        };
-        reader.onabort = () => reject(new Error("Read aborted"));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-    });
+    return concatBytes(chunks, length);
 }
 
 const ERR_MSG_STREAM_HAS_BEEN_TRANSFORMED$1 = "The stream has already been transformed.";
@@ -38658,6 +39632,28 @@ const sdkStreamMixin$1 = (stream) => {
 };
 const isBlobInstance = (stream) => typeof Blob === "function" && stream instanceof Blob;
 
+const streamCollector = (stream) => {
+    if (isBlob(stream)) {
+        return collectBlob(stream);
+    }
+    if (isReadableStream(stream)) {
+        return collectReadableStream(stream);
+    }
+    return new Promise((resolve, reject) => {
+        const collector = new Collector();
+        const nodeStream = stream;
+        nodeStream.pipe(collector);
+        nodeStream.on("error", (err) => {
+            collector.end();
+            reject(err);
+        });
+        collector.on("error", reject);
+        collector.on("finish", function () {
+            const bytes = concatBytes(this.bufferedBytes);
+            resolve(bytes);
+        });
+    });
+};
 class Collector extends Writable {
     bufferedBytes = [];
     _write(chunk, encoding, callback) {
@@ -38665,46 +39661,6 @@ class Collector extends Writable {
         callback();
     }
 }
-const isReadableStreamInstance = (stream) => typeof ReadableStream === "function" && stream instanceof ReadableStream;
-async function collectReadableStream(stream) {
-    const chunks = [];
-    const reader = stream.getReader();
-    let isDone = false;
-    let length = 0;
-    while (!isDone) {
-        const { done, value } = await reader.read();
-        if (value) {
-            chunks.push(value);
-            length += value.length;
-        }
-        isDone = done;
-    }
-    const collected = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) {
-        collected.set(chunk, offset);
-        offset += chunk.length;
-    }
-    return collected;
-}
-const streamCollector = (stream) => {
-    if (isReadableStreamInstance(stream)) {
-        return collectReadableStream(stream);
-    }
-    return new Promise((resolve, reject) => {
-        const collector = new Collector();
-        stream.pipe(collector);
-        stream.on("error", (err) => {
-            collector.end();
-            reject(err);
-        });
-        collector.on("error", reject);
-        collector.on("finish", function () {
-            const bytes = new Uint8Array(Buffer.concat(this.bufferedBytes));
-            resolve(bytes);
-        });
-    });
-};
 
 const ERR_MSG_STREAM_HAS_BEEN_TRANSFORMED = "The stream has already been transformed.";
 const sdkStreamMixin = (stream) => {
@@ -38772,7 +39728,7 @@ async function splitStream(stream) {
     return [stream1, stream2];
 }
 
-class Uint8ArrayBlobAdapter extends bindUint8ArrayBlobAdapter(toUtf8$1, fromUtf8$1, toBase64$1, fromBase64$1) {
+class Uint8ArrayBlobAdapter extends bindUint8ArrayBlobAdapter(toUtf8$1, fromUtf8$1, toBase64$1, fromBase64) {
 }
 const _getRandomValues = getRandomValues;
 const v4 = bindV4(_getRandomValues);
@@ -38787,6 +39743,7 @@ exports._parseEpochTimestamp = _parseEpochTimestamp;
 exports._parseRfc3339DateTimeWithOffset = _parseRfc3339DateTimeWithOffset;
 exports._parseRfc7231DateTime = _parseRfc7231DateTime;
 exports.calculateBodyLength = calculateBodyLength;
+exports.concatBytes = concatBytes;
 exports.copyDocumentWithTransform = copyDocumentWithTransform;
 exports.createBufferedReadable = createBufferedReadable;
 exports.createChecksumStream = createChecksumStream;
@@ -38806,7 +39763,7 @@ exports.expectShort = expectShort;
 exports.expectString = expectString;
 exports.expectUnion = expectUnion;
 exports.fromArrayBuffer = fromArrayBuffer;
-exports.fromBase64 = fromBase64$1;
+exports.fromBase64 = fromBase64;
 exports.fromHex = fromHex;
 exports.fromString = fromString;
 exports.fromUtf8 = fromUtf8$1;
@@ -38835,6 +39792,7 @@ exports.serializerMiddlewareOption = serializerMiddlewareOption;
 exports.splitEvery = splitEvery;
 exports.splitHeader = splitHeader;
 exports.splitStream = splitStream;
+exports.streamCollector = streamCollector;
 exports.strictParseByte = strictParseByte;
 exports.strictParseDouble = strictParseDouble;
 exports.strictParseFloat = strictParseFloat;
@@ -39460,8 +40418,10 @@ var isArrayBuffer = /* @__PURE__ */ __name((arg) => typeof ArrayBuffer === "func
 
 const { buildQueryString, HttpResponse } = __nccwpck_require__(3422);
 const node_https = __nccwpck_require__(4708);
-const { Readable, Writable } = __nccwpck_require__(7075);
+const { Readable } = __nccwpck_require__(7075);
 const http2 = __nccwpck_require__(2467);
+const { streamCollector } = __nccwpck_require__(2430);
+exports.streamCollector = streamCollector;
 
 function buildAbortError(abortSignal) {
     const reason = abortSignal && typeof abortSignal === "object" && "reason" in abortSignal
@@ -40293,59 +41253,9 @@ class NodeHttp2Handler {
     }
 }
 
-class Collector extends Writable {
-    bufferedBytes = [];
-    _write(chunk, encoding, callback) {
-        this.bufferedBytes.push(chunk);
-        callback();
-    }
-}
-
-const streamCollector = (stream) => {
-    if (isReadableStreamInstance(stream)) {
-        return collectReadableStream(stream);
-    }
-    return new Promise((resolve, reject) => {
-        const collector = new Collector();
-        stream.pipe(collector);
-        stream.on("error", (err) => {
-            collector.end();
-            reject(err);
-        });
-        collector.on("error", reject);
-        collector.on("finish", function () {
-            const bytes = new Uint8Array(Buffer.concat(this.bufferedBytes));
-            resolve(bytes);
-        });
-    });
-};
-const isReadableStreamInstance = (stream) => typeof ReadableStream === "function" && stream instanceof ReadableStream;
-async function collectReadableStream(stream) {
-    const chunks = [];
-    const reader = stream.getReader();
-    let isDone = false;
-    let length = 0;
-    while (!isDone) {
-        const { done, value } = await reader.read();
-        if (value) {
-            chunks.push(value);
-            length += value.length;
-        }
-        isDone = done;
-    }
-    const collected = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) {
-        collected.set(chunk, offset);
-        offset += chunk.length;
-    }
-    return collected;
-}
-
 exports.DEFAULT_REQUEST_TIMEOUT = DEFAULT_REQUEST_TIMEOUT;
 exports.NodeHttp2Handler = NodeHttp2Handler;
 exports.NodeHttpHandler = NodeHttpHandler;
-exports.streamCollector = streamCollector;
 
 
 /***/ }),
@@ -92992,21 +93902,6 @@ axios.default = axios;
 module.exports = axios;
 //# sourceMappingURL=axios.cjs.map
 
-
-/***/ }),
-
-/***/ 591:
-/***/ ((module) => {
-
-(()=>{"use strict";var t={d:(e,n)=>{for(var i in n)t.o(n,i)&&!t.o(e,i)&&Object.defineProperty(e,i,{enumerable:!0,get:n[i]})},o:(t,e)=>Object.prototype.hasOwnProperty.call(t,e),r:t=>{"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(t,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(t,"__esModule",{value:!0})}},e={};t.r(e),t.d(e,{XMLBuilder:()=>Xt,XMLParser:()=>Tt,XMLValidator:()=>Yt});const n=":A-Za-z_\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD",i=new RegExp("^["+n+"]["+n+"\\-.\\d\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$");function s(t,e){const n=[];let i=e.exec(t);for(;i;){const s=[];s.startIndex=e.lastIndex-i[0].length;const r=i.length;for(let t=0;t<r;t++)s.push(i[t]);n.push(s),i=e.exec(t)}return n}const r=function(t){return!(null==i.exec(t))},o=["hasOwnProperty","toString","valueOf","__defineGetter__","__defineSetter__","__lookupGetter__","__lookupSetter__"],a=["__proto__","constructor","prototype"],h={allowBooleanAttributes:!1,unpairedTags:[]};function l(t,e){e=Object.assign({},h,e);const n=[];let i=!1,s=!1;"\ufeff"===t[0]&&(t=t.substr(1));for(let r=0;r<t.length;r++)if("<"===t[r]&&"?"===t[r+1]){if(r+=2,r=p(t,r),r.err)return r}else{if("<"!==t[r]){if(u(t[r]))continue;return b("InvalidChar","char '"+t[r]+"' is not expected.",w(t,r))}{let o=r;if(r++,"!"===t[r]){r=c(t,r);continue}{let a=!1;"/"===t[r]&&(a=!0,r++);let h="";for(;r<t.length&&">"!==t[r]&&" "!==t[r]&&"\t"!==t[r]&&"\n"!==t[r]&&"\r"!==t[r];r++)h+=t[r];if(h=h.trim(),"/"===h[h.length-1]&&(h=h.substring(0,h.length-1),r--),!E(h)){let e;return e=0===h.trim().length?"Invalid space after '<'.":"Tag '"+h+"' is an invalid name.",b("InvalidTag",e,w(t,r))}const l=g(t,r);if(!1===l)return b("InvalidAttr","Attributes for '"+h+"' have open quote.",w(t,r));let d=l.value;if(r=l.index,"/"===d[d.length-1]){const n=r-d.length;d=d.substring(0,d.length-1);const s=x(d,e);if(!0!==s)return b(s.err.code,s.err.msg,w(t,n+s.err.line));i=!0}else if(a){if(!l.tagClosed)return b("InvalidTag","Closing tag '"+h+"' doesn't have proper closing.",w(t,r));if(d.trim().length>0)return b("InvalidTag","Closing tag '"+h+"' can't have attributes or invalid starting.",w(t,o));if(0===n.length)return b("InvalidTag","Closing tag '"+h+"' has not been opened.",w(t,o));{const e=n.pop();if(h!==e.tagName){let n=w(t,e.tagStartPos);return b("InvalidTag","Expected closing tag '"+e.tagName+"' (opened in line "+n.line+", col "+n.col+") instead of closing tag '"+h+"'.",w(t,o))}0==n.length&&(s=!0)}}else{const a=x(d,e);if(!0!==a)return b(a.err.code,a.err.msg,w(t,r-d.length+a.err.line));if(!0===s)return b("InvalidXml","Multiple possible root nodes found.",w(t,r));-1!==e.unpairedTags.indexOf(h)||n.push({tagName:h,tagStartPos:o}),i=!0}for(r++;r<t.length;r++)if("<"===t[r]){if("!"===t[r+1]){r++,r=c(t,r);continue}if("?"!==t[r+1])break;if(r=p(t,++r),r.err)return r}else if("&"===t[r]){const e=N(t,r);if(-1==e)return b("InvalidChar","char '&' is not expected.",w(t,r));r=e}else if(!0===s&&!u(t[r]))return b("InvalidXml","Extra text at the end",w(t,r));"<"===t[r]&&r--}}}return i?1==n.length?b("InvalidTag","Unclosed tag '"+n[0].tagName+"'.",w(t,n[0].tagStartPos)):!(n.length>0)||b("InvalidXml","Invalid '"+JSON.stringify(n.map(t=>t.tagName),null,4).replace(/\r?\n/g,"")+"' found.",{line:1,col:1}):b("InvalidXml","Start tag expected.",1)}function u(t){return" "===t||"\t"===t||"\n"===t||"\r"===t}function p(t,e){const n=e;for(;e<t.length;e++)if("?"==t[e]||" "==t[e]){const i=t.substr(n,e-n);if(e>5&&"xml"===i)return b("InvalidXml","XML declaration allowed only at the start of the document.",w(t,e));if("?"==t[e]&&">"==t[e+1]){e++;break}continue}return e}function c(t,e){if(t.length>e+5&&"-"===t[e+1]&&"-"===t[e+2]){for(e+=3;e<t.length;e++)if("-"===t[e]&&"-"===t[e+1]&&">"===t[e+2]){e+=2;break}}else if(t.length>e+8&&"D"===t[e+1]&&"O"===t[e+2]&&"C"===t[e+3]&&"T"===t[e+4]&&"Y"===t[e+5]&&"P"===t[e+6]&&"E"===t[e+7]){let n=1;for(e+=8;e<t.length;e++)if("<"===t[e])n++;else if(">"===t[e]&&(n--,0===n))break}else if(t.length>e+9&&"["===t[e+1]&&"C"===t[e+2]&&"D"===t[e+3]&&"A"===t[e+4]&&"T"===t[e+5]&&"A"===t[e+6]&&"["===t[e+7])for(e+=8;e<t.length;e++)if("]"===t[e]&&"]"===t[e+1]&&">"===t[e+2]){e+=2;break}return e}const d='"',f="'";function g(t,e){let n="",i="",s=!1;for(;e<t.length;e++){if(t[e]===d||t[e]===f)""===i?i=t[e]:i!==t[e]||(i="");else if(">"===t[e]&&""===i){s=!0;break}n+=t[e]}return""===i&&{value:n,index:e,tagClosed:s}}const m=new RegExp("(\\s*)([^\\s=]+)(\\s*=)?(\\s*(['\"])(([\\s\\S])*?)\\5)?","g");function x(t,e){const n=s(t,m),i={};for(let t=0;t<n.length;t++){if(0===n[t][1].length)return b("InvalidAttr","Attribute '"+n[t][2]+"' has no space in starting.",v(n[t]));if(void 0!==n[t][3]&&void 0===n[t][4])return b("InvalidAttr","Attribute '"+n[t][2]+"' is without value.",v(n[t]));if(void 0===n[t][3]&&!e.allowBooleanAttributes)return b("InvalidAttr","boolean attribute '"+n[t][2]+"' is not allowed.",v(n[t]));const s=n[t][2];if(!y(s))return b("InvalidAttr","Attribute '"+s+"' is an invalid name.",v(n[t]));if(Object.prototype.hasOwnProperty.call(i,s))return b("InvalidAttr","Attribute '"+s+"' is repeated.",v(n[t]));i[s]=1}return!0}function N(t,e){if(";"===t[++e])return-1;if("#"===t[e])return function(t,e){let n=/\d/;for("x"===t[e]&&(e++,n=/[\da-fA-F]/);e<t.length;e++){if(";"===t[e])return e;if(!t[e].match(n))break}return-1}(t,++e);let n=0;for(;e<t.length;e++,n++)if(!(t[e].match(/\w/)&&n<20)){if(";"===t[e])break;return-1}return e}function b(t,e,n){return{err:{code:t,msg:e,line:n.line||n,col:n.col}}}function y(t){return r(t)}function E(t){return r(t)}function w(t,e){const n=t.substring(0,e).split(/\r?\n/);return{line:n.length,col:n[n.length-1].length+1}}function v(t){return t.startIndex+t[1].length}const S=t=>o.includes(t)?"__"+t:t,_={preserveOrder:!1,attributeNamePrefix:"@_",attributesGroupName:!1,textNodeName:"#text",ignoreAttributes:!0,removeNSPrefix:!1,allowBooleanAttributes:!1,parseTagValue:!0,parseAttributeValue:!1,trimValues:!0,cdataPropName:!1,numberParseOptions:{hex:!0,leadingZeros:!0,eNotation:!0},tagValueProcessor:function(t,e){return e},attributeValueProcessor:function(t,e){return e},stopNodes:[],alwaysCreateTextNode:!1,isArray:()=>!1,commentPropName:!1,unpairedTags:[],processEntities:!0,htmlEntities:!1,entityDecoder:null,ignoreDeclaration:!1,ignorePiTags:!1,transformTagName:!1,transformAttributeName:!1,updateTag:function(t,e,n){return t},captureMetaData:!1,maxNestedTags:100,strictReservedNames:!0,jPath:!0,onDangerousProperty:S};function A(t,e){if("string"!=typeof t)return;const n=t.toLowerCase();if(o.some(t=>n===t.toLowerCase()))throw new Error(`[SECURITY] Invalid ${e}: "${t}" is a reserved JavaScript keyword that could cause prototype pollution`);if(a.some(t=>n===t.toLowerCase()))throw new Error(`[SECURITY] Invalid ${e}: "${t}" is a reserved JavaScript keyword that could cause prototype pollution`)}function T(t,e){return"boolean"==typeof t?{enabled:t,maxEntitySize:1e4,maxExpansionDepth:1e4,maxTotalExpansions:1/0,maxExpandedLength:1e5,maxEntityCount:1e3,allowedTags:null,tagFilter:null,appliesTo:"all"}:"object"==typeof t&&null!==t?{enabled:!1!==t.enabled,maxEntitySize:Math.max(1,t.maxEntitySize??1e4),maxExpansionDepth:Math.max(1,t.maxExpansionDepth??1e4),maxTotalExpansions:Math.max(1,t.maxTotalExpansions??1/0),maxExpandedLength:Math.max(1,t.maxExpandedLength??1e5),maxEntityCount:Math.max(1,t.maxEntityCount??1e3),allowedTags:t.allowedTags??null,tagFilter:t.tagFilter??null,appliesTo:t.appliesTo??"all"}:T(!0)}const C=function(t){const e=Object.assign({},_,t),n=[{value:e.attributeNamePrefix,name:"attributeNamePrefix"},{value:e.attributesGroupName,name:"attributesGroupName"},{value:e.textNodeName,name:"textNodeName"},{value:e.cdataPropName,name:"cdataPropName"},{value:e.commentPropName,name:"commentPropName"}];for(const{value:t,name:e}of n)t&&A(t,e);return null===e.onDangerousProperty&&(e.onDangerousProperty=S),e.processEntities=T(e.processEntities,e.htmlEntities),e.unpairedTagsSet=new Set(e.unpairedTags),e.stopNodes&&Array.isArray(e.stopNodes)&&(e.stopNodes=e.stopNodes.map(t=>"string"==typeof t&&t.startsWith("*.")?".."+t.substring(2):t)),e};let P;P="function"!=typeof Symbol?"@@xmlMetadata":Symbol("XML Node Metadata");class O{constructor(t){this.tagname=t,this.child=[],this[":@"]=Object.create(null)}add(t,e){"__proto__"===t&&(t="#__proto__"),this.child.push({[t]:e})}addChild(t,e){"__proto__"===t.tagname&&(t.tagname="#__proto__"),t[":@"]&&Object.keys(t[":@"]).length>0?this.child.push({[t.tagname]:t.child,":@":t[":@"]}):this.child.push({[t.tagname]:t.child}),void 0!==e&&(this.child[this.child.length-1][P]={startIndex:e})}static getMetaDataSymbol(){return P}}class ${constructor(t){this.suppressValidationErr=!t,this.options=t}readDocType(t,e){const n=Object.create(null);let i=0;if("O"!==t[e+3]||"C"!==t[e+4]||"T"!==t[e+5]||"Y"!==t[e+6]||"P"!==t[e+7]||"E"!==t[e+8])throw new Error("Invalid Tag instead of DOCTYPE");{e+=9;let s=1,r=!1,o=!1,a="";for(;e<t.length;e++)if("<"!==t[e]||o)if(">"===t[e]){if(o?"-"===t[e-1]&&"-"===t[e-2]&&(o=!1,s--):s--,0===s)break}else"["===t[e]?r=!0:a+=t[e];else{if(r&&D(t,"!ENTITY",e)){let s,r;if(e+=7,[s,r,e]=this.readEntityExp(t,e+1,this.suppressValidationErr),-1===r.indexOf("&")){if(!1!==this.options.enabled&&null!=this.options.maxEntityCount&&i>=this.options.maxEntityCount)throw new Error(`Entity count (${i+1}) exceeds maximum allowed (${this.options.maxEntityCount})`);n[s]=r,i++}}else if(r&&D(t,"!ELEMENT",e)){e+=8;const{index:n}=this.readElementExp(t,e+1);e=n}else if(r&&D(t,"!ATTLIST",e))e+=8;else if(r&&D(t,"!NOTATION",e)){e+=9;const{index:n}=this.readNotationExp(t,e+1,this.suppressValidationErr);e=n}else{if(!D(t,"!--",e))throw new Error("Invalid DOCTYPE");o=!0}s++,a=""}if(0!==s)throw new Error("Unclosed DOCTYPE")}return{entities:n,i:e}}readEntityExp(t,e){const n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e])&&'"'!==t[e]&&"'"!==t[e];)e++;let i=t.substring(n,e);if(M(i),e=I(t,e),!this.suppressValidationErr){if("SYSTEM"===t.substring(e,e+6).toUpperCase())throw new Error("External entities are not supported");if("%"===t[e])throw new Error("Parameter entities are not supported")}let s="";if([e,s]=this.readIdentifierVal(t,e,"entity"),!1!==this.options.enabled&&null!=this.options.maxEntitySize&&s.length>this.options.maxEntitySize)throw new Error(`Entity "${i}" size (${s.length}) exceeds maximum allowed size (${this.options.maxEntitySize})`);return[i,s,--e]}readNotationExp(t,e){const n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e]);)e++;let i=t.substring(n,e);!this.suppressValidationErr&&M(i),e=I(t,e);const s=t.substring(e,e+6).toUpperCase();if(!this.suppressValidationErr&&"SYSTEM"!==s&&"PUBLIC"!==s)throw new Error(`Expected SYSTEM or PUBLIC, found "${s}"`);e+=s.length,e=I(t,e);let r=null,o=null;if("PUBLIC"===s)[e,r]=this.readIdentifierVal(t,e,"publicIdentifier"),'"'!==t[e=I(t,e)]&&"'"!==t[e]||([e,o]=this.readIdentifierVal(t,e,"systemIdentifier"));else if("SYSTEM"===s&&([e,o]=this.readIdentifierVal(t,e,"systemIdentifier"),!this.suppressValidationErr&&!o))throw new Error("Missing mandatory system identifier for SYSTEM notation");return{notationName:i,publicIdentifier:r,systemIdentifier:o,index:--e}}readIdentifierVal(t,e,n){let i="";const s=t[e];if('"'!==s&&"'"!==s)throw new Error(`Expected quoted string, found "${s}"`);const r=++e;for(;e<t.length&&t[e]!==s;)e++;if(i=t.substring(r,e),t[e]!==s)throw new Error(`Unterminated ${n} value`);return[++e,i]}readElementExp(t,e){const n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e]);)e++;let i=t.substring(n,e);if(!this.suppressValidationErr&&!r(i))throw new Error(`Invalid element name: "${i}"`);let s="";if("E"===t[e=I(t,e)]&&D(t,"MPTY",e))e+=4;else if("A"===t[e]&&D(t,"NY",e))e+=2;else if("("===t[e]){const n=++e;for(;e<t.length&&")"!==t[e];)e++;if(s=t.substring(n,e),")"!==t[e])throw new Error("Unterminated content model")}else if(!this.suppressValidationErr)throw new Error(`Invalid Element Expression, found "${t[e]}"`);return{elementName:i,contentModel:s.trim(),index:e}}readAttlistExp(t,e){let n=e=I(t,e);for(;e<t.length&&!/\s/.test(t[e]);)e++;let i=t.substring(n,e);for(M(i),n=e=I(t,e);e<t.length&&!/\s/.test(t[e]);)e++;let s=t.substring(n,e);if(!M(s))throw new Error(`Invalid attribute name: "${s}"`);e=I(t,e);let r="";if("NOTATION"===t.substring(e,e+8).toUpperCase()){if(r="NOTATION","("!==t[e=I(t,e+=8)])throw new Error(`Expected '(', found "${t[e]}"`);e++;let n=[];for(;e<t.length&&")"!==t[e];){const i=e;for(;e<t.length&&"|"!==t[e]&&")"!==t[e];)e++;let s=t.substring(i,e);if(s=s.trim(),!M(s))throw new Error(`Invalid notation name: "${s}"`);n.push(s),"|"===t[e]&&(e++,e=I(t,e))}if(")"!==t[e])throw new Error("Unterminated list of notations");e++,r+=" ("+n.join("|")+")"}else{const n=e;for(;e<t.length&&!/\s/.test(t[e]);)e++;r+=t.substring(n,e);const i=["CDATA","ID","IDREF","IDREFS","ENTITY","ENTITIES","NMTOKEN","NMTOKENS"];if(!this.suppressValidationErr&&!i.includes(r.toUpperCase()))throw new Error(`Invalid attribute type: "${r}"`)}e=I(t,e);let o="";return"#REQUIRED"===t.substring(e,e+8).toUpperCase()?(o="#REQUIRED",e+=8):"#IMPLIED"===t.substring(e,e+7).toUpperCase()?(o="#IMPLIED",e+=7):[e,o]=this.readIdentifierVal(t,e,"ATTLIST"),{elementName:i,attributeName:s,attributeType:r,defaultValue:o,index:e}}}const I=(t,e)=>{for(;e<t.length&&/\s/.test(t[e]);)e++;return e};function D(t,e,n){for(let i=0;i<e.length;i++)if(e[i]!==t[n+i+1])return!1;return!0}function M(t){if(r(t))return t;throw new Error(`Invalid entity name ${t}`)}const j=/^[-+]?0x[a-fA-F0-9]+$/,V=/^([\-\+])?(0*)([0-9]*(\.[0-9]*)?)$/,L={hex:!0,leadingZeros:!0,decimalPoint:".",eNotation:!0,infinity:"original"};const k=/^([-+])?(0*)(\d*(\.\d*)?[eE][-\+]?\d+)$/;class F{constructor(t){this._matcher=t}get separator(){return this._matcher.separator}getCurrentTag(){const t=this._matcher.path;return t.length>0?t[t.length-1].tag:void 0}getCurrentNamespace(){const t=this._matcher.path;return t.length>0?t[t.length-1].namespace:void 0}getAttrValue(t){const e=this._matcher.path;if(0!==e.length)return e[e.length-1].values?.[t]}hasAttr(t){const e=this._matcher.path;if(0===e.length)return!1;const n=e[e.length-1];return void 0!==n.values&&t in n.values}getPosition(){const t=this._matcher.path;return 0===t.length?-1:t[t.length-1].position??0}getCounter(){const t=this._matcher.path;return 0===t.length?-1:t[t.length-1].counter??0}getIndex(){return this.getPosition()}getDepth(){return this._matcher.path.length}toString(t,e=!0){return this._matcher.toString(t,e)}toArray(){return this._matcher.path.map(t=>t.tag)}matches(t){return this._matcher.matches(t)}matchesAny(t){return t.matchesAny(this._matcher)}}class R{constructor(t={}){this.separator=t.separator||".",this.path=[],this.siblingStacks=[],this._pathStringCache=null,this._view=new F(this)}push(t,e=null,n=null){this._pathStringCache=null,this.path.length>0&&(this.path[this.path.length-1].values=void 0);const i=this.path.length;this.siblingStacks[i]||(this.siblingStacks[i]=new Map);const s=this.siblingStacks[i],r=n?`${n}:${t}`:t,o=s.get(r)||0;let a=0;for(const t of s.values())a+=t;s.set(r,o+1);const h={tag:t,position:a,counter:o};null!=n&&(h.namespace=n),null!=e&&(h.values=e),this.path.push(h)}pop(){if(0===this.path.length)return;this._pathStringCache=null;const t=this.path.pop();return this.siblingStacks.length>this.path.length+1&&(this.siblingStacks.length=this.path.length+1),t}updateCurrent(t){if(this.path.length>0){const e=this.path[this.path.length-1];null!=t&&(e.values=t)}}getCurrentTag(){return this.path.length>0?this.path[this.path.length-1].tag:void 0}getCurrentNamespace(){return this.path.length>0?this.path[this.path.length-1].namespace:void 0}getAttrValue(t){if(0!==this.path.length)return this.path[this.path.length-1].values?.[t]}hasAttr(t){if(0===this.path.length)return!1;const e=this.path[this.path.length-1];return void 0!==e.values&&t in e.values}getPosition(){return 0===this.path.length?-1:this.path[this.path.length-1].position??0}getCounter(){return 0===this.path.length?-1:this.path[this.path.length-1].counter??0}getIndex(){return this.getPosition()}getDepth(){return this.path.length}toString(t,e=!0){const n=t||this.separator;if(n===this.separator&&!0===e){if(null!==this._pathStringCache)return this._pathStringCache;const t=this.path.map(t=>t.namespace?`${t.namespace}:${t.tag}`:t.tag).join(n);return this._pathStringCache=t,t}return this.path.map(t=>e&&t.namespace?`${t.namespace}:${t.tag}`:t.tag).join(n)}toArray(){return this.path.map(t=>t.tag)}reset(){this._pathStringCache=null,this.path=[],this.siblingStacks=[]}matches(t){const e=t.segments;return 0!==e.length&&(t.hasDeepWildcard()?this._matchWithDeepWildcard(e):this._matchSimple(e))}_matchSimple(t){if(this.path.length!==t.length)return!1;for(let e=0;e<t.length;e++)if(!this._matchSegment(t[e],this.path[e],e===this.path.length-1))return!1;return!0}_matchWithDeepWildcard(t){let e=this.path.length-1,n=t.length-1;for(;n>=0&&e>=0;){const i=t[n];if("deep-wildcard"===i.type){if(n--,n<0)return!0;const i=t[n];let s=!1;for(let t=e;t>=0;t--)if(this._matchSegment(i,this.path[t],t===this.path.length-1)){e=t-1,n--,s=!0;break}if(!s)return!1}else{if(!this._matchSegment(i,this.path[e],e===this.path.length-1))return!1;e--,n--}}return n<0}_matchSegment(t,e,n){if("*"!==t.tag&&t.tag!==e.tag)return!1;if(void 0!==t.namespace&&"*"!==t.namespace&&t.namespace!==e.namespace)return!1;if(void 0!==t.attrName){if(!n)return!1;if(!e.values||!(t.attrName in e.values))return!1;if(void 0!==t.attrValue&&String(e.values[t.attrName])!==String(t.attrValue))return!1}if(void 0!==t.position){if(!n)return!1;const i=e.counter??0;if("first"===t.position&&0!==i)return!1;if("odd"===t.position&&i%2!=1)return!1;if("even"===t.position&&i%2!=0)return!1;if("nth"===t.position&&i!==t.positionValue)return!1}return!0}matchesAny(t){return t.matchesAny(this)}snapshot(){return{path:this.path.map(t=>({...t})),siblingStacks:this.siblingStacks.map(t=>new Map(t))}}restore(t){this._pathStringCache=null,this.path=t.path.map(t=>({...t})),this.siblingStacks=t.siblingStacks.map(t=>new Map(t))}readOnly(){return this._view}}class G{constructor(t,e={},n){this.pattern=t,this.separator=e.separator||".",this.segments=this._parse(t),this.data=n,this._hasDeepWildcard=this.segments.some(t=>"deep-wildcard"===t.type),this._hasAttributeCondition=this.segments.some(t=>void 0!==t.attrName),this._hasPositionSelector=this.segments.some(t=>void 0!==t.position)}_parse(t){const e=[];let n=0,i="";for(;n<t.length;)t[n]===this.separator?n+1<t.length&&t[n+1]===this.separator?(i.trim()&&(e.push(this._parseSegment(i.trim())),i=""),e.push({type:"deep-wildcard"}),n+=2):(i.trim()&&e.push(this._parseSegment(i.trim())),i="",n++):(i+=t[n],n++);return i.trim()&&e.push(this._parseSegment(i.trim())),e}_parseSegment(t){const e={type:"tag"};let n=null,i=t;const s=t.match(/^([^\[]+)(\[[^\]]*\])(.*)$/);if(s&&(i=s[1]+s[3],s[2])){const t=s[2].slice(1,-1);t&&(n=t)}let r,o,a=i;if(i.includes("::")){const e=i.indexOf("::");if(r=i.substring(0,e).trim(),a=i.substring(e+2).trim(),!r)throw new Error(`Invalid namespace in pattern: ${t}`)}let h=null;if(a.includes(":")){const t=a.lastIndexOf(":"),e=a.substring(0,t).trim(),n=a.substring(t+1).trim();["first","last","odd","even"].includes(n)||/^nth\(\d+\)$/.test(n)?(o=e,h=n):o=a}else o=a;if(!o)throw new Error(`Invalid segment pattern: ${t}`);if(e.tag=o,r&&(e.namespace=r),n)if(n.includes("=")){const t=n.indexOf("=");e.attrName=n.substring(0,t).trim(),e.attrValue=n.substring(t+1).trim()}else e.attrName=n.trim();if(h){const t=h.match(/^nth\((\d+)\)$/);t?(e.position="nth",e.positionValue=parseInt(t[1],10)):e.position=h}return e}get length(){return this.segments.length}hasDeepWildcard(){return this._hasDeepWildcard}hasAttributeCondition(){return this._hasAttributeCondition}hasPositionSelector(){return this._hasPositionSelector}toString(){return this.pattern}}class B{constructor(){this._byDepthAndTag=new Map,this._wildcardByDepth=new Map,this._deepWildcards=[],this._patterns=new Set,this._sealed=!1}add(t){if(this._sealed)throw new TypeError("ExpressionSet is sealed. Create a new ExpressionSet to add more expressions.");if(this._patterns.has(t.pattern))return this;if(this._patterns.add(t.pattern),t.hasDeepWildcard())return this._deepWildcards.push(t),this;const e=t.length,n=t.segments[t.segments.length-1],i=n?.tag;if(i&&"*"!==i){const n=`${e}:${i}`;this._byDepthAndTag.has(n)||this._byDepthAndTag.set(n,[]),this._byDepthAndTag.get(n).push(t)}else this._wildcardByDepth.has(e)||this._wildcardByDepth.set(e,[]),this._wildcardByDepth.get(e).push(t);return this}addAll(t){for(const e of t)this.add(e);return this}has(t){return this._patterns.has(t.pattern)}get size(){return this._patterns.size}seal(){return this._sealed=!0,this}get isSealed(){return this._sealed}matchesAny(t){return null!==this.findMatch(t)}findMatch(t){const e=t.getDepth(),n=`${e}:${t.getCurrentTag()}`,i=this._byDepthAndTag.get(n);if(i)for(let e=0;e<i.length;e++)if(t.matches(i[e]))return i[e];const s=this._wildcardByDepth.get(e);if(s)for(let e=0;e<s.length;e++)if(t.matches(s[e]))return s[e];for(let e=0;e<this._deepWildcards.length;e++)if(t.matches(this._deepWildcards[e]))return this._deepWildcards[e];return null}}const U={cent:"¢",pound:"£",curren:"¤",yen:"¥",euro:"€",dollar:"$",euro:"€",fnof:"ƒ",inr:"₹",af:"؋",birr:"ብር",peso:"₱",rub:"₽",won:"₩",yuan:"¥",cedil:"¸"},W={amp:"&",apos:"'",gt:">",lt:"<",quot:'"'},X={nbsp:" ",copy:"©",reg:"®",trade:"™",mdash:"—",ndash:"–",hellip:"…",laquo:"«",raquo:"»",lsquo:"‘",rsquo:"’",ldquo:"“",rdquo:"”",bull:"•",para:"¶",sect:"§",deg:"°",frac12:"½",frac14:"¼",frac34:"¾"},Y=new Set("!?\\\\/[]$%{}^&*()<>|+");function z(t){if("#"===t[0])throw new Error(`[EntityReplacer] Invalid character '#' in entity name: "${t}"`);for(const e of t)if(Y.has(e))throw new Error(`[EntityReplacer] Invalid character '${e}' in entity name: "${t}"`);return t}function q(...t){const e=Object.create(null);for(const n of t)if(n)for(const t of Object.keys(n)){const i=n[t];if("string"==typeof i)e[t]=i;else if(i&&"object"==typeof i&&void 0!==i.val){const n=i.val;"string"==typeof n&&(e[t]=n)}}return e}const Z="external",J="base",K="all",Q=Object.freeze({allow:0,leave:1,remove:2,throw:3}),H=new Set([9,10,13]);class tt{constructor(t={}){var e;this._limit=t.limit||{},this._maxTotalExpansions=this._limit.maxTotalExpansions||0,this._maxExpandedLength=this._limit.maxExpandedLength||0,this._postCheck="function"==typeof t.postCheck?t.postCheck:t=>t,this._limitTiers=(e=this._limit.applyLimitsTo??Z)&&e!==Z?e===K?new Set([K]):e===J?new Set([J]):Array.isArray(e)?new Set(e):new Set([Z]):new Set([Z]),this._numericAllowed=t.numericAllowed??!0,this._baseMap=q(W,t.namedEntities||null),this._externalMap=Object.create(null),this._inputMap=Object.create(null),this._totalExpansions=0,this._expandedLength=0,this._removeSet=new Set(t.remove&&Array.isArray(t.remove)?t.remove:[]),this._leaveSet=new Set(t.leave&&Array.isArray(t.leave)?t.leave:[]);const n=function(t){if(!t)return{xmlVersion:1,onLevel:Q.allow,nullLevel:Q.remove};const e=1.1===t.xmlVersion?1.1:1,n=Q[t.onNCR]??Q.allow,i=Q[t.nullNCR]??Q.remove;return{xmlVersion:e,onLevel:n,nullLevel:Math.max(i,Q.remove)}}(t.ncr);this._ncrXmlVersion=n.xmlVersion,this._ncrOnLevel=n.onLevel,this._ncrNullLevel=n.nullLevel}setExternalEntities(t){if(t)for(const e of Object.keys(t))z(e);this._externalMap=q(t)}addExternalEntity(t,e){z(t),"string"==typeof e&&-1===e.indexOf("&")&&(this._externalMap[t]=e)}addInputEntities(t){this._totalExpansions=0,this._expandedLength=0,this._inputMap=q(t)}reset(){return this._inputMap=Object.create(null),this._totalExpansions=0,this._expandedLength=0,this}setXmlVersion(t){this._ncrXmlVersion=1.1===t?1.1:1}decode(t){if("string"!=typeof t||0===t.length)return t;const e=t,n=[],i=t.length;let s=0,r=0;const o=this._maxTotalExpansions>0,a=this._maxExpandedLength>0,h=o||a;for(;r<i;){if(38!==t.charCodeAt(r)){r++;continue}let e=r+1;for(;e<i&&59!==t.charCodeAt(e)&&e-r<=32;)e++;if(e>=i||59!==t.charCodeAt(e)){r++;continue}const l=t.slice(r+1,e);if(0===l.length){r++;continue}let u,p;if(this._removeSet.has(l))u="",void 0===p&&(p=Z);else{if(this._leaveSet.has(l)){r++;continue}if(35===l.charCodeAt(0)){const t=this._resolveNCR(l);if(void 0===t){r++;continue}u=t,p=J}else{const t=this._resolveName(l);u=t?.value,p=t?.tier}}if(void 0!==u){if(r>s&&n.push(t.slice(s,r)),n.push(u),s=e+1,r=s,h&&this._tierCounts(p)){if(o&&(this._totalExpansions++,this._totalExpansions>this._maxTotalExpansions))throw new Error(`[EntityReplacer] Entity expansion count limit exceeded: ${this._totalExpansions} > ${this._maxTotalExpansions}`);if(a){const t=u.length-(l.length+2);if(t>0&&(this._expandedLength+=t,this._expandedLength>this._maxExpandedLength))throw new Error(`[EntityReplacer] Expanded content length limit exceeded: ${this._expandedLength} > ${this._maxExpandedLength}`)}}}else r++}s<i&&n.push(t.slice(s));const l=0===n.length?t:n.join("");return this._postCheck(l,e)}_tierCounts(t){return!!this._limitTiers.has(K)||this._limitTiers.has(t)}_resolveName(t){return t in this._inputMap?{value:this._inputMap[t],tier:Z}:t in this._externalMap?{value:this._externalMap[t],tier:Z}:t in this._baseMap?{value:this._baseMap[t],tier:J}:void 0}_classifyNCR(t){return 0===t?this._ncrNullLevel:t>=55296&&t<=57343||1===this._ncrXmlVersion&&t>=1&&t<=31&&!H.has(t)?Q.remove:-1}_applyNCRAction(t,e,n){switch(t){case Q.allow:return String.fromCodePoint(n);case Q.remove:return"";case Q.leave:return;case Q.throw:throw new Error(`[EntityDecoder] Prohibited numeric character reference &${e}; (U+${n.toString(16).toUpperCase().padStart(4,"0")})`);default:return String.fromCodePoint(n)}}_resolveNCR(t){const e=t.charCodeAt(1);let n;if(n=120===e||88===e?parseInt(t.slice(2),16):parseInt(t.slice(1),10),Number.isNaN(n)||n<0||n>1114111)return;const i=this._classifyNCR(n);if(!this._numericAllowed&&i<Q.remove)return;const s=-1===i?this._ncrOnLevel:Math.max(this._ncrOnLevel,i);return this._applyNCRAction(s,t,n)}}function et(t,e){if(!t)return{};const n=e.attributesGroupName?t[e.attributesGroupName]:t;if(!n)return{};const i={};for(const t in n)t.startsWith(e.attributeNamePrefix)?i[t.substring(e.attributeNamePrefix.length)]=n[t]:i[t]=n[t];return i}function nt(t){if(!t||"string"!=typeof t)return;const e=t.indexOf(":");if(-1!==e&&e>0){const n=t.substring(0,e);if("xmlns"!==n)return n}}class it{constructor(t,e){var n;this.options=t,this.currentNode=null,this.tagsNodeStack=[],this.parseXml=ht,this.parseTextData=st,this.resolveNameSpace=rt,this.buildAttributesMap=at,this.isItStopNode=ct,this.replaceEntitiesValue=ut,this.readStopNodeData=mt,this.saveTextToParentTag=pt,this.addChild=lt,this.ignoreAttributesFn="function"==typeof(n=this.options.ignoreAttributes)?n:Array.isArray(n)?t=>{for(const e of n){if("string"==typeof e&&t===e)return!0;if(e instanceof RegExp&&e.test(t))return!0}}:()=>!1,this.entityExpansionCount=0,this.currentExpandedLength=0;let i={...W};this.options.entityDecoder?this.entityDecoder=this.options.entityDecoder:("object"==typeof this.options.htmlEntities?i=this.options.htmlEntities:!0===this.options.htmlEntities&&(i={...X,...U}),this.entityDecoder=new tt({namedEntities:{...i,...e},numericAllowed:this.options.htmlEntities,limit:{maxTotalExpansions:this.options.processEntities.maxTotalExpansions,maxExpandedLength:this.options.processEntities.maxExpandedLength,applyLimitsTo:this.options.processEntities.appliesTo}})),this.matcher=new R,this.readonlyMatcher=this.matcher.readOnly(),this.isCurrentNodeStopNode=!1,this.stopNodeExpressionsSet=new B;const s=this.options.stopNodes;if(s&&s.length>0){for(let t=0;t<s.length;t++){const e=s[t];"string"==typeof e?this.stopNodeExpressionsSet.add(new G(e)):e instanceof G&&this.stopNodeExpressionsSet.add(e)}this.stopNodeExpressionsSet.seal()}}}function st(t,e,n,i,s,r,o){const a=this.options;if(void 0!==t&&(a.trimValues&&!i&&(t=t.trim()),t.length>0)){o||(t=this.replaceEntitiesValue(t,e,n));const i=a.jPath?n.toString():n,h=a.tagValueProcessor(e,t,i,s,r);return null==h?t:typeof h!=typeof t||h!==t?h:a.trimValues||t.trim()===t?xt(t,a.parseTagValue,a.numberParseOptions):t}}function rt(t){if(this.options.removeNSPrefix){const e=t.split(":"),n="/"===t.charAt(0)?"/":"";if("xmlns"===e[0])return"";2===e.length&&(t=n+e[1])}return t}const ot=new RegExp("([^\\s=]+)\\s*(=\\s*(['\"])([\\s\\S]*?)\\3)?","gm");function at(t,e,n,i=!1){const r=this.options;if(!0===i||!0!==r.ignoreAttributes&&"string"==typeof t){const i=s(t,ot),o=i.length,a={},h=new Array(o);let l=!1;const u={};for(let t=0;t<o;t++){const e=this.resolveNameSpace(i[t][1]),s=i[t][4];if(e.length&&void 0!==s){let i=s;r.trimValues&&(i=i.trim()),i=this.replaceEntitiesValue(i,n,this.readonlyMatcher),h[t]=i,u[e]=i,l=!0}}l&&"object"==typeof e&&e.updateCurrent&&e.updateCurrent(u);const p=r.jPath?e.toString():this.readonlyMatcher;let c=!1;for(let t=0;t<o;t++){const e=this.resolveNameSpace(i[t][1]);if(this.ignoreAttributesFn(e,p))continue;let n=r.attributeNamePrefix+e;if(e.length)if(r.transformAttributeName&&(n=r.transformAttributeName(n)),n=bt(n,r),void 0!==i[t][4]){const i=h[t],s=r.attributeValueProcessor(e,i,p);a[n]=null==s?i:typeof s!=typeof i||s!==i?s:xt(i,r.parseAttributeValue,r.numberParseOptions),c=!0}else r.allowBooleanAttributes&&(a[n]=!0,c=!0)}if(!c)return;if(r.attributesGroupName&&!r.preserveOrder){const t={};return t[r.attributesGroupName]=a,t}return a}}const ht=function(t){t=t.replace(/\r\n?/g,"\n");const e=new O("!xml");let n=e,i="";this.matcher.reset(),this.entityDecoder.reset(),this.entityExpansionCount=0,this.currentExpandedLength=0;const s=this.options,r=new $(s.processEntities),o=t.length;for(let a=0;a<o;a++)if("<"===t[a]){const h=t.charCodeAt(a+1);if(47===h){const e=dt(t,">",a,"Closing Tag is not closed.");let r=t.substring(a+2,e).trim();if(s.removeNSPrefix){const t=r.indexOf(":");-1!==t&&(r=r.substr(t+1))}r=Nt(s.transformTagName,r,"",s).tagName,n&&(i=this.saveTextToParentTag(i,n,this.readonlyMatcher));const o=this.matcher.getCurrentTag();if(r&&s.unpairedTagsSet.has(r))throw new Error(`Unpaired tag can not be used as closing tag: </${r}>`);o&&s.unpairedTagsSet.has(o)&&(this.matcher.pop(),this.tagsNodeStack.pop()),this.matcher.pop(),this.isCurrentNodeStopNode=!1,n=this.tagsNodeStack.pop(),i="",a=e}else if(63===h){let e=gt(t,a,!1,"?>");if(!e)throw new Error("Pi Tag is not closed.");i=this.saveTextToParentTag(i,n,this.readonlyMatcher);const r=this.buildAttributesMap(e.tagExp,this.matcher,e.tagName,!0);if(r){const t=r[this.options.attributeNamePrefix+"version"];this.entityDecoder.setXmlVersion(Number(t)||1)}if(s.ignoreDeclaration&&"?xml"===e.tagName||s.ignorePiTags);else{const t=new O(e.tagName);t.add(s.textNodeName,""),e.tagName!==e.tagExp&&e.attrExpPresent&&!0!==s.ignoreAttributes&&(t[":@"]=r),this.addChild(n,t,this.readonlyMatcher,a)}a=e.closeIndex+1}else if(33===h&&45===t.charCodeAt(a+2)&&45===t.charCodeAt(a+3)){const e=dt(t,"--\x3e",a+4,"Comment is not closed.");if(s.commentPropName){const r=t.substring(a+4,e-2);i=this.saveTextToParentTag(i,n,this.readonlyMatcher),n.add(s.commentPropName,[{[s.textNodeName]:r}])}a=e}else if(33===h&&68===t.charCodeAt(a+2)){const e=r.readDocType(t,a);this.entityDecoder.addInputEntities(e.entities),a=e.i}else if(33===h&&91===t.charCodeAt(a+2)){const e=dt(t,"]]>",a,"CDATA is not closed.")-2,r=t.substring(a+9,e);i=this.saveTextToParentTag(i,n,this.readonlyMatcher);let o=this.parseTextData(r,n.tagname,this.readonlyMatcher,!0,!1,!0,!0);null==o&&(o=""),s.cdataPropName?n.add(s.cdataPropName,[{[s.textNodeName]:r}]):n.add(s.textNodeName,o),a=e+2}else{let r=gt(t,a,s.removeNSPrefix);if(!r){const e=t.substring(Math.max(0,a-50),Math.min(o,a+50));throw new Error(`readTagExp returned undefined at position ${a}. Context: "${e}"`)}let h=r.tagName;const l=r.rawTagName;let u=r.tagExp,p=r.attrExpPresent,c=r.closeIndex;if(({tagName:h,tagExp:u}=Nt(s.transformTagName,h,u,s)),s.strictReservedNames&&(h===s.commentPropName||h===s.cdataPropName||h===s.textNodeName||h===s.attributesGroupName))throw new Error(`Invalid tag name: ${h}`);n&&i&&"!xml"!==n.tagname&&(i=this.saveTextToParentTag(i,n,this.readonlyMatcher,!1));const d=n;d&&s.unpairedTagsSet.has(d.tagname)&&(n=this.tagsNodeStack.pop(),this.matcher.pop());let f=!1;u.length>0&&u.lastIndexOf("/")===u.length-1&&(f=!0,"/"===h[h.length-1]?(h=h.substr(0,h.length-1),u=h):u=u.substr(0,u.length-1),p=h!==u);let g,m=null,x={};g=nt(l),h!==e.tagname&&this.matcher.push(h,{},g),h!==u&&p&&(m=this.buildAttributesMap(u,this.matcher,h),m&&(x=et(m,s))),h!==e.tagname&&(this.isCurrentNodeStopNode=this.isItStopNode());const N=a;if(this.isCurrentNodeStopNode){let e="";if(f)a=r.closeIndex;else if(s.unpairedTagsSet.has(h))a=r.closeIndex;else{const n=this.readStopNodeData(t,l,c+1);if(!n)throw new Error(`Unexpected end of ${l}`);a=n.i,e=n.tagContent}const i=new O(h);m&&(i[":@"]=m),i.add(s.textNodeName,e),this.matcher.pop(),this.isCurrentNodeStopNode=!1,this.addChild(n,i,this.readonlyMatcher,N)}else{if(f){({tagName:h,tagExp:u}=Nt(s.transformTagName,h,u,s));const t=new O(h);m&&(t[":@"]=m),this.addChild(n,t,this.readonlyMatcher,N),this.matcher.pop(),this.isCurrentNodeStopNode=!1}else{if(s.unpairedTagsSet.has(h)){const t=new O(h);m&&(t[":@"]=m),this.addChild(n,t,this.readonlyMatcher,N),this.matcher.pop(),this.isCurrentNodeStopNode=!1,a=r.closeIndex;continue}{const t=new O(h);if(this.tagsNodeStack.length>s.maxNestedTags)throw new Error("Maximum nested tags exceeded");this.tagsNodeStack.push(n),m&&(t[":@"]=m),this.addChild(n,t,this.readonlyMatcher,N),n=t}}i="",a=c}}}else i+=t[a];return e.child};function lt(t,e,n,i){this.options.captureMetaData||(i=void 0);const s=this.options.jPath?n.toString():n,r=this.options.updateTag(e.tagname,s,e[":@"]);!1===r||("string"==typeof r?(e.tagname=r,t.addChild(e,i)):t.addChild(e,i))}function ut(t,e,n){const i=this.options.processEntities;if(!i||!i.enabled)return t;if(i.allowedTags){const s=this.options.jPath?n.toString():n;if(!(Array.isArray(i.allowedTags)?i.allowedTags.includes(e):i.allowedTags(e,s)))return t}if(i.tagFilter){const s=this.options.jPath?n.toString():n;if(!i.tagFilter(e,s))return t}return this.entityDecoder.decode(t)}function pt(t,e,n,i){return t&&(void 0===i&&(i=0===e.child.length),void 0!==(t=this.parseTextData(t,e.tagname,n,!1,!!e[":@"]&&0!==Object.keys(e[":@"]).length,i))&&""!==t&&e.add(this.options.textNodeName,t),t=""),t}function ct(){return 0!==this.stopNodeExpressionsSet.size&&this.matcher.matchesAny(this.stopNodeExpressionsSet)}function dt(t,e,n,i){const s=t.indexOf(e,n);if(-1===s)throw new Error(i);return s+e.length-1}function ft(t,e,n,i){const s=t.indexOf(e,n);if(-1===s)throw new Error(i);return s}function gt(t,e,n,i=">"){const s=function(t,e,n=">"){let i=0;const s=t.length,r=n.charCodeAt(0),o=n.length>1?n.charCodeAt(1):-1;let a="",h=e;for(let n=e;n<s;n++){const e=t.charCodeAt(n);if(i)e===i&&(i=0);else if(34===e||39===e)i=e;else if(e===r){if(-1===o)return a+=t.substring(h,n),{data:a,index:n};if(t.charCodeAt(n+1)===o)return a+=t.substring(h,n),{data:a,index:n}}else 9!==e||i||(a+=t.substring(h,n)+" ",h=n+1)}}(t,e+1,i);if(!s)return;let r=s.data;const o=s.index,a=r.search(/\s/);let h=r,l=!0;-1!==a&&(h=r.substring(0,a),r=r.substring(a+1).trimStart());const u=h;if(n){const t=h.indexOf(":");-1!==t&&(h=h.substr(t+1),l=h!==s.data.substr(t+1))}return{tagName:h,tagExp:r,closeIndex:o,attrExpPresent:l,rawTagName:u}}function mt(t,e,n){const i=n;let s=1;const r=t.length;for(;n<r;n++)if("<"===t[n]){const r=t.charCodeAt(n+1);if(47===r){const r=ft(t,">",n,`${e} is not closed`);if(t.substring(n+2,r).trim()===e&&(s--,0===s))return{tagContent:t.substring(i,n),i:r};n=r}else if(63===r)n=dt(t,"?>",n+1,"StopNode is not closed.");else if(33===r&&45===t.charCodeAt(n+2)&&45===t.charCodeAt(n+3))n=dt(t,"--\x3e",n+3,"StopNode is not closed.");else if(33===r&&91===t.charCodeAt(n+2))n=dt(t,"]]>",n,"StopNode is not closed.")-2;else{const i=gt(t,n,!1);i&&((i&&i.tagName)===e&&"/"!==i.tagExp[i.tagExp.length-1]&&s++,n=i.closeIndex)}}}function xt(t,e,n){if(e&&"string"==typeof t){const e=t.trim();return"true"===e||"false"!==e&&function(t,e={}){if(e=Object.assign({},L,e),!t||"string"!=typeof t)return t;let n=t.trim();if(0===n.length)return t;if(void 0!==e.skipLike&&e.skipLike.test(n))return t;if("0"===n)return 0;if(e.hex&&j.test(n))return function(t){if(parseInt)return parseInt(t,16);if(Number.parseInt)return Number.parseInt(t,16);if(window&&window.parseInt)return window.parseInt(t,16);throw new Error("parseInt, Number.parseInt, window.parseInt are not supported")}(n);if(isFinite(n)){if(n.includes("e")||n.includes("E"))return function(t,e,n){if(!n.eNotation)return t;const i=e.match(k);if(i){let s=i[1]||"";const r=-1===i[3].indexOf("e")?"E":"e",o=i[2],a=s?t[o.length+1]===r:t[o.length]===r;return o.length>1&&a?t:(1!==o.length||!i[3].startsWith(`.${r}`)&&i[3][0]!==r)&&o.length>0?n.leadingZeros&&!a?(e=(i[1]||"")+i[3],Number(e)):t:Number(e)}return t}(t,n,e);{const s=V.exec(n);if(s){const r=s[1]||"",o=s[2];let a=(i=s[3])&&-1!==i.indexOf(".")?("."===(i=i.replace(/0+$/,""))?i="0":"."===i[0]?i="0"+i:"."===i[i.length-1]&&(i=i.substring(0,i.length-1)),i):i;const h=r?"."===t[o.length+1]:"."===t[o.length];if(!e.leadingZeros&&(o.length>1||1===o.length&&!h))return t;{const i=Number(n),s=String(i);if(0===i)return i;if(-1!==s.search(/[eE]/))return e.eNotation?i:t;if(-1!==n.indexOf("."))return"0"===s||s===a||s===`${r}${a}`?i:t;let h=o?a:n;return o?h===s||r+h===s?i:t:h===s||h===r+s?i:t}}return t}}var i;return function(t,e,n){const i=e===1/0;switch(n.infinity.toLowerCase()){case"null":return null;case"infinity":return e;case"string":return i?"Infinity":"-Infinity";default:return t}}(t,Number(n),e)}(t,n)}return void 0!==t?t:""}function Nt(t,e,n,i){if(t){const i=t(e);n===e&&(n=i),e=i}return{tagName:e=bt(e,i),tagExp:n}}function bt(t,e){if(a.includes(t))throw new Error(`[SECURITY] Invalid name: "${t}" is a reserved JavaScript keyword that could cause prototype pollution`);return o.includes(t)?e.onDangerousProperty(t):t}const yt=O.getMetaDataSymbol();function Et(t,e){if(!t||"object"!=typeof t)return{};if(!e)return t;const n={};for(const i in t)i.startsWith(e)?n[i.substring(e.length)]=t[i]:n[i]=t[i];return n}function wt(t,e,n,i){return vt(t,e,n,i)}function vt(t,e,n,i){let s;const r={};for(let o=0;o<t.length;o++){const a=t[o],h=St(a);if(void 0!==h&&h!==e.textNodeName){const t=Et(a[":@"]||{},e.attributeNamePrefix);n.push(h,t)}if(h===e.textNodeName)void 0===s?s=a[h]:s+=""+a[h];else{if(void 0===h)continue;if(a[h]){let t=vt(a[h],e,n,i);const s=At(t,e);if(0===Object.keys(t).length&&e.alwaysCreateTextNode&&(t[e.textNodeName]=""),a[":@"]?_t(t,a[":@"],i,e):1!==Object.keys(t).length||void 0===t[e.textNodeName]||e.alwaysCreateTextNode?0===Object.keys(t).length&&(e.alwaysCreateTextNode?t[e.textNodeName]="":t=""):t=t[e.textNodeName],void 0!==a[yt]&&"object"==typeof t&&null!==t&&(t[yt]=a[yt]),void 0!==r[h]&&Object.prototype.hasOwnProperty.call(r,h))Array.isArray(r[h])||(r[h]=[r[h]]),r[h].push(t);else{const n=e.jPath?i.toString():i;e.isArray(h,n,s)?r[h]=[t]:r[h]=t}void 0!==h&&h!==e.textNodeName&&n.pop()}}}return"string"==typeof s?s.length>0&&(r[e.textNodeName]=s):void 0!==s&&(r[e.textNodeName]=s),r}function St(t){const e=Object.keys(t);for(let t=0;t<e.length;t++){const n=e[t];if(":@"!==n)return n}}function _t(t,e,n,i){if(e){const s=Object.keys(e),r=s.length;for(let o=0;o<r;o++){const r=s[o],a=r.startsWith(i.attributeNamePrefix)?r.substring(i.attributeNamePrefix.length):r,h=i.jPath?n.toString()+"."+a:n;i.isArray(r,h,!0,!0)?t[r]=[e[r]]:t[r]=e[r]}}}function At(t,e){const{textNodeName:n}=e,i=Object.keys(t).length;return 0===i||!(1!==i||!t[n]&&"boolean"!=typeof t[n]&&0!==t[n])}class Tt{constructor(t){this.externalEntities={},this.options=C(t)}parse(t,e){if("string"!=typeof t&&t.toString)t=t.toString();else if("string"!=typeof t)throw new Error("XML data is accepted in String or Bytes[] form.");if(e){!0===e&&(e={});const n=l(t,e);if(!0!==n)throw Error(`${n.err.msg}:${n.err.line}:${n.err.col}`)}const n=new it(this.options,this.externalEntities),i=n.parseXml(t);return this.options.preserveOrder||void 0===i?i:wt(i,this.options,n.matcher,n.readonlyMatcher)}addEntity(t,e){if(-1!==e.indexOf("&"))throw new Error("Entity value can't have '&'");if(-1!==t.indexOf("&")||-1!==t.indexOf(";"))throw new Error("An entity must be set without '&' and ';'. Eg. use '#xD' for '&#xD;'");if("&"===e)throw new Error("An entity with value '&' is not permitted");this.externalEntities[t]=e}static getMetaDataSymbol(){return O.getMetaDataSymbol()}}function Ct(t){return String(t).replace(/--/g,"- -").replace(/--/g,"- -").replace(/-$/,"- ")}function Pt(t){return String(t).replace(/\]\]>/g,"]]]]><![CDATA[>")}function Ot(t){return String(t).replace(/"/g,"&quot;").replace(/'/g,"&apos;")}function $t(t,e){let n="";e.format&&e.indentBy.length>0&&(n="\n");const i=[];if(e.stopNodes&&Array.isArray(e.stopNodes))for(let t=0;t<e.stopNodes.length;t++){const n=e.stopNodes[t];"string"==typeof n?i.push(new G(n)):n instanceof G&&i.push(n)}return It(t,e,n,new R,i)}function It(t,e,n,i,s){let r="",o=!1;if(e.maxNestedTags&&i.getDepth()>e.maxNestedTags)throw new Error("Maximum nested tags exceeded");if(!Array.isArray(t)){if(null!=t){let n=t.toString();return n=Ft(n,e),n}return""}for(let a=0;a<t.length;a++){const h=t[a],l=Vt(h);if(void 0===l)continue;const u=Dt(h[":@"],e);i.push(l,u);const p=kt(i,s);if(l===e.textNodeName){let t=h[l];p||(t=e.tagValueProcessor(l,t),t=Ft(t,e)),o&&(r+=n),r+=t,o=!1,i.pop();continue}if(l===e.cdataPropName){o&&(r+=n),r+=`<![CDATA[${Pt(h[l][0][e.textNodeName])}]]>`,o=!1,i.pop();continue}if(l===e.commentPropName){r+=n+`\x3c!--${Ct(h[l][0][e.textNodeName])}--\x3e`,o=!0,i.pop();continue}if("?"===l[0]){const t=Lt(h[":@"],e,p),s="?xml"===l?"":n;let a=h[l][0][e.textNodeName];a=0!==a.length?" "+a:"",r+=s+`<${l}${a}${t}?>`,o=!0,i.pop();continue}let c=n;""!==c&&(c+=e.indentBy);const d=n+`<${l}${Lt(h[":@"],e,p)}`;let f;f=p?Mt(h[l],e):It(h[l],e,c,i,s),-1!==e.unpairedTags.indexOf(l)?e.suppressUnpairedNode?r+=d+">":r+=d+"/>":f&&0!==f.length||!e.suppressEmptyNode?f&&f.endsWith(">")?r+=d+`>${f}${n}</${l}>`:(r+=d+">",f&&""!==n&&(f.includes("/>")||f.includes("</"))?r+=n+e.indentBy+f+n:r+=f,r+=`</${l}>`):r+=d+"/>",o=!0,i.pop()}return r}function Dt(t,e){if(!t||e.ignoreAttributes)return null;const n={};let i=!1;for(let s in t)Object.prototype.hasOwnProperty.call(t,s)&&(n[s.startsWith(e.attributeNamePrefix)?s.substr(e.attributeNamePrefix.length):s]=Ot(t[s]),i=!0);return i?n:null}function Mt(t,e){if(!Array.isArray(t))return null!=t?t.toString():"";let n="";for(let i=0;i<t.length;i++){const s=t[i],r=Vt(s);if(r===e.textNodeName)n+=s[r];else if(r===e.cdataPropName)n+=s[r][0][e.textNodeName];else if(r===e.commentPropName)n+=s[r][0][e.textNodeName];else{if(r&&"?"===r[0])continue;if(r){const t=jt(s[":@"],e),i=Mt(s[r],e);i&&0!==i.length?n+=`<${r}${t}>${i}</${r}>`:n+=`<${r}${t}/>`}}}return n}function jt(t,e){let n="";if(t&&!e.ignoreAttributes)for(let i in t){if(!Object.prototype.hasOwnProperty.call(t,i))continue;let s=t[i];!0===s&&e.suppressBooleanAttributes?n+=` ${i.substr(e.attributeNamePrefix.length)}`:n+=` ${i.substr(e.attributeNamePrefix.length)}="${Ot(s)}"`}return n}function Vt(t){const e=Object.keys(t);for(let n=0;n<e.length;n++){const i=e[n];if(Object.prototype.hasOwnProperty.call(t,i)&&":@"!==i)return i}}function Lt(t,e,n){let i="";if(t&&!e.ignoreAttributes)for(let s in t){if(!Object.prototype.hasOwnProperty.call(t,s))continue;let r;n?r=t[s]:(r=e.attributeValueProcessor(s,t[s]),r=Ft(r,e)),!0===r&&e.suppressBooleanAttributes?i+=` ${s.substr(e.attributeNamePrefix.length)}`:i+=` ${s.substr(e.attributeNamePrefix.length)}="${Ot(r)}"`}return i}function kt(t,e){if(!e||0===e.length)return!1;for(let n=0;n<e.length;n++)if(t.matches(e[n]))return!0;return!1}function Ft(t,e){if(t&&t.length>0&&e.processEntities)for(let n=0;n<e.entities.length;n++){const i=e.entities[n];t=t.replace(i.regex,i.val)}return t}const Rt={attributeNamePrefix:"@_",attributesGroupName:!1,textNodeName:"#text",ignoreAttributes:!0,cdataPropName:!1,format:!1,indentBy:"  ",suppressEmptyNode:!1,suppressUnpairedNode:!0,suppressBooleanAttributes:!0,tagValueProcessor:function(t,e){return e},attributeValueProcessor:function(t,e){return e},preserveOrder:!1,commentPropName:!1,unpairedTags:[],entities:[{regex:new RegExp("&","g"),val:"&amp;"},{regex:new RegExp(">","g"),val:"&gt;"},{regex:new RegExp("<","g"),val:"&lt;"},{regex:new RegExp("'","g"),val:"&apos;"},{regex:new RegExp('"',"g"),val:"&quot;"}],processEntities:!0,stopNodes:[],oneListGroup:!1,maxNestedTags:100,jPath:!0};function Gt(t){if(this.options=Object.assign({},Rt,t),this.options.stopNodes&&Array.isArray(this.options.stopNodes)&&(this.options.stopNodes=this.options.stopNodes.map(t=>"string"==typeof t&&t.startsWith("*.")?".."+t.substring(2):t)),this.stopNodeExpressions=[],this.options.stopNodes&&Array.isArray(this.options.stopNodes))for(let t=0;t<this.options.stopNodes.length;t++){const e=this.options.stopNodes[t];"string"==typeof e?this.stopNodeExpressions.push(new G(e)):e instanceof G&&this.stopNodeExpressions.push(e)}var e;!0===this.options.ignoreAttributes||this.options.attributesGroupName?this.isAttribute=function(){return!1}:(this.ignoreAttributesFn="function"==typeof(e=this.options.ignoreAttributes)?e:Array.isArray(e)?t=>{for(const n of e){if("string"==typeof n&&t===n)return!0;if(n instanceof RegExp&&n.test(t))return!0}}:()=>!1,this.attrPrefixLen=this.options.attributeNamePrefix.length,this.isAttribute=Wt),this.processTextOrObjNode=Bt,this.options.format?(this.indentate=Ut,this.tagEndChar=">\n",this.newLine="\n"):(this.indentate=function(){return""},this.tagEndChar=">",this.newLine="")}function Bt(t,e,n,i){const s=this.extractAttributes(t);if(i.push(e,s),this.checkStopNode(i)){const s=this.buildRawContent(t),r=this.buildAttributesForStopNode(t);return i.pop(),this.buildObjectNode(s,e,r,n)}const r=this.j2x(t,n+1,i);return i.pop(),void 0!==t[this.options.textNodeName]&&1===Object.keys(t).length?this.buildTextValNode(t[this.options.textNodeName],e,r.attrStr,n,i):this.buildObjectNode(r.val,e,r.attrStr,n)}function Ut(t){return this.options.indentBy.repeat(t)}function Wt(t){return!(!t.startsWith(this.options.attributeNamePrefix)||t===this.options.textNodeName)&&t.substr(this.attrPrefixLen)}Gt.prototype.build=function(t){if(this.options.preserveOrder)return $t(t,this.options);{Array.isArray(t)&&this.options.arrayNodeName&&this.options.arrayNodeName.length>1&&(t={[this.options.arrayNodeName]:t});const e=new R;return this.j2x(t,0,e).val}},Gt.prototype.j2x=function(t,e,n){let i="",s="";if(this.options.maxNestedTags&&n.getDepth()>=this.options.maxNestedTags)throw new Error("Maximum nested tags exceeded");const r=this.options.jPath?n.toString():n,o=this.checkStopNode(n);for(let a in t)if(Object.prototype.hasOwnProperty.call(t,a))if(void 0===t[a])this.isAttribute(a)&&(s+="");else if(null===t[a])this.isAttribute(a)||a===this.options.cdataPropName||a===this.options.commentPropName?s+="":"?"===a[0]?s+=this.indentate(e)+"<"+a+"?"+this.tagEndChar:s+=this.indentate(e)+"<"+a+"/"+this.tagEndChar;else if(t[a]instanceof Date)s+=this.buildTextValNode(t[a],a,"",e,n);else if("object"!=typeof t[a]){const h=this.isAttribute(a);if(h&&!this.ignoreAttributesFn(h,r))i+=this.buildAttrPairStr(h,""+t[a],o);else if(!h)if(a===this.options.textNodeName){let e=this.options.tagValueProcessor(a,""+t[a]);s+=this.replaceEntitiesValue(e)}else{n.push(a);const i=this.checkStopNode(n);if(n.pop(),i){const n=""+t[a];s+=""===n?this.indentate(e)+"<"+a+this.closeTag(a)+this.tagEndChar:this.indentate(e)+"<"+a+">"+n+"</"+a+this.tagEndChar}else s+=this.buildTextValNode(t[a],a,"",e,n)}}else if(Array.isArray(t[a])){const i=t[a].length;let r="",o="";for(let h=0;h<i;h++){const i=t[a][h];if(void 0===i);else if(null===i)"?"===a[0]?s+=this.indentate(e)+"<"+a+"?"+this.tagEndChar:s+=this.indentate(e)+"<"+a+"/"+this.tagEndChar;else if("object"==typeof i)if(this.options.oneListGroup){n.push(a);const t=this.j2x(i,e+1,n);n.pop(),r+=t.val,this.options.attributesGroupName&&i.hasOwnProperty(this.options.attributesGroupName)&&(o+=t.attrStr)}else r+=this.processTextOrObjNode(i,a,e,n);else if(this.options.oneListGroup){let t=this.options.tagValueProcessor(a,i);t=this.replaceEntitiesValue(t),r+=t}else{n.push(a);const t=this.checkStopNode(n);if(n.pop(),t){const t=""+i;r+=""===t?this.indentate(e)+"<"+a+this.closeTag(a)+this.tagEndChar:this.indentate(e)+"<"+a+">"+t+"</"+a+this.tagEndChar}else r+=this.buildTextValNode(i,a,"",e,n)}}this.options.oneListGroup&&(r=this.buildObjectNode(r,a,o,e)),s+=r}else if(this.options.attributesGroupName&&a===this.options.attributesGroupName){const e=Object.keys(t[a]),n=e.length;for(let s=0;s<n;s++)i+=this.buildAttrPairStr(e[s],""+t[a][e[s]],o)}else s+=this.processTextOrObjNode(t[a],a,e,n);return{attrStr:i,val:s}},Gt.prototype.buildAttrPairStr=function(t,e,n){return n||(e=this.options.attributeValueProcessor(t,""+e),e=this.replaceEntitiesValue(e)),this.options.suppressBooleanAttributes&&"true"===e?" "+t:" "+t+'="'+Ot(e)+'"'},Gt.prototype.extractAttributes=function(t){if(!t||"object"!=typeof t)return null;const e={};let n=!1;if(this.options.attributesGroupName&&t[this.options.attributesGroupName]){const i=t[this.options.attributesGroupName];for(let t in i)Object.prototype.hasOwnProperty.call(i,t)&&(e[t.startsWith(this.options.attributeNamePrefix)?t.substring(this.options.attributeNamePrefix.length):t]=Ot(i[t]),n=!0)}else for(let i in t){if(!Object.prototype.hasOwnProperty.call(t,i))continue;const s=this.isAttribute(i);s&&(e[s]=Ot(t[i]),n=!0)}return n?e:null},Gt.prototype.buildRawContent=function(t){if("string"==typeof t)return t;if("object"!=typeof t||null===t)return String(t);if(void 0!==t[this.options.textNodeName])return t[this.options.textNodeName];let e="";for(let n in t){if(!Object.prototype.hasOwnProperty.call(t,n))continue;if(this.isAttribute(n))continue;if(this.options.attributesGroupName&&n===this.options.attributesGroupName)continue;const i=t[n];if(n===this.options.textNodeName)e+=i;else if(Array.isArray(i)){for(let t of i)if("string"==typeof t||"number"==typeof t)e+=`<${n}>${t}</${n}>`;else if("object"==typeof t&&null!==t){const i=this.buildRawContent(t),s=this.buildAttributesForStopNode(t);e+=""===i?`<${n}${s}/>`:`<${n}${s}>${i}</${n}>`}}else if("object"==typeof i&&null!==i){const t=this.buildRawContent(i),s=this.buildAttributesForStopNode(i);e+=""===t?`<${n}${s}/>`:`<${n}${s}>${t}</${n}>`}else e+=`<${n}>${i}</${n}>`}return e},Gt.prototype.buildAttributesForStopNode=function(t){if(!t||"object"!=typeof t)return"";let e="";if(this.options.attributesGroupName&&t[this.options.attributesGroupName]){const n=t[this.options.attributesGroupName];for(let t in n){if(!Object.prototype.hasOwnProperty.call(n,t))continue;const i=t.startsWith(this.options.attributeNamePrefix)?t.substring(this.options.attributeNamePrefix.length):t,s=n[t];!0===s&&this.options.suppressBooleanAttributes?e+=" "+i:e+=" "+i+'="'+s+'"'}}else for(let n in t){if(!Object.prototype.hasOwnProperty.call(t,n))continue;const i=this.isAttribute(n);if(i){const s=t[n];!0===s&&this.options.suppressBooleanAttributes?e+=" "+i:e+=" "+i+'="'+s+'"'}}return e},Gt.prototype.buildObjectNode=function(t,e,n,i){if(""===t)return"?"===e[0]?this.indentate(i)+"<"+e+n+"?"+this.tagEndChar:this.indentate(i)+"<"+e+n+this.closeTag(e)+this.tagEndChar;{let s="</"+e+this.tagEndChar,r="";return"?"===e[0]&&(r="?",s=""),!n&&""!==n||-1!==t.indexOf("<")?!1!==this.options.commentPropName&&e===this.options.commentPropName&&0===r.length?this.indentate(i)+`\x3c!--${t}--\x3e`+this.newLine:this.indentate(i)+"<"+e+n+r+this.tagEndChar+t+this.indentate(i)+s:this.indentate(i)+"<"+e+n+r+">"+t+s}},Gt.prototype.closeTag=function(t){let e="";return-1!==this.options.unpairedTags.indexOf(t)?this.options.suppressUnpairedNode||(e="/"):e=this.options.suppressEmptyNode?"/":`></${t}`,e},Gt.prototype.checkStopNode=function(t){if(!this.stopNodeExpressions||0===this.stopNodeExpressions.length)return!1;for(let e=0;e<this.stopNodeExpressions.length;e++)if(t.matches(this.stopNodeExpressions[e]))return!0;return!1},Gt.prototype.buildTextValNode=function(t,e,n,i,s){if(!1!==this.options.cdataPropName&&e===this.options.cdataPropName){const e=Pt(t);return this.indentate(i)+`<![CDATA[${e}]]>`+this.newLine}if(!1!==this.options.commentPropName&&e===this.options.commentPropName){const e=Ct(t);return this.indentate(i)+`\x3c!--${e}--\x3e`+this.newLine}if("?"===e[0])return this.indentate(i)+"<"+e+n+"?"+this.tagEndChar;{let s=this.options.tagValueProcessor(e,t);return s=this.replaceEntitiesValue(s),""===s?this.indentate(i)+"<"+e+n+this.closeTag(e)+this.tagEndChar:this.indentate(i)+"<"+e+n+">"+s+"</"+e+this.tagEndChar}},Gt.prototype.replaceEntitiesValue=function(t){if(t&&t.length>0&&this.options.processEntities)for(let e=0;e<this.options.entities.length;e++){const n=this.options.entities[e];t=t.replace(n.regex,n.val)}return t};const Xt=Gt,Yt={validate:l};module.exports=e})();
-
-/***/ }),
-
-/***/ 7413:
-/***/ ((module) => {
-
-"use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@aws-sdk/client-s3","description":"AWS SDK for JavaScript S3 Client for Node.js, Browser and React Native","version":"3.1069.0","scripts":{"build":"concurrently \'yarn:build:types\' \'yarn:build:es\' && yarn build:cjs","build:cjs":"node ../../scripts/compilation/inline","build:es":"premove dist-es && tsc -p tsconfig.es.json","build:include:deps":"yarn g:turbo run build -F=\\"$npm_package_name\\"","build:types":"premove dist-types && tsc -p tsconfig.types.json","build:types:downlevel":"downlevel-dts dist-types dist-types/ts3.4","clean":"premove dist-cjs dist-es dist-types","extract:docs":"api-extractor run --local","generate:client":"node ../../scripts/generate-clients/single-service","test":"yarn g:vitest run --passWithNoTests","test:watch":"yarn g:vitest watch --passWithNoTests","test:integration":"yarn g:vitest run --passWithNoTests -c vitest.config.integ.mts","test:integration:watch":"yarn g:vitest watch --passWithNoTests -c vitest.config.integ.mts","test:e2e":"yarn g:vitest run -c vitest.config.e2e.mts","test:e2e:watch":"yarn g:vitest watch -c vitest.config.e2e.mts","test:browser":"yarn g:vitest run -c vitest.config.browser.mts","test:browser:watch":"yarn g:vitest watch -c vitest.config.browser.mts","test:index":"tsc --noEmit ./test/index-types.ts && node ./test/index-objects.spec.mjs"},"main":"./dist-cjs/index.js","types":"./dist-types/index.d.ts","module":"./dist-es/index.js","sideEffects":false,"dependencies":{"@aws-crypto/sha1-browser":"5.2.0","@aws-crypto/sha256-browser":"5.2.0","@aws-crypto/sha256-js":"5.2.0","@aws-sdk/core":"^3.974.21","@aws-sdk/credential-provider-node":"^3.972.56","@aws-sdk/middleware-flexible-checksums":"^3.974.31","@aws-sdk/middleware-sdk-s3":"^3.972.52","@aws-sdk/signature-v4-multi-region":"^3.996.35","@aws-sdk/types":"^3.973.13","@smithy/core":"^3.24.6","@smithy/fetch-http-handler":"^5.4.6","@smithy/node-http-handler":"^4.7.6","@smithy/types":"^4.14.3","tslib":"^2.6.2"},"devDependencies":{"@aws-sdk/signature-v4-crt":"3.1069.0","@smithy/snapshot-testing":"^2.1.7","@tsconfig/node20":"20.1.8","@types/node":"^20.14.8","concurrently":"7.0.0","downlevel-dts":"0.10.1","premove":"4.0.0","typescript":"~5.8.3","vitest":"^4.0.17"},"engines":{"node":">=20.0.0"},"typesVersions":{"<4.5":{"dist-types/*":["dist-types/ts3.4/*"]}},"files":["dist-*/**"],"author":{"name":"AWS SDK for JavaScript Team","url":"https://aws.amazon.com/sdk-for-javascript/"},"license":"Apache-2.0","browser":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.browser"},"react-native":{"./dist-es/runtimeConfig":"./dist-es/runtimeConfig.native"},"homepage":"https://github.com/aws/aws-sdk-js-v3/tree/main/clients/client-s3","repository":{"type":"git","url":"https://github.com/aws/aws-sdk-js-v3.git","directory":"clients/client-s3"}}');
 
 /***/ }),
 

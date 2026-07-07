@@ -53364,7 +53364,7 @@ function sync (path, options) {
 /***/ 4484:
 /***/ ((__unused_webpack_module, exports) => {
 
-/*! js-yaml 5.2.0 https://github.com/nodeca/js-yaml @license MIT */
+/*! js-yaml 5.2.1 https://github.com/nodeca/js-yaml @license MIT */
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 //#region src/tag.ts
 var NOT_RESOLVED = Symbol("NOT_RESOLVED");
@@ -53873,18 +53873,40 @@ var seqTag = defineSequenceTag("tag:yaml.org,2002:seq", {
 	identify: Array.isArray
 });
 //#endregion
+//#region src/common/object.ts
+function isPlainObject(data) {
+	if (data === null || typeof data !== "object" || Array.isArray(data)) return false;
+	const prototype = Object.getPrototypeOf(data);
+	return prototype === null || prototype === Object.prototype;
+}
+function pick(object, keys) {
+	const result = {};
+	for (const key of keys) if (object[key] !== void 0) result[key] = object[key];
+	return result;
+}
+//#endregion
 //#region src/tag/sequence/omap.ts
 var omapTag = defineSequenceTag("tag:yaml.org,2002:omap", {
-	create: () => [],
-	addItem: (container, item) => {
-		if (Object.prototype.toString.call(item) !== "[object Object]") return "cannot resolve an ordered map item";
-		const object = item;
-		const itemKeys = Object.keys(object);
-		if (itemKeys.length !== 1) return "cannot resolve an ordered map item";
-		for (const existing of container) if (Object.prototype.hasOwnProperty.call(existing, itemKeys[0])) return "cannot resolve an ordered map item";
-		container.push(object);
+	create: () => ({
+		list: [],
+		seen: /* @__PURE__ */ new Set()
+	}),
+	addItem: (carrier, item) => {
+		let key;
+		if (item instanceof Map) {
+			if (item.size !== 1) return "cannot resolve an ordered map item";
+			key = item.keys().next().value;
+		} else if (isPlainObject(item)) {
+			const itemKeys = Object.keys(item);
+			if (itemKeys.length !== 1) return "cannot resolve an ordered map item";
+			key = itemKeys[0];
+		} else return "cannot resolve an ordered map item";
+		if (carrier.seen.has(key)) return "duplicate key in ordered map";
+		carrier.seen.add(key);
+		carrier.list.push(item);
 		return "";
-	}
+	},
+	finalize: (carrier) => carrier.list
 });
 //#endregion
 //#region src/tag/sequence/pairs.ts
@@ -53904,18 +53926,6 @@ var pairsTag = defineSequenceTag("tag:yaml.org,2002:pairs", {
 		return "";
 	}
 });
-//#endregion
-//#region src/common/object.ts
-function isPlainObject(data) {
-	if (data === null || typeof data !== "object" || Array.isArray(data)) return false;
-	const prototype = Object.getPrototypeOf(data);
-	return prototype === null || prototype === Object.prototype;
-}
-function pick(object, keys) {
-	const result = {};
-	for (const key of keys) if (object[key] !== void 0) result[key] = object[key];
-	return result;
-}
 //#endregion
 //#region src/tag/mapping/map.ts
 var mapTag = defineMappingTag("tag:yaml.org,2002:map", {
@@ -53965,7 +53975,7 @@ var setTag = defineMappingTag("tag:yaml.org,2002:set", {
 	get: () => null
 });
 //#endregion
-//#region \0@oxc-project+runtime@0.132.0/helpers/typeof.js
+//#region \0@oxc-project+runtime@0.137.0/helpers/esm/typeof.js
 function _typeof(o) {
 	"@babel/helpers - typeof";
 	return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o) {
@@ -53975,7 +53985,7 @@ function _typeof(o) {
 	}, _typeof(o);
 }
 //#endregion
-//#region \0@oxc-project+runtime@0.132.0/helpers/toPrimitive.js
+//#region \0@oxc-project+runtime@0.137.0/helpers/esm/toPrimitive.js
 function toPrimitive(t, r) {
 	if ("object" != _typeof(t) || !t) return t;
 	var e = t[Symbol.toPrimitive];
@@ -53987,13 +53997,13 @@ function toPrimitive(t, r) {
 	return ("string" === r ? String : Number)(t);
 }
 //#endregion
-//#region \0@oxc-project+runtime@0.132.0/helpers/toPropertyKey.js
+//#region \0@oxc-project+runtime@0.137.0/helpers/esm/toPropertyKey.js
 function toPropertyKey(t) {
 	var i = toPrimitive(t, "string");
 	return "symbol" == _typeof(i) ? i : i + "";
 }
 //#endregion
-//#region \0@oxc-project+runtime@0.132.0/helpers/defineProperty.js
+//#region \0@oxc-project+runtime@0.137.0/helpers/esm/defineProperty.js
 function _defineProperty(e, r, t) {
 	return (r = toPropertyKey(r)) in e ? Object.defineProperty(e, r, {
 		value: t,
@@ -54185,7 +54195,7 @@ var legacyMapTag = defineMappingTag("tag:yaml.org,2002:map", {
 	get: (container, key) => container[String(key)]
 });
 //#endregion
-//#region \0@oxc-project+runtime@0.132.0/helpers/objectSpread2.js
+//#region \0@oxc-project+runtime@0.137.0/helpers/esm/objectSpread2.js
 function ownKeys(e, r) {
 	var t = Object.keys(e);
 	if (Object.getOwnPropertySymbols) {

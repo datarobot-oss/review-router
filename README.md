@@ -82,17 +82,18 @@ significantly), remove the label and re-add it, or have a contributor comment
 
 ## Inputs
 
-| Input                      | Required | Default               | Description                                                                                                             |
-| -------------------------- | -------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `github-token`             | Yes      | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality.                                 |
-| `slack-token`              | No       | —                     | Slack Bot token for sending notifications.                                                                              |
-| `config-repo`              | No       | —                     | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `config.yml` from the repo root.          |
-| `config-token`             | No       | —                     | GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to `github-token`. |
-| `config-path`              | No       | `config.yml`          | Filename to look for in the config repo. Use if your config file has a different name.                                  |
-| `config-s3`                | No       | —                     | Fetch teams config from S3 (e.g. `s3://bucket/path/config.yml`). Requires AWS credentials in the environment.           |
-| `ready-label`              | No       | `Ready for Review`    | Label name that triggers review routing.                                                                                |
-| `needs-review-prefix`      | No       | `Needs Review`        | Prefix for per-team review labels (e.g. "Needs Review: Platform").                                                      |
-| `needs-review-label-color` | No       | `fbca04`              | Hex color for auto-created "Needs Review" labels.                                                                       |
+| Input                      | Required | Default               | Description                                                                                                                                            |
+| -------------------------- | -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `github-token`             | Yes      | `${{ github.token }}` | GitHub token for API calls. Use a GitHub App installation token for full functionality.                                                                |
+| `slack-token`              | No       | —                     | Slack Bot token for sending notifications.                                                                                                             |
+| `jira-token`               | No       | —                     | Jira API token for fetching ticket titles. Value must be `email:api_token` (Jira Cloud Basic auth). Without it, Jira comments show the ticket ID only. |
+| `config-repo`              | No       | —                     | Fetch teams config from a GitHub repo (e.g. `acme-inc/.review-router`). Reads `config.yml` from the repo root.                                         |
+| `config-token`             | No       | —                     | GitHub token for reading the config repo. Use when the config repo is in a different org. Falls back to `github-token`.                                |
+| `config-path`              | No       | `config.yml`          | Filename to look for in the config repo. Use if your config file has a different name.                                                                 |
+| `config-s3`                | No       | —                     | Fetch teams config from S3 (e.g. `s3://bucket/path/config.yml`). Requires AWS credentials in the environment.                                          |
+| `ready-label`              | No       | `Ready for Review`    | Label name that triggers review routing.                                                                                                               |
+| `needs-review-prefix`      | No       | `Needs Review`        | Prefix for per-team review labels (e.g. "Needs Review: Platform").                                                                                     |
+| `needs-review-label-color` | No       | `fbca04`              | Hex color for auto-created "Needs Review" labels.                                                                                                      |
 
 Config priority: `config-repo` > `config-s3` > bundled `config/config.yml`.
 
@@ -108,6 +109,9 @@ orgs:
       stale_hours: 24 # optional, default 24
     dependabot:
       auto_label: true
+    jira:
+      enabled: true
+      base_url: "https://acme.atlassian.net"
     teams:
       # ...
 ```
@@ -127,6 +131,18 @@ on:
 
 Repos that don't want dependabot auto-labeling can simply omit `opened` from
 their trigger types. The org-level config flag is a second layer of control.
+
+### Jira Ticket Links
+
+When `jira.enabled` is `true` and a PR title contains a bracketed ticket ID
+(e.g. `[PROJ-6000] Add proxy route`), review-router posts a PR comment linking
+to `{base_url}/browse/{TICKET-ID}`. Multiple bracketed IDs in one title each
+get their own line.
+
+Set the `jira-token` input to also show ticket titles instead of bare IDs.
+The value must be the Basic-auth pair `email:api_token` (e.g.
+`jane@acme.com:ATATT3xFfGF0...`) — review-router base64-encodes it as-is.
+Without a token, links still work, just without the title.
 
 ### Stale PR Reminders
 

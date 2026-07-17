@@ -22,6 +22,7 @@ const baseInputs = {
   readyLabel: "Ready for Review",
   needsReviewPrefix: "Needs Review",
   needsReviewLabelColor: "fbca04",
+  jiraToken: "",
 };
 
 const teamsConfig = {

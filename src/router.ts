@@ -14,6 +14,7 @@ import {
   extractSlackRefs,
   postExternalComment,
 } from "./comment";
+import { postJiraComment } from "./jira";
 import {
   sendSlackNotification,
   addSlackReactions,
@@ -139,6 +140,16 @@ async function getSlackRefsWithFallback(
 }
 
 export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Promise<void> {
+  await postJiraComment(
+    octokit,
+    ctx.owner,
+    ctx.repo,
+    ctx.prNumber,
+    ctx.prTitle,
+    ctx.teamsConfig.jira,
+    ctx.inputs.jiraToken
+  );
+
   const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
     owner: ctx.owner,
     repo: ctx.repo,

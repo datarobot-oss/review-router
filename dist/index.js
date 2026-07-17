@@ -81068,6 +81068,7 @@ async function run() {
         readyLabel: core.getInput("ready-label"),
         needsReviewPrefix: core.getInput("needs-review-prefix"),
         needsReviewLabelColor: core.getInput("needs-review-label-color"),
+        jiraToken: core.getInput("jira-token"),
     };
     const context = github.context;
     const { owner, repo } = context.repo;
@@ -81343,6 +81344,137 @@ async function run() {
 run().catch((error) => {
     core.setFailed(error instanceof Error ? error.message : String(error));
 });
+
+
+/***/ }),
+
+/***/ 7647:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.JIRA_COMMENT_MARKER = void 0;
+exports.extractTicketIds = extractTicketIds;
+exports.fetchTicketSummary = fetchTicketSummary;
+exports.buildJiraComment = buildJiraComment;
+exports.postJiraComment = postJiraComment;
+const core = __importStar(__nccwpck_require__(7484));
+function extractTicketIds(title) {
+    const ids = [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
+    return [...new Set(ids)];
+}
+async function fetchTicketSummary(ticketId, baseUrl, token) {
+    const url = `${baseUrl.replace(/\/$/, "")}/rest/api/3/issue/${ticketId}?fields=summary`;
+    try {
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Basic ${Buffer.from(token).toString("base64")}`,
+                Accept: "application/json",
+            },
+        });
+        if (!response.ok) {
+            core.warning(`Jira API returned ${response.status} for ticket ${ticketId}`);
+            return null;
+        }
+        const data = (await response.json());
+        return data.fields?.summary ?? null;
+    }
+    catch (error) {
+        core.warning(`Failed to fetch Jira ticket ${ticketId}: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+    }
+}
+exports.JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
+function buildJiraComment(baseUrl, tickets) {
+    const trimmedBase = baseUrl.replace(/\/$/, "");
+    const lines = [exports.JIRA_COMMENT_MARKER, "### 🎫 Jira", ""];
+    let missingSummary = false;
+    for (const ticket of tickets) {
+        const url = `${trimmedBase}/browse/${ticket.id}`;
+        if (ticket.summary) {
+            lines.push(`- [${ticket.id}: ${ticket.summary}](${url})`);
+        }
+        else {
+            lines.push(`- [${ticket.id}](${url})`);
+            missingSummary = true;
+        }
+    }
+    if (missingSummary) {
+        lines.push("");
+        lines.push("_Add a `jira-token` input for ticket titles here._");
+    }
+    return lines.join("\n");
+}
+async function postJiraComment(octokit, owner, repo, prNumber, prTitle, jiraConfig, jiraToken) {
+    if (!jiraConfig?.enabled)
+        return;
+    const baseUrl = jiraConfig.base_url;
+    if (!baseUrl) {
+        core.warning('Jira is enabled but "base_url" is not configured; skipping Jira comment');
+        return;
+    }
+    const ticketIds = extractTicketIds(prTitle);
+    if (ticketIds.length === 0)
+        return;
+    const tickets = await Promise.all(ticketIds.map(async (id) => ({
+        id,
+        summary: jiraToken ? await fetchTicketSummary(id, baseUrl, jiraToken) : null,
+    })));
+    const body = buildJiraComment(baseUrl, tickets);
+    try {
+        const { data: comments } = await octokit.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: prNumber,
+        });
+        const existing = comments.find((c) => c.body?.includes(exports.JIRA_COMMENT_MARKER));
+        if (existing) {
+            await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            core.info(`Updated Jira comment on PR #${prNumber}`);
+        }
+        else {
+            await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+            core.info(`Posted Jira comment on PR #${prNumber}`);
+        }
+    }
+    catch (error) {
+        core.warning(`Failed to post Jira comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
 
 
 /***/ }),
@@ -81652,6 +81784,7 @@ const web_api_1 = __nccwpck_require__(5105);
 const codeowners_1 = __nccwpck_require__(3586);
 const labels_1 = __nccwpck_require__(4584);
 const comment_1 = __nccwpck_require__(2246);
+const jira_1 = __nccwpck_require__(7647);
 const slack_1 = __nccwpck_require__(6691);
 const config_1 = __nccwpck_require__(2973);
 async function withRetry(fn, maxAttempts = 3, delayMs = 1000) {
@@ -81717,6 +81850,7 @@ async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) 
     return legacyRefs;
 }
 async function handleLabeled(octokit, ctx) {
+    await (0, jira_1.postJiraComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prTitle, ctx.teamsConfig.jira, ctx.inputs.jiraToken);
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: ctx.owner,
         repo: ctx.repo,

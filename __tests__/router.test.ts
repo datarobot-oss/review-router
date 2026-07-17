@@ -113,6 +113,7 @@ describe("handleLabeled", () => {
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
+        jiraToken: "",
       },
       capabilities: { hasOrgAccess: false },
       teamsConfig,
@@ -121,6 +122,100 @@ describe("handleLabeled", () => {
     expect(labels.ensureLabel).toHaveBeenCalled();
     expect(labels.applyLabels).toHaveBeenCalled();
     expect(comment.upsertComment).toHaveBeenCalled();
+  });
+
+  it("posts a Jira comment when the org has jira enabled and the title has a ticket", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    mockOctokit.rest.issues.createComment.mockResolvedValue({});
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "[PROJ-6235] Migrate logs",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        configRepo: "",
+        configToken: "",
+        configPath: "config.yml",
+        configS3: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+        jiraToken: "",
+      },
+      capabilities: { hasOrgAccess: false },
+      teamsConfig: {
+        ...teamsConfig,
+        jira: { enabled: true, base_url: "https://acme.atlassian.net" },
+      },
+    });
+
+    expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)"),
+      })
+    );
+  });
+
+  it("does not post a Jira comment when the org has no jira config", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "[PROJ-6235] Migrate logs",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        configRepo: "",
+        configToken: "",
+        configPath: "config.yml",
+        configS3: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+        jiraToken: "",
+      },
+      capabilities: { hasOrgAccess: false },
+      teamsConfig,
+    });
+
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
   it("requests team review when hasOrgAccess is true", async () => {
@@ -158,6 +253,7 @@ describe("handleLabeled", () => {
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
+        jiraToken: "",
       },
       capabilities: { hasOrgAccess: true },
       teamsConfig,
@@ -212,6 +308,7 @@ describe("handleLabeled", () => {
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
+        jiraToken: "",
       },
       capabilities: { hasOrgAccess: true },
       teamsConfig,
@@ -263,6 +360,7 @@ describe("handleLabeled", () => {
           readyLabel: "Ready for Review",
           needsReviewPrefix: "Needs Review",
           needsReviewLabelColor: "fbca04",
+          jiraToken: "",
         },
         capabilities: { hasOrgAccess: true },
         teamsConfig,
@@ -307,6 +405,7 @@ describe("handleLabeled", () => {
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
+        jiraToken: "",
       },
       capabilities: { hasOrgAccess: false },
       teamsConfig,
@@ -350,6 +449,7 @@ describe("handleLabeled", () => {
         readyLabel: "Ready for Review",
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
+        jiraToken: "",
       },
       capabilities: { hasOrgAccess: false },
       teamsConfig,
@@ -389,6 +489,7 @@ describe("handleLabeled withRetry", () => {
       readyLabel: "Ready for Review",
       needsReviewPrefix: "Needs Review",
       needsReviewLabelColor: "fbca04",
+      jiraToken: "",
     },
     capabilities: { hasOrgAccess: false },
     teamsConfig,
@@ -468,6 +569,7 @@ describe("handleReviewSubmitted", () => {
       readyLabel: "Ready for Review",
       needsReviewPrefix: "Needs Review",
       needsReviewLabelColor: "fbca04",
+      jiraToken: "",
     },
     teamsConfig,
   };
@@ -648,6 +750,7 @@ describe("handleOpened", () => {
     readyLabel: "Ready for Review",
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
+    jiraToken: "",
   };
 
   it("skips when dependabot config is absent", async () => {
@@ -841,6 +944,7 @@ describe("handleReadyForReview", () => {
     readyLabel: "Ready for Review",
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
+    jiraToken: "",
   };
 
   it("adds ready label for fork PRs marked ready", async () => {
@@ -904,6 +1008,7 @@ describe("handleClosed", () => {
     readyLabel: "Ready for Review",
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
+    jiraToken: "",
   };
 
   it("skips when PR was closed without merging", async () => {
@@ -997,6 +1102,7 @@ describe("handleComment", () => {
     readyLabel: "Ready for Review",
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
+    jiraToken: "",
   };
 
   const configWithUsers: OrgConfig = {

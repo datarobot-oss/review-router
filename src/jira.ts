@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { JiraConfig, Octokit } from "./types";
 
 export function extractTicketIds(title: string): string[] {
   return [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
@@ -57,4 +58,54 @@ export function buildJiraComment(
   }
 
   return lines.join("\n");
+}
+
+export async function postJiraComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  prTitle: string,
+  jiraConfig: JiraConfig | undefined,
+  jiraToken: string
+): Promise<void> {
+  if (!jiraConfig?.enabled) return;
+
+  const baseUrl = jiraConfig.base_url;
+  if (!baseUrl) {
+    core.warning('Jira is enabled but "base_url" is not configured; skipping Jira comment');
+    return;
+  }
+
+  const ticketIds = extractTicketIds(prTitle);
+  if (ticketIds.length === 0) return;
+
+  const tickets = await Promise.all(
+    ticketIds.map(async (id) => ({
+      id,
+      summary: jiraToken ? await fetchTicketSummary(id, baseUrl, jiraToken) : null,
+    }))
+  );
+
+  const body = buildJiraComment(baseUrl, tickets);
+
+  try {
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: prNumber,
+    });
+    const existing = comments.find((c) => c.body?.includes(JIRA_COMMENT_MARKER));
+    if (existing) {
+      await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+      core.info(`Updated Jira comment on PR #${prNumber}`);
+    } else {
+      await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+      core.info(`Posted Jira comment on PR #${prNumber}`);
+    }
+  } catch (error) {
+    core.warning(
+      `Failed to post Jira comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }

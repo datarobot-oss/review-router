@@ -1,4 +1,10 @@
-import { extractTicketIds, fetchTicketSummary, buildJiraComment, JIRA_COMMENT_MARKER } from "../src/jira";
+import {
+  extractTicketIds,
+  fetchTicketSummary,
+  buildJiraComment,
+  JIRA_COMMENT_MARKER,
+  postJiraComment,
+} from "../src/jira";
 import * as core from "@actions/core";
 
 jest.mock("@actions/core");
@@ -143,5 +149,139 @@ describe("buildJiraComment", () => {
       { id: "APP-1", summary: null },
     ]);
     expect(body).toContain("(https://acme.atlassian.net/browse/APP-1)");
+  });
+});
+
+describe("postJiraComment", () => {
+  const mockOctokit = {
+    rest: {
+      issues: {
+        listComments: jest.fn(),
+        createComment: jest.fn(),
+        updateComment: jest.fn(),
+      },
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("does nothing when jira config is undefined", async () => {
+    await postJiraComment(mockOctokit as any, "o", "r", 1, "[APP-1] x", undefined, "");
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when jira.enabled is false", async () => {
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "[APP-1] x",
+      { enabled: false, base_url: "https://acme.atlassian.net" },
+      ""
+    );
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+  });
+
+  it("warns and does nothing when enabled but base_url is missing", async () => {
+    await postJiraComment(mockOctokit as any, "o", "r", 1, "[APP-1] x", { enabled: true }, "");
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("base_url"));
+  });
+
+  it("does nothing when no ticket ID is in the title", async () => {
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "Fix the login bug",
+      { enabled: true, base_url: "https://acme.atlassian.net" },
+      ""
+    );
+    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+  });
+
+  it("creates a comment with ID-only link when no token is set", async () => {
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "[APP-6235] Migrate logs",
+      { enabled: true, base_url: "https://acme.atlassian.net" },
+      ""
+    );
+    expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      issue_number: 1,
+      body: expect.stringContaining("[APP-6235](https://acme.atlassian.net/browse/APP-6235)"),
+    });
+  });
+
+  it("fetches the summary and creates a comment with a titled link when a token is set", async () => {
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ fields: { summary: "Migrate logs to DataVolt" } }),
+    }) as unknown as typeof fetch;
+
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "[APP-6235] Migrate logs",
+      { enabled: true, base_url: "https://acme.atlassian.net" },
+      "user@acme.com:tok"
+    );
+    expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      issue_number: 1,
+      body: expect.stringContaining(
+        "[APP-6235: Migrate logs to DataVolt](https://acme.atlassian.net/browse/APP-6235)"
+      ),
+    });
+  });
+
+  it("updates the existing Jira comment instead of creating a new one", async () => {
+    mockOctokit.rest.issues.listComments.mockResolvedValue({
+      data: [{ id: 55, body: `<!-- review-router-jira -->\nold` }],
+    });
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "[APP-6235] Migrate logs",
+      { enabled: true, base_url: "https://acme.atlassian.net" },
+      ""
+    );
+    expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "o", repo: "r", comment_id: 55 })
+    );
+    expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("warns and does not throw when the GitHub API call fails", async () => {
+    mockOctokit.rest.issues.listComments.mockRejectedValue(new Error("rate limited"));
+    await expect(
+      postJiraComment(
+        mockOctokit as any,
+        "o",
+        "r",
+        1,
+        "[APP-6235] Migrate logs",
+        { enabled: true, base_url: "https://acme.atlassian.net" },
+        ""
+      )
+    ).resolves.toBeUndefined();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("rate limited"));
   });
 });

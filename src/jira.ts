@@ -30,3 +30,31 @@ export async function fetchTicketSummary(
     return null;
   }
 }
+
+export const JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
+
+export function buildJiraComment(
+  baseUrl: string,
+  tickets: Array<{ id: string; summary: string | null }>
+): string {
+  const trimmedBase = baseUrl.replace(/\/$/, "");
+  const lines: string[] = [JIRA_COMMENT_MARKER, "### 🎫 Jira", ""];
+  let missingSummary = false;
+
+  for (const ticket of tickets) {
+    const url = `${trimmedBase}/browse/${ticket.id}`;
+    if (ticket.summary) {
+      lines.push(`- [${ticket.id}: ${ticket.summary}](${url})`);
+    } else {
+      lines.push(`- [${ticket.id}](${url})`);
+      missingSummary = true;
+    }
+  }
+
+  if (missingSummary) {
+    lines.push("");
+    lines.push("_Add a `jira-token` input for ticket titles here._");
+  }
+
+  return lines.join("\n");
+}

@@ -1,4 +1,4 @@
-import { extractTicketIds, fetchTicketSummary } from "../src/jira";
+import { extractTicketIds, fetchTicketSummary, buildJiraComment, JIRA_COMMENT_MARKER } from "../src/jira";
 import * as core from "@actions/core";
 
 jest.mock("@actions/core");
@@ -97,5 +97,51 @@ describe("fetchTicketSummary", () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ fields: {} }) });
     const summary = await fetchTicketSummary("APP-1", "https://acme.atlassian.net", "tok");
     expect(summary).toBeNull();
+  });
+});
+
+describe("buildJiraComment", () => {
+  it("renders a single ticket with a title", () => {
+    const body = buildJiraComment("https://acme.atlassian.net", [
+      { id: "APP-6235", summary: "Migrate logs to DataVolt" },
+    ]);
+    expect(body).toContain(JIRA_COMMENT_MARKER);
+    expect(body).toContain("### 🎫 Jira");
+    expect(body).toContain(
+      "- [APP-6235: Migrate logs to DataVolt](https://acme.atlassian.net/browse/APP-6235)"
+    );
+    expect(body).not.toContain("jira-token");
+  });
+
+  it("renders a single ticket without a title and adds the footer note", () => {
+    const body = buildJiraComment("https://acme.atlassian.net", [
+      { id: "APP-6235", summary: null },
+    ]);
+    expect(body).toContain("- [APP-6235](https://acme.atlassian.net/browse/APP-6235)");
+    expect(body).toContain("Add a `jira-token` input for ticket titles here.");
+  });
+
+  it("renders multiple tickets, one bullet each", () => {
+    const body = buildJiraComment("https://acme.atlassian.net", [
+      { id: "APP-100", summary: "First" },
+      { id: "APP-200", summary: null },
+    ]);
+    expect(body).toContain("- [APP-100: First](https://acme.atlassian.net/browse/APP-100)");
+    expect(body).toContain("- [APP-200](https://acme.atlassian.net/browse/APP-200)");
+  });
+
+  it("adds the footer note only once when multiple tickets are missing titles", () => {
+    const body = buildJiraComment("https://acme.atlassian.net", [
+      { id: "APP-100", summary: null },
+      { id: "APP-200", summary: null },
+    ]);
+    expect(body.match(/Add a `jira-token` input/g)).toHaveLength(1);
+  });
+
+  it("strips a trailing slash from base_url in links", () => {
+    const body = buildJiraComment("https://acme.atlassian.net/", [
+      { id: "APP-1", summary: null },
+    ]);
+    expect(body).toContain("(https://acme.atlassian.net/browse/APP-1)");
   });
 });

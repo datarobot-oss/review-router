@@ -34,6 +34,11 @@ export interface ReactionsConfig {
   file_types?: Record<string, string>;
 }
 
+export interface JiraConfig {
+  enabled: boolean;
+  base_url?: string;
+}
+
 export interface OrgConfig {
   default_slack_channel?: string;
   ready_label_aliases?: string[];
@@ -41,6 +46,7 @@ export interface OrgConfig {
   dependabot?: DependabotConfig;
   external_contributors?: ExternalContributorsConfig;
   reactions?: ReactionsConfig;
+  jira?: JiraConfig;
   teams: Record<string, TeamConfig>;
   users?: Record<string, string>;
 }
@@ -68,6 +74,7 @@ export interface ActionInputs {
   readyLabel: string;
   needsReviewPrefix: string;
   needsReviewLabelColor: string;
+  jiraToken: string;
 }
 
 export interface Capabilities {

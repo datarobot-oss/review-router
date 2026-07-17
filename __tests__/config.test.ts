@@ -110,6 +110,38 @@ orgs:
     expect(config.orgs["my-org"].dependabot?.auto_label).toBe(true);
   });
 
+  it("accepts config with jira enabled", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    jira:
+      enabled: true
+      base_url: "https://acme.atlassian.net"
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].jira?.enabled).toBe(true);
+    expect(config.orgs["my-org"].jira?.base_url).toBe("https://acme.atlassian.net");
+  });
+
+  it("rejects unknown fields in jira", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    jira:
+      enabled: true
+      auth_type: bearer
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow(/Config validation failed/);
+  });
+
   it("rejects invalid stale_hours", () => {
     expect(() =>
       parseTeamsConfig(`

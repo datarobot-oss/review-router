@@ -140,16 +140,6 @@ async function getSlackRefsWithFallback(
 }
 
 export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Promise<void> {
-  await postJiraComment(
-    octokit,
-    ctx.owner,
-    ctx.repo,
-    ctx.prNumber,
-    ctx.prTitle,
-    ctx.teamsConfig.jira,
-    ctx.inputs.jiraToken
-  );
-
   const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
     owner: ctx.owner,
     repo: ctx.repo,
@@ -439,6 +429,7 @@ export interface OpenedContext {
   owner: string;
   repo: string;
   prNumber: number;
+  prTitle: string;
   author: string;
   isFork: boolean;
   isDraft: boolean;
@@ -449,6 +440,16 @@ export interface OpenedContext {
 export const EXTERNAL_CONTRIBUTION_LABEL = "external-contribution";
 
 export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promise<void> {
+  await postJiraComment(
+    octokit,
+    ctx.owner,
+    ctx.repo,
+    ctx.prNumber,
+    ctx.prTitle,
+    ctx.teamsConfig.jira,
+    ctx.inputs.jiraToken
+  );
+
   if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === "dependabot[bot]") {
     core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
     try {

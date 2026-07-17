@@ -35,21 +35,26 @@ export async function fetchTicketSummary(
 
 export const JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
 
+function renderTicketLink(baseUrl: string, ticket: { id: string; summary: string | null }): string {
+  const url = `${baseUrl}/browse/${ticket.id}`;
+  const link = `[\`${ticket.id}\`](${url})`;
+  return ticket.summary ? `${link} — ${ticket.summary}` : link;
+}
+
 export function buildJiraComment(
   baseUrl: string,
   tickets: Array<{ id: string; summary: string | null }>
 ): string {
   const trimmedBase = baseUrl.replace(/\/$/, "");
-  const lines: string[] = [JIRA_COMMENT_MARKER, "### 🎫 Jira", ""];
-  let missingSummary = false;
+  const missingSummary = tickets.some((t) => !t.summary);
+  const lines: string[] = [JIRA_COMMENT_MARKER];
 
-  for (const ticket of tickets) {
-    const url = `${trimmedBase}/browse/${ticket.id}`;
-    if (ticket.summary) {
-      lines.push(`- [${ticket.id}: ${ticket.summary}](${url})`);
-    } else {
-      lines.push(`- [${ticket.id}](${url})`);
-      missingSummary = true;
+  if (tickets.length === 1) {
+    lines.push(`🎫 **Jira:** ${renderTicketLink(trimmedBase, tickets[0])}`);
+  } else {
+    lines.push("🎫 **Jira:**");
+    for (const ticket of tickets) {
+      lines.push(`- ${renderTicketLink(trimmedBase, ticket)}`);
     }
   }
 

@@ -81163,6 +81163,7 @@ async function run() {
             owner,
             repo,
             prNumber: pr.number,
+            prTitle: pr.title ?? "",
             author: pr.user?.login ?? "",
             isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
             isDraft: pr.draft === true,
@@ -81419,18 +81420,22 @@ async function fetchTicketSummary(ticketId, baseUrl, token) {
     }
 }
 exports.JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
+function renderTicketLink(baseUrl, ticket) {
+    const url = `${baseUrl}/browse/${ticket.id}`;
+    const link = `[\`${ticket.id}\`](${url})`;
+    return ticket.summary ? `${link} — ${ticket.summary}` : link;
+}
 function buildJiraComment(baseUrl, tickets) {
     const trimmedBase = baseUrl.replace(/\/$/, "");
-    const lines = [exports.JIRA_COMMENT_MARKER, "### 🎫 Jira", ""];
-    let missingSummary = false;
-    for (const ticket of tickets) {
-        const url = `${trimmedBase}/browse/${ticket.id}`;
-        if (ticket.summary) {
-            lines.push(`- [${ticket.id}: ${ticket.summary}](${url})`);
-        }
-        else {
-            lines.push(`- [${ticket.id}](${url})`);
-            missingSummary = true;
+    const missingSummary = tickets.some((t) => !t.summary);
+    const lines = [exports.JIRA_COMMENT_MARKER];
+    if (tickets.length === 1) {
+        lines.push(`🎫 **Jira:** ${renderTicketLink(trimmedBase, tickets[0])}`);
+    }
+    else {
+        lines.push("🎫 **Jira:**");
+        for (const ticket of tickets) {
+            lines.push(`- ${renderTicketLink(trimmedBase, ticket)}`);
         }
     }
     if (missingSummary) {
@@ -81850,7 +81855,6 @@ async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) 
     return legacyRefs;
 }
 async function handleLabeled(octokit, ctx) {
-    await (0, jira_1.postJiraComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prTitle, ctx.teamsConfig.jira, ctx.inputs.jiraToken);
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: ctx.owner,
         repo: ctx.repo,
@@ -82079,6 +82083,7 @@ function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
 }
 exports.EXTERNAL_CONTRIBUTION_LABEL = "external-contribution";
 async function handleOpened(octokit, ctx) {
+    await (0, jira_1.postJiraComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prTitle, ctx.teamsConfig.jira, ctx.inputs.jiraToken);
     if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === "dependabot[bot]") {
         core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
         try {

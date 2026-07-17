@@ -2,7 +2,8 @@ import * as core from "@actions/core";
 import { JiraConfig, Octokit } from "./types";
 
 export function extractTicketIds(title: string): string[] {
-  return [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
+  const ids = [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
+  return [...new Set(ids)];
 }
 
 export async function fetchTicketSummary(

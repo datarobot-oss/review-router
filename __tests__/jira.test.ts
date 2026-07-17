@@ -36,6 +36,10 @@ describe("extractTicketIds", () => {
   it("ignores unbracketed ticket-shaped text", () => {
     expect(extractTicketIds("PROJ-6000 Add proxy route")).toEqual([]);
   });
+
+  it("dedupes a ticket ID repeated in the title", () => {
+    expect(extractTicketIds("[PROJ-1] backport of [PROJ-1]")).toEqual(["PROJ-1"]);
+  });
 });
 
 describe("fetchTicketSummary", () => {

@@ -83775,7 +83775,8 @@ exports.buildJiraComment = buildJiraComment;
 exports.postJiraComment = postJiraComment;
 const core = __importStar(__nccwpck_require__(37484));
 function extractTicketIds(title) {
-    return [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
+    const ids = [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
+    return [...new Set(ids)];
 }
 async function fetchTicketSummary(ticketId, baseUrl, token) {
     const url = `${baseUrl.replace(/\/$/, "")}/rest/api/3/issue/${ticketId}?fields=summary`;

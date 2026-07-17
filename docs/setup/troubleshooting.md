@@ -149,3 +149,28 @@ secrets, so the token generation step fails.
 This is safe because the action never checks out code from the PR
 branch. See the [basic setup guide](basic.md) for the recommended
 workflow configuration.
+
+## Fork PRs get merged/file-type reactions but never an approval reaction or thread reply
+
+Routing, labels, the ownership comment, and the `merged`/`closed`/file-type
+Slack reactions all work fine on a fork PR. But approving the PR never adds
+the `approved` reaction, and comments/reviews never get a Slack thread
+reply pinging the author — even when the PR author is a member of your
+GitHub org.
+
+**Cause**: This isn't about the author's permissions. GitHub withholds
+secrets and downgrades the token to read-only for `pull_request_review`,
+`pull_request_review_comment`, and `issue_comment` workflow runs whenever
+they're associated with a PR whose head branch lives in a fork -- the exact
+same restriction `pull_request` has, but it also applies to these three
+event types, which `pull_request_target` does not cover. The action logs
+`No github-token provided -- skipping` for these runs; check for
+`Secret source: None` in the run's setup logs to confirm. See
+[pull-request-target.md](../security/pull-request-target.md) for the full
+explanation.
+
+**Fix**: There isn't one at the config level -- this is a GitHub Actions
+platform restriction, not something switching triggers or tokens can work
+around. `handleReviewSubmitted` and `handleComment` will never run for a
+fork-originated PR. Everything driven by `pull_request_target`
+(opened/labeled/closed) is unaffected and continues to work normally.

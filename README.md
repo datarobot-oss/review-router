@@ -168,6 +168,17 @@ When someone comments on or approves a PR that was routed by review-router,
 the PR author receives an @-mention in the Slack thread of the original
 notification. This requires the `users` mapping in the config.
 
+**Fork PRs don't get thread replies or approval reactions.** GitHub
+withholds secrets from `pull_request_review`, `pull_request_review_comment`,
+and `issue_comment` runs whenever they're tied to a PR from a fork,
+regardless of the author's org membership. This is a platform restriction,
+not something review-router or your workflow config can work around. Fork
+PRs still get routed, labeled, and get their file-type/merged/closed
+reactions normally -- those run on `pull_request_target`, which isn't
+affected. See
+[troubleshooting.md](docs/setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)
+for details.
+
 Add these trigger types to your workflow:
 
 ```yaml

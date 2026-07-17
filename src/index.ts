@@ -162,6 +162,7 @@ async function run(): Promise<void> {
       owner,
       repo,
       prNumber: pr.number,
+      prTitle: pr.title ?? "",
       author: pr.user?.login ?? "",
       isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
       isDraft: pr.draft === true,

@@ -35,6 +35,7 @@ async function run(): Promise<void> {
     readyLabel: core.getInput("ready-label"),
     needsReviewPrefix: core.getInput("needs-review-prefix"),
     needsReviewLabelColor: core.getInput("needs-review-label-color"),
+    jiraToken: core.getInput("jira-token"),
   };
 
   const context = github.context;

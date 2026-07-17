@@ -54,10 +54,10 @@ describe("fetchTicketSummary", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ fields: { summary: "Migrate logs to DataVolt" } }),
+      json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
     });
     const summary = await fetchTicketSummary("PROJ-6235", "https://acme.atlassian.net", "tok");
-    expect(summary).toBe("Migrate logs to DataVolt");
+    expect(summary).toBe("Fix the login redirect bug");
     expect(fetchMock).toHaveBeenCalledWith(
       "https://acme.atlassian.net/rest/api/3/issue/PROJ-6235?fields=summary",
       {
@@ -113,11 +113,11 @@ describe("fetchTicketSummary", () => {
 describe("buildJiraComment", () => {
   it("renders a single ticket with a title as a compact one-liner", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
-      { id: "PROJ-6235", summary: "Migrate logs to DataVolt" },
+      { id: "PROJ-6235", summary: "Fix the login redirect bug" },
     ]);
     expect(body).toContain(JIRA_COMMENT_MARKER);
     expect(body).toContain(
-      "🎫 **Jira:** [`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Migrate logs to DataVolt"
+      "🎫 **Jira:** [`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Fix the login redirect bug"
     );
     expect(body).not.toContain("###");
     expect(body).not.toContain("- [");
@@ -234,7 +234,7 @@ describe("postJiraComment", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ fields: { summary: "Migrate logs to DataVolt" } }),
+      json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
     }) as unknown as typeof fetch;
 
     await postJiraComment(
@@ -251,7 +251,7 @@ describe("postJiraComment", () => {
       repo: "r",
       issue_number: 1,
       body: expect.stringContaining(
-        "[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Migrate logs to DataVolt"
+        "[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Fix the login redirect bug"
       ),
     });
   });

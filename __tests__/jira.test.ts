@@ -111,15 +111,16 @@ describe("fetchTicketSummary", () => {
 });
 
 describe("buildJiraComment", () => {
-  it("renders a single ticket with a title", () => {
+  it("renders a single ticket with a title as a compact one-liner", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
       { id: "PROJ-6235", summary: "Migrate logs to DataVolt" },
     ]);
     expect(body).toContain(JIRA_COMMENT_MARKER);
-    expect(body).toContain("### 🎫 Jira");
     expect(body).toContain(
-      "- [PROJ-6235: Migrate logs to DataVolt](https://acme.atlassian.net/browse/PROJ-6235)"
+      "🎫 **Jira:** [`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Migrate logs to DataVolt"
     );
+    expect(body).not.toContain("###");
+    expect(body).not.toContain("- [");
     expect(body).not.toContain("jira-token");
   });
 
@@ -127,17 +128,20 @@ describe("buildJiraComment", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
       { id: "PROJ-6235", summary: null },
     ]);
-    expect(body).toContain("- [PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)");
+    expect(body).toContain(
+      "🎫 **Jira:** [`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)"
+    );
     expect(body).toContain("Add a `jira-token` input for ticket titles here.");
   });
 
-  it("renders multiple tickets, one bullet each", () => {
+  it("renders multiple tickets as a bullet list under a shared lead-in", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
       { id: "PROJ-100", summary: "First" },
       { id: "PROJ-200", summary: null },
     ]);
-    expect(body).toContain("- [PROJ-100: First](https://acme.atlassian.net/browse/PROJ-100)");
-    expect(body).toContain("- [PROJ-200](https://acme.atlassian.net/browse/PROJ-200)");
+    expect(body).toContain("🎫 **Jira:**");
+    expect(body).toContain("- [`PROJ-100`](https://acme.atlassian.net/browse/PROJ-100) — First");
+    expect(body).toContain("- [`PROJ-200`](https://acme.atlassian.net/browse/PROJ-200)");
   });
 
   it("adds the footer note only once when multiple tickets are missing titles", () => {
@@ -221,7 +225,7 @@ describe("postJiraComment", () => {
       owner: "o",
       repo: "r",
       issue_number: 1,
-      body: expect.stringContaining("[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)"),
+      body: expect.stringContaining("[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)"),
     });
   });
 
@@ -247,7 +251,7 @@ describe("postJiraComment", () => {
       repo: "r",
       issue_number: 1,
       body: expect.stringContaining(
-        "[PROJ-6235: Migrate logs to DataVolt](https://acme.atlassian.net/browse/PROJ-6235)"
+        "[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Migrate logs to DataVolt"
       ),
     });
   });

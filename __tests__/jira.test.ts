@@ -145,9 +145,7 @@ describe("buildJiraComment", () => {
   });
 
   it("strips a trailing slash from base_url in links", () => {
-    const body = buildJiraComment("https://acme.atlassian.net/", [
-      { id: "PROJ-1", summary: null },
-    ]);
+    const body = buildJiraComment("https://acme.atlassian.net/", [{ id: "PROJ-1", summary: null }]);
     expect(body).toContain("(https://acme.atlassian.net/browse/PROJ-1)");
   });
 });

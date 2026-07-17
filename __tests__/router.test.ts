@@ -143,7 +143,7 @@ describe("handleLabeled", () => {
       prNumber: 1,
       baseBranch: "main",
       prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
-      prTitle: "[APP-6235] Migrate logs",
+      prTitle: "[PROJ-6235] Migrate logs",
       author: "alice",
       additions: 10,
       deletions: 5,
@@ -170,7 +170,7 @@ describe("handleLabeled", () => {
 
     expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.stringContaining("[APP-6235](https://acme.atlassian.net/browse/APP-6235)"),
+        body: expect.stringContaining("[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)"),
       })
     );
   });
@@ -192,7 +192,7 @@ describe("handleLabeled", () => {
       prNumber: 1,
       baseBranch: "main",
       prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
-      prTitle: "[APP-6235] Migrate logs",
+      prTitle: "[PROJ-6235] Migrate logs",
       author: "alice",
       additions: 10,
       deletions: 5,

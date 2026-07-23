@@ -6,7 +6,7 @@ GitHub App: https://github.com/apps/datarobot-pr-review-router
 
 When the **"Ready for Review"** label is added to a PR, this action:
 
-1. Reads `.github/CODEOWNERS` from the base branch
+1. Reads `.github/CODEOWNERS` from the main branch
 2. Maps changed files to owning teams
 3. Applies "Needs Review: {team}" labels
 4. Requests reviews from the owning teams

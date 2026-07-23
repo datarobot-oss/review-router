@@ -81390,6 +81390,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JIRA_COMMENT_MARKER = void 0;
 exports.extractTicketIds = extractTicketIds;
+exports.resolveCloudId = resolveCloudId;
 exports.fetchTicketSummary = fetchTicketSummary;
 exports.buildJiraComment = buildJiraComment;
 exports.postJiraComment = postJiraComment;
@@ -81398,12 +81399,35 @@ function extractTicketIds(title) {
     const ids = [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
     return [...new Set(ids)];
 }
-async function fetchTicketSummary(ticketId, baseUrl, token) {
-    const url = `${baseUrl.replace(/\/$/, "")}/rest/api/3/issue/${ticketId}?fields=summary`;
+const JIRA_API_GATEWAY = "https://api.atlassian.com/ex/jira";
+/**
+ * Resolves a Jira site URL to its cloud ID via the unauthenticated
+ * `/_edge/tenant_info` endpoint. Scoped API tokens authenticate only against the
+ * `api.atlassian.com/ex/jira/{cloudId}` gateway, so the cloud ID is required
+ * before any authenticated read.
+ */
+async function resolveCloudId(baseUrl) {
+    const url = `${baseUrl.replace(/\/$/, "")}/_edge/tenant_info`;
+    try {
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) {
+            core.warning(`Jira tenant_info returned ${response.status} for ${baseUrl}`);
+            return null;
+        }
+        const data = (await response.json());
+        return data.cloudId ?? null;
+    }
+    catch (error) {
+        core.warning(`Failed to resolve Jira cloud ID for ${baseUrl}: ${error instanceof Error ? error.message : String(error)}`);
+        return null;
+    }
+}
+async function fetchTicketSummary(ticketId, cloudId, token) {
+    const url = `${JIRA_API_GATEWAY}/${cloudId}/rest/api/3/issue/${ticketId}?fields=summary`;
     try {
         const response = await fetch(url, {
             headers: {
-                Authorization: `Basic ${Buffer.from(token).toString("base64")}`,
+                Authorization: `Bearer ${token}`,
                 Accept: "application/json",
             },
         });
@@ -81455,9 +81479,10 @@ async function postJiraComment(octokit, owner, repo, prNumber, prTitle, jiraConf
     const ticketIds = extractTicketIds(prTitle);
     if (ticketIds.length === 0)
         return;
+    const cloudId = jiraToken ? await resolveCloudId(baseUrl) : null;
     const tickets = await Promise.all(ticketIds.map(async (id) => ({
         id,
-        summary: jiraToken ? await fetchTicketSummary(id, baseUrl, jiraToken) : null,
+        summary: cloudId ? await fetchTicketSummary(id, cloudId, jiraToken) : null,
     })));
     const body = buildJiraComment(baseUrl, tickets);
     try {

@@ -10,10 +10,13 @@ inputs:
     required: false
   jira-token:
     description: >
-      Jira API token for fetching ticket titles (optional). Value must be the
-      Basic-auth pair "email:api_token" (e.g. "jane@acme.com:ATATT3xFfGF0..."),
-      base64-encoded as-is for the Authorization header. Without it, the Jira
-      comment still posts but links show the ticket ID only, not the title.
+      Jira scoped API token for fetching ticket titles (optional). Create it at
+      id.atlassian.com with a read scope (read:jira-work) and pass the raw token
+      value (e.g. "ATSTT3xFfGF0..."). It is sent as a Bearer token against the
+      api.atlassian.com gateway; the cloud ID is resolved automatically from
+      "base_url". Classic "email:api_token" tokens are not supported. Without it,
+      the Jira comment still posts but links show the ticket ID only, not the
+      title.
     required: false
   config-repo:
     description: "Fetch teams config from this GitHub repo (e.g. 'acme-inc/.review-router'). Reads config.yml from the repo root."

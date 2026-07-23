@@ -1,5 +1,6 @@
 import {
   extractTicketIds,
+  resolveCloudId,
   fetchTicketSummary,
   buildJiraComment,
   JIRA_COMMENT_MARKER,
@@ -42,6 +43,61 @@ describe("extractTicketIds", () => {
   });
 });
 
+describe("resolveCloudId", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("returns the cloud ID from tenant_info", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ cloudId: "abc-123" }),
+    });
+    const cloudId = await resolveCloudId("https://acme.atlassian.net");
+    expect(cloudId).toBe("abc-123");
+    expect(fetchMock).toHaveBeenCalledWith("https://acme.atlassian.net/_edge/tenant_info", {
+      headers: { Accept: "application/json" },
+    });
+  });
+
+  it("strips a trailing slash from base_url", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ cloudId: "abc-123" }),
+    });
+    await resolveCloudId("https://acme.atlassian.net/");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://acme.atlassian.net/_edge/tenant_info",
+      expect.anything()
+    );
+  });
+
+  it("returns null and warns on a non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
+    const cloudId = await resolveCloudId("https://acme.atlassian.net");
+    expect(cloudId).toBeNull();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("500"));
+  });
+
+  it("returns null and warns on network error", async () => {
+    fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+    const cloudId = await resolveCloudId("https://acme.atlassian.net");
+    expect(cloudId).toBeNull();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("ECONNREFUSED"));
+  });
+
+  it("returns null when cloudId is absent", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+    const cloudId = await resolveCloudId("https://acme.atlassian.net");
+    expect(cloudId).toBeNull();
+  });
+});
+
 describe("fetchTicketSummary", () => {
   const fetchMock = jest.fn();
 
@@ -50,62 +106,49 @@ describe("fetchTicketSummary", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
-  it("returns the ticket summary on success", async () => {
+  it("fetches through the gateway with a Bearer token and returns the summary", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
     });
-    const summary = await fetchTicketSummary("PROJ-6235", "https://acme.atlassian.net", "tok");
+    const summary = await fetchTicketSummary("PROJ-6235", "abc-123", "tok");
     expect(summary).toBe("Fix the login redirect bug");
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://acme.atlassian.net/rest/api/3/issue/PROJ-6235?fields=summary",
+      "https://api.atlassian.com/ex/jira/abc-123/rest/api/3/issue/PROJ-6235?fields=summary",
       {
         headers: {
-          Authorization: `Basic ${Buffer.from("tok").toString("base64")}`,
+          Authorization: "Bearer tok",
           Accept: "application/json",
         },
       }
     );
   });
 
-  it("strips a trailing slash from base_url", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ fields: { summary: "x" } }),
-    });
-    await fetchTicketSummary("PROJ-1", "https://acme.atlassian.net/", "tok");
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://acme.atlassian.net/rest/api/3/issue/PROJ-1?fields=summary",
-      expect.anything()
-    );
-  });
-
   it("returns null and warns on 401", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 401 });
-    const summary = await fetchTicketSummary("PROJ-6235", "https://acme.atlassian.net", "tok");
+    const summary = await fetchTicketSummary("PROJ-6235", "abc-123", "tok");
     expect(summary).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("401"));
   });
 
   it("returns null and warns on 404", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404 });
-    const summary = await fetchTicketSummary("PROJ-9999", "https://acme.atlassian.net", "tok");
+    const summary = await fetchTicketSummary("PROJ-9999", "abc-123", "tok");
     expect(summary).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("404"));
   });
 
   it("returns null and warns on network error", async () => {
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
-    const summary = await fetchTicketSummary("PROJ-6235", "https://acme.atlassian.net", "tok");
+    const summary = await fetchTicketSummary("PROJ-6235", "abc-123", "tok");
     expect(summary).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("ECONNREFUSED"));
   });
 
   it("returns null when summary field is absent", async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ fields: {} }) });
-    const summary = await fetchTicketSummary("PROJ-1", "https://acme.atlassian.net", "tok");
+    const summary = await fetchTicketSummary("PROJ-1", "abc-123", "tok");
     expect(summary).toBeNull();
   });
 });
@@ -231,11 +274,14 @@ describe("postJiraComment", () => {
 
   it("fetches the summary and creates a comment with a titled link when a token is set", async () => {
     mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
-    }) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ cloudId: "abc-123" }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
+      }) as unknown as typeof fetch;
 
     await postJiraComment(
       mockOctokit as any,
@@ -244,7 +290,7 @@ describe("postJiraComment", () => {
       1,
       "[PROJ-6235] Migrate logs",
       { enabled: true, base_url: "https://acme.atlassian.net" },
-      "user@acme.com:tok"
+      "tok"
     );
     expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith({
       owner: "o",
@@ -254,6 +300,29 @@ describe("postJiraComment", () => {
         "[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Fix the login redirect bug"
       ),
     });
+  });
+
+  it("posts an ID-only link with the footer when a token is set but cloud ID resolution fails", async () => {
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    const fetchMock = jest.fn().mockResolvedValue({ ok: false, status: 500 });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "[PROJ-6235] Migrate logs",
+      { enabled: true, base_url: "https://acme.atlassian.net" },
+      "tok"
+    );
+
+    // Only tenant_info is called; no per-ticket summary fetch after resolution fails.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = mockOctokit.rest.issues.createComment.mock.calls[0][0].body;
+    expect(body).toContain("[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)");
+    expect(body).not.toContain("— Migrate logs");
+    expect(body).toContain("Add a `jira-token` input for ticket titles here.");
   });
 
   it("updates the existing Jira comment instead of creating a new one", async () => {

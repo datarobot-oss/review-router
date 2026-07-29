@@ -34,6 +34,7 @@ const mockOctokit = {
     },
     repos: {
       getContent: jest.fn(),
+      getCollaboratorPermissionLevel: jest.fn(),
     },
     orgs: {
       checkMembershipForUser: jest.fn(),
@@ -69,6 +70,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockOctokit.rest.pulls.get.mockResolvedValue({ data: { body: "" } });
   mockOctokit.rest.pulls.update.mockResolvedValue({});
+  mockOctokit.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+    data: { permission: "none" },
+  });
 });
 
 describe("handleLabeled", () => {
@@ -917,6 +921,94 @@ describe("handleOpened", () => {
       })
     );
   });
+
+  it("skips labels for fork PR opened by admin maintainer", async () => {
+    mockOctokit.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+      data: { permission: "admin" },
+    });
+
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      prTitle: "Test PR",
+      author: "maintainer",
+      isFork: true,
+      isDraft: false,
+      inputs: baseInputs,
+      teamsConfig: {
+        ...teamsConfig,
+        external_contributors: { auto_label: true, message: "Welcome!" },
+      },
+    });
+
+    expect(mockOctokit.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      username: "maintainer",
+    });
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    expect(mockPostExternalComment).not.toHaveBeenCalled();
+  });
+
+  it("skips labels for fork PR opened by write-permission maintainer", async () => {
+    mockOctokit.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+      data: { permission: "write" },
+    });
+
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      prTitle: "Test PR",
+      author: "maintainer",
+      isFork: true,
+      isDraft: true,
+      inputs: baseInputs,
+      teamsConfig: {
+        ...teamsConfig,
+        external_contributors: { auto_label: true, message: "Welcome!" },
+      },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    expect(mockPostExternalComment).not.toHaveBeenCalled();
+  });
+
+  it("still labels fork PR when permission API fails", async () => {
+    mockOctokit.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(new Error("API error"));
+
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
+    await handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      prTitle: "Test PR",
+      author: "someone",
+      isFork: true,
+      isDraft: false,
+      inputs: baseInputs,
+      teamsConfig: {
+        ...teamsConfig,
+        external_contributors: { auto_label: true, message: "Welcome!" },
+      },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      issue_number: 10,
+      labels: ["external-contribution", "Ready for Review"],
+    });
+    expect(mockPostExternalComment).toHaveBeenCalledWith(
+      mockOctokit,
+      "org",
+      "repo",
+      10,
+      "Welcome!"
+    );
+  });
 });
 
 describe("handleReadyForReview", () => {
@@ -980,6 +1072,51 @@ describe("handleReadyForReview", () => {
     });
 
     expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("skips ready label for fork PR opened by maintainer", async () => {
+    mockOctokit.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+      data: { permission: "admin" },
+    });
+
+    await handleReadyForReview(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "maintainer",
+      isFork: true,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      username: "maintainer",
+    });
+    expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+  });
+
+  it("still adds ready label when permission API fails", async () => {
+    mockOctokit.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(new Error("API error"));
+    mockOctokit.rest.issues.addLabels.mockResolvedValue({});
+
+    await handleReadyForReview(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 10,
+      author: "someone",
+      isFork: true,
+      inputs: baseInputs,
+      teamsConfig: { ...teamsConfig, external_contributors: { auto_label: true } },
+    });
+
+    expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "org",
+      repo: "repo",
+      issue_number: 10,
+      labels: ["Ready for Review"],
+    });
   });
 });
 

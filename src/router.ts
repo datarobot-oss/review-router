@@ -24,6 +24,7 @@ import {
   SlackMessageRef,
 } from "./slack";
 import { getLabelForTeam, getSlackChannel } from "./config";
+import { isRepoMaintainer } from "./auth";
 import {
   ActionInputs,
   Capabilities,
@@ -477,6 +478,14 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
     return;
   }
 
+  const isMaintainer = await isRepoMaintainer(octokit, ctx.owner, ctx.repo, ctx.author);
+  if (isMaintainer) {
+    core.info(
+      `Fork PR #${ctx.prNumber} opened by maintainer @${ctx.author}, skipping external-contribution label`
+    );
+    return;
+  }
+
   const labels = ctx.isDraft
     ? [EXTERNAL_CONTRIBUTION_LABEL]
     : [EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel];
@@ -524,6 +533,14 @@ export async function handleReadyForReview(
 
   if (!ctx.isFork) {
     core.info("PR is not from a fork, skipping external contributor auto-label");
+    return;
+  }
+
+  const isMaintainer = await isRepoMaintainer(octokit, ctx.owner, ctx.repo, ctx.author);
+  if (isMaintainer) {
+    core.info(
+      `Fork PR #${ctx.prNumber} opened by maintainer @${ctx.author}, skipping external-contribution ready label`
+    );
     return;
   }
 

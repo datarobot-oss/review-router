@@ -75568,6 +75568,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.detectCapabilities = detectCapabilities;
 exports.isOrgMember = isOrgMember;
+exports.isRepoMaintainer = isRepoMaintainer;
 const core = __importStar(__nccwpck_require__(7484));
 async function detectCapabilities(octokit, org) {
     try {
@@ -75586,6 +75587,25 @@ async function isOrgMember(octokit, org, username) {
         return true;
     }
     catch {
+        return false;
+    }
+}
+/**
+ * Checks whether a user has write or admin permission on the given repo,
+ * i.e. is a maintainer. Returns false on API errors (fail-safe: treat as
+ * external contributor so the label is not skipped erroneously).
+ */
+async function isRepoMaintainer(octokit, owner, repo, username) {
+    try {
+        const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+            owner,
+            repo,
+            username,
+        });
+        return data.permission === "admin" || data.permission === "write";
+    }
+    catch (error) {
+        core.warning(`Failed to check collaborator permission for @${username} on ${owner}/${repo}: ${error instanceof Error ? error.message : String(error)}. Treating as non-maintainer.`);
         return false;
     }
 }
@@ -76919,6 +76939,7 @@ const comment_1 = __nccwpck_require__(2246);
 const jira_1 = __nccwpck_require__(7647);
 const slack_1 = __nccwpck_require__(6691);
 const config_1 = __nccwpck_require__(2973);
+const auth_1 = __nccwpck_require__(9081);
 async function withRetry(fn, maxAttempts = 3, delayMs = 1000) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -77234,6 +77255,11 @@ async function handleOpened(octokit, ctx) {
         core.info("PR is not from a fork, skipping external contributor auto-label");
         return;
     }
+    const isMaintainer = await (0, auth_1.isRepoMaintainer)(octokit, ctx.owner, ctx.repo, ctx.author);
+    if (isMaintainer) {
+        core.info(`Fork PR #${ctx.prNumber} opened by maintainer @${ctx.author}, skipping external-contribution label`);
+        return;
+    }
     const labels = ctx.isDraft
         ? [exports.EXTERNAL_CONTRIBUTION_LABEL]
         : [exports.EXTERNAL_CONTRIBUTION_LABEL, ctx.inputs.readyLabel];
@@ -77261,6 +77287,11 @@ async function handleReadyForReview(octokit, ctx) {
     }
     if (!ctx.isFork) {
         core.info("PR is not from a fork, skipping external contributor auto-label");
+        return;
+    }
+    const isMaintainer = await (0, auth_1.isRepoMaintainer)(octokit, ctx.owner, ctx.repo, ctx.author);
+    if (isMaintainer) {
+        core.info(`Fork PR #${ctx.prNumber} opened by maintainer @${ctx.author}, skipping external-contribution ready label`);
         return;
     }
     core.info(`Fork PR #${ctx.prNumber} marked ready, adding "${ctx.inputs.readyLabel}" label`);

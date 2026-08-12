@@ -9133,7 +9133,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1100.0";
+var version = "3.1105.0";
 var packageInfo = {
 	version: version};
 
@@ -9919,6 +9919,7 @@ const ChecksumType = {
 };
 const ServerSideEncryption = {
     AES256: "AES256",
+    aws_backup: "aws:backup",
     aws_fsx: "aws:fsx",
     aws_kms: "aws:kms",
     aws_kms_dsse: "aws:kms:dsse",
@@ -9961,6 +9962,8 @@ const ObjectLockMode = {
     GOVERNANCE: "GOVERNANCE",
 };
 const StorageClass = {
+    AWS_BACKUP_LOW_COST_WARM: "AWS_BACKUP_LOW_COST_WARM",
+    AWS_BACKUP_WARM: "AWS_BACKUP_WARM",
     DEEP_ARCHIVE: "DEEP_ARCHIVE",
     EXPRESS_ONEZONE: "EXPRESS_ONEZONE",
     FSX_ONTAP: "FSX_ONTAP",
@@ -10255,6 +10258,8 @@ const EncodingType = {
     url: "url",
 };
 const ObjectStorageClass = {
+    AWS_BACKUP_LOW_COST_WARM: "AWS_BACKUP_LOW_COST_WARM",
+    AWS_BACKUP_WARM: "AWS_BACKUP_WARM",
     DEEP_ARCHIVE: "DEEP_ARCHIVE",
     EXPRESS_ONEZONE: "EXPRESS_ONEZONE",
     FSX_ONTAP: "FSX_ONTAP",
@@ -12621,25 +12626,26 @@ function jsonReviver(key, value, context) {
         const numericString = context.source;
         if (typeof value === "number") {
             const inSafeRange = value <= Number.MAX_SAFE_INTEGER && value >= Number.MIN_SAFE_INTEGER;
-            if (!inSafeRange || numericString !== String(value)) {
-                if (inSafeRange && /[eE]/.test(numericString) && String(Number(numericString)) === String(value)) {
+            if (inSafeRange) {
+                if (isRepresentable(numericString, value)) {
                     return value;
                 }
-                if (isFractionalNumeric(numericString)) {
+                return new NumericValue(numericString, "bigDecimal");
+            }
+            else {
+                if (isFractionalBigNumeric(numericString)) {
                     return new NumericValue(numericString, "bigDecimal");
                 }
-                else {
-                    if (/[eE]/.test(numericString)) {
-                        return BigInt(Number(numericString));
-                    }
-                    return BigInt(numericString);
+                if (/[eE]/.test(numericString)) {
+                    return expandExponentToBigInt(numericString);
                 }
+                return BigInt(numericString);
             }
         }
     }
     return value;
 }
-function isFractionalNumeric(s) {
+function isFractionalBigNumeric(s) {
     const dotIndex = s.indexOf(".");
     if (dotIndex === -1) {
         return false;
@@ -12651,6 +12657,89 @@ function isFractionalNumeric(s) {
     const fracDigits = eIndex - dotIndex - 1;
     const exp = parseInt(s.slice(eIndex + 1), 10);
     return exp < fracDigits;
+}
+function isRepresentable(numericString, value) {
+    if (numericString === String(value)) {
+        return true;
+    }
+    if (Object.is(value, -0)) {
+        return true;
+    }
+    if (/[eE]/.test(numericString)) {
+        return expandToDecimal(numericString) === expandToDecimal(String(value));
+    }
+    const normalized = numericString.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    const canonical = String(value);
+    if (normalized === canonical) {
+        return true;
+    }
+    if (/[eE]/.test(canonical)) {
+        return normalized === expandToDecimal(canonical);
+    }
+    return false;
+}
+function expandToDecimal(s) {
+    const negative = s.startsWith("-");
+    const abs = negative ? s.slice(1) : s;
+    const eIndex = abs.search(/[eE]/);
+    let result;
+    if (eIndex === -1) {
+        result = abs;
+    }
+    else {
+        const exp = parseInt(abs.slice(eIndex + 1), 10);
+        const mantissa = abs.slice(0, eIndex);
+        const dotIndex = mantissa.indexOf(".");
+        let digits;
+        let intLen;
+        if (dotIndex === -1) {
+            digits = mantissa;
+            intLen = mantissa.length;
+        }
+        else {
+            digits = mantissa.slice(0, dotIndex) + mantissa.slice(dotIndex + 1);
+            intLen = dotIndex;
+        }
+        digits = digits.replace(/0+$/, "") || "0";
+        const newDotPos = intLen + exp;
+        if (digits === "0") {
+            result = "0";
+        }
+        else if (newDotPos <= 0) {
+            result = "0." + "0".repeat(-newDotPos) + digits;
+        }
+        else if (newDotPos >= digits.length) {
+            result = digits + "0".repeat(newDotPos - digits.length);
+        }
+        else {
+            result = digits.slice(0, newDotPos) + "." + digits.slice(newDotPos);
+        }
+    }
+    if (result.includes(".")) {
+        result = result.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    }
+    return (negative ? "-" : "") + result;
+}
+function expandExponentToBigInt(s) {
+    const eIndex = s.search(/[eE]/);
+    const exp = parseInt(s.slice(eIndex + 1), 10);
+    const negative = s.startsWith("-");
+    const mantissa = s.slice(negative ? 1 : 0, eIndex);
+    const dotIndex = mantissa.indexOf(".");
+    let digits;
+    let shift;
+    if (dotIndex === -1) {
+        digits = mantissa;
+        shift = exp;
+    }
+    else {
+        digits = mantissa.slice(0, dotIndex) + mantissa.slice(dotIndex + 1);
+        const fracDigits = mantissa.length - dotIndex - 1;
+        shift = exp - fracDigits;
+    }
+    digits = digits.replace(/0+$/, "") || "0";
+    const result = BigInt(digits) * 10n ** BigInt(shift + (mantissa.replace(".", "").length - digits.length));
+    return negative ? -result : result;
 }
 
 const REVIVER_SYMBOL = Symbol.for("@aws-sdk/reviver");
@@ -17724,7 +17813,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.39";
+var version = "3.997.41";
 var packageInfo = {
 	version: version};
 
@@ -18321,7 +18410,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.39";
+var version = "3.997.41";
 var packageInfo = {
 	version: version};
 
@@ -19002,7 +19091,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.39";
+var version = "3.997.41";
 var packageInfo = {
 	version: version};
 
@@ -19657,7 +19746,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.39";
+var version = "3.997.41";
 var packageInfo = {
 	version: version};
 
@@ -37903,8 +37992,6 @@ class Schema {
 
 class ListSchema extends Schema {
     static symbol = Symbol.for("@smithy/lis");
-    name;
-    traits;
     valueSchema;
     symbol = ListSchema.symbol;
 }
@@ -37917,8 +38004,6 @@ const list = (namespace, name, traits, valueSchema) => Schema.assign(new ListSch
 
 class MapSchema extends Schema {
     static symbol = Symbol.for("@smithy/map");
-    name;
-    traits;
     keySchema;
     valueSchema;
     symbol = MapSchema.symbol;
@@ -37933,8 +38018,6 @@ const map = (namespace, name, traits, keySchema, valueSchema) => Schema.assign(n
 
 class OperationSchema extends Schema {
     static symbol = Symbol.for("@smithy/ope");
-    name;
-    traits;
     input;
     output;
     symbol = OperationSchema.symbol;
@@ -37949,8 +38032,6 @@ const op = (namespace, name, traits, input, output) => Schema.assign(new Operati
 
 class StructureSchema extends Schema {
     static symbol = Symbol.for("@smithy/str");
-    name;
-    traits;
     memberNames;
     memberList;
     symbol = StructureSchema.symbol;
@@ -38308,9 +38389,7 @@ const isStaticSchema = (sc) => Array.isArray(sc) && sc.length >= 5;
 
 class SimpleSchema extends Schema {
     static symbol = Symbol.for("@smithy/sim");
-    name;
     schemaRef;
-    traits;
     symbol = SimpleSchema.symbol;
 }
 const sim = (namespace, name, schemaRef, traits) => Schema.assign(new SimpleSchema(), {

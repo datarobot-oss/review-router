@@ -9133,7 +9133,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1105.0";
+var version = "3.1110.0";
 var packageInfo = {
 	version: version};
 
@@ -17813,7 +17813,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.41";
+var version = "3.997.42";
 var packageInfo = {
 	version: version};
 
@@ -18410,7 +18410,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.41";
+var version = "3.997.42";
 var packageInfo = {
 	version: version};
 
@@ -19091,7 +19091,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.41";
+var version = "3.997.42";
 var packageInfo = {
 	version: version};
 
@@ -19746,7 +19746,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.41";
+var version = "3.997.42";
 var packageInfo = {
 	version: version};
 
@@ -36882,24 +36882,27 @@ class Fields {
 }
 
 const getHttpHandlerExtensionConfiguration = (runtimeConfig) => {
+    if (runtimeConfig.logger && runtimeConfig.logger.constructor?.name !== "NoOpLogger") {
+        runtimeConfig.requestHandler?.updateHttpClientConfig?.(Symbol.for("logger"), runtimeConfig.logger);
+    }
     return {
         setHttpHandler(handler) {
-            runtimeConfig.httpHandler = handler;
+            runtimeConfig.requestHandler = handler;
         },
         httpHandler() {
-            return runtimeConfig.httpHandler;
+            return runtimeConfig.requestHandler;
         },
         updateHttpClientConfig(key, value) {
-            runtimeConfig.httpHandler?.updateHttpClientConfig(key, value);
+            runtimeConfig.requestHandler?.updateHttpClientConfig(key, value);
         },
         httpHandlerConfigs() {
-            return runtimeConfig.httpHandler.httpHandlerConfigs();
+            return runtimeConfig.requestHandler.httpHandlerConfigs();
         },
     };
 };
 const resolveHttpHandlerRuntimeConfig = (httpHandlerExtensionConfiguration) => {
     return {
-        httpHandler: httpHandlerExtensionConfiguration.httpHandler(),
+        requestHandler: httpHandlerExtensionConfiguration.httpHandler(),
     };
 };
 
@@ -41144,6 +41147,7 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             this.config = await this.configProvider;
         }
         const config = this.config;
+        const logger = config.logger;
         const isSSL = request.protocol === "https:";
         if (!isSSL && !this.config.httpAgent) {
             this.config.httpAgent = await this.config.httpAgentProvider();
@@ -41187,7 +41191,7 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
                 });
             }
             socketWarningTimeoutId = timing.setTimeout(() => {
-                this.socketWarningTimestamp = NodeHttpHandler.checkSocketUsage(agent, this.socketWarningTimestamp, config.logger);
+                this.socketWarningTimestamp = NodeHttpHandler.checkSocketUsage(agent, this.socketWarningTimestamp, logger);
             }, config.socketAcquisitionWarningTimeout ?? (config.requestTimeout ?? 2000) + (config.connectionTimeout ?? 1000));
             const queryString = request.query ? buildQueryString(request.query) : "";
             let auth = undefined;
@@ -41254,7 +41258,7 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
             }
             const effectiveRequestTimeout = requestTimeout ?? config.requestTimeout;
             connectionTimeoutId = setConnectionTimeout(req, reject, config.connectionTimeout);
-            requestTimeoutId = setRequestTimeout(req, reject, effectiveRequestTimeout, config.throwOnRequestTimeout, config.logger ?? console);
+            requestTimeoutId = setRequestTimeout(req, reject, effectiveRequestTimeout, config.throwOnRequestTimeout, logger ?? console);
             socketTimeoutId = setSocketTimeout(req, reject, config.socketTimeout);
             const httpAgent = nodeHttpsOptions.agent;
             if (typeof httpAgent === "object" && "keepAlive" in httpAgent) {
@@ -41272,6 +41276,12 @@ or increase socketAcquisitionWarningTimeout=(millis) in the NodeHttpHandler conf
     updateHttpClientConfig(key, value) {
         this.config = undefined;
         this.configProvider = this.configProvider.then((config) => {
+            if (key === Symbol.for("logger")) {
+                return {
+                    ...config,
+                    logger: config.logger ?? value,
+                };
+            }
             return {
                 ...config,
                 [key]: value,

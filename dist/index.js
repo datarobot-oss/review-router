@@ -25094,6 +25094,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 
+/***/ 4816:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=agent.js.map
+
+/***/ }),
+
 /***/ 4854:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -25235,6 +25245,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__nccwpck_require__(4816), exports);
 __exportStar(__nccwpck_require__(4854), exports);
 __exportStar(__nccwpck_require__(2149), exports);
 __exportStar(__nccwpck_require__(6077), exports);
@@ -27598,6 +27609,11 @@ class Methods extends eventemitter3_1.EventEmitter {
              */
             assign: bindApiCall(this, 'admin.users.assign'),
             /**
+             * @description Fetches the expiration timestamp for a guest.
+             * @see {@link https://docs.slack.dev/reference/methods/admin.users.getExpiration `admin.users.getExpiration` API reference}.
+             */
+            getExpiration: bindApiCall(this, 'admin.users.getExpiration'),
+            /**
              * @description Invite a user to a workspace.
              * @see {@link https://docs.slack.dev/reference/methods/admin.users.invite `admin.users.invite` API reference}.
              */
@@ -27711,6 +27727,20 @@ class Methods extends eventemitter3_1.EventEmitter {
              * @see {@link https://docs.slack.dev/reference/methods/admin.workflows.unpublish `admin.workflows.unpublish` API reference}.
              */
             unpublish: bindApiCall(this, 'admin.workflows.unpublish'),
+        },
+    };
+    agents = {
+        sessions: {
+            /**
+             * @description Rename an agent session.
+             * @see {@link https://docs.slack.dev/reference/methods/agents.sessions.rename `agents.sessions.rename` API reference}.
+             */
+            rename: bindApiCall(this, 'agents.sessions.rename'),
+            /**
+             * @description Set an agent session's lifecycle status, creating the session if needed.
+             * @see {@link https://docs.slack.dev/reference/methods/agents.sessions.setStatus `agents.sessions.setStatus` API reference}.
+             */
+            setStatus: bindApiCall(this, 'agents.sessions.setStatus'),
         },
     };
     api = {
@@ -27836,6 +27866,13 @@ class Methods extends eventemitter3_1.EventEmitter {
          * @see {@link https://docs.slack.dev/reference/methods/bookmarks.remove `bookmarks.remove` API reference}.
          */
         remove: bindApiCall(this, 'bookmarks.remove'),
+    };
+    blocks = {
+        /**
+         * @description Validates blocks, messages, and views Block Kit JSON payloads.
+         * @see {@link https://docs.slack.dev/reference/methods/blocks.validate `blocks.validate` API reference}.
+         */
+        validate: bindApiCallWithOptionalArgument(this, 'blocks.validate'),
     };
     bots = {
         /**
@@ -83645,7 +83682,7 @@ module.exports = {
 /***/ ((module) => {
 
 "use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@slack/web-api","version":"8.0.0","description":"Official library for using the Slack Platform\'s Web API","author":"Slack Technologies, LLC","license":"MIT","keywords":["slack","web-api","bot","client","http","api","proxy","rate-limiting","pagination"],"main":"dist/index.js","types":"./dist/index.d.ts","files":["dist/**/*"],"engines":{"node":">= 20","npm":">=9.6.4"},"repository":{"type":"git","url":"git+https://github.com/slackapi/node-slack-sdk.git"},"homepage":"https://docs.slack.dev/tools/node-slack-sdk/web-api/","publishConfig":{"access":"public"},"bugs":{"url":"https://github.com/slackapi/node-slack-sdk/issues"},"scripts":{"build":"npm run build:clean && tsc","build:clean":"shx rm -rf ./dist","docs":"npx typedoc --plugin typedoc-plugin-markdown","prepack":"npm run build","test":"npm run build && bash -c \'node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts\'","test:coverage":"npm run build && node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts","test:integration":"npm run build && node test/integration/commonjs-project/index.js && node test/integration/esm-project/index.mjs && npm run test:integration:ts","test:integration:ts":"cd test/integration/ts-4.7-project && npm i && npm run build","test:types":"tsd","watch":"npx nodemon --watch \'src\' --ext \'ts\' --exec npm run build"},"dependencies":{"@slack/logger":"^5.0.0","@slack/types":"^3.0.0","@types/node":">=20","@types/retry":"0.12.0","eventemitter3":"^5.0.1","p-queue":"^6","p-retry":"^4","retry":"^0.13.1"},"devDependencies":{"@types/busboy":"^1.5.4","@types/sinon":"^21","busboy":"^1","nock":"^14","sinon":"^21","tsd":"^0.33.0"},"tsd":{"directory":"test/types"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@slack/web-api","version":"8.1.1","description":"Official library for using the Slack Platform\'s Web API","author":"Slack Technologies, LLC","license":"MIT","keywords":["slack","web-api","bot","client","http","api","proxy","rate-limiting","pagination"],"main":"dist/index.js","types":"./dist/index.d.ts","files":["dist/**/*"],"engines":{"node":">= 20","npm":">=9.6.4"},"repository":{"type":"git","url":"git+https://github.com/slackapi/node-slack-sdk.git"},"homepage":"https://docs.slack.dev/tools/node-slack-sdk/web-api/","publishConfig":{"access":"public"},"bugs":{"url":"https://github.com/slackapi/node-slack-sdk/issues"},"scripts":{"build":"npm run build:clean && tsc","build:clean":"shx rm -rf ./dist","docs":"npx typedoc --plugin typedoc-plugin-markdown","prepack":"npm run build","test":"npm run build && bash -c \'node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts\'","test:coverage":"npm run build && node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts","test:integration":"npm run build && node test/integration/commonjs-project/index.js && node test/integration/esm-project/index.mjs && npm run test:integration:ts","test:integration:ts":"cd test/integration/ts-4.7-project && npm i && npm run build","test:types":"tsd","watch":"npx nodemon --watch \'src\' --ext \'ts\' --exec npm run build"},"dependencies":{"@slack/logger":"^5.0.0","@slack/types":"^3.1.0","@types/node":">=20","@types/retry":"0.12.5","eventemitter3":"^5.0.1","p-queue":"^6.6.2","p-retry":"^4.6.2","retry":"^0.13.1"},"devDependencies":{"@types/busboy":"^1.5.4","@types/sinon":"^22.0.0","busboy":"^1","nock":"^14.0.17","sinon":"^22.1.0","tsd":"^0.33.0"},"tsd":{"directory":"test/types"}}');
 
 /***/ }),
 

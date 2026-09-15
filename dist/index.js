@@ -5917,6 +5917,7 @@ const _DBTR = "DeleteBucketTaggingRequest";
 const _DBW = "DeleteBucketWebsite";
 const _DBWR = "DeleteBucketWebsiteRequest";
 const _DE = "DataExport";
+const _DEH = "DefaultEventHold";
 const _DIM = "DestinationIfMatch";
 const _DIMS = "DestinationIfModifiedSince";
 const _DINM = "DestinationIfNoneMatch";
@@ -5964,6 +5965,8 @@ const _ED = "ErrorDetails";
 const _EDr = "ErrorDocument";
 const _EE = "EndEvent";
 const _EH = "ExposeHeaders";
+const _EHD = "EventHoldDuration";
+const _EHv = "EventHold";
 const _EHx = "ExposeHeader";
 const _EM = "ErrorMessage";
 const _EODM = "ExpiredObjectDeleteMarker";
@@ -6308,6 +6311,9 @@ const _OL = "OutputLocation";
 const _OLC = "ObjectLockConfiguration";
 const _OLE = "ObjectLockEnabled";
 const _OLEFB = "ObjectLockEnabledForBucket";
+const _OLEH = "ObjectLockEventHold";
+const _OLEHDD = "ObjectLockEventHoldDurationDays";
+const _OLEHDY = "ObjectLockEventHoldDurationYears";
 const _OLLH = "ObjectLockLegalHold";
 const _OLLHS = "ObjectLockLegalHoldStatus";
 const _OLM = "ObjectLockMode";
@@ -6751,6 +6757,9 @@ const _xampc = "x-amz-mp-parts-count";
 const _xaoa = "x-amz-object-attributes";
 const _xaoad = "x-amz-object-annotation-directive";
 const _xaoim = "x-amz-object-if-match";
+const _xaoleh = "x-amz-object-lock-event-hold";
+const _xaolehdd = "x-amz-object-lock-event-hold-duration-days";
+const _xaolehdy = "x-amz-object-lock-event-hold-duration-years";
 const _xaollh = "x-amz-object-lock-legal-hold";
 const _xaolm = "x-amz-object-lock-mode";
 const _xaolrud = "x-amz-object-lock-retain-until-date";
@@ -7079,8 +7088,8 @@ var CopyObjectOutput$ = [3, n0, _COO,
 ];
 var CopyObjectRequest$ = [3, n0, _CORo,
     0,
-    [_B, _CSo, _K, _ACL_, _CC, _CA, _CDo, _CEo, _CL, _CTo, _CSIM, _CSIMS, _CSINM, _CSIUS, _Exp, _GFC, _GR, _GRACP, _GWACP, _IM, _INM, _M, _MD, _TD, _ADn, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _ESBO],
-    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _xaca }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xamd }], [0, { [_hH]: _xatd }], [0, { [_hH]: _xaoad }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 3
+    [_B, _CSo, _K, _ACL_, _CC, _CA, _CDo, _CEo, _CL, _CTo, _CSIM, _CSIMS, _CSINM, _CSIUS, _Exp, _GFC, _GR, _GRACP, _GWACP, _IM, _INM, _M, _MD, _TD, _ADn, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _CSSSECA, _CSSSECK, _CSSSECKMD, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _OLEH, _OLEHDD, _OLEHDY, _EBO, _ESBO],
+    [[0, 1], [0, { [_hH]: _xacs___ }], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _xaca }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xacsim }], [4, { [_hH]: _xacsims }], [0, { [_hH]: _xacsinm }], [4, { [_hH]: _xacsius }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xamd }], [0, { [_hH]: _xatd }], [0, { [_hH]: _xaoad }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xacssseca }], [() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }], [0, { [_hH]: _xacssseckM }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaoleh }], [1, { [_hH]: _xaolehdd }], [1, { [_hH]: _xaolehdy }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xasebo }]], 3
 ];
 var CopyObjectResult$ = [3, n0, _COR,
     0,
@@ -7134,8 +7143,8 @@ var CreateMultipartUploadOutput$ = [3, n0, _CMUOr,
 ];
 var CreateMultipartUploadRequest$ = [3, n0, _CMURr,
     0,
-    [_B, _K, _ACL_, _CC, _CDo, _CEo, _CL, _CTo, _Exp, _GFC, _GR, _GRACP, _GWACP, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO, _CA, _CT],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]], 2
+    [_B, _K, _ACL_, _CC, _CDo, _CEo, _CL, _CTo, _Exp, _GFC, _GR, _GRACP, _GWACP, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _OLEH, _OLEHDD, _OLEHDY, _EBO, _CA, _CT],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaoleh }], [1, { [_hH]: _xaolehdd }], [1, { [_hH]: _xaolehdy }], [0, { [_hH]: _xaebo }], [0, { [_hH]: _xaca }], [0, { [_hH]: _xact }]], 2
 ];
 var CreateSessionOutput$ = [3, n0, _CSO,
     { [_xN]: _CSR },
@@ -7159,8 +7168,8 @@ var CSVOutput$ = [3, n0, _CSVO,
 ];
 var DefaultRetention$ = [3, n0, _DRe,
     0,
-    [_Mo, _D, _Y],
-    [0, 1, 1]
+    [_Mo, _D, _Y, _DEH],
+    [0, 1, 1, () => EventHoldDuration$]
 ];
 var Delete$ = [3, n0, _De,
     0,
@@ -7346,6 +7355,11 @@ var EventBridgeConfiguration$ = [3, n0, _EBC,
     0,
     [],
     []
+];
+var EventHoldDuration$ = [3, n0, _EHD,
+    0,
+    [_D, _Y],
+    [1, 1]
 ];
 var ExistingObjectReplication$ = [3, n0, _EOR,
     0,
@@ -7649,8 +7663,8 @@ var GetObjectLockConfigurationRequest$ = [3, n0, _GOLCR,
 ];
 var GetObjectOutput$ = [3, n0, _GOO,
     0,
-    [_Bo, _DM, _AR, _Ex, _Re, _LM, _CLo, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MM, _VI, _CC, _CDo, _CEo, _CL, _CR, _CTo, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
-    [[() => StreamingBlob, 16], [2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CR_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
+    [_Bo, _DM, _AR, _Ex, _Re, _LM, _CLo, _ET, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _MM, _VI, _CC, _CDo, _CEo, _CL, _CR, _CTo, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS, _OLEH, _OLEHDD, _OLEHDY],
+    [[() => StreamingBlob, 16], [2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _ET }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CR_ }], [0, { [_hH]: _CT_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaoleh }], [1, { [_hH]: _xaolehdd }], [1, { [_hH]: _xaolehdy }]]
 ];
 var GetObjectRequest$ = [3, n0, _GOR,
     0,
@@ -7724,8 +7738,8 @@ var HeadBucketRequest$ = [3, n0, _HBR,
 ];
 var HeadObjectOutput$ = [3, n0, _HOO,
     0,
-    [_DM, _AR, _Ex, _Re, _ASr, _LM, _CLo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _ET, _MM, _VI, _CC, _CDo, _CEo, _CL, _CTo, _CR, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS],
-    [[2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [0, { [_hH]: _xaas }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _ET }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _CR_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }]]
+    [_DM, _AR, _Ex, _Re, _ASr, _LM, _CLo, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _CT, _ET, _MM, _VI, _CC, _CDo, _CEo, _CL, _CTo, _CR, _Exp, _ES, _WRL, _SSE, _M, _SSECA, _SSECKMD, _SSEKMSKI, _BKE, _SC, _RC, _RS, _PC, _TC, _OLM, _OLRUD, _OLLHS, _OLEH, _OLEHDD, _OLEHDY],
+    [[2, { [_hH]: _xadm }], [0, { [_hH]: _ar }], [0, { [_hH]: _xae }], [0, { [_hH]: _xar }], [0, { [_hH]: _xaas }], [4, { [_hH]: _LM_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [0, { [_hH]: _xact }], [0, { [_hH]: _ET }], [1, { [_hH]: _xamm }], [0, { [_hH]: _xavi }], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _CR_ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _ES }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasse }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasseca }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xarc }], [0, { [_hH]: _xars }], [1, { [_hH]: _xampc }], [1, { [_hH]: _xatc }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaoleh }], [1, { [_hH]: _xaolehdd }], [1, { [_hH]: _xaolehdy }]]
 ];
 var HeadObjectRequest$ = [3, n0, _HOR,
     0,
@@ -8079,8 +8093,8 @@ var ObjectLockLegalHold$ = [3, n0, _OLLH,
 ];
 var ObjectLockRetention$ = [3, n0, _OLR,
     0,
-    [_Mo, _RUD],
-    [0, 5]
+    [_Mo, _RUD, _EHv, _EHD],
+    [0, 5, 0, () => EventHoldDuration$]
 ];
 var ObjectLockRule$ = [3, n0, _OLRb,
     0,
@@ -8304,8 +8318,8 @@ var PutObjectOutput$ = [3, n0, _POO,
 ];
 var PutObjectRequest$ = [3, n0, _POR,
     0,
-    [_B, _K, _ACL_, _Bo, _CC, _CDo, _CEo, _CL, _CLo, _CMDo, _CTo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _Exp, _IM, _INM, _GFC, _GR, _GRACP, _GWACP, _WOB, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _EBO],
-    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => StreamingBlob, 16], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [1, { [_hH]: _xawob }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaebo }]], 2
+    [_B, _K, _ACL_, _Bo, _CC, _CDo, _CEo, _CL, _CLo, _CMDo, _CTo, _CA, _CCRC, _CCRCC, _CCRCNVME, _CSHA, _CSHAh, _CSHAhe, _CMD, _CXXHASH, _CXXHASHh, _CXXHASHhe, _Exp, _IM, _INM, _GFC, _GR, _GRACP, _GWACP, _WOB, _M, _SSE, _SC, _WRL, _SSECA, _SSECK, _SSECKMD, _SSEKMSKI, _SSEKMSEC, _BKE, _RP, _Tag, _OLM, _OLRUD, _OLLHS, _OLEH, _OLEHDD, _OLEHDY, _EBO],
+    [[0, 1], [0, 1], [0, { [_hH]: _xaa }], [() => StreamingBlob, 16], [0, { [_hH]: _CC_ }], [0, { [_hH]: _CD_ }], [0, { [_hH]: _CE_ }], [0, { [_hH]: _CL_ }], [1, { [_hH]: _CL__ }], [0, { [_hH]: _CM }], [0, { [_hH]: _CT_ }], [0, { [_hH]: _xasca }], [0, { [_hH]: _xacc }], [0, { [_hH]: _xacc_ }], [0, { [_hH]: _xacc__ }], [0, { [_hH]: _xacs }], [0, { [_hH]: _xacs_ }], [0, { [_hH]: _xacs__ }], [0, { [_hH]: _xacm }], [0, { [_hH]: _xacx }], [0, { [_hH]: _xacx_ }], [0, { [_hH]: _xacx__ }], [4, { [_hH]: _Exp }], [0, { [_hH]: _IM_ }], [0, { [_hH]: _INM_ }], [0, { [_hH]: _xagfc }], [0, { [_hH]: _xagr }], [0, { [_hH]: _xagra }], [0, { [_hH]: _xagwa }], [1, { [_hH]: _xawob }], [128 | 0, { [_hPH]: _xam }], [0, { [_hH]: _xasse }], [0, { [_hH]: _xasc }], [0, { [_hH]: _xawrl }], [0, { [_hH]: _xasseca }], [() => SSECustomerKey, { [_hH]: _xasseck }], [0, { [_hH]: _xasseckM }], [() => SSEKMSKeyId, { [_hH]: _xasseakki }], [() => SSEKMSEncryptionContext, { [_hH]: _xassec }], [2, { [_hH]: _xassebke }], [0, { [_hH]: _xarp }], [0, { [_hH]: _xat }], [0, { [_hH]: _xaolm }], [5, { [_hH]: _xaolrud }], [0, { [_hH]: _xaollh }], [0, { [_hH]: _xaoleh }], [1, { [_hH]: _xaolehdd }], [1, { [_hH]: _xaolehdy }], [0, { [_hH]: _xaebo }]], 2
 ];
 var PutObjectRetentionOutput$ = [3, n0, _PORO,
     0,
@@ -9133,7 +9147,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1126.0";
+var version = "3.1130.0";
 var packageInfo = {
 	version: version};
 
@@ -9953,6 +9967,10 @@ const MetadataDirective = {
     COPY: "COPY",
     REPLACE: "REPLACE",
 };
+const ObjectLockEventHold = {
+    OFF: "OFF",
+    ON: "ON",
+};
 const ObjectLockLegalHoldStatus = {
     OFF: "OFF",
     ON: "ON",
@@ -10105,6 +10123,8 @@ const InventoryOptionalField = {
     LastModifiedDate: "LastModifiedDate",
     LifecycleExpirationDate: "LifecycleExpirationDate",
     ObjectAccessControlList: "ObjectAccessControlList",
+    ObjectLockEventHoldDuration: "ObjectLockEventHoldDuration",
+    ObjectLockEventHoldStatus: "ObjectLockEventHoldStatus",
     ObjectLockLegalHoldStatus: "ObjectLockLegalHoldStatus",
     ObjectLockMode: "ObjectLockMode",
     ObjectLockRetainUntilDate: "ObjectLockRetainUntilDate",
@@ -10168,6 +10188,7 @@ const Event = {
     s3_ObjectRestore_Completed: "s3:ObjectRestore:Completed",
     s3_ObjectRestore_Delete: "s3:ObjectRestore:Delete",
     s3_ObjectRestore_Post: "s3:ObjectRestore:Post",
+    s3_ObjectRetention_Put: "s3:ObjectRetention:Put",
     s3_ObjectTagging_: "s3:ObjectTagging:*",
     s3_ObjectTagging_Delete: "s3:ObjectTagging:Delete",
     s3_ObjectTagging_Put: "s3:ObjectTagging:Put",
@@ -10486,6 +10507,7 @@ exports.ErrorDetails$ = ErrorDetails$;
 exports.ErrorDocument$ = ErrorDocument$;
 exports.Event = Event;
 exports.EventBridgeConfiguration$ = EventBridgeConfiguration$;
+exports.EventHoldDuration$ = EventHoldDuration$;
 exports.ExistingObjectReplication$ = ExistingObjectReplication$;
 exports.ExistingObjectReplicationStatus = ExistingObjectReplicationStatus;
 exports.ExpirationState = ExpirationState;
@@ -10772,6 +10794,7 @@ exports.ObjectEncryption$ = ObjectEncryption$;
 exports.ObjectIdentifier$ = ObjectIdentifier$;
 exports.ObjectLockConfiguration$ = ObjectLockConfiguration$;
 exports.ObjectLockEnabled = ObjectLockEnabled;
+exports.ObjectLockEventHold = ObjectLockEventHold;
 exports.ObjectLockLegalHold$ = ObjectLockLegalHold$;
 exports.ObjectLockLegalHoldStatus = ObjectLockLegalHoldStatus;
 exports.ObjectLockMode = ObjectLockMode;
@@ -15382,8 +15405,13 @@ function formatUrl(request) {
     return `${protocol}//${auth}${hostname}${path}${queryString}${fragment}`;
 }
 
+function hasOwn(container, key) {
+    return Object.prototype.hasOwnProperty.call(container, key);
+}
+
 exports.build = build;
 exports.formatUrl = formatUrl;
+exports.hasOwn = hasOwn;
 exports.parse = parse;
 exports.validate = validate;
 
@@ -17815,7 +17843,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.43";
+var version = "3.997.44";
 var packageInfo = {
 	version: version};
 
@@ -18412,7 +18440,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.43";
+var version = "3.997.44";
 var packageInfo = {
 	version: version};
 
@@ -19093,7 +19121,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.43";
+var version = "3.997.44";
 var packageInfo = {
 	version: version};
 
@@ -19748,7 +19776,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.43";
+var version = "3.997.44";
 var packageInfo = {
 	version: version};
 
@@ -37229,16 +37257,17 @@ const isBrowserNetworkError = (error) => {
 const isThrottlingError = (error) => error.$metadata?.httpStatusCode === 429 ||
     THROTTLING_ERROR_CODES.includes(error.name) ||
     error.$retryable?.throttling == true;
-const isTransientError = (error, depth = 0) => isRetryableByTrait(error) ||
-    isClockSkewCorrectedError(error) ||
-    (error.name === "InvalidSignatureException" && error.message?.includes("Signature expired")) ||
-    TRANSIENT_ERROR_CODES.includes(error.name) ||
-    NODEJS_TIMEOUT_ERROR_CODES.includes(error?.code || "") ||
-    NODEJS_NETWORK_ERROR_CODES.includes(error?.code || "") ||
-    TRANSIENT_ERROR_STATUS_CODES.includes(error.$metadata?.httpStatusCode || 0) ||
-    isBrowserNetworkError(error) ||
-    isNodeJsHttp2TransientError(error) ||
-    (error.cause !== undefined && depth <= 10 && isTransientError(error.cause, depth + 1));
+const isTransientError = (error, depth = 0) => error?.name !== "AbortError" &&
+    (isRetryableByTrait(error) ||
+        isClockSkewCorrectedError(error) ||
+        (error.name === "InvalidSignatureException" && error.message?.includes("Signature expired")) ||
+        TRANSIENT_ERROR_CODES.includes(error.name) ||
+        NODEJS_TIMEOUT_ERROR_CODES.includes(error?.code || "") ||
+        NODEJS_NETWORK_ERROR_CODES.includes(error?.code || "") ||
+        TRANSIENT_ERROR_STATUS_CODES.includes(error.$metadata?.httpStatusCode || 0) ||
+        isBrowserNetworkError(error) ||
+        isNodeJsHttp2TransientError(error) ||
+        (error.cause !== undefined && depth <= 10 && isTransientError(error.cause, depth + 1)));
 const isServerError = (error) => {
     if (error.$metadata?.httpStatusCode !== undefined) {
         const statusCode = error.$metadata.httpStatusCode;
@@ -40086,6 +40115,8 @@ const getAwsChunkedEncodingStream$1 = (readableStream, options) => {
         checksumLocationName !== undefined &&
         streamHasher !== undefined;
     const digest = checksumRequired ? streamHasher(checksumAlgorithmFn, readableStream) : undefined;
+    Promise.resolve(digest).catch(() => {
+    });
     const reader = readableStream.getReader();
     return new ReadableStream({
         async pull(controller) {
@@ -40118,8 +40149,12 @@ function getAwsChunkedEncodingStream(stream, options) {
         checksumLocationName !== undefined &&
         streamHasher !== undefined;
     const digest = checksumRequired ? streamHasher(checksumAlgorithmFn, readable) : undefined;
+    Promise.resolve(digest).catch(() => {
+    });
     const awsChunkedEncodingStream = new Readable({
-        read: () => { },
+        read() {
+            readable.resume();
+        },
     });
     readable.on("data", (data) => {
         const length = bodyLengthChecker(data) || 0;
@@ -40128,16 +40163,27 @@ function getAwsChunkedEncodingStream(stream, options) {
         }
         awsChunkedEncodingStream.push(`${length.toString(16)}\r\n`);
         awsChunkedEncodingStream.push(data);
-        awsChunkedEncodingStream.push("\r\n");
-    });
-    readable.on("end", async () => {
-        awsChunkedEncodingStream.push(`0\r\n`);
-        if (checksumRequired) {
-            const checksum = base64Encoder(await digest);
-            awsChunkedEncodingStream.push(`${checksumLocationName}:${checksum}\r\n`);
-            awsChunkedEncodingStream.push(`\r\n`);
+        if (!awsChunkedEncodingStream.push("\r\n")) {
+            readable.pause();
         }
-        awsChunkedEncodingStream.push(null);
+    });
+    readable.on("error", (err) => {
+        awsChunkedEncodingStream.destroy(err);
+    });
+    readable.pause();
+    readable.on("end", async () => {
+        try {
+            awsChunkedEncodingStream.push(`0\r\n`);
+            if (checksumRequired) {
+                const checksum = base64Encoder(await digest);
+                awsChunkedEncodingStream.push(`${checksumLocationName}:${checksum}\r\n`);
+                awsChunkedEncodingStream.push(`\r\n`);
+            }
+            awsChunkedEncodingStream.push(null);
+        }
+        catch (err) {
+            awsChunkedEncodingStream.destroy(err);
+        }
     });
     return awsChunkedEncodingStream;
 }

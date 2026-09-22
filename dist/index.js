@@ -9147,7 +9147,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1130.0";
+var version = "3.1135.0";
 var packageInfo = {
 	version: version};
 

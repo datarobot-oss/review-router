@@ -33,13 +33,15 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, opened, closed]
+    types: [labeled, opened, closed, ready_for_review]
   pull_request_review:
     types: [submitted]
   pull_request_review_comment:
     types: [created]
   issue_comment:
     types: [created]
+  schedule:
+    - cron: "0 3,9,15,21 * * 1-5"
 
 permissions:
   contents: read
@@ -131,6 +133,18 @@ on:
 
 Repos that don't want dependabot auto-labeling can simply omit `opened` from
 their trigger types. The org-level config flag is a second layer of control.
+
+### External Contributors
+
+When `external_contributors.auto_label` is `true`, PRs from forks by people without write access get the `external-contribution` label. Non-draft PRs also get the "Ready for Review" label right away. Draft PRs get it when the author marks them ready, which needs the `ready_for_review` trigger type:
+
+```yaml
+on:
+  pull_request_target:
+    types: [labeled, opened, closed, ready_for_review]
+```
+
+Set `external_contributors.message` to post a welcome comment on those PRs.
 
 ### Jira Ticket Links
 

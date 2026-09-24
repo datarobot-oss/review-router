@@ -116,13 +116,15 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, opened, closed]
+    types: [labeled, opened, closed, ready_for_review]
   pull_request_review:
     types: [submitted]
   pull_request_review_comment:
     types: [created]
   issue_comment:
     types: [created]
+  schedule:
+    - cron: "0 3,9,15,21 * * 1-5"
 
 jobs:
   route:

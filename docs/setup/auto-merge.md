@@ -1,139 +1,37 @@
-# Dependabot Auto-Merge
+# Dependabot auto-merge
 
-Automatically merge dependabot pull requests after they pass CI and
-receive team approval. This pairs with review-router's
-`dependabot.auto_label` feature for a fully automated dependency
-update flow.
+Dependabot PRs merge automatically once a person approves them and the required checks pass. The workflow queues GitHub's native auto-merge and never approves or merges on its own.
 
-## How it works
+## How it works with review-router
 
-1. Dependabot opens a PR
-2. Review-router auto-labels it with "Ready for Review"
-   (via `dependabot.auto_label: true` in config)
-3. Review-router routes it to the appropriate team
-4. The auto-merge workflow enables GitHub's native auto-merge on the PR
-5. Once required status checks pass and the team approves, GitHub merges
-   it automatically
+1. Dependabot opens a PR.
+2. Review-router labels it "Ready for Review" and routes it to the owning team (`dependabot.auto_label: true` in the org config).
+3. The auto-merge workflow queues auto-merge on the PR.
+4. A team member approves.
+5. GitHub merges once every required check passes.
 
-## Prerequisites
+If a check fails, the PR stays open and labeled, and review-router's stale reminders keep it visible until someone acts.
 
-- **Branch protection** must be enabled on the default branch with:
-  - Required pull request reviews (at least 1)
-  - Required status checks
-  - "Allow auto-merge" enabled in repo settings
-- **Review-router** configured with `dependabot.auto_label: true`
+## Setup
 
-## Reusable workflow setup
+Copy [`.github/workflows/dependabot-auto-merge.yml`](../../.github/workflows/dependabot-auto-merge.yml) into your repo as-is. Your repo's maintainers own the copy. Change `MERGE_METHOD` only if your repo doesn't squash-merge.
 
-### 1. Add the reusable workflow to your org's `.github` repo
+Then configure the repo. The workflow checks all of this on every run and fails with an error naming anything missing:
 
-Create `.github/workflows/dependabot-auto-merge.yml`:
+- Turn on **Settings > General > Allow auto-merge**.
+- Add a ruleset on the default branch that requires at least one approval.
+- In a ruleset on the default branch, require at least one status check. Pick checks that run on every PR. A required check with a `paths:` filter never reports on PRs outside those paths, so they wait forever.
+- Allow your `MERGE_METHOD` in the repo settings and in every ruleset.
 
-```yaml
-name: Dependabot Auto-Merge
+The workflow reads rulesets only. `GITHUB_TOKEN` can't read classic branch protection, so repos that use it need to move to rulesets.
 
-on:
-  workflow_call:
+The required checks you choose in the ruleset are the checks auto-merge waits for. The workflow doesn't keep its own list.
 
-permissions:
-  contents: write
-  pull-requests: write
+## Limitations
 
-jobs:
-  auto-merge:
-    if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ github.token }}
-```
+- Merges performed with `GITHUB_TOKEN` don't trigger other workflows. Push-triggered jobs such as deploys or releases don't run after an auto-merged bump. The next human merge triggers them as usual.
+- Don't combine this workflow with the `datarobot-oss/github-actions` automerge workflow. That one approves and merges on its own, and the two would compete for the same PRs.
 
-### 2. Add the caller workflow to each downstream repo
+## Security
 
-Create `.github/workflows/dependabot-auto-merge.yml`:
-
-```yaml
-name: Dependabot Auto-Merge
-
-on:
-  pull_request_target:
-    types: [opened]
-
-jobs:
-  auto-merge:
-    uses: your-org/.github/.github/workflows/dependabot-auto-merge.yml@main
-```
-
-## Standalone setup (without reusable workflows)
-
-If you don't use reusable workflows, add this directly to each repo:
-
-```yaml
-name: Dependabot Auto-Merge
-
-on:
-  pull_request_target:
-    types: [opened]
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  auto-merge:
-    if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ github.token }}
-```
-
-## How it interacts with review-router
-
-The full flow for a dependabot PR:
-
-```
-dependabot opens PR
-  → auto-merge workflow enables auto-merge (queued)
-  → review-router auto-labels "Ready for Review"
-  → review-router routes to team via CODEOWNERS
-  → team reviews and approves
-  → CI passes
-  → GitHub merges automatically
-```
-
-The two workflows are independent — they trigger on different events
-and can be adopted separately. Auto-merge does nothing without branch
-protection rules that require reviews and status checks.
-
-## Customization
-
-**Merge strategy:** Change `--squash` to `--merge` or `--rebase` to
-match your repo's preferred merge strategy.
-
-**Minor updates only:** To only auto-merge minor/patch updates,
-use dependabot's built-in grouping in `.github/dependabot.yml`:
-
-```yaml
-version: 2
-updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-    groups:
-      minor-and-patch:
-        update-types:
-          - minor
-          - patch
-```
-
-Then adjust the workflow to only run for grouped PRs, or rely on
-branch protection rules (require CI to pass) to gate major updates
-that might break things.
+The workflow runs on `pull_request_target`, so its definition always comes from the default branch and a PR can't change the logic that runs on it. It never checks out or runs PR code, uses only `GITHUB_TOKEN` scoped to the job, and needs no secrets.

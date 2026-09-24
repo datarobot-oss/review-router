@@ -19,17 +19,20 @@ Copy [`.github/workflows/dependabot-auto-merge.yml`](../../.github/workflows/dep
 Then configure the repo. The workflow checks all of this on every run and fails with an error naming anything missing:
 
 - Turn on **Settings > General > Allow auto-merge**.
-- Add a ruleset on the default branch that requires at least one approval.
-- In a ruleset on the default branch, require at least one status check. Pick checks that run on every PR. A required check with a `paths:` filter never reports on PRs outside those paths, so they wait forever.
+- Add a ruleset on the branch Dependabot targets (usually the default branch) that requires at least one approval. In the same rule, turn on dismissing stale approvals or requiring approval of the most recent push. Otherwise an approval survives Dependabot refreshing the PR with newer versions, and changes nobody reviewed merge.
+- In a ruleset on that branch, require at least one status check. Pick checks that run on every PR. A required check with a `paths:` filter never reports on PRs outside those paths, so they wait forever.
 - Allow your `MERGE_METHOD` in the repo settings and in every ruleset.
 
 The workflow reads rulesets only. `GITHUB_TOKEN` can't read classic branch protection, so repos that use it need to move to rulesets.
 
 The required checks you choose in the ruleset are the checks auto-merge waits for. The workflow doesn't keep its own list.
 
+The workflow only ever queues auto-merge. If a PR already meets every requirement when the workflow runs, it leaves a notice on the run and you merge the PR by hand.
+
 ## Limitations
 
 - Merges performed with `GITHUB_TOKEN` don't trigger other workflows. Push-triggered jobs such as deploys or releases don't run after an auto-merged bump. The next human merge triggers them as usual.
+- The same applies to commits CI pushes back to the PR with `GITHUB_TOKEN`, such as a rebuilt `dist/` in this repo. That push doesn't run CI, so the new head never gets its required checks and auto-merge waits. Re-run CI on the PR or merge it by hand.
 - Don't combine this workflow with the `datarobot-oss/github-actions` automerge workflow. That one approves and merges on its own, and the two would compete for the same PRs.
 
 ## Security

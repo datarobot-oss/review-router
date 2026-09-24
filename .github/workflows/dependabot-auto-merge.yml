@@ -1,0 +1,116 @@
+---
+name: Dependabot Auto-Merge
+
+# Queues GitHub's native auto-merge on Dependabot PRs. A person still approves every
+# bump: GitHub merges only after the approval and the required checks in the base
+# branch's rulesets are satisfied. This workflow never approves or merges on its own.
+#
+# COPY THIS FILE. It is meant to be copied into a repo and owned by that repo's
+# maintainers. The only line a copy is expected to change is MERGE_METHOD.
+#
+# PREREQUISITES, checked on every run. The job fails with an error naming what's missing:
+#   - Settings > General > "Allow auto-merge" is on.
+#   - A ruleset on the base branch requires at least one approval, and either dismisses
+#     stale approvals on push or requires approval of the most recent push. Otherwise an
+#     approval survives Dependabot refreshing the PR, and unreviewed content merges.
+#   - A ruleset on the base branch requires at least one status check. Pick checks
+#     that run on every PR: a required check with a `paths:` filter never reports on
+#     PRs outside those paths, and they wait forever.
+#   - MERGE_METHOD is allowed by the repo settings and by every ruleset.
+# Classic branch protection is not read, because GITHUB_TOKEN can't see it. Use rulesets.
+#
+# SECURITY: pull_request_target runs the workflow from the default branch, so a PR,
+# including a Dependabot bump of this file, can't change the logic that runs on it.
+# Do NOT add actions/checkout or anything that runs PR code.
+#
+# LIMITATION: merges performed with GITHUB_TOKEN don't trigger other workflows, so
+# push-triggered jobs (deploys, releases) don't run after an auto-merged bump. The
+# next human merge triggers them as usual.
+#
+# Pairs with review-router's `dependabot.auto_label`, which routes the PR for review.
+# Don't combine it with datarobot-oss/github-actions automerge, which approves on its own.
+#
+# See: https://github.com/datarobot-oss/review-router/blob/main/docs/setup/auto-merge.md
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    # The PR author, not github.actor, so a person re-running the job still qualifies.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      PR_NODE_ID: ${{ github.event.pull_request.node_id }}
+      MERGE_METHOD: squash
+    steps:
+      - name: Enable auto-merge
+        run: |
+          set -euo pipefail
+
+          repo_json=$(gh api "repos/$REPO")
+          if [ "$(jq -r '.allow_auto_merge' <<<"$repo_json")" != "true" ]; then
+            echo "::error::Auto-merge is off. Turn on Settings > General > Allow auto-merge."
+            exit 1
+          fi
+
+          rules=$(gh api "repos/$REPO/rules/branches/$BASE_REF")
+          approvals=$(jq '
+            [.[] | select(.type == "pull_request") | .parameters.required_approving_review_count]
+            | max // 0' <<<"$rules")
+          if [ "$approvals" -lt 1 ]; then
+            echo "::error::No ruleset on $BASE_REF requires an approval. Add a pull request rule with 1+ approvals."
+            exit 1
+          fi
+          fresh=$(jq 'any(.[] | select(.type == "pull_request") | .parameters;
+            .dismiss_stale_reviews_on_push == true or .require_last_push_approval == true)' <<<"$rules")
+          if [ "$fresh" != "true" ]; then
+            echo "::error::Approvals on $BASE_REF survive new pushes, so a stale one could merge unreviewed changes."
+            echo "::error::Turn on dismissing stale approvals or requiring approval of the most recent push."
+            exit 1
+          fi
+          checks=$(jq '
+            [.[] | select(.type == "required_status_checks") | .parameters.required_status_checks | length]
+            | add // 0' <<<"$rules")
+          if [ "$checks" -lt 1 ]; then
+            echo "::error::No ruleset on $BASE_REF requires a status check. Require one that runs on every PR."
+            exit 1
+          fi
+
+          repo_setting=$(jq -r --arg m "$MERGE_METHOD" '
+            {squash: .allow_squash_merge, merge: .allow_merge_commit, rebase: .allow_rebase_merge}[$m]
+            // false' <<<"$repo_json")
+          ruleset_ok=$(jq --arg m "$MERGE_METHOD" '
+            all(.[] | select(.type == "pull_request");
+              (.parameters.allowed_merge_methods // ["merge", "squash", "rebase"]) | index($m) != null)' <<<"$rules")
+          if [ "$repo_setting" != "true" ] || [ "$ruleset_ok" != "true" ]; then
+            echo "::error::The $MERGE_METHOD merge method isn't allowed by the repo or a ruleset on $BASE_REF."
+            echo "::error::Set MERGE_METHOD to a method both allow."
+            exit 1
+          fi
+
+          # The mutation only queues. `gh pr merge --auto` would merge on the spot when the PR
+          # already looks mergeable, skipping the wait this workflow exists for.
+          method=$(tr '[:lower:]' '[:upper:]' <<<"$MERGE_METHOD")
+          # shellcheck disable=SC2016 # $id and $method are GraphQL variables.
+          if ! out=$(gh api graphql -f id="$PR_NODE_ID" -f method="$method" -f query='
+            mutation($id: ID!, $method: PullRequestMergeMethod!) {
+              enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method}) { clientMutationId }
+            }' 2>&1); then
+            if grep -qi "clean status" <<<"$out"; then
+              echo "::notice::The PR already meets every requirement, so there's nothing to queue. Merge it by hand."
+              exit 0
+            fi
+            echo "$out"
+            exit 1
+          fi
+          echo "::notice::Auto-merge queued ($MERGE_METHOD). GitHub merges after approval and required checks."

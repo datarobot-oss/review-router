@@ -52,19 +52,13 @@ export function rightSideLines(patch: string): Set<number> {
   return lines;
 }
 
-const CODE = /(```[\s\S]*?```|`[^`\n]*`)/;
-
 /**
- * Neutralizes model text outside code: no pings, and no HTML comments that could forge the marker.
- * Code spans and fences render literally, so they stay as written.
+ * Neutralizes model text: no pings, and no HTML comments that could forge the marker.
+ * Code spans get the same treatment: telling them apart takes a full Markdown parser, and a
+ * wrong guess leaves a live mention.
  */
 export function sanitize(text: string): string {
-  return text
-    .split(CODE)
-    .map((part, i) =>
-      i % 2 === 1 ? part : part.replace(/<!--/g, "&lt;!--").replace(/@(?=[A-Za-z0-9-])/g, "@\u200b")
-    )
-    .join("");
+  return text.replace(/<!--/g, "&lt;!--").replace(/@(?=[A-Za-z0-9-])/g, "@\u200b");
 }
 
 /** Renders a location heading; backticks are dropped so a model-written path stays in its code span. */

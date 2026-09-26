@@ -59,10 +59,12 @@ describe("sanitize", () => {
     );
   });
 
-  it("leaves code spans and fences as written", () => {
-    expect(sanitize("use `@property` or\n```\n@decorator <!-- x -->\n```\nnot @team")).toBe(
-      "use `@property` or\n```\n@decorator <!-- x -->\n```\nnot @\u200bteam"
-    );
+  it.each([
+    ["`@team``", "`@\u200bteam``"],
+    ["\\`@team` <!-- x", "\\`@\u200bteam` &lt;!-- x"],
+    ["`@property`", "`@\u200bproperty`"],
+  ])("sanitizes %s even where it looks like code", (input, expected) => {
+    expect(sanitize(input)).toBe(expected);
   });
 });
 

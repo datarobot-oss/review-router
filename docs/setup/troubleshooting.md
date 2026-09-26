@@ -131,6 +131,7 @@ jobs:
     if: >-
       github.event_name != 'issue_comment'
       || contains(github.event.comment.body, '/review')
+      || contains(github.event.comment.body, '/ai-review')
 ```
 
 The action also performs a strict check internally, so incorrect

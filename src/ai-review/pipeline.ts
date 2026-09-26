@@ -123,6 +123,7 @@ async function scoreOne(
   const file = path.join(dir, "candidate.json");
   fs.writeFileSync(file, JSON.stringify(candidate, null, 2));
   const result = await run({
+    label: `scorer ${candidate.id}`,
     cwd: ws.repoDir,
     addDirs: [ws.contextDir, dir],
     systemPrompt: buildScorerPrompt(SCORER_SOFT_CALLS),
@@ -158,6 +159,7 @@ export async function runPipeline(
     passes.map(async (pass) => ({
       pass,
       result: await run({
+        label: pass,
         cwd: ws.repoDir,
         addDirs: [ws.contextDir],
         systemPrompt: buildPassPrompt(pass, PASS_SOFT_CALLS[pass], ws.guidance),

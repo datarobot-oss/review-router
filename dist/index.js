@@ -78759,11 +78759,11 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
             reviewerModel: settings.reviewerModel,
             scorerModel: settings.scorerModel,
             seconds: Math.round((deps.now() - started) / 1000),
-            costUsd: result.costUsd,
             failedPasses: result.failedPasses,
             skippedCandidates: result.skippedCandidates,
             failedCandidates: result.failedCandidates,
             timedOut: result.timedOut,
+            runUrl: req.runUrl,
         });
         await stage("could not post the review", () => (0, publish_1.postReview)(octokit, req.owner, req.repo, req.prNumber, pr.head.sha, review));
         if (req.commentId)
@@ -78777,7 +78777,7 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
             : "unexpected error, see the workflow logs";
         if (req.commentId)
             await (0, publish_1.react)(octokit, req.owner, req.repo, req.commentId, "confused");
-        await (0, publish_1.postFailure)(octokit, req.owner, req.repo, req.prNumber, reason).catch((e) => core.warning(`Could not post the failure comment: ${errorText(e)}`));
+        await (0, publish_1.postFailure)(octokit, req.owner, req.repo, req.prNumber, reason, req.runUrl).catch((e) => core.warning(`Could not post the failure comment: ${errorText(e)}`));
     }
     finally {
         clearTimeout(timer);
@@ -79145,6 +79145,7 @@ async function scoreOne(run, ws, settings, candidate, budgetUsd) {
     const file = path.join(dir, "candidate.json");
     fs.writeFileSync(file, JSON.stringify(candidate, null, 2));
     const result = await run({
+        label: `scorer ${candidate.id}`,
         cwd: ws.repoDir,
         addDirs: [ws.contextDir, dir],
         systemPrompt: (0, prompts_1.buildScorerPrompt)(exports.SCORER_SOFT_CALLS),
@@ -79171,6 +79172,7 @@ async function runPipeline(run, ws, settings, signal) {
     const passResults = await Promise.all(passes.map(async (pass) => ({
         pass,
         result: await run({
+            label: pass,
             cwd: ws.repoDir,
             addDirs: [ws.contextDir],
             systemPrompt: (0, prompts_1.buildPassPrompt)(pass, exports.PASS_SOFT_CALLS[pass], ws.guidance),
@@ -79499,8 +79501,8 @@ function footer(meta) {
         "AI review via DataRobot LLM Gateway",
         models,
         formatDuration(meta.seconds),
-        `$${meta.costUsd.toFixed(2)} at list price`,
         ...notes,
+        ...(meta.runUrl ? [`[workflow run](${meta.runUrl})`] : []),
     ];
     return `<sub>${parts.join(" · ")}</sub>`;
 }
@@ -79518,7 +79520,7 @@ function buildReview(findings, files, meta) {
         }
     }
     const summary = findings.length === 0
-        ? "No issues found above the confidence threshold."
+        ? "No issues found."
         : `Found ${findings.length} issue${findings.length === 1 ? "" : "s"}.`;
     const body = [summary, ...outside, footer(meta), reviewMarker(meta.headSha)].join("\n\n");
     return { body, comments };
@@ -79571,12 +79573,13 @@ async function react(octokit, owner, repo, commentId, content) {
         core.warning(`Could not add ${content} reaction: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-async function postFailure(octokit, owner, repo, prNumber, reason) {
+async function postFailure(octokit, owner, repo, prNumber, reason, runUrl) {
+    const link = runUrl ? ` See the [workflow run](${runUrl}).` : "";
     await octokit.rest.issues.createComment({
         owner,
         repo,
         issue_number: prNumber,
-        body: `AI review couldn't finish: ${reason}.`,
+        body: `AI review couldn't finish: ${reason}.${link}`,
     });
 }
 
@@ -79725,6 +79728,12 @@ function failureText(result) {
     const subtype = result.subtype ?? "session failed";
     return result.result ? `${subtype}: ${result.result.slice(0, 300)}` : subtype;
 }
+function describeRun(label, result, turns) {
+    const u = result.usage ?? {};
+    return (`AI review session ${label}: ${turns} turns, $${(result.total_cost_usd ?? 0).toFixed(2)}, ` +
+        `tokens: ${u.cache_read_input_tokens ?? 0} cache read, ${u.cache_creation_input_tokens ?? 0} cache write, ` +
+        `${u.input_tokens ?? 0} uncached input, ${u.output_tokens ?? 0} output`);
+}
 function parse(stdout) {
     try {
         const value = JSON.parse(stdout.trim());
@@ -79744,7 +79753,7 @@ async function runSession(runner, claudeBin, proxy, spec, signal) {
     const promptFile = path.join(dir, "system.md");
     fs.writeFileSync(promptFile, spec.systemPrompt);
     const env = sessionEnv(proxy, spec);
-    const warn = (error) => core.warning(`AI review session on ${spec.model} failed: ${error}`);
+    const warn = (error) => core.warning(`AI review session ${spec.label} on ${spec.model} failed: ${error}`);
     const failed = (error) => {
         warn(error);
         return { ok: false, output: null, costUsd: 0, turns: 0, salvaged: false, error };
@@ -79788,6 +79797,7 @@ async function runSession(runner, claudeBin, proxy, spec, signal) {
                 // The capped result stands, and its cost still counts.
             }
         }
+        core.info(`${describeRun(spec.label, final, turns)}${salvaged ? ", salvaged" : ""}`);
         const ok = !final.is_error && final.structured_output != null;
         const error = ok ? undefined : failureText(final);
         if (error)
@@ -80738,6 +80748,7 @@ async function run() {
     };
     const context = github.context;
     const { owner, repo } = context.repo;
+    const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
     const octokit = github.getOctokit(inputs.githubToken);
     const eventName = context.eventName;
     const action = context.payload.action;
@@ -80763,6 +80774,7 @@ async function run() {
                 commenterAssociation: comment.author_association,
                 orgConfig,
                 aiToken: inputs.aiToken,
+                runUrl,
             });
             return;
         }
@@ -80930,6 +80942,7 @@ async function run() {
             kind: "label",
             orgConfig: teamsConfig,
             aiToken: inputs.aiToken,
+            runUrl,
         });
     }
     else if (eventName === "pull_request_review" && action === "submitted") {

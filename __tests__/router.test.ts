@@ -881,7 +881,9 @@ describe("handleOpened", () => {
 
     expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.stringContaining("[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)"),
+        body: expect.stringContaining(
+          "**[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)**"
+        ),
       })
     );
   });
@@ -926,7 +928,9 @@ describe("handleOpened", () => {
 
     expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.stringContaining("[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)"),
+        body: expect.stringContaining(
+          "**[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)**"
+        ),
       })
     );
   });

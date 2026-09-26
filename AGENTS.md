@@ -23,6 +23,7 @@ npm run all           # lint + test + build
   - `slack.ts` -- Slack notifications
   - `auth.ts` -- capability detection
   - `types.ts` -- shared interfaces
+  - `ai-review/` -- AI code review: gates, workspace inputs, context pack, claude sessions, pipeline, publishing
 - `__tests__/` -- Jest tests (mirrors src/ structure)
 - `config/` -- bundled team config (`config.yml`) and JSON Schema (`schema.json`)
 - `dist/` -- ncc output (committed, required by GitHub Actions)
@@ -49,6 +50,8 @@ The action handles three GitHub event types:
 1. **`pull_request_target: labeled`** -- parses CODEOWNERS from the base branch, maps changed files to teams, applies "Needs Review: {team}" labels, requests team reviews, posts ownership comment, sends Slack notifications
 2. **`pull_request_review: submitted`** -- removes team labels when a member of that team approves
 3. **`issue_comment: created`** -- on `/review` comment, adds "Ready for Review" label to trigger routing
+
+The optional AI review (`src/ai-review/`) runs after routing on the labeled event, and on `/ai-review` comments. See `docs/setup/ai-review.md`.
 
 Config loading priority: `config-repo` > `config-s3` > bundled `config/config.yml`. External config is validated against `config/schema.json` using Ajv.
 

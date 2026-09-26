@@ -23,6 +23,7 @@ const baseInputs = {
   needsReviewPrefix: "Needs Review",
   needsReviewLabelColor: "fbca04",
   jiraToken: "",
+  aiToken: "",
 };
 
 const teamsConfig = {

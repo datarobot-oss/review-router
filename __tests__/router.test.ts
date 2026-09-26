@@ -118,6 +118,7 @@ describe("handleLabeled", () => {
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
         jiraToken: "",
+        aiToken: "",
       },
       capabilities: { hasOrgAccess: false },
       teamsConfig,
@@ -164,6 +165,7 @@ describe("handleLabeled", () => {
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
         jiraToken: "",
+        aiToken: "",
       },
       capabilities: { hasOrgAccess: true },
       teamsConfig,
@@ -219,6 +221,7 @@ describe("handleLabeled", () => {
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
         jiraToken: "",
+        aiToken: "",
       },
       capabilities: { hasOrgAccess: true },
       teamsConfig,
@@ -271,6 +274,7 @@ describe("handleLabeled", () => {
           needsReviewPrefix: "Needs Review",
           needsReviewLabelColor: "fbca04",
           jiraToken: "",
+          aiToken: "",
         },
         capabilities: { hasOrgAccess: true },
         teamsConfig,
@@ -316,6 +320,7 @@ describe("handleLabeled", () => {
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
         jiraToken: "",
+        aiToken: "",
       },
       capabilities: { hasOrgAccess: false },
       teamsConfig,
@@ -360,6 +365,7 @@ describe("handleLabeled", () => {
         needsReviewPrefix: "Needs Review",
         needsReviewLabelColor: "fbca04",
         jiraToken: "",
+        aiToken: "",
       },
       capabilities: { hasOrgAccess: false },
       teamsConfig,
@@ -400,6 +406,7 @@ describe("handleLabeled withRetry", () => {
       needsReviewPrefix: "Needs Review",
       needsReviewLabelColor: "fbca04",
       jiraToken: "",
+      aiToken: "",
     },
     capabilities: { hasOrgAccess: false },
     teamsConfig,
@@ -480,6 +487,7 @@ describe("handleReviewSubmitted", () => {
       needsReviewPrefix: "Needs Review",
       needsReviewLabelColor: "fbca04",
       jiraToken: "",
+      aiToken: "",
     },
     teamsConfig,
   };
@@ -661,6 +669,7 @@ describe("handleOpened", () => {
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
     jiraToken: "",
+    aiToken: "",
   };
 
   it("skips when dependabot config is absent", async () => {
@@ -1023,6 +1032,7 @@ describe("handleReadyForReview", () => {
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
     jiraToken: "",
+    aiToken: "",
   };
 
   it("adds ready label for fork PRs marked ready", async () => {
@@ -1132,6 +1142,7 @@ describe("handleClosed", () => {
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
     jiraToken: "",
+    aiToken: "",
   };
 
   it("skips when PR was closed without merging", async () => {
@@ -1226,6 +1237,7 @@ describe("handleComment", () => {
     needsReviewPrefix: "Needs Review",
     needsReviewLabelColor: "fbca04",
     jiraToken: "",
+    aiToken: "",
   };
 
   const configWithUsers: OrgConfig = {

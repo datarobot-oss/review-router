@@ -49,7 +49,9 @@ jobs:
 
 The reusable workflow generates app tokens and calls the review-router action.
 There is no `actions/checkout` step. There are no shell `run:` blocks. No PR
-code is ever fetched, checked out, or executed.
+code is ever checked out or executed. When the AI review is enabled, the action
+downloads the PR's files as a tarball to read them, see
+[The AI review reads PR files and never runs them](#the-ai-review-reads-pr-files-and-never-runs-them).
 
 ### Workflow source is always the base branch
 
@@ -105,9 +107,22 @@ is no script injection risk.
 The review-router action:
 
 - Reads CODEOWNERS from the **base branch** (not the PR branch)
-- Reads the list of changed filenames (not file contents)
+- Reads the list of changed filenames
 - Posts labels, comments, and Slack messages
+- With the AI review enabled, reads PR file contents as data (see below)
 - Never checks out, builds, or runs any repository code
+
+### The AI review reads PR files and never runs them
+
+The optional AI review downloads the PR head through the tarball API and lets a Claude Code session read it. The design keeps `pull_request_target` safe:
+
+- Nothing from the PR is executed. No build, install, or script runs from the tarball. Sessions have only the Read, Grep, and Glob tools, so they can't write files, run commands, or reach the network.
+- Symlinks are deleted after extraction. Sessions can read only the workspace, and reads under `/proc`, `/sys`, `/etc`, and the home directory are also denied explicitly. The proxy's log stays in memory, never on disk.
+- Fork PRs are skipped before anything is downloaded, because `pull_request_target` gives them full secrets. A same-repo PR was pushed by someone with write access, who can already reach the repo's secrets through their own workflows.
+- Review rules and maintainer guidance come from the base branch. The PR head's copies are deleted before any session starts.
+- Sessions load no project or local Claude Code settings, and the PR head's `.claude/` and `.mcp.json` are deleted, so a PR can't redirect a session or change its tools.
+- Sessions never hold the GitHub token or the DataRobot token. Claude Code talks to a LiteLLM proxy on localhost with a per-run key, and only the proxy holds the DataRobot token. Child processes get a minimal environment without the action's `INPUT_*` variables.
+- Prompt injection through the diff or PR description can, at worst, change the text of the bot's review. Mentions and HTML comments in model output are neutralized before posting.
 
 ### Credentials are short-lived and scoped
 

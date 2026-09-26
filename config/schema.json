@@ -54,6 +54,9 @@
         "jira": {
           "$ref": "#/$defs/JiraConfig"
         },
+        "ai_review": {
+          "$ref": "#/$defs/AiReviewConfig"
+        },
         "teams": {
           "type": "object",
           "description": "Team slug to config mapping. Slugs must match the GitHub team name used in CODEOWNERS.",
@@ -137,6 +140,54 @@
         "labels": {
           "type": "string",
           "description": "Labels icon in footer. Default: label."
+        }
+      }
+    },
+    "AiReviewConfig": {
+      "type": "object",
+      "required": ["enabled", "repos", "endpoint", "models"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable the AI review on ready-label events and /ai-review comments for the listed repos."
+        },
+        "repos": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Repo names in this org that get the AI review. Repos not listed never run it."
+        },
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https://",
+          "description": "DataRobot API base, e.g. https://app.eu.datarobot.com/api/v2. The LLM Gateway path is appended."
+        },
+        "models": {
+          "type": "object",
+          "required": ["reviewer", "scorer"],
+          "additionalProperties": false,
+          "properties": {
+            "reviewer": {
+              "type": "string",
+              "description": "LLM Gateway catalog id for the review passes."
+            },
+            "scorer": {
+              "type": "string",
+              "description": "LLM Gateway catalog id for the finding scorer."
+            }
+          }
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Minimum scorer score (0-100) for a finding to be published. Default 70."
+        },
+        "max_cost_usd": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Hard cap on list-price spend per review, in USD. Default 3."
         }
       }
     },

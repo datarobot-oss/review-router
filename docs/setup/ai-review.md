@@ -6,7 +6,7 @@ Review Router can post an automated code review, run by Claude Code through Data
 
 1. Downloads the PR's files as a tarball. It never checks out or runs PR code.
 2. Builds a context directory: the diff, the PR description with other bots' blocks removed, recent history of the changed files, a script-built map of where changed functions are called, and review rules from the base branch.
-3. Runs two read-only review passes in parallel: one checks the PR's claims and the callers of changed functions, one checks the repo's own review rules. Sessions can only read, search, and list files.
+3. Runs read-only review passes in parallel. The claims pass always runs and checks the PR's claims and the callers of changed functions. The rules pass runs only when the repo has review rules (see [Per-repo guidance](#per-repo-guidance)) and checks the diff against them. Sessions can only read, search, and list files.
 4. Scores each medium- and high-severity candidate in its own session and keeps scores at or above the threshold.
 5. Posts one review with inline comments. It never approves or requests changes.
 
@@ -48,7 +48,14 @@ If a caller workflow skips comments with `contains(github.event.comment.body, '/
 
 ## Per-repo guidance
 
-Put free-form guidance for the reviewer in `.github/ai-review.md`, for example which areas matter most or which generated files to ignore. If the repo has Cursor Bugbot rules in `.cursor/*.md`, the rules pass uses them too. Both are read from the PR's base branch, so a PR can't change the rules that review it.
+Two kinds of file give the reviewer repo-specific rules:
+
+- `.github/ai-review.md`: your guidance for the reviewer, for example which areas matter most or which generated files to skip.
+- `.cursor/*.md`: Cursor Bugbot rules, if the repo already has them.
+
+Either one turns on the rules pass, which checks the diff against every rule file and can report a violation of any line in them. So write them as things to check. The rules pass is a second session, which adds roughly $0.30 to $0.50 per review. `.github/ai-review.md` also goes into the claims pass's prompt, where it steers what that pass focuses on.
+
+Both are read from the PR's base branch, so a PR can't change the rules that review it, and a new or edited file takes effect after it merges.
 
 ## When it doesn't run
 
@@ -60,5 +67,5 @@ Put free-form guidance for the reviewer in `.github/ai-review.md`, for example w
 ## Limits
 
 - Two triggers on the same PR at the same time both run and both post.
-- Costs in the review footer are Claude Code's list-price estimates, not DataRobot's actual cost.
+- The cost in the workflow log is Claude Code's list-price estimate, not DataRobot's actual cost.
 - The LLM Gateway caps prompts per user per day. A review uses about 50.

@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as fs from "fs";
 import { Octokit, OrgConfig } from "../types";
 import { prepareWorkspace } from "./inputs";
-import { runPipeline } from "./pipeline";
+import { PipelineResult, runPipeline } from "./pipeline";
 import { CommandRunner, processRunner } from "./process";
 import { buildReview, hasReviewForSha, postFailure, postReview, react } from "./publish";
 import { runSession } from "./session";
@@ -54,6 +54,23 @@ async function stage<T>(userMessage: string, fn: () => Promise<T>): Promise<T> {
 function errorText(error: unknown): string {
   if (!(error instanceof Error)) return String(error);
   return error.cause instanceof Error ? `${error.message}: ${error.cause.message}` : error.message;
+}
+
+/**
+ * Returns why a pipeline result can't be posted as a review, or null when it can.
+ *
+ * With no confirmed findings, any pass or candidate left unfinished would make "no issues" a false
+ * all-clear.
+ */
+function incompleteReason(result: PipelineResult): string | null {
+  if (result.findings.length > 0) return null;
+  if (result.timedOut) return "stopped at the time limit";
+  if (result.failedPasses.length === result.passes.length) return "every review pass failed";
+  if (result.skippedCandidates > 0) return "ran out of budget before scoring every candidate";
+  if (result.failedCandidates === 0) return null;
+  return result.failedCandidates === result.scoredCandidates
+    ? "every scoring session failed"
+    : "a scoring session failed";
 }
 
 /** Runs one AI review end to end: gates, workspace, tools, pipeline, and the posted review. */
@@ -129,16 +146,8 @@ export async function runAiReview(
       settings,
       controller.signal
     );
-    // With nothing confirmed, a cut-off run can't claim the PR is clean.
-    if (result.timedOut && result.findings.length === 0) {
-      throw new AiReviewError("stopped at the time limit");
-    }
-    if (result.failedPasses.length === result.passes.length) {
-      throw new AiReviewError("every review pass failed");
-    }
-    if (result.failedCandidates > 0 && result.failedCandidates === result.scoredCandidates) {
-      throw new AiReviewError("every scoring session failed");
-    }
+    const incomplete = incompleteReason(result);
+    if (incomplete) throw new AiReviewError(incomplete);
     const review = buildReview(result.findings, ws.files, {
       headSha: pr.head.sha,
       reviewerModel: settings.reviewerModel,

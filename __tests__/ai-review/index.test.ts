@@ -202,6 +202,32 @@ describe("runAiReview", () => {
     );
   });
 
+  it.each([
+    [
+      { skippedCandidates: 2, scoredCandidates: 0, failedCandidates: 0 },
+      "ran out of budget before scoring every candidate",
+    ],
+    [
+      { skippedCandidates: 0, scoredCandidates: 3, failedCandidates: 1 },
+      "a scoring session failed",
+    ],
+  ])("won't call a review clean when a candidate went unscored (%o)", async (counts, reason) => {
+    (runPipeline as jest.Mock).mockResolvedValue({
+      findings: [],
+      costUsd: 2.8,
+      passes: ["claims"],
+      failedPasses: [],
+      timedOut: false,
+      ...counts,
+    });
+    const gh = octokit();
+    await runAiReview(gh as unknown as Octokit, request, deps());
+    expect(gh.rest.pulls.createReview).not.toHaveBeenCalled();
+    expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({ body: `AI review couldn't finish: ${reason}.` })
+    );
+  });
+
   it("puts download and install under the time limit", async () => {
     const d = deps();
     await runAiReview(octokit() as unknown as Octokit, request, d);

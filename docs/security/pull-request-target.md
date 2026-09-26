@@ -117,7 +117,7 @@ The review-router action:
 The optional AI review downloads the PR head through the tarball API and lets a Claude Code session read it. The design keeps `pull_request_target` safe:
 
 - Nothing from the PR is executed. No build, install, or script runs from the tarball. Sessions have only the Read, Grep, and Glob tools, so they can't write files, run commands, or reach the network.
-- Symlinks are deleted after extraction, and sessions are denied reads under `/proc`, `/sys`, `/etc`, and the home directory.
+- Symlinks are deleted after extraction. Sessions can read only the workspace, and reads under `/proc`, `/sys`, `/etc`, and the home directory are also denied explicitly. The proxy's log stays in memory, never on disk.
 - Fork PRs are skipped before anything is downloaded, because `pull_request_target` gives them full secrets. A same-repo PR was pushed by someone with write access, who can already reach the repo's secrets through their own workflows.
 - Review rules and maintainer guidance come from the base branch. The PR head's copies are deleted before any session starts.
 - Sessions load no project or local Claude Code settings, and the PR head's `.claude/` and `.mcp.json` are deleted, so a PR can't redirect a session or change its tools.

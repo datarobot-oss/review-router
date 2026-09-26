@@ -129,7 +129,8 @@ export async function runAiReview(
       settings,
       controller.signal
     );
-    if (result.timedOut && result.failedPasses.length === result.passes.length) {
+    // With nothing confirmed, a cut-off run can't claim the PR is clean.
+    if (result.timedOut && result.findings.length === 0) {
       throw new AiReviewError("stopped at the time limit");
     }
     if (result.failedPasses.length === result.passes.length) {

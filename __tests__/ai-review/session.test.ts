@@ -78,6 +78,7 @@ describe("sessionSettings", () => {
   it("uses the apiKeyHelper and denies reads outside the workspace", () => {
     const settings = JSON.parse(sessionSettings());
     expect(settings.apiKeyHelper).toBe("printenv ANTHROPIC_AUTH_TOKEN");
+    expect(settings.permissions.blockReadsOutsideWorkingDirectories).toBe(true);
     expect(settings.permissions.deny).toEqual(
       expect.arrayContaining(["Read(//proc/**)", "Read(//sys/**)", "Read(//etc/**)", "Read(~/**)"])
     );

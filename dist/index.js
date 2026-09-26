@@ -78730,7 +78730,8 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
         const claudeBin = await stage("could not install the review tools", () => deps.tools.install(controller.signal));
         const proxy = await stage("could not start the LLM proxy", () => deps.tools.startProxy(settings.endpoint, req.aiToken));
         const result = await (0, pipeline_1.runPipeline)((spec) => (0, session_1.runSession)(deps.runner, claudeBin, proxy, spec, controller.signal), ws, settings, controller.signal);
-        if (result.timedOut && result.failedPasses.length === result.passes.length) {
+        // With nothing confirmed, a cut-off run can't claim the PR is clean.
+        if (result.timedOut && result.findings.length === 0) {
             throw new AiReviewError("stopped at the time limit");
         }
         if (result.failedPasses.length === result.passes.length) {
@@ -79635,6 +79636,7 @@ function sessionSettings() {
     return JSON.stringify({
         apiKeyHelper: "printenv ANTHROPIC_AUTH_TOKEN",
         permissions: {
+            blockReadsOutsideWorkingDirectories: true,
             deny: ["Read(//proc/**)", "Read(//sys/**)", "Read(//etc/**)", "Read(~/**)"],
         },
     });
@@ -79963,21 +79965,23 @@ class ProcessToolRuntime {
         const port = await freePort();
         const key = crypto.randomBytes(32).toString("hex");
         const configFile = path.join(this.workDir(), "litellm.yaml");
-        const logFile = path.join(this.workDir(), "litellm.log");
         fs.writeFileSync(configFile, renderLiteLLMConfig());
-        const log = fs.openSync(logFile, "w");
-        const proxy = (0, child_process_1.spawn)(path.join(this.workDir(), "venv", "bin", "litellm"), ["--config", configFile, "--host", "127.0.0.1", "--port", String(port)], { env: proxyEnv(endpoint, token, key), stdio: ["ignore", log, log] });
-        fs.closeSync(log);
+        const proxy = (0, child_process_1.spawn)(path.join(this.workDir(), "venv", "bin", "litellm"), ["--config", configFile, "--host", "127.0.0.1", "--port", String(port)], { env: proxyEnv(endpoint, token, key), stdio: ["ignore", "pipe", "pipe"] });
         this.proxy = proxy;
+        // The log stays in memory: it can carry the token, and sessions can read files.
+        let log = "";
+        const keepTail = (chunk) => (log = (log + chunk).slice(-LOG_TAIL_CHARS));
+        proxy.stdout?.on("data", keepTail);
+        proxy.stderr?.on("data", keepTail);
         const exited = new Promise((_, reject) => {
-            proxy.once("exit", (code) => reject(new Error(`LiteLLM exited early with code ${code}`)));
+            proxy.once("close", (code) => reject(new Error(`LiteLLM exited early with code ${code}`)));
             proxy.once("error", reject);
         });
         try {
             await Promise.race([waitForPort(port, PROXY_START_TIMEOUT_MS), exited]);
         }
         catch (error) {
-            const tail = fs.readFileSync(logFile, "utf8").slice(-LOG_TAIL_CHARS).split(token).join("***");
+            const tail = log.split(token).join("***");
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(tail.trim() ? `${message}. LiteLLM log:\n${tail}` : message, {
                 cause: error,

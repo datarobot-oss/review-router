@@ -62,6 +62,7 @@ export function sessionSettings(): string {
   return JSON.stringify({
     apiKeyHelper: "printenv ANTHROPIC_AUTH_TOKEN",
     permissions: {
+      blockReadsOutsideWorkingDirectories: true,
       deny: ["Read(//proc/**)", "Read(//sys/**)", "Read(//etc/**)", "Read(~/**)"],
     },
   });

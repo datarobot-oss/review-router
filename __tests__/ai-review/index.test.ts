@@ -183,6 +183,25 @@ describe("runAiReview", () => {
     );
   });
 
+  it("reports the time limit when it cut off scoring and nothing was confirmed", async () => {
+    (runPipeline as jest.Mock).mockResolvedValue({
+      findings: [],
+      costUsd: 0.9,
+      passes: ["claims"],
+      failedPasses: [],
+      skippedCandidates: 2,
+      scoredCandidates: 0,
+      failedCandidates: 0,
+      timedOut: true,
+    });
+    const gh = octokit();
+    await runAiReview(gh as unknown as Octokit, request, deps());
+    expect(gh.rest.pulls.createReview).not.toHaveBeenCalled();
+    expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({ body: "AI review couldn't finish: stopped at the time limit." })
+    );
+  });
+
   it("puts download and install under the time limit", async () => {
     const d = deps();
     await runAiReview(octokit() as unknown as Octokit, request, d);

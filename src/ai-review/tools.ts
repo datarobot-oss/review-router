@@ -120,24 +120,26 @@ export class ProcessToolRuntime implements ToolRuntime {
     const port = await freePort();
     const key = crypto.randomBytes(32).toString("hex");
     const configFile = path.join(this.workDir(), "litellm.yaml");
-    const logFile = path.join(this.workDir(), "litellm.log");
     fs.writeFileSync(configFile, renderLiteLLMConfig());
-    const log = fs.openSync(logFile, "w");
     const proxy = spawn(
       path.join(this.workDir(), "venv", "bin", "litellm"),
       ["--config", configFile, "--host", "127.0.0.1", "--port", String(port)],
-      { env: proxyEnv(endpoint, token, key), stdio: ["ignore", log, log] }
+      { env: proxyEnv(endpoint, token, key), stdio: ["ignore", "pipe", "pipe"] }
     );
-    fs.closeSync(log);
     this.proxy = proxy;
+    // The log stays in memory: it can carry the token, and sessions can read files.
+    let log = "";
+    const keepTail = (chunk: Buffer) => (log = (log + chunk).slice(-LOG_TAIL_CHARS));
+    proxy.stdout?.on("data", keepTail);
+    proxy.stderr?.on("data", keepTail);
     const exited = new Promise<never>((_, reject) => {
-      proxy.once("exit", (code) => reject(new Error(`LiteLLM exited early with code ${code}`)));
+      proxy.once("close", (code) => reject(new Error(`LiteLLM exited early with code ${code}`)));
       proxy.once("error", reject);
     });
     try {
       await Promise.race([waitForPort(port, PROXY_START_TIMEOUT_MS), exited]);
     } catch (error) {
-      const tail = fs.readFileSync(logFile, "utf8").slice(-LOG_TAIL_CHARS).split(token).join("***");
+      const tail = log.split(token).join("***");
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(tail.trim() ? `${message}. LiteLLM log:\n${tail}` : message, {
         cause: error,

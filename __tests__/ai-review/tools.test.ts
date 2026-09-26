@@ -100,6 +100,7 @@ describe("ProcessToolRuntime proxy lifecycle", () => {
     const error = await runtime.startProxy("https://x/api/v2", "tok-secret").catch((e) => e);
     expect(error.message).toContain("bad config for ***");
     expect(error.message).not.toContain("tok-secret");
+    expect(fs.readdirSync(dir).filter((f) => f.endsWith(".log"))).toEqual([]);
   });
 
   it("rejects when the proxy binary can't be spawned", async () => {

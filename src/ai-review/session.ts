@@ -12,6 +12,8 @@ export interface ProxyInfo {
 }
 
 export interface SessionSpec {
+  /** Names the session in logs, for example "claims" or "scorer claims-0". */
+  label: string;
   cwd: string;
   addDirs: string[];
   systemPrompt: string;
@@ -41,6 +43,12 @@ export interface ClaudeResult {
   num_turns?: number;
   session_id?: string;
   result?: string;
+  usage?: {
+    input_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+    output_tokens?: number;
+  };
 }
 
 export const SALVAGE_PROMPT =
@@ -143,6 +151,15 @@ function failureText(result: ClaudeResult): string {
   return result.result ? `${subtype}: ${result.result.slice(0, 300)}` : subtype;
 }
 
+function describeRun(label: string, result: ClaudeResult, turns: number): string {
+  const u = result.usage ?? {};
+  return (
+    `AI review session ${label}: ${turns} turns, $${(result.total_cost_usd ?? 0).toFixed(2)}, ` +
+    `tokens: ${u.cache_read_input_tokens ?? 0} cache read, ${u.cache_creation_input_tokens ?? 0} cache write, ` +
+    `${u.input_tokens ?? 0} uncached input, ${u.output_tokens ?? 0} output`
+  );
+}
+
 function parse(stdout: string): ClaudeResult | null {
   try {
     const value: unknown = JSON.parse(stdout.trim());
@@ -169,7 +186,7 @@ export async function runSession(
   fs.writeFileSync(promptFile, spec.systemPrompt);
   const env = sessionEnv(proxy, spec);
   const warn = (error: string) =>
-    core.warning(`AI review session on ${spec.model} failed: ${error}`);
+    core.warning(`AI review session ${spec.label} on ${spec.model} failed: ${error}`);
   const failed = (error: string): SessionResult => {
     warn(error);
     return { ok: false, output: null, costUsd: 0, turns: 0, salvaged: false, error };
@@ -214,6 +231,7 @@ export async function runSession(
         // The capped result stands, and its cost still counts.
       }
     }
+    core.info(`${describeRun(spec.label, final, turns)}${salvaged ? ", salvaged" : ""}`);
     const ok = !final.is_error && final.structured_output != null;
     const error = ok ? undefined : failureText(final);
     if (error) warn(error);

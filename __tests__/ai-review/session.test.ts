@@ -15,6 +15,7 @@ import { CommandRunner } from "../../src/ai-review/process";
 jest.mock("@actions/core");
 
 const spec: SessionSpec = {
+  label: "claims",
   cwd: "/tmp/ws/repo",
   addDirs: ["/tmp/ws/context"],
   systemPrompt: "system",
@@ -152,6 +153,28 @@ describe("runSession", () => {
       error: undefined,
     });
     expect(calls).toHaveLength(1);
+  });
+
+  it("logs turns, cost, and token usage when a session finishes", async () => {
+    const { runner } = fakeRunner([
+      {
+        subtype: "success",
+        is_error: false,
+        structured_output: { findings: [] },
+        total_cost_usd: 0.4,
+        num_turns: 6,
+        usage: {
+          input_tokens: 1200,
+          cache_creation_input_tokens: 20000,
+          cache_read_input_tokens: 120000,
+          output_tokens: 3000,
+        },
+      },
+    ]);
+    await runSession(runner, "claude", proxy, spec);
+    expect(core.info).toHaveBeenCalledWith(
+      "AI review session claims: 6 turns, $0.40, tokens: 120000 cache read, 20000 cache write, 1200 uncached input, 3000 output"
+    );
   });
 
   it("salvages a capped session and takes the resumed session's cumulative cost", async () => {

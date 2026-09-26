@@ -1,6 +1,7 @@
 import {
   buildReview,
   hasReviewForSha,
+  postFailure,
   postReview,
   react,
   ReviewMeta,
@@ -18,7 +19,6 @@ const meta: ReviewMeta = {
   reviewerModel: "sonnet",
   scorerModel: "sonnet",
   seconds: 312,
-  costUsd: 1.234,
   failedPasses: [],
   skippedCandidates: 0,
   failedCandidates: 0,
@@ -91,10 +91,11 @@ describe("buildReview", () => {
       timedOut: true,
       skippedCandidates: 2,
     });
-    expect(review.body).toContain("No issues found above the confidence threshold.");
+    expect(review.body.startsWith("No issues found.\n\n")).toBe(true);
     expect(review.body).toContain(
-      "sonnet · 5m 12s · $1.23 at list price · rules pass failed · 2 candidates not scored (budget) · stopped at the time limit"
+      "sonnet · 5m 12s · rules pass failed · 2 candidates not scored (budget) · stopped at the time limit</sub>"
     );
+    expect(review.body).not.toContain("$");
     expect(review.body.endsWith(reviewMarker("abc123"))).toBe(true);
   });
 
@@ -107,6 +108,13 @@ describe("buildReview", () => {
   it("keeps a model-written path inside its code span", () => {
     const review = buildReview([scored({ path: "x` @acme/team `y", line: 1 })], files, meta);
     expect(review.body).toContain("#### `x @acme/team y:1`");
+  });
+
+  it("links the workflow run when it's known", () => {
+    const runUrl = "https://github.com/acme/api/actions/runs/1";
+    expect(buildReview([], files, { ...meta, runUrl }).body).toContain(
+      `5m 12s · [workflow run](${runUrl})</sub>`
+    );
   });
 
   it("names the scorer model when it differs", () => {
@@ -186,6 +194,19 @@ describe("hasReviewForSha", () => {
       rest: { pulls: { listReviews: jest.fn() } },
     } as unknown as Octokit;
     expect(await hasReviewForSha(octokit, "acme", "api", 7, "abc")).toBe(false);
+  });
+});
+
+describe("postFailure", () => {
+  it("states the reason and links the workflow run", async () => {
+    const createComment = jest.fn(async () => ({}));
+    const octokit = { rest: { issues: { createComment } } } as unknown as Octokit;
+    await postFailure(octokit, "acme", "api", 7, "every review pass failed", "https://x/runs/1");
+    expect(createComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "AI review couldn't finish: every review pass failed. See the [workflow run](https://x/runs/1).",
+      })
+    );
   });
 });
 

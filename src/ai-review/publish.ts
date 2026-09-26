@@ -15,11 +15,11 @@ export interface ReviewMeta {
   reviewerModel: string;
   scorerModel: string;
   seconds: number;
-  costUsd: number;
   failedPasses: PassName[];
   skippedCandidates: number;
   failedCandidates: number;
   timedOut: boolean;
+  runUrl?: string;
 }
 
 export interface ReviewComment {
@@ -90,8 +90,8 @@ function footer(meta: ReviewMeta): string {
     "AI review via DataRobot LLM Gateway",
     models,
     formatDuration(meta.seconds),
-    `$${meta.costUsd.toFixed(2)} at list price`,
     ...notes,
+    ...(meta.runUrl ? [`[workflow run](${meta.runUrl})`] : []),
   ];
   return `<sub>${parts.join(" · ")}</sub>`;
 }
@@ -114,7 +114,7 @@ export function buildReview(
   }
   const summary =
     findings.length === 0
-      ? "No issues found above the confidence threshold."
+      ? "No issues found."
       : `Found ${findings.length} issue${findings.length === 1 ? "" : "s"}.`;
   const body = [summary, ...outside, footer(meta), reviewMarker(meta.headSha)].join("\n\n");
   return { body, comments };
@@ -197,12 +197,14 @@ export async function postFailure(
   owner: string,
   repo: string,
   prNumber: number,
-  reason: string
+  reason: string,
+  runUrl?: string
 ): Promise<void> {
+  const link = runUrl ? ` See the [workflow run](${runUrl}).` : "";
   await octokit.rest.issues.createComment({
     owner,
     repo,
     issue_number: prNumber,
-    body: `AI review couldn't finish: ${reason}.`,
+    body: `AI review couldn't finish: ${reason}.${link}`,
   });
 }

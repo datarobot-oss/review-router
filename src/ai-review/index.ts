@@ -31,6 +31,8 @@ export interface AiReviewRequest {
   commenterAssociation?: string;
   orgConfig: OrgConfig;
   aiToken: string;
+  /** The workflow run, linked from everything the review posts. */
+  runUrl?: string;
 }
 
 export interface AiReviewDeps {
@@ -153,11 +155,11 @@ export async function runAiReview(
       reviewerModel: settings.reviewerModel,
       scorerModel: settings.scorerModel,
       seconds: Math.round((deps.now() - started) / 1000),
-      costUsd: result.costUsd,
       failedPasses: result.failedPasses,
       skippedCandidates: result.skippedCandidates,
       failedCandidates: result.failedCandidates,
       timedOut: result.timedOut,
+      runUrl: req.runUrl,
     });
     await stage("could not post the review", () =>
       postReview(octokit, req.owner, req.repo, req.prNumber, pr.head.sha, review)
@@ -173,7 +175,7 @@ export async function runAiReview(
         ? error.userMessage
         : "unexpected error, see the workflow logs";
     if (req.commentId) await react(octokit, req.owner, req.repo, req.commentId, "confused");
-    await postFailure(octokit, req.owner, req.repo, req.prNumber, reason).catch((e) =>
+    await postFailure(octokit, req.owner, req.repo, req.prNumber, reason, req.runUrl).catch((e) =>
       core.warning(`Could not post the failure comment: ${errorText(e)}`)
     );
   } finally {

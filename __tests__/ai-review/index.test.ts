@@ -107,7 +107,7 @@ describe("runAiReview", () => {
     expect(gh.rest.pulls.createReview).toHaveBeenCalledTimes(1);
     const body = (gh.rest.pulls.createReview.mock.calls[0] as unknown as [{ body: string }])[0]
       .body;
-    expect(body).toContain("1m 5s · $0.90 at list price");
+    expect(body).toContain("· 1m 5s</sub>");
     expect(d.tools.startProxy).toHaveBeenCalledWith("https://x/api/v2", "tok");
     expect(d.tools.stop).toHaveBeenCalled();
   });
@@ -233,6 +233,23 @@ describe("runAiReview", () => {
     await runAiReview(octokit() as unknown as Octokit, request, d);
     expect((prepareWorkspace as jest.Mock).mock.calls[0][5]).toBeInstanceOf(AbortSignal);
     expect((d.tools.install as jest.Mock).mock.calls[0][0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it("links the workflow run in the review and in a failure comment", async () => {
+    const runUrl = "https://github.com/acme/api/actions/runs/42";
+    const gh = octokit();
+    await runAiReview(gh as unknown as Octokit, { ...request, runUrl }, deps());
+    const body = (gh.rest.pulls.createReview.mock.calls[0] as unknown as [{ body: string }])[0]
+      .body;
+    expect(body).toContain(`[workflow run](${runUrl})`);
+
+    const failing = deps();
+    (failing.tools.install as jest.Mock).mockRejectedValue(new Error("boom"));
+    const gh2 = octokit();
+    await runAiReview(gh2 as unknown as Octokit, { ...request, runUrl }, failing);
+    expect(gh2.rest.issues.createComment).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.stringContaining(`[workflow run](${runUrl})`) })
+    );
   });
 
   it("reports a stage failure with its user-facing reason and still stops the proxy", async () => {

@@ -173,6 +173,7 @@ describe("runPipeline", () => {
     await runPipeline(run, ws, settings);
     const claims = specs.find((s) => s.systemPrompt.includes("claims and reach")) as SessionSpec;
     expect(claims).toMatchObject({
+      label: "claims",
       model: "rev",
       maxTurns: 14,
       effort: "medium",
@@ -181,6 +182,7 @@ describe("runPipeline", () => {
     });
     const scorer = specs.find((s) => s.model === "sco") as SessionSpec;
     expect(scorer.maxTurns).toBe(10);
+    expect(scorer.label).toBe("scorer claims-0");
     expect(scorer.addDirs[0]).toBe(ws.contextDir);
   });
 

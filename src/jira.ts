@@ -32,12 +32,32 @@ export async function resolveCloudId(baseUrl: string): Promise<string | null> {
   }
 }
 
-export async function fetchTicketSummary(
+export interface JiraTicketDetails {
+  summary: string;
+  type?: string;
+  parent?: { id: string; summary: string };
+}
+
+export interface JiraTicket extends Omit<JiraTicketDetails, "summary"> {
+  id: string;
+  summary: string | null;
+}
+
+interface IssueResponse {
+  fields?: {
+    summary?: string;
+    issuetype?: { name?: string };
+    parent?: { key?: string; fields?: { summary?: string } };
+  };
+}
+
+/** Fetches the ticket fields the PR comment shows, or null when the ticket can't be read. */
+export async function fetchTicket(
   ticketId: string,
   cloudId: string,
   token: string
-): Promise<string | null> {
-  const url = `${JIRA_API_GATEWAY}/${cloudId}/rest/api/3/issue/${ticketId}?fields=summary`;
+): Promise<JiraTicketDetails | null> {
+  const url = `${JIRA_API_GATEWAY}/${cloudId}/rest/api/3/issue/${ticketId}?fields=summary,issuetype,parent`;
   try {
     const response = await fetch(url, {
       headers: {
@@ -49,8 +69,16 @@ export async function fetchTicketSummary(
       core.warning(`Jira API returned ${response.status} for ticket ${ticketId}`);
       return null;
     }
-    const data = (await response.json()) as { fields?: { summary?: string } };
-    return data.fields?.summary ?? null;
+    const { fields } = (await response.json()) as IssueResponse;
+    if (!fields?.summary) return null;
+    const parent = fields.parent;
+    return {
+      summary: fields.summary,
+      ...(fields.issuetype?.name ? { type: fields.issuetype.name } : {}),
+      ...(parent?.key && parent.fields?.summary
+        ? { parent: { id: parent.key, summary: parent.fields.summary } }
+        : {}),
+    };
   } catch (error) {
     core.warning(
       `Failed to fetch Jira ticket ${ticketId}: ${error instanceof Error ? error.message : String(error)}`
@@ -61,35 +89,24 @@ export async function fetchTicketSummary(
 
 export const JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
 
-function renderTicketLink(baseUrl: string, ticket: { id: string; summary: string | null }): string {
-  const url = `${baseUrl}/browse/${ticket.id}`;
-  const link = `[\`${ticket.id}\`](${url})`;
-  return ticket.summary ? `${link} — ${ticket.summary}` : link;
+function renderTicket(baseUrl: string, ticket: JiraTicket): string {
+  const link = (id: string) => `[${id}](${baseUrl}/browse/${id})`;
+  const heading = `🎫 **${link(ticket.id)}**${ticket.summary && ticket.type ? ` · ${ticket.type}` : ""}`;
+  if (!ticket.summary) return heading;
+  const lines = [heading, `> ${ticket.summary}`];
+  if (ticket.parent) {
+    lines.push("", `<sub>Part of ${link(ticket.parent.id)} · ${ticket.parent.summary}</sub>`);
+  }
+  return lines.join("\n");
 }
 
-export function buildJiraComment(
-  baseUrl: string,
-  tickets: Array<{ id: string; summary: string | null }>
-): string {
+export function buildJiraComment(baseUrl: string, tickets: JiraTicket[]): string {
   const trimmedBase = baseUrl.replace(/\/$/, "");
-  const missingSummary = tickets.some((t) => !t.summary);
-  const lines: string[] = [JIRA_COMMENT_MARKER];
-
-  if (tickets.length === 1) {
-    lines.push(`🎫 **Jira:** ${renderTicketLink(trimmedBase, tickets[0])}`);
-  } else {
-    lines.push("🎫 **Jira:**");
-    for (const ticket of tickets) {
-      lines.push(`- ${renderTicketLink(trimmedBase, ticket)}`);
-    }
-  }
-
-  if (missingSummary) {
-    lines.push("");
-    lines.push("_Add a `jira-token` input for ticket titles here._");
-  }
-
-  return lines.join("\n");
+  const cards = tickets.map((t) => renderTicket(trimmedBase, t)).join("\n\n");
+  const body = `${JIRA_COMMENT_MARKER}\n${cards}`;
+  return tickets.some((t) => !t.summary)
+    ? `${body}\n\n_Add a \`jira-token\` input for ticket titles here._`
+    : body;
 }
 
 export async function postJiraComment(
@@ -114,11 +131,11 @@ export async function postJiraComment(
 
   const cloudId = jiraToken ? await resolveCloudId(baseUrl) : null;
 
-  const tickets = await Promise.all(
-    ticketIds.map(async (id) => ({
-      id,
-      summary: cloudId ? await fetchTicketSummary(id, cloudId, jiraToken) : null,
-    }))
+  const tickets: JiraTicket[] = await Promise.all(
+    ticketIds.map(async (id) => {
+      const details = cloudId ? await fetchTicket(id, cloudId, jiraToken) : null;
+      return { id, ...(details ?? { summary: null }) };
+    })
   );
 
   const body = buildJiraComment(baseUrl, tickets);

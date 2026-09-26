@@ -1,7 +1,7 @@
 import {
   extractTicketIds,
   resolveCloudId,
-  fetchTicketSummary,
+  fetchTicket,
   buildJiraComment,
   JIRA_COMMENT_MARKER,
   postJiraComment,
@@ -98,7 +98,7 @@ describe("resolveCloudId", () => {
   });
 });
 
-describe("fetchTicketSummary", () => {
+describe("fetchTicket", () => {
   const fetchMock = jest.fn();
 
   beforeEach(() => {
@@ -106,16 +106,26 @@ describe("fetchTicketSummary", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
   });
 
-  it("fetches through the gateway with a Bearer token and returns the summary", async () => {
+  it("fetches through the gateway with a Bearer token and returns summary, type, and parent", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
+      json: async () => ({
+        fields: {
+          summary: "Fix the login redirect bug",
+          issuetype: { name: "Bug" },
+          parent: { key: "PROJ-6000", fields: { summary: "Auth cleanup" } },
+        },
+      }),
     });
-    const summary = await fetchTicketSummary("PROJ-6235", "abc-123", "tok");
-    expect(summary).toBe("Fix the login redirect bug");
+    const ticket = await fetchTicket("PROJ-6235", "abc-123", "tok");
+    expect(ticket).toEqual({
+      summary: "Fix the login redirect bug",
+      type: "Bug",
+      parent: { id: "PROJ-6000", summary: "Auth cleanup" },
+    });
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.atlassian.com/ex/jira/abc-123/rest/api/3/issue/PROJ-6235?fields=summary",
+      "https://api.atlassian.com/ex/jira/abc-123/rest/api/3/issue/PROJ-6235?fields=summary,issuetype,parent",
       {
         headers: {
           Authorization: "Bearer tok",
@@ -125,66 +135,93 @@ describe("fetchTicketSummary", () => {
     );
   });
 
+  it("leaves out type and parent when the ticket has none", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ fields: { summary: "First" } }),
+    });
+    expect(await fetchTicket("PROJ-1", "abc-123", "tok")).toEqual({ summary: "First" });
+  });
+
   it("returns null and warns on 401", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 401 });
-    const summary = await fetchTicketSummary("PROJ-6235", "abc-123", "tok");
-    expect(summary).toBeNull();
+    const ticket = await fetchTicket("PROJ-6235", "abc-123", "tok");
+    expect(ticket).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("401"));
   });
 
   it("returns null and warns on 404", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404 });
-    const summary = await fetchTicketSummary("PROJ-9999", "abc-123", "tok");
-    expect(summary).toBeNull();
+    const ticket = await fetchTicket("PROJ-9999", "abc-123", "tok");
+    expect(ticket).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("404"));
   });
 
   it("returns null and warns on network error", async () => {
     fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
-    const summary = await fetchTicketSummary("PROJ-6235", "abc-123", "tok");
-    expect(summary).toBeNull();
+    const ticket = await fetchTicket("PROJ-6235", "abc-123", "tok");
+    expect(ticket).toBeNull();
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("ECONNREFUSED"));
   });
 
   it("returns null when summary field is absent", async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ fields: {} }) });
-    const summary = await fetchTicketSummary("PROJ-1", "abc-123", "tok");
-    expect(summary).toBeNull();
+    expect(await fetchTicket("PROJ-1", "abc-123", "tok")).toBeNull();
   });
 });
 
 describe("buildJiraComment", () => {
-  it("renders a single ticket with a title as a compact one-liner", () => {
+  it("renders a ticket as a card: link and type, quoted summary, and parent", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
-      { id: "PROJ-6235", summary: "Fix the login redirect bug" },
+      {
+        id: "PROJ-6235",
+        summary: "Fix the login redirect bug",
+        type: "Bug",
+        parent: { id: "PROJ-6000", summary: "Auth cleanup" },
+      },
     ]);
-    expect(body).toContain(JIRA_COMMENT_MARKER);
-    expect(body).toContain(
-      "🎫 **Jira:** [`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Fix the login redirect bug"
+    expect(body).toBe(
+      [
+        JIRA_COMMENT_MARKER,
+        "🎫 **[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)** · Bug",
+        "> Fix the login redirect bug",
+        "",
+        "<sub>Part of [PROJ-6000](https://acme.atlassian.net/browse/PROJ-6000) · Auth cleanup</sub>",
+      ].join("\n")
     );
-    expect(body).not.toContain("###");
-    expect(body).not.toContain("- [");
-    expect(body).not.toContain("jira-token");
   });
 
-  it("renders a single ticket without a title and adds the footer note", () => {
+  it("leaves out the type and the parent line when the ticket has neither", () => {
+    const body = buildJiraComment("https://acme.atlassian.net", [
+      { id: "PROJ-1", summary: "First" },
+    ]);
+    expect(body).toBe(
+      [
+        JIRA_COMMENT_MARKER,
+        "🎫 **[PROJ-1](https://acme.atlassian.net/browse/PROJ-1)**",
+        "> First",
+      ].join("\n")
+    );
+  });
+
+  it("renders a ticket without a title as a link and adds the footer note", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
       { id: "PROJ-6235", summary: null },
     ]);
-    expect(body).toContain(
-      "🎫 **Jira:** [`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)"
-    );
+    expect(body).toContain("🎫 **[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)**");
+    expect(body).not.toContain("\n> ");
     expect(body).toContain("Add a `jira-token` input for ticket titles here.");
   });
 
-  it("renders multiple tickets as a bullet list under a shared lead-in", () => {
+  it("renders one card per ticket, separated by a blank line", () => {
     const body = buildJiraComment("https://acme.atlassian.net", [
-      { id: "PROJ-100", summary: "First" },
-      { id: "PROJ-200", summary: null },
+      { id: "PROJ-100", summary: "First", type: "Story" },
+      { id: "PROJ-200", summary: "Second", type: "Task" },
     ]);
-    expect(body).toContain("🎫 **Jira:**");
-    expect(body).toContain("- [`PROJ-100`](https://acme.atlassian.net/browse/PROJ-100) — First");
-    expect(body).toContain("- [`PROJ-200`](https://acme.atlassian.net/browse/PROJ-200)");
+    expect(body).toContain(
+      "> First\n\n🎫 **[PROJ-200](https://acme.atlassian.net/browse/PROJ-200)** · Task\n> Second"
+    );
   });
 
   it("adds the footer note only once when multiple tickets are missing titles", () => {
@@ -268,11 +305,11 @@ describe("postJiraComment", () => {
       owner: "o",
       repo: "r",
       issue_number: 1,
-      body: expect.stringContaining("[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)"),
+      body: expect.stringContaining("**[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)**"),
     });
   });
 
-  it("fetches the summary and creates a comment with a titled link when a token is set", async () => {
+  it("fetches the ticket and creates a card when a token is set", async () => {
     mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
     global.fetch = jest
       .fn()
@@ -280,7 +317,9 @@ describe("postJiraComment", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ fields: { summary: "Fix the login redirect bug" } }),
+        json: async () => ({
+          fields: { summary: "Fix the login redirect bug", issuetype: { name: "Bug" } },
+        }),
       }) as unknown as typeof fetch;
 
     await postJiraComment(
@@ -297,7 +336,7 @@ describe("postJiraComment", () => {
       repo: "r",
       issue_number: 1,
       body: expect.stringContaining(
-        "[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235) — Fix the login redirect bug"
+        "🎫 **[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)** · Bug\n> Fix the login redirect bug"
       ),
     });
   });
@@ -320,8 +359,8 @@ describe("postJiraComment", () => {
     // Only tenant_info is called; no per-ticket summary fetch after resolution fails.
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = mockOctokit.rest.issues.createComment.mock.calls[0][0].body;
-    expect(body).toContain("[`PROJ-6235`](https://acme.atlassian.net/browse/PROJ-6235)");
-    expect(body).not.toContain("— Migrate logs");
+    expect(body).toContain("**[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)**");
+    expect(body).not.toContain("Migrate logs");
     expect(body).toContain("Add a `jira-token` input for ticket titles here.");
   });
 

@@ -43,6 +43,7 @@ async function run(): Promise<void> {
 
   const context = github.context;
   const { owner, repo } = context.repo;
+  const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
   const octokit = github.getOctokit(inputs.githubToken);
 
   const eventName = context.eventName;
@@ -79,6 +80,7 @@ async function run(): Promise<void> {
         commenterAssociation: comment.author_association,
         orgConfig,
         aiToken: inputs.aiToken,
+        runUrl,
       });
       return;
     }
@@ -296,6 +298,7 @@ async function run(): Promise<void> {
       kind: "label",
       orgConfig: teamsConfig,
       aiToken: inputs.aiToken,
+      runUrl,
     });
   } else if (eventName === "pull_request_review" && action === "submitted") {
     const pr = context.payload.pull_request;

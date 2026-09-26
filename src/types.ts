@@ -39,6 +39,20 @@ export interface JiraConfig {
   base_url?: string;
 }
 
+export interface AiReviewModels {
+  reviewer: string;
+  scorer: string;
+}
+
+export interface AiReviewConfig {
+  enabled: boolean;
+  repos: string[];
+  endpoint: string;
+  models: AiReviewModels;
+  threshold?: number;
+  max_cost_usd?: number;
+}
+
 export interface OrgConfig {
   default_slack_channel?: string;
   ready_label_aliases?: string[];
@@ -47,6 +61,7 @@ export interface OrgConfig {
   external_contributors?: ExternalContributorsConfig;
   reactions?: ReactionsConfig;
   jira?: JiraConfig;
+  ai_review?: AiReviewConfig;
   teams: Record<string, TeamConfig>;
   users?: Record<string, string>;
 }
@@ -75,6 +90,7 @@ export interface ActionInputs {
   needsReviewPrefix: string;
   needsReviewLabelColor: string;
   jiraToken: string;
+  aiToken: string;
 }
 
 export interface Capabilities {

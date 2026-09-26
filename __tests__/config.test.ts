@@ -218,6 +218,71 @@ orgs:
 `)
     ).toThrow("Config validation failed");
   });
+
+  it("accepts a full ai_review block", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+      models: { reviewer: bedrock/anthropic.claude-sonnet-5, scorer: bedrock/anthropic.claude-sonnet-5 }
+      threshold: 75
+      max_cost_usd: 2.5
+`);
+    expect(config.orgs.acme.ai_review?.repos).toEqual(["api"]);
+  });
+
+  it("rejects an ai_review block without models", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+`)
+    ).toThrow("Config validation failed");
+  });
+
+  it("rejects an ai_review endpoint that is not https", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: http://app.eu.datarobot.com/api/v2
+      models: { reviewer: a, scorer: b }
+`)
+    ).toThrow("Config validation failed");
+  });
+
+  it("rejects an ai_review threshold above 100", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+      models: { reviewer: a, scorer: b }
+      threshold: 101
+`)
+    ).toThrow("Config validation failed");
+  });
 });
 
 describe("getLabelForTeam", () => {

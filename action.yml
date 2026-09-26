@@ -18,6 +18,12 @@ inputs:
       the Jira comment still posts but links show the ticket ID only, not the
       title.
     required: false
+  ai-token:
+    description: >
+      DataRobot API token for the AI review (optional). The review runs only when
+      this is set and the org's ai_review config enables the repo. Pass it from
+      the REVIEW_ROUTER_AI_TOKEN secret.
+    required: false
   config-repo:
     description: "Fetch teams config from this GitHub repo (e.g. 'acme-inc/.review-router'). Reads config.yml from the repo root."
     required: false

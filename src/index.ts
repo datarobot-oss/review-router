@@ -15,6 +15,8 @@ import { handleSchedule } from "./reminders";
 import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
+import { runAiReviewSafely } from "./ai-review";
+import { isAiReviewCommand } from "./ai-review/trigger";
 
 async function run(): Promise<void> {
   const githubToken = core.getInput("github-token");
@@ -36,6 +38,7 @@ async function run(): Promise<void> {
     needsReviewPrefix: core.getInput("needs-review-prefix"),
     needsReviewLabelColor: core.getInput("needs-review-label-color"),
     jiraToken: core.getInput("jira-token"),
+    aiToken: core.getInput("ai-token"),
   };
 
   const context = github.context;
@@ -55,6 +58,28 @@ async function run(): Promise<void> {
 
     if (context.payload.sender?.type === "Bot") {
       core.info("Ignoring bot comment");
+      return;
+    }
+
+    if (isAiReviewCommand(comment.body)) {
+      const orgConfig = await loadTeamsConfigForOrg(
+        owner,
+        octokit,
+        inputs.configRepo,
+        inputs.configToken,
+        inputs.configPath,
+        inputs.configS3
+      );
+      await runAiReviewSafely(octokit, {
+        owner,
+        repo,
+        prNumber: issue.number,
+        kind: "comment",
+        commentId: comment.id,
+        commenterAssociation: comment.author_association,
+        orgConfig,
+        aiToken: inputs.aiToken,
+      });
       return;
     }
 
@@ -261,6 +286,16 @@ async function run(): Promise<void> {
       inputs,
       capabilities,
       teamsConfig,
+    });
+
+    // After routing, so the review's minutes never delay labels, team requests, or Slack.
+    await runAiReviewSafely(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      kind: "label",
+      orgConfig: teamsConfig,
+      aiToken: inputs.aiToken,
     });
   } else if (eventName === "pull_request_review" && action === "submitted") {
     const pr = context.payload.pull_request;

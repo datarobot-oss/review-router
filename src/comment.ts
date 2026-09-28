@@ -6,12 +6,22 @@ import { SlackMessageRef } from "./slack";
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
 export const EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
+// Matches the Slack message's file list cutoff.
+const COLLAPSE_AFTER_FILES = 10;
 
 export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
   const lines: string[] = [COMMENT_MARKER, "## Code Ownership", ""];
 
   for (const [team, files] of ownership.teamFiles) {
-    lines.push(`**${humanizeSlug(team)}**`);
+    const collapsed = files.length > COLLAPSE_AFTER_FILES;
+    if (collapsed) {
+      lines.push(
+        `<details><summary><b>${humanizeSlug(team)}</b> · ${files.length} files</summary>`,
+        ""
+      );
+    } else {
+      lines.push(`**${humanizeSlug(team)}**`);
+    }
     for (const file of files) {
       const originalOwners = ownership.defaultedFiles.get(file);
       if (originalOwners) {
@@ -21,6 +31,7 @@ export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boo
       }
     }
     lines.push("");
+    if (collapsed) lines.push("</details>", "");
   }
 
   if (ownership.unownedFiles.length > 0) {

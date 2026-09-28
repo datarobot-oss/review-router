@@ -42,6 +42,36 @@ describe("buildOwnershipComment", () => {
     expect(comment).not.toContain("Unowned files");
   });
 
+  it("collapses a team's files past 10, keeping the team and count visible", () => {
+    const teamFiles = new Map<string, string[]>();
+    const many = Array.from({ length: 11 }, (_, i) => `src/f${i}.py`);
+    teamFiles.set("platform-team", many);
+    teamFiles.set("customer-engineering", ["src/app.py"]);
+    const comment = buildOwnershipComment(
+      { teamFiles, unownedFiles: [], defaultedFiles: new Map() },
+      true
+    );
+    expect(comment).toContain(
+      "<details><summary><b>Platform Team</b> · 11 files</summary>\n\n- `src/f0.py`"
+    );
+    expect(comment).toContain("- `src/f10.py`\n\n</details>");
+    expect(comment).toContain("**Customer Engineering**\n- `src/app.py`");
+  });
+
+  it("keeps a team with exactly 10 files expanded", () => {
+    const teamFiles = new Map<string, string[]>();
+    teamFiles.set(
+      "platform-team",
+      Array.from({ length: 10 }, (_, i) => `src/f${i}.py`)
+    );
+    const comment = buildOwnershipComment(
+      { teamFiles, unownedFiles: [], defaultedFiles: new Map() },
+      true
+    );
+    expect(comment).not.toContain("<details>");
+    expect(comment).toContain("**Platform Team**");
+  });
+
   it("includes unowned files section when present", () => {
     const teamFiles = new Map<string, string[]>();
     teamFiles.set("customer-engineering", ["src/app.py"]);

@@ -248,6 +248,11 @@ describe("postJiraComment", () => {
         updateComment: jest.fn(),
       },
     },
+    // One page: the listComments mock's data.
+    paginate: jest.fn(
+      async (method: (p: object) => Promise<{ data: unknown[] }>, params: object) =>
+        (await method(params)).data
+    ),
   };
 
   beforeEach(() => {
@@ -380,6 +385,34 @@ describe("postJiraComment", () => {
     );
     expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
       expect.objectContaining({ owner: "o", repo: "r", comment_id: 55 })
+    );
+    expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("finds the existing comment past the first page of comments", async () => {
+    const firstPage = Array.from({ length: 30 }, (_, i) => ({ id: i, body: "chatter" }));
+    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: firstPage });
+    mockOctokit.paginate.mockResolvedValueOnce([
+      ...firstPage,
+      { id: 55, body: `<!-- review-router-jira -->\nold` },
+    ]);
+    await postJiraComment(
+      mockOctokit as any,
+      "o",
+      "r",
+      1,
+      "[PROJ-6235] Migrate logs",
+      { enabled: true, base_url: "https://acme.atlassian.net" },
+      ""
+    );
+    expect(mockOctokit.paginate).toHaveBeenCalledWith(mockOctokit.rest.issues.listComments, {
+      owner: "o",
+      repo: "r",
+      issue_number: 1,
+      per_page: 100,
+    });
+    expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 55 })
     );
     expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
   });

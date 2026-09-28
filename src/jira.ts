@@ -143,10 +143,11 @@ export async function postJiraComment(
   const body = buildJiraComment(baseUrl, tickets);
 
   try {
-    const { data: comments } = await octokit.rest.issues.listComments({
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
       issue_number: prNumber,
+      per_page: 100,
     });
     const existing = comments.find((c) => c.body?.includes(JIRA_COMMENT_MARKER));
     if (existing) {

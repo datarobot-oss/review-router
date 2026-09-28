@@ -5,8 +5,23 @@ import {
   extractSlackRefs,
   embedSlackRefsInDescription,
   extractSlackRefsFromDescription,
+  postExternalComment,
   COMMENT_MARKER,
+  EXTERNAL_COMMENT_MARKER,
 } from "../src/comment";
+
+jest.mock("@actions/core");
+
+/** Returns an octokit whose paginate yields firstPage from listComments, then the rest. */
+function commentsOctokit(firstPage: object[], rest: object[] = []) {
+  const listComments = jest.fn(async () => ({ data: firstPage }));
+  return {
+    rest: { issues: { listComments, createComment: jest.fn(), updateComment: jest.fn() } },
+    paginate: jest.fn(async () => [...firstPage, ...rest]),
+  };
+}
+
+const chatter = Array.from({ length: 30 }, (_, i) => ({ id: i, body: "chatter" }));
 
 describe("buildOwnershipComment", () => {
   it("builds a comment with team ownership list", () => {
@@ -80,11 +95,39 @@ describe("buildOwnershipComment", () => {
   });
 });
 
+describe("paginated comment lookups", () => {
+  it("updates the ownership comment when it's past the first page", async () => {
+    const octokit = commentsOctokit(chatter, [{ id: 42, body: `${COMMENT_MARKER}\nold` }]);
+    await upsertComment(octokit as any, "owner", "repo", 1, "new");
+    expect(octokit.paginate).toHaveBeenCalledWith(octokit.rest.issues.listComments, {
+      owner: "owner",
+      repo: "repo",
+      issue_number: 1,
+      per_page: 100,
+    });
+    expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 42 })
+    );
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("skips the external contributor comment when it's past the first page", async () => {
+    const octokit = commentsOctokit(chatter, [{ id: 7, body: `${EXTERNAL_COMMENT_MARKER}\nhi` }]);
+    await postExternalComment(octokit as any, "owner", "repo", 1, "hi");
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+});
+
 describe("upsertComment", () => {
   const mockOctokit = {
     rest: {
       issues: { listComments: jest.fn(), createComment: jest.fn(), updateComment: jest.fn() },
     },
+    // One page: the listComments mock's data.
+    paginate: jest.fn(
+      async (method: (p: object) => Promise<{ data: unknown[] }>, params: object) =>
+        (await method(params)).data
+    ),
   };
   beforeEach(() => jest.clearAllMocks());
 

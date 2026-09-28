@@ -114,10 +114,11 @@ export async function findExistingComment(
   repo: string,
   prNumber: number
 ): Promise<{ id: number; body: string } | null> {
-  const { data: comments } = await octokit.rest.issues.listComments({
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
     owner,
     repo,
     issue_number: prNumber,
+    per_page: 100,
   });
   const existing = comments.find((c) => c.body && c.body.includes(COMMENT_MARKER));
   return existing ? { id: existing.id, body: existing.body ?? "" } : null;
@@ -164,10 +165,11 @@ export async function postExternalComment(
 ): Promise<void> {
   const body = `${EXTERNAL_COMMENT_MARKER}\n${message}`;
   try {
-    const { data: comments } = await octokit.rest.issues.listComments({
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
       issue_number: prNumber,
+      per_page: 100,
     });
     if (comments.some((c) => c.body?.includes(EXTERNAL_COMMENT_MARKER))) {
       core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);

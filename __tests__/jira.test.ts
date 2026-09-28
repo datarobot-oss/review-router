@@ -130,6 +130,7 @@ describe("fetchTicket", () => {
         headers: {
           Authorization: "Bearer tok",
           Accept: "application/json",
+          "Accept-Language": "en",
         },
       }
     );

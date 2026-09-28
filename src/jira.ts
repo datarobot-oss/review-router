@@ -63,6 +63,8 @@ export async function fetchTicket(
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
+        // Node's fetch sends Accept-Language "*", and Jira answers it with Chinese issue type names.
+        "Accept-Language": "en",
       },
     });
     if (!response.ok) {

@@ -6,12 +6,22 @@ import { SlackMessageRef } from "./slack";
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
 export const EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
+// Matches the Slack message's file list cutoff.
+const COLLAPSE_AFTER_FILES = 10;
 
 export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
   const lines: string[] = [COMMENT_MARKER, "## Code Ownership", ""];
 
   for (const [team, files] of ownership.teamFiles) {
-    lines.push(`**${humanizeSlug(team)}**`);
+    const collapsed = files.length > COLLAPSE_AFTER_FILES;
+    if (collapsed) {
+      lines.push(
+        `<details><summary><b>${humanizeSlug(team)}</b> · ${files.length} files</summary>`,
+        ""
+      );
+    } else {
+      lines.push(`**${humanizeSlug(team)}**`);
+    }
     for (const file of files) {
       const originalOwners = ownership.defaultedFiles.get(file);
       if (originalOwners) {
@@ -21,6 +31,7 @@ export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boo
       }
     }
     lines.push("");
+    if (collapsed) lines.push("</details>", "");
   }
 
   if (ownership.unownedFiles.length > 0) {
@@ -114,10 +125,11 @@ export async function findExistingComment(
   repo: string,
   prNumber: number
 ): Promise<{ id: number; body: string } | null> {
-  const { data: comments } = await octokit.rest.issues.listComments({
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
     owner,
     repo,
     issue_number: prNumber,
+    per_page: 100,
   });
   const existing = comments.find((c) => c.body && c.body.includes(COMMENT_MARKER));
   return existing ? { id: existing.id, body: existing.body ?? "" } : null;
@@ -164,10 +176,11 @@ export async function postExternalComment(
 ): Promise<void> {
   const body = `${EXTERNAL_COMMENT_MARKER}\n${message}`;
   try {
-    const { data: comments } = await octokit.rest.issues.listComments({
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
       issue_number: prNumber,
+      per_page: 100,
     });
     if (comments.some((c) => c.body?.includes(EXTERNAL_COMMENT_MARKER))) {
       core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);

@@ -5,7 +5,7 @@ Review Router can post an automated code review, run by Claude Code through Data
 ## What it does
 
 1. Downloads the PR's files as a tarball. It never checks out or runs PR code.
-2. Builds a context directory: the diff, the PR description with other bots' blocks removed, recent history of the changed files, a script-built map of where changed functions are called, and review rules from the base branch.
+2. Builds a context directory: the diff, the PR description with other bots' blocks removed, recent history of the changed files, a script-built map of where changed functions are called, and review rules and precedents from the base branch.
 3. Runs read-only review passes in parallel. The claims pass always runs and checks the PR's claims and the callers of changed functions. The rules pass runs only when the repo has review rules (see [Per-repo guidance](#per-repo-guidance)) and checks the diff against them. Sessions can only read, search, and list files.
 4. Scores each medium- and high-severity candidate in its own session and keeps scores at or above the threshold.
 5. Posts one review with inline comments. It never approves or requests changes.
@@ -57,6 +57,25 @@ Either one turns on the rules pass, which checks the diff against every rule fil
 
 Both are read from the PR's base branch, so a PR can't change the rules that review it, and a new or edited file takes effect after it merges.
 
+## Precedents
+
+A precedent records a past ruling on a finding, so the reviewer stops repeating a false positive and looks harder for a bug class it has caught before. Add one markdown file per ruling under `.github/ai-review/precedents/`:
+
+```markdown
+---
+verdict: false-positive
+source: https://github.com/acme/api/pull/412#discussion_r123
+---
+
+# Unpaginated list calls on team members
+
+The reviewer flagged `listMembers` for not paginating. Teams are capped at 50 members by the org settings, and the call asks for 100 per page, so one page is always complete.
+```
+
+Use `verdict: real` for a confirmed bug and `verdict: false-positive` for a finding that was wrong. Describe the pattern, not only the one line, so the ruling carries over to similar code. The review passes read precedents alongside the diff, and the scorers score a candidate that matches a false-positive precedent 0. Precedents don't turn on the rules pass.
+
+Like the rules, precedents are read from the base branch and take effect after they merge, and each one adds to every review's input tokens.
+
 ## When it doesn't run
 
 - Fork PRs, always.
@@ -68,4 +87,5 @@ Both are read from the PR's base branch, so a PR can't change the rules that rev
 
 - Two triggers on the same PR at the same time both run and both post.
 - The cost in the workflow log is Claude Code's list-price estimate, not DataRobot's actual cost.
+- The workflow log has a line per tool call and a cache hit rate per session. A warning that a session read nothing from the prompt cache means caching broke somewhere between the proxy and the gateway, and reviews cost several times more until it's fixed.
 - The LLM Gateway caps prompts per user per day. A review uses about 50.

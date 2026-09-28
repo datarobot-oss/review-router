@@ -22,7 +22,7 @@ const settings = {
   maxCostUsd: 3,
 };
 
-function workspace(ruleFiles: string[] = ["BUGBOT.md"]): Workspace {
+function workspace(ruleFiles: string[] = ["BUGBOT.md"], precedentFiles: string[] = []): Workspace {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pipe-"));
   return {
     root,
@@ -32,6 +32,7 @@ function workspace(ruleFiles: string[] = ["BUGBOT.md"]): Workspace {
     diffPatch: "",
     guidance: "",
     ruleFiles,
+    precedentFiles,
   };
 }
 
@@ -162,6 +163,26 @@ describe("runPipeline", () => {
     expect(scorers).toHaveLength(2);
     expect(result.skippedCandidates).toBe(2);
     scorers.forEach((s) => expect(s.maxBudgetUsd).toBeGreaterThanOrEqual(0.15));
+  });
+
+  it("tells passes and scorers about precedents only when the repo has some", async () => {
+    const outputs = { claims: ok({ findings: [finding()] }), rules: ok({ findings: [] }) };
+    const withPrecedents = fakeRun(outputs, { "claims-0": 90 });
+    await runPipeline(withPrecedents.run, workspace(["BUGBOT.md"], ["fp.md"]), settings);
+    expect(withPrecedents.specs.map((s) => s.systemPrompt.includes("## Precedents"))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    const without = fakeRun(outputs, { "claims-0": 90 });
+    await runPipeline(without.run, workspace(), settings);
+    expect(without.specs.some((s) => s.systemPrompt.includes("## Precedents"))).toBe(false);
+  });
+
+  it("doesn't turn on the rules pass for precedents alone", async () => {
+    const { run, specs } = fakeRun({ claims: ok({ findings: [] }) }, {});
+    await runPipeline(run, workspace([], ["fp.md"]), settings);
+    expect(specs.map((s) => s.label)).toEqual(["claims"]);
   });
 
   it("passes caps, effort, and the context directories to each session", async () => {

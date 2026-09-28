@@ -126,7 +126,7 @@ async function scoreOne(
     label: `scorer ${candidate.id}`,
     cwd: ws.repoDir,
     addDirs: [ws.contextDir, dir],
-    systemPrompt: buildScorerPrompt(SCORER_SOFT_CALLS),
+    systemPrompt: buildScorerPrompt(SCORER_SOFT_CALLS, ws.precedentFiles.length > 0),
     userPrompt: scorerUserPrompt(file, ws.contextDir),
     schema: SCORES_SCHEMA,
     model: settings.scorerModel,
@@ -162,7 +162,12 @@ export async function runPipeline(
         label: pass,
         cwd: ws.repoDir,
         addDirs: [ws.contextDir],
-        systemPrompt: buildPassPrompt(pass, PASS_SOFT_CALLS[pass], ws.guidance),
+        systemPrompt: buildPassPrompt(
+          pass,
+          PASS_SOFT_CALLS[pass],
+          ws.guidance,
+          ws.precedentFiles.length > 0
+        ),
         userPrompt: passUserPrompt(ws.contextDir),
         schema: FINDINGS_SCHEMA,
         model: settings.reviewerModel,

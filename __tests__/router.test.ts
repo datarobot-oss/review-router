@@ -861,7 +861,7 @@ describe("handleOpened", () => {
   });
 
   it("posts a Jira comment when the org has jira enabled and the title has a ticket", async () => {
-    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    mockOctokit.paginate.mockResolvedValue([]);
     mockOctokit.rest.issues.createComment.mockResolvedValue({});
 
     await handleOpened(mockOctokit as any, {
@@ -901,13 +901,16 @@ describe("handleOpened", () => {
       teamsConfig,
     });
 
-    expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(mockOctokit.paginate).not.toHaveBeenCalledWith(
+      mockOctokit.rest.issues.listComments,
+      expect.anything()
+    );
     expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
   it("still posts a Jira comment for dependabot PRs before the early return", async () => {
     mockOctokit.rest.issues.addLabels.mockResolvedValue({});
-    mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
+    mockOctokit.paginate.mockResolvedValue([]);
     mockOctokit.rest.issues.createComment.mockResolvedValue({});
 
     await handleOpened(mockOctokit as any, {

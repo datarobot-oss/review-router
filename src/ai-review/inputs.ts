@@ -29,6 +29,7 @@ export interface Workspace {
   diffPatch: string;
   guidance: string;
   ruleFiles: string[];
+  precedentFiles: string[];
 }
 
 export interface FileHistory {
@@ -43,6 +44,8 @@ export interface RuleFile {
 
 export const GUIDANCE_PATH = ".github/ai-review.md";
 export const RULES_DIR = ".cursor";
+const AI_REVIEW_DIR = ".github/ai-review";
+export const PRECEDENTS_DIR = `${AI_REVIEW_DIR}/precedents`;
 const HISTORY_MAX_FILES = 20;
 const HISTORY_PER_FILE = 8;
 
@@ -130,6 +133,30 @@ async function readText(
   }
 }
 
+/** Reads the `*.md` files directly in dir, or none when dir doesn't exist. */
+async function readMarkdownDir(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  ref: string,
+  dir: string
+): Promise<RuleFile[]> {
+  const files: RuleFile[] = [];
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner, repo, path: dir, ref });
+    if (Array.isArray(data)) {
+      for (const entry of data) {
+        if (entry.type !== "file" || !entry.name.endsWith(".md")) continue;
+        const content = await readText(octokit, owner, repo, ref, entry.path);
+        if (content) files.push({ name: path.basename(entry.name), content });
+      }
+    }
+  } catch (error) {
+    if ((error as { status?: number }).status !== 404) throw error;
+  }
+  return files;
+}
+
 /** Reads maintainer guidance and `.cursor/*.md` rules from the base branch, never the PR head. */
 export async function fetchBaseRules(
   octokit: Octokit,
@@ -141,24 +168,18 @@ export async function fetchBaseRules(
   const rules: RuleFile[] = guidance
     ? [{ name: path.basename(GUIDANCE_PATH), content: guidance }]
     : [];
-  try {
-    const { data } = await octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path: RULES_DIR,
-      ref: baseRef,
-    });
-    if (Array.isArray(data)) {
-      for (const entry of data) {
-        if (entry.type !== "file" || !entry.name.endsWith(".md")) continue;
-        const content = await readText(octokit, owner, repo, baseRef, entry.path);
-        if (content) rules.push({ name: path.basename(entry.name), content });
-      }
-    }
-  } catch (error) {
-    if ((error as { status?: number }).status !== 404) throw error;
-  }
+  rules.push(...(await readMarkdownDir(octokit, owner, repo, baseRef, RULES_DIR)));
   return { guidance, rules };
+}
+
+/** Reads past rulings on review findings from the base branch, so a PR can't rule on itself. */
+export async function fetchBasePrecedents(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  baseRef: string
+): Promise<RuleFile[]> {
+  return readMarkdownDir(octokit, owner, repo, baseRef, PRECEDENTS_DIR);
 }
 
 /** Deletes every symlink under dir, so no session can read through one out of the workspace. */
@@ -176,7 +197,7 @@ export function removeSymlinks(dir: string): number {
   return removed;
 }
 
-/** Downloads and extracts the PR head, then removes symlinks, rules, and Claude Code config. */
+/** Downloads and extracts the PR head, then removes symlinks, rules, precedents, and Claude Code config. */
 export async function downloadHead(
   octokit: Octokit,
   runner: CommandRunner,
@@ -203,7 +224,7 @@ export async function downloadHead(
   fs.rmSync(tarball, { force: true });
   if (result.exitCode !== 0) throw new Error(`tar failed: ${result.stderr.slice(0, 300)}`);
   removeSymlinks(destDir);
-  for (const rel of [GUIDANCE_PATH, RULES_DIR, ".claude", ".mcp.json"]) {
+  for (const rel of [GUIDANCE_PATH, AI_REVIEW_DIR, RULES_DIR, ".claude", ".mcp.json"]) {
     fs.rmSync(path.join(destDir, rel), { recursive: true, force: true });
   }
 }
@@ -238,6 +259,7 @@ async function fillWorkspace(
   const repoDir = path.join(root, "repo");
   const contextDir = path.join(root, "context");
   fs.mkdirSync(path.join(contextDir, "rules"), { recursive: true });
+  fs.mkdirSync(path.join(contextDir, "precedents"), { recursive: true });
 
   const files = (await octokit.paginate(octokit.rest.pulls.listFiles, {
     owner,
@@ -264,6 +286,10 @@ async function fillWorkspace(
   for (const rule of rules) {
     fs.writeFileSync(path.join(contextDir, "rules", rule.name), rule.content);
   }
+  const precedents = await fetchBasePrecedents(octokit, owner, repo, pr.baseRef);
+  for (const precedent of precedents) {
+    fs.writeFileSync(path.join(contextDir, "precedents", precedent.name), precedent.content);
+  }
 
   fs.writeFileSync(path.join(contextDir, "callers.md"), buildContextPack(repoDir, diffPatch));
   return {
@@ -274,5 +300,6 @@ async function fillWorkspace(
     diffPatch,
     guidance,
     ruleFiles: rules.map((r) => r.name),
+    precedentFiles: precedents.map((p) => p.name),
   };
 }

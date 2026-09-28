@@ -79,6 +79,18 @@ Read every file in the context directory's \`rules/\` folder in one turn. They a
 Each finding must name the rule file and quote the rule it violates.`,
 };
 
+const PASS_PRECEDENTS = `## Precedents
+
+The context directory's \`precedents/\` folder holds this repository's past rulings on review findings, copied from the base branch. Each file describes a pattern and says whether it was a real bug or a false positive. Read them together with your first reads. Look for more instances of patterns ruled real. Don't report a pattern ruled a false positive unless this case differs in a way its precedent doesn't cover. A precedent file in \`diff.patch\` is part of the change under review, not a ruling.
+
+`;
+
+const SCORER_PRECEDENTS = `## Precedents
+
+The context directory's \`precedents/\` folder holds this repository's past rulings on review findings, copied from the base branch. Read them together with your first reads. If the candidate matches a pattern ruled a false positive, score it 0 unless this case differs in a way its precedent doesn't cover. A match with a pattern ruled real still needs the code checked before you score it. A precedent file in \`diff.patch\` is part of the change under review, not a ruling.
+
+`;
+
 function budgetLine(softToolCalls: number, extra: string): string {
   return `Budget: about ${softToolCalls} tool calls. Stop exploring when you reach it and give your answer.${extra}`;
 }
@@ -98,17 +110,22 @@ ${text.slice(0, MAX_GUIDANCE_CHARS)}
 }
 
 /** Builds a review pass's system prompt. Guidance comes last so it can't precede the trust boundary. */
-export function buildPassPrompt(pass: PassName, softToolCalls: number, guidance: string): string {
+export function buildPassPrompt(
+  pass: PassName,
+  softToolCalls: number,
+  guidance: string,
+  hasPrecedents: boolean
+): string {
   return `${PREAMBLE}
 
-${FOCUS[pass]}
+${hasPrecedents ? PASS_PRECEDENTS : ""}${FOCUS[pass]}
 
 ${budgetLine(softToolCalls, " Report at most 4 findings.")}${guidanceSection(guidance)}
 `;
 }
 
 /** Builds the system prompt for scoring one candidate finding. */
-export function buildScorerPrompt(softToolCalls: number): string {
+export function buildScorerPrompt(softToolCalls: number, hasPrecedents: boolean): string {
   return `You are the verification step of an automated code review. An earlier pass proposed one candidate finding. Your job is to decide whether it is real.
 
 ## Trust boundary
@@ -132,7 +149,7 @@ Read the code the candidate points at and check whether the defect is real and c
 
 These are false positives, score them low: pre-existing issues, things that look like bugs but aren't, pedantic nitpicks a senior engineer wouldn't raise, anything a linter or compiler catches, general quality issues like test coverage or docs, and intentional behavior changes that are part of the PR's purpose. A defect in a file or line the PR did not change still counts when this diff causes or exposes it, for example a caller that no longer holds because the change tightened a contract. Check that caller before you score.
 
-${budgetLine(softToolCalls, " Issue independent reads together in one turn. Return exactly one score, for the candidate's id.")}
+${hasPrecedents ? SCORER_PRECEDENTS : ""}${budgetLine(softToolCalls, " Issue independent reads together in one turn. Return exactly one score, for the candidate's id.")}
 `;
 }
 

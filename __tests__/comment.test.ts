@@ -5,8 +5,23 @@ import {
   extractSlackRefs,
   embedSlackRefsInDescription,
   extractSlackRefsFromDescription,
+  postExternalComment,
   COMMENT_MARKER,
+  EXTERNAL_COMMENT_MARKER,
 } from "../src/comment";
+
+jest.mock("@actions/core");
+
+/** Returns an octokit whose paginate yields firstPage from listComments, then the rest. */
+function commentsOctokit(firstPage: object[], rest: object[] = []) {
+  const listComments = jest.fn(async () => ({ data: firstPage }));
+  return {
+    rest: { issues: { listComments, createComment: jest.fn(), updateComment: jest.fn() } },
+    paginate: jest.fn(async () => [...firstPage, ...rest]),
+  };
+}
+
+const chatter = Array.from({ length: 30 }, (_, i) => ({ id: i, body: "chatter" }));
 
 describe("buildOwnershipComment", () => {
   it("builds a comment with team ownership list", () => {
@@ -25,6 +40,36 @@ describe("buildOwnershipComment", () => {
     expect(comment).toContain("**Platform Team**");
     expect(comment).toContain("- `infra/main.tf`");
     expect(comment).not.toContain("Unowned files");
+  });
+
+  it("collapses a team's files past 10, keeping the team and count visible", () => {
+    const teamFiles = new Map<string, string[]>();
+    const many = Array.from({ length: 11 }, (_, i) => `src/f${i}.py`);
+    teamFiles.set("platform-team", many);
+    teamFiles.set("customer-engineering", ["src/app.py"]);
+    const comment = buildOwnershipComment(
+      { teamFiles, unownedFiles: [], defaultedFiles: new Map() },
+      true
+    );
+    expect(comment).toContain(
+      "<details><summary><b>Platform Team</b> · 11 files</summary>\n\n- `src/f0.py`"
+    );
+    expect(comment).toContain("- `src/f10.py`\n\n</details>");
+    expect(comment).toContain("**Customer Engineering**\n- `src/app.py`");
+  });
+
+  it("keeps a team with exactly 10 files expanded", () => {
+    const teamFiles = new Map<string, string[]>();
+    teamFiles.set(
+      "platform-team",
+      Array.from({ length: 10 }, (_, i) => `src/f${i}.py`)
+    );
+    const comment = buildOwnershipComment(
+      { teamFiles, unownedFiles: [], defaultedFiles: new Map() },
+      true
+    );
+    expect(comment).not.toContain("<details>");
+    expect(comment).toContain("**Platform Team**");
   });
 
   it("includes unowned files section when present", () => {
@@ -80,11 +125,39 @@ describe("buildOwnershipComment", () => {
   });
 });
 
+describe("paginated comment lookups", () => {
+  it("updates the ownership comment when it's past the first page", async () => {
+    const octokit = commentsOctokit(chatter, [{ id: 42, body: `${COMMENT_MARKER}\nold` }]);
+    await upsertComment(octokit as any, "owner", "repo", 1, "new");
+    expect(octokit.paginate).toHaveBeenCalledWith(octokit.rest.issues.listComments, {
+      owner: "owner",
+      repo: "repo",
+      issue_number: 1,
+      per_page: 100,
+    });
+    expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({ comment_id: 42 })
+    );
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("skips the external contributor comment when it's past the first page", async () => {
+    const octokit = commentsOctokit(chatter, [{ id: 7, body: `${EXTERNAL_COMMENT_MARKER}\nhi` }]);
+    await postExternalComment(octokit as any, "owner", "repo", 1, "hi");
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+});
+
 describe("upsertComment", () => {
   const mockOctokit = {
     rest: {
       issues: { listComments: jest.fn(), createComment: jest.fn(), updateComment: jest.fn() },
     },
+    // One page: the listComments mock's data.
+    paginate: jest.fn(
+      async (method: (p: object) => Promise<{ data: unknown[] }>, params: object) =>
+        (await method(params)).data
+    ),
   };
   beforeEach(() => jest.clearAllMocks());
 

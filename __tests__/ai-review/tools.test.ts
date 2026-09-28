@@ -34,6 +34,12 @@ describe("renderLiteLLMConfig", () => {
     expect(config).toContain('master_key: "os.environ/LITELLM_MASTER_KEY"');
     expect(config).not.toContain("datarobot/");
   });
+
+  it("times out a hung gateway call and retries it once", () => {
+    const config = renderLiteLLMConfig();
+    expect(config).toContain("  request_timeout: 180");
+    expect(config).toContain("  num_retries: 1");
+  });
 });
 
 describe("proxyEnv", () => {

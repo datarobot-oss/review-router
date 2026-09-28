@@ -80,6 +80,7 @@ beforeEach(() => {
     diffPatch: "",
     guidance: "",
     ruleFiles: [],
+    precedentFiles: [],
   });
   (runPipeline as jest.Mock).mockResolvedValue({
     findings: [],

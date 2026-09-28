@@ -34,7 +34,7 @@ export interface SessionResult {
   error?: string;
 }
 
-/** The fields of `claude -p --output-format json` this module reads. */
+/** The fields of the result event of `claude -p --output-format stream-json` this module reads. */
 export interface ClaudeResult {
   subtype?: string;
   is_error?: boolean;
@@ -56,6 +56,7 @@ export const SALVAGE_PROMPT =
 export const SALVAGE_MAX_TURNS = 3;
 // Resuming with no tools invalidates the prompt cache, so a salvage re-writes the whole context.
 export const SALVAGE_HEADROOM_USD = 0.3;
+const TOOL_GIST_CHARS = 160;
 
 // Models that use adaptive thinking. Anything else sends thinking.type "enabled", which LiteLLM's
 // openai provider reroutes to a Responses route the gateway doesn't serve.
@@ -110,7 +111,8 @@ function commonArgs(spec: SessionSpec, promptFile: string, budgetUsd: number): s
     "--json-schema",
     JSON.stringify(spec.schema),
     "--output-format",
-    "json",
+    "stream-json",
+    "--verbose",
   ];
 }
 
@@ -153,20 +155,62 @@ function failureText(result: ClaudeResult): string {
 
 function describeRun(label: string, result: ClaudeResult, turns: number): string {
   const u = result.usage ?? {};
+  const read = u.cache_read_input_tokens ?? 0;
+  const input = read + (u.cache_creation_input_tokens ?? 0) + (u.input_tokens ?? 0);
   return (
     `AI review session ${label}: ${turns} turns, $${(result.total_cost_usd ?? 0).toFixed(2)}, ` +
-    `tokens: ${u.cache_read_input_tokens ?? 0} cache read, ${u.cache_creation_input_tokens ?? 0} cache write, ` +
-    `${u.input_tokens ?? 0} uncached input, ${u.output_tokens ?? 0} output`
+    `tokens: ${read} cache read, ${u.cache_creation_input_tokens ?? 0} cache write, ` +
+    `${u.input_tokens ?? 0} uncached input, ${u.output_tokens ?? 0} output` +
+    (input > 0 ? `, ${Math.round((read / input) * 100)}% from cache` : "")
   );
 }
 
-function parse(stdout: string): ClaudeResult | null {
-  try {
-    const value: unknown = JSON.parse(stdout.trim());
-    return value && typeof value === "object" ? (value as ClaudeResult) : null;
-  } catch {
-    return null;
+// Caching failing through the proxy or the gateway fails nothing, it only multiplies the cost.
+function cacheLooksBroken(result: ClaudeResult): boolean {
+  return (
+    result.usage != null && (result.num_turns ?? 0) > 1 && !result.usage.cache_read_input_tokens
+  );
+}
+
+/** Formats one tool call for the log, with paths relative to the workspace root. */
+function toolGist(name: string, input: Record<string, unknown>, root: string): string {
+  const rel = (p: unknown) =>
+    typeof p !== "string" ? "" : p.startsWith(root) ? p.slice(root.length) : p;
+  let target = rel(input.file_path);
+  if (!target && typeof input.pattern === "string") {
+    target = input.pattern + (typeof input.path === "string" ? ` in ${rel(input.path)}` : "");
   }
+  target = target.replace(/\s+/g, " ");
+  if (target.length > TOOL_GIST_CHARS) target = `${target.slice(0, TOOL_GIST_CHARS)}…`;
+  return `tool ${name} ${target}`.trimEnd();
+}
+
+interface StreamEvent {
+  type?: string;
+  message?: { content?: { type?: string; name?: string; input?: Record<string, unknown> }[] };
+}
+
+/** Parses stream-json stdout into its result event and a log line per tool call. */
+function parse(stdout: string, root: string): { result: ClaudeResult | null; tools: string[] } {
+  let result: ClaudeResult | null = null;
+  const tools: string[] = [];
+  for (const line of stdout.split("\n")) {
+    let event: StreamEvent;
+    try {
+      event = JSON.parse(line) as StreamEvent;
+    } catch {
+      continue;
+    }
+    if (!event || typeof event !== "object") continue;
+    if (event.type === "result") result = event as ClaudeResult;
+    if (event.type !== "assistant") continue;
+    for (const block of event.message?.content ?? []) {
+      // The schema-constrained answer arrives as a StructuredOutput call, which isn't exploration.
+      if (block.type !== "tool_use" || !block.name || block.name === "StructuredOutput") continue;
+      tools.push(toolGist(block.name, block.input ?? {}, root));
+    }
+  }
+  return { result, tools };
 }
 
 /**
@@ -185,6 +229,9 @@ export async function runSession(
   const promptFile = path.join(dir, "system.md");
   fs.writeFileSync(promptFile, spec.systemPrompt);
   const env = sessionEnv(proxy, spec);
+  const root = `${path.dirname(spec.cwd)}${path.sep}`;
+  const logTools = (tools: string[]) =>
+    tools.forEach((tool) => core.info(`AI review session ${spec.label}: ${tool}`));
   const warn = (error: string) =>
     core.warning(`AI review session ${spec.label} on ${spec.model} failed: ${error}`);
   const failed = (error: string): SessionResult => {
@@ -200,7 +247,9 @@ export async function runSession(
         env,
         signal,
       });
-      first = parse(run.stdout);
+      const parsed = parse(run.stdout, root);
+      logTools(parsed.tools);
+      first = parsed.result;
       stderr = run.stderr.trim().slice(-300);
     } catch (error) {
       return failed(error instanceof Error ? error.message : String(error));
@@ -222,7 +271,7 @@ export async function runSession(
           env,
           signal,
         });
-        const second = parse(run.stdout);
+        const second = parse(run.stdout, root).result;
         if (second) {
           final = second;
           turns += second.num_turns ?? 0;
@@ -232,6 +281,13 @@ export async function runSession(
       }
     }
     core.info(`${describeRun(spec.label, final, turns)}${salvaged ? ", salvaged" : ""}`);
+    // A salvage resume starts a fresh cache, so each run is checked on its own turns.
+    const brokenCacheRun = [first, final].find(cacheLooksBroken);
+    if (brokenCacheRun) {
+      core.warning(
+        `AI review session ${spec.label} read nothing from the prompt cache over ${brokenCacheRun.num_turns} turns, so caching may be broken and reviews cost several times more.`
+      );
+    }
     const ok = !final.is_error && final.structured_output != null;
     const error = ok ? undefined : failureText(final);
     if (error) warn(error);

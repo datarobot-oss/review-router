@@ -14,6 +14,8 @@ import { CommandRunner } from "../../src/ai-review/process";
 
 jest.mock("@actions/core");
 
+beforeEach(() => jest.clearAllMocks());
+
 const spec: SessionSpec = {
   label: "claims",
   cwd: "/tmp/ws/repo",
@@ -33,14 +35,27 @@ function flagValue(args: string[], flag: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 
-function fakeRunner(outputs: object[]): { runner: CommandRunner; calls: string[][] } {
+/** Renders `claude --output-format stream-json` stdout: the events, then the result event. */
+function streamOf(result: object, events: object[] = []): string {
+  return [...events, { type: "result", ...result }].map((e) => JSON.stringify(e)).join("\n");
+}
+
+function toolUse(name: string, input: object): object {
+  return { type: "assistant", message: { content: [{ type: "tool_use", id: name, name, input }] } };
+}
+
+function fakeRunner(outputs: (object | string)[]): { runner: CommandRunner; calls: string[][] } {
   const calls: string[][] = [];
   const runner: CommandRunner = {
     run: jest.fn(async (_cmd: string, args: string[]) => {
       calls.push(args);
       const next = outputs.shift();
       if (!next) throw new Error("no more outputs");
-      return { stdout: JSON.stringify(next), stderr: "", exitCode: 0 };
+      return {
+        stdout: typeof next === "string" ? next : streamOf(next),
+        stderr: "",
+        exitCode: 0,
+      };
     }),
   };
   return { runner, calls };
@@ -57,6 +72,12 @@ describe("initialArgs", () => {
     expect(args).toContain("--bare");
     expect(args).toContain("--strict-mcp-config");
     expect(args).not.toContain("--dangerously-skip-permissions");
+  });
+
+  it("streams events, so tool calls can be logged", () => {
+    const args = initialArgs(spec, "/tmp/p.md");
+    expect(flagValue(args, "--output-format")).toBe("stream-json");
+    expect(args).toContain("--verbose");
   });
 
   it("loads no project or local settings, which the PR head controls", () => {
@@ -173,8 +194,100 @@ describe("runSession", () => {
     ]);
     await runSession(runner, "claude", proxy, spec);
     expect(core.info).toHaveBeenCalledWith(
-      "AI review session claims: 6 turns, $0.40, tokens: 120000 cache read, 20000 cache write, 1200 uncached input, 3000 output"
+      "AI review session claims: 6 turns, $0.40, tokens: 120000 cache read, 20000 cache write, 1200 uncached input, 3000 output, 85% from cache"
     );
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+
+  it("warns when a multi-turn session reads nothing from the cache", async () => {
+    const { runner } = fakeRunner([
+      {
+        subtype: "success",
+        is_error: false,
+        structured_output: { findings: [] },
+        num_turns: 6,
+        usage: { input_tokens: 90000, cache_read_input_tokens: 0, output_tokens: 3000 },
+      },
+    ]);
+    await runSession(runner, "claude", proxy, spec);
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("AI review session claims read nothing from the prompt cache")
+    );
+  });
+
+  it("checks the capped run of a salvaged session for cache reads too", async () => {
+    const { runner } = fakeRunner([
+      {
+        subtype: "error_max_turns",
+        is_error: true,
+        num_turns: 15,
+        session_id: "s1",
+        usage: { input_tokens: 400000, cache_read_input_tokens: 0, output_tokens: 9000 },
+      },
+      {
+        subtype: "success",
+        is_error: false,
+        structured_output: { findings: [] },
+        num_turns: 1,
+        session_id: "s1",
+        usage: { input_tokens: 60000, cache_read_input_tokens: 0, output_tokens: 900 },
+      },
+    ]);
+    await runSession(runner, "claude", proxy, spec);
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("read nothing from the prompt cache over 15 turns")
+    );
+  });
+
+  it("doesn't warn about the cache for a single-turn session", async () => {
+    const { runner } = fakeRunner([
+      {
+        subtype: "success",
+        is_error: false,
+        structured_output: { findings: [] },
+        num_turns: 1,
+        usage: { input_tokens: 9000, cache_creation_input_tokens: 9000, output_tokens: 300 },
+      },
+    ]);
+    await runSession(runner, "claude", proxy, spec);
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+
+  it("logs each tool call with workspace-relative paths, skipping structured output", async () => {
+    const events = [
+      { type: "system", subtype: "init" },
+      toolUse("Read", { file_path: "/tmp/ws/context/diff.patch" }),
+      toolUse("Grep", { pattern: "renderLiteLLMConfig", path: "/tmp/ws/repo/src" }),
+      toolUse("Glob", { pattern: "**/*.test.ts" }),
+      { type: "user", message: { content: [{ type: "tool_result" }] } },
+      toolUse("StructuredOutput", { findings: [] }),
+    ];
+    const { runner } = fakeRunner([
+      streamOf(
+        { subtype: "success", is_error: false, structured_output: { findings: [] }, num_turns: 3 },
+        events
+      ),
+    ]);
+    await runSession(runner, "claude", proxy, spec);
+    const lines = (core.info as jest.Mock).mock.calls.map((c) => c[0] as string);
+    expect(lines.filter((l) => l.includes(": tool "))).toEqual([
+      "AI review session claims: tool Read context/diff.patch",
+      "AI review session claims: tool Grep renderLiteLLMConfig in repo/src",
+      "AI review session claims: tool Glob **/*.test.ts",
+    ]);
+  });
+
+  it("truncates long tool arguments", async () => {
+    const { runner } = fakeRunner([
+      streamOf({ subtype: "success", structured_output: { findings: [] }, num_turns: 1 }, [
+        toolUse("Grep", { pattern: "x".repeat(500) }),
+      ]),
+    ]);
+    await runSession(runner, "claude", proxy, spec);
+    const line = (core.info as jest.Mock).mock.calls
+      .map((c) => c[0] as string)
+      .find((l) => l.includes(": tool Grep"));
+    expect(line).toBe(`AI review session claims: tool Grep ${"x".repeat(160)}…`);
   });
 
   it("salvages a capped session and takes the resumed session's cumulative cost", async () => {

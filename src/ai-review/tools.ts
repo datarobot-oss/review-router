@@ -37,6 +37,9 @@ export function renderLiteLLMConfig(): string {
     '  master_key: "os.environ/LITELLM_MASTER_KEY"',
     "litellm_settings:",
     "  drop_params: true",
+    // Without a timeout, a gateway call that never answers waits on claude's own, about an hour.
+    "  request_timeout: 180",
+    "  num_retries: 1",
     "  success_callback: []",
     "  failure_callback: []",
     "",

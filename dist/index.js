@@ -9147,7 +9147,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1140.0";
+var version = "3.1145.0";
 var packageInfo = {
 	version: version};
 
@@ -10119,6 +10119,7 @@ const InventoryOptionalField = {
     ETag: "ETag",
     EncryptionStatus: "EncryptionStatus",
     IntelligentTieringAccessTier: "IntelligentTieringAccessTier",
+    IntelligentTieringReferenceDate: "IntelligentTieringReferenceDate",
     IsMultipartUploaded: "IsMultipartUploaded",
     LastModifiedDate: "LastModifiedDate",
     LifecycleExpirationDate: "LifecycleExpirationDate",

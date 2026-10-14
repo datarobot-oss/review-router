@@ -5457,6 +5457,7 @@ const _mw13 = (Command, cs, config, o) => [
 ];
 
 class S3ServiceException extends ServiceException {
+    static shapeId = "smithy.ts.sdk.synthetic.com.amazonaws.s3#S3ServiceException";
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, S3ServiceException.prototype);
@@ -5464,6 +5465,7 @@ class S3ServiceException extends ServiceException {
 }
 
 class NoSuchUpload extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#NoSuchUpload";
     name = "NoSuchUpload";
     $fault = "client";
     constructor(opts) {
@@ -5476,6 +5478,7 @@ class NoSuchUpload extends S3ServiceException {
     }
 }
 class AccessDenied extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#AccessDenied";
     name = "AccessDenied";
     $fault = "client";
     constructor(opts) {
@@ -5488,6 +5491,7 @@ class AccessDenied extends S3ServiceException {
     }
 }
 class ObjectNotInActiveTierError extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#ObjectNotInActiveTierError";
     name = "ObjectNotInActiveTierError";
     $fault = "client";
     constructor(opts) {
@@ -5500,6 +5504,7 @@ class ObjectNotInActiveTierError extends S3ServiceException {
     }
 }
 class BucketAlreadyExists extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#BucketAlreadyExists";
     name = "BucketAlreadyExists";
     $fault = "client";
     constructor(opts) {
@@ -5512,6 +5517,7 @@ class BucketAlreadyExists extends S3ServiceException {
     }
 }
 class BucketAlreadyOwnedByYou extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#BucketAlreadyOwnedByYou";
     name = "BucketAlreadyOwnedByYou";
     $fault = "client";
     constructor(opts) {
@@ -5524,6 +5530,7 @@ class BucketAlreadyOwnedByYou extends S3ServiceException {
     }
 }
 class NoSuchBucket extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#NoSuchBucket";
     name = "NoSuchBucket";
     $fault = "client";
     constructor(opts) {
@@ -5536,6 +5543,7 @@ class NoSuchBucket extends S3ServiceException {
     }
 }
 class NoSuchKey extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#NoSuchKey";
     name = "NoSuchKey";
     $fault = "client";
     constructor(opts) {
@@ -5548,6 +5556,7 @@ class NoSuchKey extends S3ServiceException {
     }
 }
 class InvalidObjectState extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#InvalidObjectState";
     name = "InvalidObjectState";
     $fault = "client";
     StorageClass;
@@ -5564,6 +5573,7 @@ class InvalidObjectState extends S3ServiceException {
     }
 }
 class NoSuchAnnotation extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#NoSuchAnnotation";
     name = "NoSuchAnnotation";
     $fault = "client";
     constructor(opts) {
@@ -5576,6 +5586,7 @@ class NoSuchAnnotation extends S3ServiceException {
     }
 }
 class NotFound extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#NotFound";
     name = "NotFound";
     $fault = "client";
     constructor(opts) {
@@ -5588,6 +5599,7 @@ class NotFound extends S3ServiceException {
     }
 }
 class InvalidPrefix extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#InvalidPrefix";
     name = "InvalidPrefix";
     $fault = "client";
     constructor(opts) {
@@ -5600,6 +5612,7 @@ class InvalidPrefix extends S3ServiceException {
     }
 }
 class EncryptionTypeMismatch extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#EncryptionTypeMismatch";
     name = "EncryptionTypeMismatch";
     $fault = "client";
     constructor(opts) {
@@ -5612,6 +5625,7 @@ class EncryptionTypeMismatch extends S3ServiceException {
     }
 }
 class InvalidRequest extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#InvalidRequest";
     name = "InvalidRequest";
     $fault = "client";
     constructor(opts) {
@@ -5624,6 +5638,7 @@ class InvalidRequest extends S3ServiceException {
     }
 }
 class InvalidWriteOffset extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#InvalidWriteOffset";
     name = "InvalidWriteOffset";
     $fault = "client";
     constructor(opts) {
@@ -5636,6 +5651,7 @@ class InvalidWriteOffset extends S3ServiceException {
     }
 }
 class TooManyParts extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#TooManyParts";
     name = "TooManyParts";
     $fault = "client";
     constructor(opts) {
@@ -5648,6 +5664,7 @@ class TooManyParts extends S3ServiceException {
     }
 }
 class AnnotationLimitExceeded extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#AnnotationLimitExceeded";
     name = "AnnotationLimitExceeded";
     $fault = "client";
     constructor(opts) {
@@ -5660,6 +5677,7 @@ class AnnotationLimitExceeded extends S3ServiceException {
     }
 }
 class AnnotationNameTooLong extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#AnnotationNameTooLong";
     name = "AnnotationNameTooLong";
     $fault = "client";
     constructor(opts) {
@@ -5672,6 +5690,7 @@ class AnnotationNameTooLong extends S3ServiceException {
     }
 }
 class InvalidAnnotationName extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#InvalidAnnotationName";
     name = "InvalidAnnotationName";
     $fault = "client";
     constructor(opts) {
@@ -5684,6 +5703,7 @@ class InvalidAnnotationName extends S3ServiceException {
     }
 }
 class UnsupportedMediaType extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#UnsupportedMediaType";
     name = "UnsupportedMediaType";
     $fault = "client";
     constructor(opts) {
@@ -5696,6 +5716,7 @@ class UnsupportedMediaType extends S3ServiceException {
     }
 }
 class IdempotencyParameterMismatch extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#IdempotencyParameterMismatch";
     name = "IdempotencyParameterMismatch";
     $fault = "client";
     constructor(opts) {
@@ -5708,6 +5729,7 @@ class IdempotencyParameterMismatch extends S3ServiceException {
     }
 }
 class ObjectAlreadyInActiveTierError extends S3ServiceException {
+    static shapeId = "com.amazonaws.s3#ObjectAlreadyInActiveTierError";
     name = "ObjectAlreadyInActiveTierError";
     $fault = "client";
     constructor(opts) {
@@ -9147,7 +9169,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1145.0";
+var version = "3.1148.0";
 var packageInfo = {
 	version: version};
 
@@ -17845,7 +17867,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.45";
+var version = "3.997.46";
 var packageInfo = {
 	version: version};
 
@@ -17962,6 +17984,7 @@ const defaultEndpointResolver = (endpointParams, context = {}) => {
 customEndpointFunctions.aws = awsEndpointFunctions;
 
 class SigninServiceException extends ServiceException {
+    static shapeId = "smithy.ts.sdk.synthetic.com.amazonaws.signin#SigninServiceException";
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, SigninServiceException.prototype);
@@ -17969,6 +17992,7 @@ class SigninServiceException extends ServiceException {
 }
 
 class AccessDeniedException extends SigninServiceException {
+    static shapeId = "com.amazonaws.signin#AccessDeniedException";
     name = "AccessDeniedException";
     $fault = "client";
     error;
@@ -17983,6 +18007,7 @@ class AccessDeniedException extends SigninServiceException {
     }
 }
 class InternalServerException extends SigninServiceException {
+    static shapeId = "com.amazonaws.signin#InternalServerException";
     name = "InternalServerException";
     $fault = "server";
     error;
@@ -17997,6 +18022,7 @@ class InternalServerException extends SigninServiceException {
     }
 }
 class TooManyRequestsError extends SigninServiceException {
+    static shapeId = "com.amazonaws.signin#TooManyRequestsError";
     name = "TooManyRequestsError";
     $fault = "client";
     error;
@@ -18011,6 +18037,7 @@ class TooManyRequestsError extends SigninServiceException {
     }
 }
 class ValidationException extends SigninServiceException {
+    static shapeId = "com.amazonaws.signin#ValidationException";
     name = "ValidationException";
     $fault = "client";
     error;
@@ -18442,7 +18469,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.45";
+var version = "3.997.46";
 var packageInfo = {
 	version: version};
 
@@ -18508,6 +18535,7 @@ const defaultEndpointResolver = (endpointParams, context = {}) => {
 customEndpointFunctions.aws = awsEndpointFunctions;
 
 class SSOOIDCServiceException extends ServiceException {
+    static shapeId = "smithy.ts.sdk.synthetic.com.amazonaws.ssooidc#SSOOIDCServiceException";
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, SSOOIDCServiceException.prototype);
@@ -18515,6 +18543,7 @@ class SSOOIDCServiceException extends ServiceException {
 }
 
 class AccessDeniedException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#AccessDeniedException";
     name = "AccessDeniedException";
     $fault = "client";
     error;
@@ -18533,6 +18562,7 @@ class AccessDeniedException extends SSOOIDCServiceException {
     }
 }
 class AuthorizationPendingException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#AuthorizationPendingException";
     name = "AuthorizationPendingException";
     $fault = "client";
     error;
@@ -18549,6 +18579,7 @@ class AuthorizationPendingException extends SSOOIDCServiceException {
     }
 }
 class ExpiredTokenException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#ExpiredTokenException";
     name = "ExpiredTokenException";
     $fault = "client";
     error;
@@ -18565,6 +18596,7 @@ class ExpiredTokenException extends SSOOIDCServiceException {
     }
 }
 class InternalServerException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#InternalServerException";
     name = "InternalServerException";
     $fault = "server";
     error;
@@ -18581,6 +18613,7 @@ class InternalServerException extends SSOOIDCServiceException {
     }
 }
 class InvalidClientException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#InvalidClientException";
     name = "InvalidClientException";
     $fault = "client";
     error;
@@ -18597,6 +18630,7 @@ class InvalidClientException extends SSOOIDCServiceException {
     }
 }
 class InvalidGrantException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#InvalidGrantException";
     name = "InvalidGrantException";
     $fault = "client";
     error;
@@ -18613,6 +18647,7 @@ class InvalidGrantException extends SSOOIDCServiceException {
     }
 }
 class InvalidRequestException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#InvalidRequestException";
     name = "InvalidRequestException";
     $fault = "client";
     error;
@@ -18631,6 +18666,7 @@ class InvalidRequestException extends SSOOIDCServiceException {
     }
 }
 class InvalidScopeException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#InvalidScopeException";
     name = "InvalidScopeException";
     $fault = "client";
     error;
@@ -18647,6 +18683,7 @@ class InvalidScopeException extends SSOOIDCServiceException {
     }
 }
 class SlowDownException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#SlowDownException";
     name = "SlowDownException";
     $fault = "client";
     error;
@@ -18663,6 +18700,7 @@ class SlowDownException extends SSOOIDCServiceException {
     }
 }
 class UnauthorizedClientException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#UnauthorizedClientException";
     name = "UnauthorizedClientException";
     $fault = "client";
     error;
@@ -18679,6 +18717,7 @@ class UnauthorizedClientException extends SSOOIDCServiceException {
     }
 }
 class UnsupportedGrantTypeException extends SSOOIDCServiceException {
+    static shapeId = "com.amazonaws.ssooidc#UnsupportedGrantTypeException";
     name = "UnsupportedGrantTypeException";
     $fault = "client";
     error;
@@ -19123,7 +19162,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.45";
+var version = "3.997.46";
 var packageInfo = {
 	version: version};
 
@@ -19189,6 +19228,7 @@ const defaultEndpointResolver = (endpointParams, context = {}) => {
 customEndpointFunctions.aws = awsEndpointFunctions;
 
 class SSOServiceException extends ServiceException {
+    static shapeId = "smithy.ts.sdk.synthetic.com.amazonaws.sso#SSOServiceException";
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, SSOServiceException.prototype);
@@ -19196,6 +19236,7 @@ class SSOServiceException extends ServiceException {
 }
 
 class InvalidRequestException extends SSOServiceException {
+    static shapeId = "com.amazonaws.sso#InvalidRequestException";
     name = "InvalidRequestException";
     $fault = "client";
     constructor(opts) {
@@ -19208,6 +19249,7 @@ class InvalidRequestException extends SSOServiceException {
     }
 }
 class ResourceNotFoundException extends SSOServiceException {
+    static shapeId = "com.amazonaws.sso#ResourceNotFoundException";
     name = "ResourceNotFoundException";
     $fault = "client";
     constructor(opts) {
@@ -19220,6 +19262,7 @@ class ResourceNotFoundException extends SSOServiceException {
     }
 }
 class TooManyRequestsException extends SSOServiceException {
+    static shapeId = "com.amazonaws.sso#TooManyRequestsException";
     name = "TooManyRequestsException";
     $fault = "client";
     constructor(opts) {
@@ -19232,6 +19275,7 @@ class TooManyRequestsException extends SSOServiceException {
     }
 }
 class UnauthorizedException extends SSOServiceException {
+    static shapeId = "com.amazonaws.sso#UnauthorizedException";
     name = "UnauthorizedException";
     $fault = "client";
     constructor(opts) {
@@ -19778,11 +19822,12 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.45";
+var version = "3.997.46";
 var packageInfo = {
 	version: version};
 
 class STSServiceException extends ServiceException {
+    static shapeId = "smithy.ts.sdk.synthetic.com.amazonaws.sts#STSServiceException";
     constructor(options) {
         super(options);
         Object.setPrototypeOf(this, STSServiceException.prototype);
@@ -19790,6 +19835,7 @@ class STSServiceException extends ServiceException {
 }
 
 class ExpiredTokenException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#ExpiredTokenException";
     name = "ExpiredTokenException";
     $fault = "client";
     constructor(opts) {
@@ -19802,6 +19848,7 @@ class ExpiredTokenException extends STSServiceException {
     }
 }
 class MalformedPolicyDocumentException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#MalformedPolicyDocumentException";
     name = "MalformedPolicyDocumentException";
     $fault = "client";
     constructor(opts) {
@@ -19814,6 +19861,7 @@ class MalformedPolicyDocumentException extends STSServiceException {
     }
 }
 class PackedPolicyTooLargeException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#PackedPolicyTooLargeException";
     name = "PackedPolicyTooLargeException";
     $fault = "client";
     constructor(opts) {
@@ -19826,6 +19874,7 @@ class PackedPolicyTooLargeException extends STSServiceException {
     }
 }
 class RegionDisabledException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#RegionDisabledException";
     name = "RegionDisabledException";
     $fault = "client";
     constructor(opts) {
@@ -19838,6 +19887,7 @@ class RegionDisabledException extends STSServiceException {
     }
 }
 class IDPRejectedClaimException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#IDPRejectedClaimException";
     name = "IDPRejectedClaimException";
     $fault = "client";
     constructor(opts) {
@@ -19850,6 +19900,7 @@ class IDPRejectedClaimException extends STSServiceException {
     }
 }
 class InvalidIdentityTokenException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#InvalidIdentityTokenException";
     name = "InvalidIdentityTokenException";
     $fault = "client";
     constructor(opts) {
@@ -19862,6 +19913,7 @@ class InvalidIdentityTokenException extends STSServiceException {
     }
 }
 class IDPCommunicationErrorException extends STSServiceException {
+    static shapeId = "com.amazonaws.sts#IDPCommunicationErrorException";
     name = "IDPCommunicationErrorException";
     $fault = "client";
     $retryable = {};
@@ -33172,6 +33224,7 @@ const createAggregatedClient = (commands, Client, options) => {
 };
 
 class ServiceException extends Error {
+    static shapeId = "smithy.ts.sdk.synthetic.nonamespace.client#ServiceException";
     $fault;
     $response;
     $retryable;
@@ -33203,22 +33256,43 @@ class ServiceException extends Error {
             if (this.prototype.isPrototypeOf(instance)) {
                 return true;
             }
-            const targetName = this.name;
-            if (!targetName || !candidate.name) {
+            const targetId = Object.prototype.hasOwnProperty.call(this, "shapeId")
+                ? this.shapeId
+                : undefined;
+            let candidateHasShapeId = false;
+            if (targetId) {
+                let proto = Object.getPrototypeOf(candidate);
+                while (proto && proto !== Object.prototype) {
+                    const ctor = proto.constructor;
+                    const candidateId = ctor !== ServiceException && Object.prototype.hasOwnProperty.call(ctor, "shapeId")
+                        ? ctor?.shapeId
+                        : undefined;
+                    if (candidateId) {
+                        candidateHasShapeId = true;
+                        if (candidateId === targetId) {
+                            return true;
+                        }
+                    }
+                    proto = Object.getPrototypeOf(proto);
+                }
+            }
+            if (targetId && candidateHasShapeId) {
                 return false;
             }
-            if (candidate.name === targetName) {
-                return true;
-            }
-            let proto = Object.getPrototypeOf(candidate);
-            while (proto && proto !== Object.prototype) {
-                const ctorName = proto.constructor?.name;
-                if (ctorName && ctorName !== "Error" && ctorName === targetName) {
+            const targetName = this.name;
+            if (targetName && targetName.length >= 6) {
+                if (candidate.name === targetName) {
                     return true;
                 }
-                proto = Object.getPrototypeOf(proto);
+                let proto = Object.getPrototypeOf(candidate);
+                while (proto && proto !== Object.prototype) {
+                    const ctorName = proto.constructor?.name;
+                    if (ctorName && ctorName !== "Error" && ctorName === targetName) {
+                        return true;
+                    }
+                    proto = Object.getPrototypeOf(proto);
+                }
             }
-            return false;
         }
         return false;
     }
@@ -34733,7 +34807,8 @@ class EndpointCache {
             return false;
         }
         for (const param of parameters) {
-            const val = String(endpointParams[param] ?? "");
+            const raw = endpointParams[param];
+            const val = raw == null ? "\0" : String(raw);
             if (val.includes("|;")) {
                 return false;
             }
@@ -38785,6 +38860,9 @@ class TypeRegistry {
         const $error = es;
         const ns = $error[1];
         const qualifiedName = ns + "#" + $error[2];
+        if (!ctor.hasOwnProperty?.("shapeId")) {
+            ctor.shapeId = qualifiedName;
+        }
         for (const r of [this, TypeRegistry.for(ns)]) {
             if (!r.schemas.has(qualifiedName) && !r.exceptions.has($error)) {
                 r.schemas.set(qualifiedName, $error);

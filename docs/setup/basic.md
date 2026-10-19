@@ -183,3 +183,11 @@ Contributors who cannot add labels (e.g. fork PR authors) can type
 
 The comment body must be exactly `/review` (whitespace is trimmed).
 Bot comments are ignored.
+
+## Notify one team early
+
+When a person adds a "Needs Review: {team}" label by hand, the action routes only that team. It requests the team's review, sends the Slack notification to the team's channel, and posts the ownership comment for that team. It does not run the AI review.
+
+The team must own at least one changed file in CODEOWNERS. Otherwise the action ignores the label. Labels added by the action or any bot never trigger this.
+
+Adding the "Ready for Review" label afterwards routes every team as usual, so the team from the early notification is notified again.

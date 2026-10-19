@@ -67,7 +67,7 @@ jobs:
 
 The action handles these event types:
 
-- **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added
+- **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added; when a person adds a "Needs Review: {team}" label, notifies only that team
 - **`pull_request_target: opened`** -- triggers dependabot auto-labeling when enabled in config
 - **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
 - **`pull_request_review: submitted`** -- removes team labels on approval

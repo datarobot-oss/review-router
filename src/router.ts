@@ -30,6 +30,7 @@ import {
   Capabilities,
   ReactionsConfig,
   OrgConfig,
+  OwnershipMap,
   CommentContext,
   Octokit,
 } from "./types";
@@ -50,6 +51,26 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, delayMs = 100
 
 export function isReadyLabel(name: string, readyLabel: string, aliases: string[] = []): boolean {
   return name === readyLabel || aliases.includes(name);
+}
+
+export function isHumanTeamLabel(
+  labelName: string,
+  senderType: string | undefined,
+  prefix: string
+): boolean {
+  return senderType === "User" && labelName.startsWith(`${prefix}: `);
+}
+
+function restrictToLabeledTeam(ownership: OwnershipMap, ctx: LabeledContext): OwnershipMap | null {
+  const teamSlug = [...ownership.teamFiles.keys()].find(
+    (team) => getLabelForTeam(ctx.teamsConfig, team, ctx.inputs.needsReviewPrefix) === ctx.teamLabel
+  );
+  if (!teamSlug) return null;
+  return {
+    teamFiles: new Map([[teamSlug, ownership.teamFiles.get(teamSlug)!]]),
+    unownedFiles: [],
+    defaultedFiles: ownership.defaultedFiles,
+  };
 }
 
 export function shouldSkipDuplicateRouting(
@@ -83,6 +104,7 @@ export interface LabeledContext {
   deletions: number;
   commits: number;
   labels: string[];
+  teamLabel?: string;
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
@@ -172,7 +194,12 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   }
 
   const entries = parseCodeowners(codeownersContent);
-  const ownership = mapFilesToTeams(filenames, entries);
+  const fullOwnership = mapFilesToTeams(filenames, entries);
+  const ownership = ctx.teamLabel ? restrictToLabeledTeam(fullOwnership, ctx) : fullOwnership;
+  if (!ownership) {
+    core.info(`"${ctx.teamLabel}" matches no team that owns a file in PR #${ctx.prNumber}`);
+    return;
+  }
 
   const allFileStats = filenames
     .map((f) => fileStatsMap.get(f))

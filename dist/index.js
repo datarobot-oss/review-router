@@ -81193,12 +81193,21 @@ async function run() {
             return;
         }
         const labelName = context.payload.label?.name;
-        if (!labelName ||
-            !(0, router_1.isReadyLabel)(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases)) {
+        const isReady = !!labelName && (0, router_1.isReadyLabel)(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases);
+        // The router adds team labels itself, and with an app token those labels fire this
+        // event too, so only a person's label may route a single team.
+        const teamLabel = labelName &&
+            !isReady &&
+            (0, router_1.isHumanTeamLabel)(labelName, context.payload.sender?.type, inputs.needsReviewPrefix)
+            ? labelName
+            : undefined;
+        if (!labelName || (!isReady && !teamLabel)) {
             core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
             return;
         }
-        const defersTo = (0, router_1.shouldSkipDuplicateRouting)(labelName, (pr.labels ?? []).map((l) => l.name), inputs.readyLabel, teamsConfig.ready_label_aliases);
+        const defersTo = isReady
+            ? (0, router_1.shouldSkipDuplicateRouting)(labelName, (pr.labels ?? []).map((l) => l.name), inputs.readyLabel, teamsConfig.ready_label_aliases)
+            : null;
         if (defersTo) {
             core.info(`Skipping duplicate routing: "${labelName}" defers to "${defersTo}"`);
             return;
@@ -81215,10 +81224,14 @@ async function run() {
             deletions: pr.deletions ?? 0,
             commits: pr.commits ?? 0,
             labels: (pr.labels ?? []).map((l) => l.name),
+            teamLabel,
             inputs,
             capabilities,
             teamsConfig,
         });
+        // A team label routes one team early. The AI review waits for the ready label.
+        if (teamLabel)
+            return;
         // After routing, so the review's minutes never delay labels, team requests, or Slack.
         await (0, ai_review_1.runAiReviewSafely)(octokit, {
             owner,
@@ -81794,6 +81807,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EXTERNAL_CONTRIBUTION_LABEL = void 0;
 exports.isReadyLabel = isReadyLabel;
+exports.isHumanTeamLabel = isHumanTeamLabel;
 exports.shouldSkipDuplicateRouting = shouldSkipDuplicateRouting;
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
@@ -81830,6 +81844,19 @@ async function withRetry(fn, maxAttempts = 3, delayMs = 1000) {
 }
 function isReadyLabel(name, readyLabel, aliases = []) {
     return name === readyLabel || aliases.includes(name);
+}
+function isHumanTeamLabel(labelName, senderType, prefix) {
+    return senderType === "User" && labelName.startsWith(`${prefix}: `);
+}
+function restrictToLabeledTeam(ownership, ctx) {
+    const teamSlug = [...ownership.teamFiles.keys()].find((team) => (0, config_1.getLabelForTeam)(ctx.teamsConfig, team, ctx.inputs.needsReviewPrefix) === ctx.teamLabel);
+    if (!teamSlug)
+        return null;
+    return {
+        teamFiles: new Map([[teamSlug, ownership.teamFiles.get(teamSlug)]]),
+        unownedFiles: [],
+        defaultedFiles: ownership.defaultedFiles,
+    };
 }
 function shouldSkipDuplicateRouting(triggeringLabel, allLabels, readyLabel, aliases = []) {
     const otherReady = allLabels.filter((l) => l !== triggeringLabel && isReadyLabel(l, readyLabel, aliases));
@@ -81899,7 +81926,12 @@ async function handleLabeled(octokit, ctx) {
         return;
     }
     const entries = (0, codeowners_1.parseCodeowners)(codeownersContent);
-    const ownership = (0, codeowners_1.mapFilesToTeams)(filenames, entries);
+    const fullOwnership = (0, codeowners_1.mapFilesToTeams)(filenames, entries);
+    const ownership = ctx.teamLabel ? restrictToLabeledTeam(fullOwnership, ctx) : fullOwnership;
+    if (!ownership) {
+        core.info(`"${ctx.teamLabel}" matches no team that owns a file in PR #${ctx.prNumber}`);
+        return;
+    }
     const allFileStats = filenames
         .map((f) => fileStatsMap.get(f))
         .filter((s) => s !== undefined);

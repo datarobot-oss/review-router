@@ -1,0 +1,42 @@
+# Audits the workflows with zizmor (insecure patterns) and actionlint (mistakes).
+# Both run as images pinned by digest. Update the digest and the version comment together.
+name: workflow-lint
+
+on:
+  pull_request:
+    paths: [".github/**"]
+  push:
+    branches: [main]
+    paths: [".github/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The token turns on zizmor's online audits, such as impostor commits,
+      # known-vulnerable actions, and a version comment that doesn't match its pin.
+      # zizmor 1.30.1
+      - name: zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          docker run --rm --volume "$PWD:/repo:ro" --env GH_TOKEN \
+            ghcr.io/zizmorcore/zizmor@sha256:a2eb396d886c053073405c7a980f2139ba2248ec172243cfa3841e57196e8101 \
+            --no-progress /repo
+      # actionlint 1.7.12
+      - name: actionlint
+        run: |
+          docker run --rm --volume "$PWD:/repo:ro" --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            -color

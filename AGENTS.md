@@ -37,6 +37,13 @@ npm run all           # lint + test + build
 - Jest with ts-jest, coverage collected from `src/**/*.ts` (excluding `src/index.ts`)
 - `dist/` must be rebuilt before pushing (`npm run build`). CI auto-commits it on PRs, but include it in your commit.
 
+## Workflows
+
+- Pin every `uses:` to a full commit SHA with the version in a trailing comment, for example `actions/checkout@<sha> # v7.0.1`. Dependabot keeps the pins current.
+- Tools that run in CI as Docker images (zizmor, actionlint, gitleaks, lychee) are pinned by digest in `.github/workflows/`. Update the digest and the version comment together.
+- `workflow-lint.yml` runs zizmor and actionlint on every change under `.github/`. Ignores for zizmor live in `.github/zizmor.yml`, one file per ignore with the reason.
+- Set `permissions: contents: read` at the top of a workflow and grant more only at the job that needs it.
+
 ## Release
 
 - The `v1` floating tag is updated automatically on push to main via `release.yml`

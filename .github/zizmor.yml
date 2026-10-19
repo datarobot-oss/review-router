@@ -1,0 +1,14 @@
+# Settings for zizmor, which the workflow-lint workflow runs. Every ignore names one
+# file and says why.
+rules:
+  # These workflows run on pull_request_target on purpose and never check out or run
+  # PR code. See docs/security/pull-request-target.md.
+  dangerous-triggers:
+    ignore:
+      - review-router.yml
+      - dependabot-auto-merge.yml
+  # review-router.yml hands the organization's secrets to the shared Review Router
+  # workflow of datarobot-oss.
+  secrets-inherit:
+    ignore:
+      - review-router.yml

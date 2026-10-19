@@ -2,12 +2,11 @@
 # Both run as images pinned by digest. Update the digest and the version comment together.
 name: workflow-lint
 
+# No path filter: a required check that skips a PR never reports, and the PR waits forever.
 on:
   pull_request:
-    paths: [".github/**"]
   push:
     branches: [main]
-    paths: [".github/**"]
 
 permissions:
   contents: read

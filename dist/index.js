@@ -9169,7 +9169,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1148.0";
+var version = "3.1149.0";
 var packageInfo = {
 	version: version};
 
@@ -12068,6 +12068,7 @@ const { setCredentialFeature } = __nccwpck_require__(5152);
 const { normalizeProvider, memoizeIdentityProvider, isIdentityExpired, doesIdentityRequireRefresh } = __nccwpck_require__(402);
 const { SignatureV4 } = __nccwpck_require__(5118);
 const { HttpResponse, HttpRequest } = __nccwpck_require__(3422);
+const { SMITHY_CONTEXT_KEY } = __nccwpck_require__(690);
 
 const getDateHeader = (response) => HttpResponse.isInstance(response) ? (response.headers?.date ?? response.headers?.Date) : undefined;
 const getAgeHeader = (response) => HttpResponse.isInstance(response) ? (response.headers?.age ?? response.headers?.Age) : undefined;
@@ -12094,6 +12095,12 @@ const throwSigningPropertyError = (name, property) => {
         throw new Error(`Property \`${name}\` is not resolved for AWS SDK SigV4Auth`);
     }
     return property;
+};
+const hasEventStreamOutput = (signingProperties) => {
+    const context = signingProperties.context;
+    const eventStream = context?.[SMITHY_CONTEXT_KEY]
+        ?.eventStream;
+    return eventStream?.output === true;
 };
 const validateSigningProperties = async (signingProperties) => {
     const context = throwSigningPropertyError("context", signingProperties.context);
@@ -12130,7 +12137,9 @@ class AwsSdkSigV4Signer {
         }
         const noSkewCorrection = (await config.disableClockSkewCorrection?.()) === true;
         signingProperties._disableClockSkewCorrection = noSkewCorrection;
-        if (!noSkewCorrection) {
+        const skipSkewSampling = noSkewCorrection || hasEventStreamOutput(signingProperties);
+        signingProperties._skipClockSkewSampling = skipSkewSampling;
+        if (!skipSkewSampling) {
             signingProperties._preRequestSystemClockOffset = config.systemClockOffset;
             signingProperties._requestSentAt = Date.now();
         }
@@ -12144,7 +12153,7 @@ class AwsSdkSigV4Signer {
     errorHandler(signingProperties) {
         return (error) => {
             const errorException = error;
-            if (!signingProperties._disableClockSkewCorrection) {
+            if (!signingProperties._skipClockSkewSampling && !signingProperties._disableClockSkewCorrection) {
                 const serverTime = errorException.ServerTime ?? getDateHeader(errorException.$response);
                 if (serverTime) {
                     const config = throwSigningPropertyError("config", signingProperties.config);
@@ -12165,7 +12174,7 @@ class AwsSdkSigV4Signer {
         };
     }
     successHandler(httpResponse, signingProperties) {
-        if (signingProperties._disableClockSkewCorrection) {
+        if (signingProperties._skipClockSkewSampling || signingProperties._disableClockSkewCorrection) {
             return;
         }
         const dateHeader = getDateHeader(httpResponse);
@@ -17867,7 +17876,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.46";
+var version = "3.997.47";
 var packageInfo = {
 	version: version};
 
@@ -18469,7 +18478,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.46";
+var version = "3.997.47";
 var packageInfo = {
 	version: version};
 
@@ -19162,7 +19171,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.46";
+var version = "3.997.47";
 var packageInfo = {
 	version: version};
 
@@ -19822,7 +19831,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.997.46";
+var version = "3.997.47";
 var packageInfo = {
 	version: version};
 

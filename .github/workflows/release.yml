@@ -5,13 +5,22 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+
+# Never cancel a running release: a half-moved floating tag is worse than a queued one.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   retag:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
+      # The credentials stay in .git/config because the last step pushes the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
 
       - name: Read major version from package.json
         id: version
@@ -22,8 +31,10 @@ jobs:
           echo "Floating tag: $MAJOR (from $FULL)"
 
       - name: Force-update floating tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -fa "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}" --force
+          git tag -fa "$TAG" -m "Release $TAG"
+          git push origin "$TAG" --force

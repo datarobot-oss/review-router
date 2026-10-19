@@ -61,6 +61,23 @@ export function isHumanTeamLabel(
   return senderType === "User" && labelName.startsWith(`${prefix}: `);
 }
 
+export type LabelRoute =
+  { kind: "ready" } | { kind: "team"; teamLabel: string } | { kind: "ignore" };
+
+export function classifyLabel(
+  labelName: string | undefined,
+  senderType: string | undefined,
+  readyLabel: string,
+  aliases: string[] | undefined,
+  prefix: string
+): LabelRoute {
+  if (!labelName) return { kind: "ignore" };
+  if (isReadyLabel(labelName, readyLabel, aliases)) return { kind: "ready" };
+  if (isHumanTeamLabel(labelName, senderType, prefix))
+    return { kind: "team", teamLabel: labelName };
+  return { kind: "ignore" };
+}
+
 function restrictToLabeledTeam(ownership: OwnershipMap, ctx: LabeledContext): OwnershipMap | null {
   const teamSlug = [...ownership.teamFiles.keys()].find(
     (team) => getLabelForTeam(ctx.teamsConfig, team, ctx.inputs.needsReviewPrefix) === ctx.teamLabel

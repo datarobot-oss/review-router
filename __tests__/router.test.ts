@@ -9,6 +9,7 @@ import {
   getFileTypeEmojis,
   isReadyLabel,
   isHumanTeamLabel,
+  classifyLabel,
   shouldSkipDuplicateRouting,
 } from "../src/router";
 import * as codeowners from "../src/codeowners";
@@ -588,6 +589,44 @@ describe("isHumanTeamLabel", () => {
 
   it("rejects a label that has the prefix but no team separator", () => {
     expect(isHumanTeamLabel("Needs Reviewers", "User", "Needs Review")).toBe(false);
+  });
+});
+
+describe("classifyLabel", () => {
+  const classify = (label: string | undefined, sender: string | undefined, aliases?: string[]) =>
+    classifyLabel(label, sender, "Ready for Review", aliases, "Needs Review");
+
+  it("routes the ready label whoever added it", () => {
+    expect(classify("Ready for Review", "Bot")).toEqual({ kind: "ready" });
+  });
+
+  it("routes a ready label alias", () => {
+    expect(classify("Please Review", "User", ["Please Review"])).toEqual({ kind: "ready" });
+  });
+
+  it("routes one team for a team label added by a user", () => {
+    expect(classify("Needs Review: Platform", "User")).toEqual({
+      kind: "team",
+      teamLabel: "Needs Review: Platform",
+    });
+  });
+
+  it("ignores a team label added by a bot", () => {
+    expect(classify("Needs Review: Platform", "Bot")).toEqual({ kind: "ignore" });
+  });
+
+  it("prefers the ready route when an alias also looks like a team label", () => {
+    expect(classify("Needs Review: Now", "User", ["Needs Review: Now"])).toEqual({
+      kind: "ready",
+    });
+  });
+
+  it("ignores an unrelated label", () => {
+    expect(classify("bug", "User")).toEqual({ kind: "ignore" });
+  });
+
+  it("ignores an event without a label", () => {
+    expect(classify(undefined, "User")).toEqual({ kind: "ignore" });
   });
 });
 

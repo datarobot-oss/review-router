@@ -81193,25 +81193,21 @@ async function run() {
             return;
         }
         const labelName = context.payload.label?.name;
-        const isReady = !!labelName && (0, router_1.isReadyLabel)(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases);
         // The router adds team labels itself, and with an app token those labels fire this
         // event too, so only a person's label may route a single team.
-        const teamLabel = labelName &&
-            !isReady &&
-            (0, router_1.isHumanTeamLabel)(labelName, context.payload.sender?.type, inputs.needsReviewPrefix)
-            ? labelName
-            : undefined;
-        if (!labelName || (!isReady && !teamLabel)) {
+        const route = (0, router_1.classifyLabel)(labelName, context.payload.sender?.type, inputs.readyLabel, teamsConfig.ready_label_aliases, inputs.needsReviewPrefix);
+        if (route.kind === "ignore" || !labelName) {
             core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
             return;
         }
-        const defersTo = isReady
+        const defersTo = route.kind === "ready"
             ? (0, router_1.shouldSkipDuplicateRouting)(labelName, (pr.labels ?? []).map((l) => l.name), inputs.readyLabel, teamsConfig.ready_label_aliases)
             : null;
         if (defersTo) {
             core.info(`Skipping duplicate routing: "${labelName}" defers to "${defersTo}"`);
             return;
         }
+        const teamLabel = route.kind === "team" ? route.teamLabel : undefined;
         await (0, router_1.handleLabeled)(octokit, {
             owner,
             repo,
@@ -81808,6 +81804,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EXTERNAL_CONTRIBUTION_LABEL = void 0;
 exports.isReadyLabel = isReadyLabel;
 exports.isHumanTeamLabel = isHumanTeamLabel;
+exports.classifyLabel = classifyLabel;
 exports.shouldSkipDuplicateRouting = shouldSkipDuplicateRouting;
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
@@ -81847,6 +81844,15 @@ function isReadyLabel(name, readyLabel, aliases = []) {
 }
 function isHumanTeamLabel(labelName, senderType, prefix) {
     return senderType === "User" && labelName.startsWith(`${prefix}: `);
+}
+function classifyLabel(labelName, senderType, readyLabel, aliases, prefix) {
+    if (!labelName)
+        return { kind: "ignore" };
+    if (isReadyLabel(labelName, readyLabel, aliases))
+        return { kind: "ready" };
+    if (isHumanTeamLabel(labelName, senderType, prefix))
+        return { kind: "team", teamLabel: labelName };
+    return { kind: "ignore" };
 }
 function restrictToLabeledTeam(ownership, ctx) {
     const teamSlug = [...ownership.teamFiles.keys()].find((team) => (0, config_1.getLabelForTeam)(ctx.teamsConfig, team, ctx.inputs.needsReviewPrefix) === ctx.teamLabel);

@@ -7,8 +7,7 @@ import {
   handleReadyForReview,
   handleClosed,
   handleComment,
-  isHumanTeamLabel,
-  isReadyLabel,
+  classifyLabel,
   shouldSkipDuplicateRouting,
 } from "./router";
 import { COMMENT_MARKER } from "./comment";
@@ -255,33 +254,35 @@ async function run(): Promise<void> {
     }
 
     const labelName = context.payload.label?.name;
-    const isReady =
-      !!labelName && isReadyLabel(labelName, inputs.readyLabel, teamsConfig.ready_label_aliases);
     // The router adds team labels itself, and with an app token those labels fire this
     // event too, so only a person's label may route a single team.
-    const teamLabel =
-      labelName &&
-      !isReady &&
-      isHumanTeamLabel(labelName, context.payload.sender?.type, inputs.needsReviewPrefix)
-        ? labelName
-        : undefined;
-    if (!labelName || (!isReady && !teamLabel)) {
+    const route = classifyLabel(
+      labelName,
+      context.payload.sender?.type,
+      inputs.readyLabel,
+      teamsConfig.ready_label_aliases,
+      inputs.needsReviewPrefix
+    );
+    if (route.kind === "ignore" || !labelName) {
       core.info(`Ignoring label "${labelName}" (not a ready-for-review label)`);
       return;
     }
 
-    const defersTo = isReady
-      ? shouldSkipDuplicateRouting(
-          labelName,
-          (pr.labels ?? []).map((l: { name: string }) => l.name),
-          inputs.readyLabel,
-          teamsConfig.ready_label_aliases
-        )
-      : null;
+    const defersTo =
+      route.kind === "ready"
+        ? shouldSkipDuplicateRouting(
+            labelName,
+            (pr.labels ?? []).map((l: { name: string }) => l.name),
+            inputs.readyLabel,
+            teamsConfig.ready_label_aliases
+          )
+        : null;
     if (defersTo) {
       core.info(`Skipping duplicate routing: "${labelName}" defers to "${defersTo}"`);
       return;
     }
+
+    const teamLabel = route.kind === "team" ? route.teamLabel : undefined;
 
     await handleLabeled(octokit, {
       owner,

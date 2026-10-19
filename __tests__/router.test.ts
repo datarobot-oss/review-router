@@ -8,6 +8,7 @@ import {
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
   isReadyLabel,
+  isHumanTeamLabel,
   shouldSkipDuplicateRouting,
 } from "../src/router";
 import * as codeowners from "../src/codeowners";
@@ -464,6 +465,129 @@ describe("handleLabeled withRetry", () => {
 
     expect(mockOctokit.rest.pulls.update).toHaveBeenCalledTimes(2);
     jest.useRealTimers();
+  });
+});
+
+describe("handleLabeled with a team label", () => {
+  const ctx = {
+    owner: "datarobot-community",
+    repo: "test-repo",
+    prNumber: 1,
+    baseBranch: "main",
+    prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+    prTitle: "Test PR",
+    author: "alice",
+    additions: 10,
+    deletions: 5,
+    commits: 1,
+    labels: ["Needs Review: Platform"],
+    inputs: {
+      githubToken: "token",
+      slackToken: "xoxb-slack-token",
+      configRepo: "",
+      configToken: "",
+      configPath: "config.yml",
+      configS3: "",
+      readyLabel: "Ready for Review",
+      needsReviewPrefix: "Needs Review",
+      needsReviewLabelColor: "fbca04",
+      jiraToken: "",
+      aiToken: "",
+    },
+    capabilities: { hasOrgAccess: true },
+    teamsConfig,
+  };
+
+  beforeEach(() => {
+    mockOctokit.paginate.mockResolvedValue([
+      { filename: "src/app.py", additions: 5, deletions: 2 },
+      { filename: "infra/main.tf", additions: 5, deletions: 3 },
+      { filename: "README.md", additions: 1, deletions: 0 },
+    ]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue(
+        "src/ @datarobot-community/customer-engineering\ninfra/ @datarobot-community/platform-team\n"
+      );
+    mockOctokit.rest.pulls.requestReviewers.mockResolvedValue({});
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+    (slack.sendSlackNotification as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it("notifies only the channel of the labeled team", async () => {
+    await handleLabeled(mockOctokit as any, { ...ctx, teamLabel: "Needs Review: Platform" });
+
+    expect(slack.sendSlackNotification).toHaveBeenCalledTimes(1);
+    expect(slack.sendSlackNotification).toHaveBeenCalledWith(
+      "xoxb-slack-token",
+      "#platform-reviews",
+      expect.anything()
+    );
+  });
+
+  it("requests review only from the labeled team", async () => {
+    await handleLabeled(mockOctokit as any, { ...ctx, teamLabel: "Needs Review: Platform" });
+
+    expect(mockOctokit.rest.pulls.requestReviewers).toHaveBeenCalledTimes(1);
+    expect(mockOctokit.rest.pulls.requestReviewers).toHaveBeenCalledWith(
+      expect.objectContaining({ team_reviewers: ["platform-team"] })
+    );
+  });
+
+  it("limits the ownership comment to the labeled team", async () => {
+    await handleLabeled(mockOctokit as any, { ...ctx, teamLabel: "Needs Review: Platform" });
+
+    const [ownership] = (comment.buildOwnershipComment as jest.Mock).mock.calls[0];
+    expect([...ownership.teamFiles.keys()]).toEqual(["platform-team"]);
+    expect(ownership.unownedFiles).toEqual([]);
+  });
+
+  it("does nothing when the labeled team owns no file in the PR", async () => {
+    await handleLabeled(mockOctokit as any, {
+      ...ctx,
+      teamLabel: "Needs Review: Data Science",
+      labels: ["Needs Review: Data Science"],
+    });
+
+    expect(slack.sendSlackNotification).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.pulls.requestReviewers).not.toHaveBeenCalled();
+    expect(labels.applyLabels).not.toHaveBeenCalled();
+    expect(comment.upsertComment).not.toHaveBeenCalled();
+  });
+
+  it("still notifies every owning team when no team label triggered the route", async () => {
+    await handleLabeled(mockOctokit as any, { ...ctx, labels: ["Ready for Review"] });
+
+    expect(slack.sendSlackNotification).toHaveBeenCalledTimes(2);
+    expect(mockOctokit.rest.pulls.requestReviewers).toHaveBeenCalledWith(
+      expect.objectContaining({ team_reviewers: ["customer-engineering", "platform-team"] })
+    );
+  });
+});
+
+describe("isHumanTeamLabel", () => {
+  it("accepts a team label added by a user", () => {
+    expect(isHumanTeamLabel("Needs Review: Platform", "User", "Needs Review")).toBe(true);
+  });
+
+  it("rejects a team label added by a bot", () => {
+    expect(isHumanTeamLabel("Needs Review: Platform", "Bot", "Needs Review")).toBe(false);
+  });
+
+  it("rejects a team label when the sender is unknown", () => {
+    expect(isHumanTeamLabel("Needs Review: Platform", undefined, "Needs Review")).toBe(false);
+  });
+
+  it("rejects a label without the team prefix", () => {
+    expect(isHumanTeamLabel("bug", "User", "Needs Review")).toBe(false);
+  });
+
+  it("rejects a label that has the prefix but no team separator", () => {
+    expect(isHumanTeamLabel("Needs Reviewers", "User", "Needs Review")).toBe(false);
   });
 });
 

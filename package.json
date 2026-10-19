@@ -5,7 +5,7 @@
   "description": "GitHub Action that routes code reviews based on CODEOWNERS",
   "main": "dist/index.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "build": "ncc build src/index.ts -o dist --license licenses.txt",
@@ -39,6 +39,7 @@
     "@vercel/ncc": "^0.45.0",
     "eslint": "^10.12.0",
     "jest": "^30.5.2",
+    "jiti": "^2.7.0",
     "prettier": "^3.9.10",
     "ts-jest": "^29.4.14",
     "ts-node": "^10.9.2",

@@ -7,22 +7,37 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Write access is for pushing the rebuilt dist/ back to a same-repo PR branch.
+    permissions:
+      contents: write
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v7
+      # Same-repo PRs check out the branch so the dist/ commit can be pushed. Fork PRs and
+      # pushes use the default ref: head_ref names a branch in the fork, not in this repo.
+      # The credentials stay in .git/config because the last step pushes the dist/ commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref || '' }}
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run format:check
       - run: npm run lint
       - run: npm test
@@ -36,8 +51,7 @@ jobs:
           fi
 
           # Fork PRs have read-only GITHUB_TOKEN — can't push back
-          IS_FORK="${{ github.event.pull_request.head.repo.full_name != github.repository }}"
-          if [ "${{ github.event_name }}" != "pull_request" ] || [ "$IS_FORK" = "true" ]; then
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$HEAD_REPO" != "$REPO" ]; then
             echo "::error::dist/ is out of date. Run 'npm run build' and commit the result."
             git diff --stat dist/
             exit 1

@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # A release younger than a week is the likeliest to be yanked or compromised.
+    # Security updates ignore the cooldown.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -37,10 +41,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
     groups:
       actions:
         patterns:
-          - "actions/*"
+          - "*"

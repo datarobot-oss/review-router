@@ -1412,6 +1412,7 @@ describe("handleComment", () => {
 
   const configWithUsers: OrgConfig = {
     ...teamsConfig,
+    notifications: { dm: { enabled: false } },
     users: { alice: "U12345" },
   };
 
@@ -1552,6 +1553,7 @@ describe("handleComment", () => {
   it("notifies assignees on comments", async () => {
     const configWithMultipleUsers: OrgConfig = {
       ...teamsConfig,
+      notifications: { dm: { enabled: false } },
       users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
     };
 
@@ -1595,6 +1597,7 @@ describe("handleComment", () => {
   it("skips assignee who is the commenter", async () => {
     const configWithMultipleUsers: OrgConfig = {
       ...teamsConfig,
+      notifications: { dm: { enabled: false } },
       users: { alice: "U_ALICE", bob: "U_BOB" },
     };
 
@@ -1632,6 +1635,7 @@ describe("handleComment", () => {
   it("skips assignees on approval (review kind)", async () => {
     const configWithMultipleUsers: OrgConfig = {
       ...teamsConfig,
+      notifications: { dm: { enabled: false } },
       users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
     };
 
@@ -1664,6 +1668,136 @@ describe("handleComment", () => {
       "1111.0000",
       expect.stringContaining("your PR was approved by *bob*")
     );
+  });
+});
+
+describe("handleComment DMs", () => {
+  const inputs = {
+    githubToken: "token",
+    slackToken: "xoxb-slack-token",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+    jiraToken: "",
+    aiToken: "",
+  };
+
+  const slackBody =
+    "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->";
+
+  const approval = {
+    owner: "org",
+    repo: "repo",
+    prNumber: 1,
+    prBody: slackBody,
+    prUrl: "https://github.com/org/repo/pull/1",
+    author: "alice",
+    commenter: "bob",
+    commentUrl: "",
+    assignees: [] as string[],
+    kind: "review" as const,
+    inputs,
+  };
+
+  const config: OrgConfig = { ...teamsConfig, users: { alice: "U12345" } };
+
+  beforeEach(() => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it("sends a DM to the author and no thread reply", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: config });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      expect.stringContaining("approved by *bob*")
+    );
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+    expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
+  });
+
+  it("sends a DM when the PR has no Slack refs", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, { ...approval, prBody: "body", teamsConfig: config });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+    expect(comment.extractSlackRefsFromDescription).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a thread reply when the DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: config });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U12345>, your PR was approved by *bob*")
+    );
+  });
+
+  it("skips the DM for an opted-out author and uses the thread reply", async () => {
+    const optedOut: OrgConfig = {
+      ...config,
+      notifications: { dm: { opt_out: ["alice"] } },
+    };
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: optedOut });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues with the next recipient when one DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockImplementation(
+      async (_client: unknown, slackId: string) => slackId !== "U_ALICE"
+    );
+    const twoUsers: OrgConfig = {
+      ...teamsConfig,
+      users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
+    };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: twoUsers,
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledTimes(2);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U_ALICE>")
+    );
+  });
+
+  it("does nothing without a Slack token", async () => {
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      inputs: { ...inputs, slackToken: "" },
+      teamsConfig: config,
+    });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
   });
 });
 

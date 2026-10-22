@@ -20,10 +20,11 @@ import {
   addSlackReactions,
   isSlackMessageMuted,
   postSlackThreadReply,
+  sendSlackDm,
   FileStats,
   SlackMessageRef,
 } from "./slack";
-import { getLabelForTeam, getSlackChannel } from "./config";
+import { getLabelForTeam, getSlackChannel, isDmEnabledFor } from "./config";
 import { isRepoMaintainer } from "./auth";
 import {
   ActionInputs,
@@ -698,11 +699,75 @@ export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promis
   }
 }
 
+interface CommentRecipient {
+  login: string;
+  slackId: string;
+  dmText: string;
+  threadText: string;
+}
+
 export async function handleComment(octokit: Octokit, ctx: CommentContext): Promise<void> {
   if (!ctx.inputs.slackToken) {
     core.debug("No Slack token provided, skipping thread notification");
     return;
   }
+
+  const client = new WebClient(ctx.inputs.slackToken);
+  const kindLabel =
+    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
+  const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+
+  const recipients: CommentRecipient[] = [];
+
+  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+  if (authorSlackId) {
+    const approved = ctx.kind === "review" && ctx.commentUrl === "";
+    recipients.push({
+      login: ctx.author,
+      slackId: authorSlackId,
+      dmText: approved
+        ? `:white_check_mark: Your PR ${prLink} was approved by *${ctx.commenter}*`
+        : `:speech_balloon: New ${kindLabel} from *${ctx.commenter}* on ${prLink}${
+            ctx.commentUrl ? ` (<${ctx.commentUrl}|view>)` : ""
+          }`,
+      threadText: approved
+        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
+        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`,
+    });
+  }
+
+  if (ctx.kind !== "review") {
+    for (const assignee of ctx.assignees) {
+      if (assignee === ctx.commenter || assignee === ctx.author) continue;
+      const slackId = ctx.teamsConfig.users?.[assignee];
+      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
+      recipients.push({
+        login: assignee,
+        slackId,
+        dmText: `:eyes: New ${kindLabel} from *${ctx.commenter}* on ${prLink}, a PR you're watching`,
+        threadText: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+      });
+    }
+  }
+
+  if (recipients.length === 0) {
+    core.debug("No recipients with Slack IDs found, skipping notifications");
+    return;
+  }
+
+  const needsThreadReply: CommentRecipient[] = [];
+  for (const recipient of recipients) {
+    const dmSent =
+      isDmEnabledFor(ctx.teamsConfig, recipient.login) &&
+      (await sendSlackDm(client, recipient.slackId, recipient.dmText));
+    if (dmSent) {
+      core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);
+    } else {
+      needsThreadReply.push(recipient);
+    }
+  }
+  if (needsThreadReply.length === 0) return;
 
   const refs = await getSlackRefsWithFallback(
     octokit,
@@ -716,39 +781,6 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     return;
   }
 
-  const client = new WebClient(ctx.inputs.slackToken);
-  const kindLabel =
-    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
-  const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
-
-  const recipients: Array<{ slackId: string; text: string }> = [];
-
-  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-  if (authorSlackId) {
-    const text =
-      ctx.kind === "review" && ctx.commentUrl === ""
-        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
-        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
-    recipients.push({ slackId: authorSlackId, text });
-  }
-
-  if (ctx.kind !== "review") {
-    for (const assignee of ctx.assignees) {
-      if (assignee === ctx.commenter || assignee === ctx.author) continue;
-      const slackId = ctx.teamsConfig.users?.[assignee];
-      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
-      recipients.push({
-        slackId,
-        text: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
-      });
-    }
-  }
-
-  if (recipients.length === 0) {
-    core.debug("No recipients with Slack IDs found, skipping thread notifications");
-    return;
-  }
-
   for (const ref of refs) {
     try {
       const muted = await isSlackMessageMuted(client, ref.channel, ref.ts);
@@ -756,11 +788,11 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
         core.debug(`Slack message in ${ref.channel} is muted, skipping thread reply`);
         continue;
       }
-      for (const { text } of recipients) {
-        await postSlackThreadReply(client, ref.channel, ref.ts, text);
+      for (const { threadText } of needsThreadReply) {
+        await postSlackThreadReply(client, ref.channel, ref.ts, threadText);
       }
       core.info(
-        `Posted ${recipients.length} thread reply(s) in ${ref.channel} for PR #${ctx.prNumber}`
+        `Posted ${needsThreadReply.length} thread reply(s) in ${ref.channel} for PR #${ctx.prNumber}`
       );
     } catch (error) {
       core.warning(

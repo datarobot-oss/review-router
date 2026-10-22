@@ -292,6 +292,22 @@ export async function postSlackThreadReply(
   });
 }
 
+export async function sendSlackDm(
+  client: WebClient,
+  slackUserId: string,
+  text: string
+): Promise<boolean> {
+  try {
+    await client.chat.postMessage({ channel: slackUserId, text });
+    return true;
+  } catch (error) {
+    core.warning(
+      `Failed to send Slack DM to ${slackUserId}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return false;
+  }
+}
+
 export async function addSlackReactions(
   token: string,
   ref: SlackMessageRef,

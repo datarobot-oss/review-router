@@ -5,6 +5,7 @@ import {
   sendSlackReminder,
   isSlackMessageMuted,
   postSlackThreadReply,
+  sendSlackDm,
 } from "../src/slack";
 
 const params = {
@@ -271,6 +272,33 @@ describe("isSlackMessageMuted", () => {
     mockReactionsGet.mockRejectedValue(new Error("scope_missing"));
     const result = await isSlackMessageMuted(mockWebClient as any, "C123", "1.0");
     expect(result).toBe(false);
+  });
+});
+
+describe("sendSlackDm", () => {
+  const mockPostMessage = jest.fn();
+  const mockWebClient = { chat: { postMessage: mockPostMessage } };
+
+  beforeEach(() => jest.resetAllMocks());
+
+  it("posts to the user ID and returns true", async () => {
+    mockPostMessage.mockResolvedValue({ ok: true });
+    await expect(sendSlackDm(mockWebClient as any, "U123", "hi")).resolves.toBe(true);
+    expect(mockPostMessage).toHaveBeenCalledWith({ channel: "U123", text: "hi" });
+  });
+
+  it("returns false on channel_not_found", async () => {
+    mockPostMessage.mockRejectedValue(
+      Object.assign(new Error("An API error occurred: channel_not_found"), {
+        data: { error: "channel_not_found" },
+      })
+    );
+    await expect(sendSlackDm(mockWebClient as any, "U123", "hi")).resolves.toBe(false);
+  });
+
+  it("returns false on a generic error", async () => {
+    mockPostMessage.mockRejectedValue(new Error("network down"));
+    await expect(sendSlackDm(mockWebClient as any, "U123", "hi")).resolves.toBe(false);
   });
 });
 

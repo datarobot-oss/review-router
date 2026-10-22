@@ -5,6 +5,8 @@ import {
   extractSlackRefs,
   embedSlackRefsInDescription,
   extractSlackRefsFromDescription,
+  extractDmCursor,
+  embedDmCursor,
   postExternalComment,
   COMMENT_MARKER,
   EXTERNAL_COMMENT_MARKER,
@@ -245,6 +247,48 @@ describe("extractSlackRefs", () => {
 
   it("returns empty array when no refs", () => {
     expect(extractSlackRefs("no refs here")).toEqual([]);
+  });
+});
+
+describe("DM cursor marker", () => {
+  const iso = "2026-10-23T10:00:00.000Z";
+  const marker = `<!-- rr:dm-cursor:${iso} -->`;
+
+  it("extractDmCursor returns the ISO timestamp", () => {
+    expect(extractDmCursor(`body\n${marker}`)).toBe(iso);
+  });
+
+  it("extractDmCursor returns null when the marker is absent", () => {
+    expect(extractDmCursor("body")).toBeNull();
+  });
+
+  it("extractDmCursor returns null for a malformed timestamp", () => {
+    expect(extractDmCursor("body\n<!-- rr:dm-cursor:yesterday -->")).toBeNull();
+  });
+
+  it("embedDmCursor appends the marker", () => {
+    expect(embedDmCursor("body", iso)).toBe(`body\n${marker}`);
+  });
+
+  it("embedDmCursor replaces an existing marker instead of adding a second", () => {
+    const old = "<!-- rr:dm-cursor:2026-10-22T09:00:00.000Z -->";
+    const result = embedDmCursor(`body\n${old}`, iso);
+    expect(result).toContain(marker);
+    expect(result).not.toContain(old);
+    expect(result.match(/rr:dm-cursor/g)).toHaveLength(1);
+  });
+
+  it("embedDmCursor inserts before the Cursor summary block", () => {
+    const result = embedDmCursor("text\n<!-- CURSOR_SUMMARY -->\nsummary", iso);
+    expect(result.indexOf(marker)).toBeLessThan(result.indexOf("<!-- CURSOR_SUMMARY -->"));
+    expect(result).toContain("summary");
+  });
+
+  it("embedDmCursor keeps the Slack refs block intact", () => {
+    const body = embedSlackRefsInDescription("body", [{ channel: "C1", ts: "1.2" }]);
+    const result = embedDmCursor(body, iso);
+    expect(extractSlackRefsFromDescription(result)).toEqual([{ channel: "C1", ts: "1.2" }]);
+    expect(extractDmCursor(result)).toBe(iso);
   });
 });
 

@@ -119,6 +119,24 @@ export function extractSlackRefsFromDescription(body: string): SlackMessageRef[]
   }));
 }
 
+const DM_CURSOR_PATTERN = /<!-- rr:dm-cursor:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z) -->/;
+
+export function extractDmCursor(body: string): string | null {
+  return body.match(DM_CURSOR_PATTERN)?.[1] ?? null;
+}
+
+export function embedDmCursor(body: string, iso: string): string {
+  const marker = `<!-- rr:dm-cursor:${iso} -->`;
+  if (DM_CURSOR_PATTERN.test(body)) return body.replace(DM_CURSOR_PATTERN, marker);
+
+  const cursorIdx = body.indexOf(CURSOR_SUMMARY);
+  if (cursorIdx !== -1) {
+    const prefix = body.slice(0, cursorIdx).replace(/\n$/, "");
+    return `${prefix}\n${marker}\n${body.slice(cursorIdx)}`;
+  }
+  return `${body}\n${marker}`;
+}
+
 export async function findExistingComment(
   octokit: Octokit,
   owner: string,

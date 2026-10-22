@@ -81805,6 +81805,7 @@ exports.latestApprovers = latestApprovers;
 exports.reconcileForkPulls = reconcileForkPulls;
 const core = __importStar(__nccwpck_require__(7484));
 const comment_1 = __nccwpck_require__(2246);
+const trigger_1 = __nccwpck_require__(5789);
 const router_1 = __nccwpck_require__(8954);
 /** Logins whose latest non-COMMENTED review is an approval. Reviews must be in chronological order. */
 function latestApprovers(reviews) {
@@ -81824,6 +81825,10 @@ function isRealPerson(user, author) {
 }
 function isRouterComment(body) {
     return !!body && (body.includes(comment_1.COMMENT_MARKER) || body.includes(comment_1.EXTERNAL_COMMENT_MARKER));
+}
+/** The live issue_comment path handles these as commands and never notifies on them. */
+function isSlashCommand(body) {
+    return (0, trigger_1.isAiReviewCommand)(body ?? undefined) || (body ?? "").trim() === "/review";
 }
 async function writeCursor(octokit, owner, repo, prNumber, iso) {
     const { data: fresh } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
@@ -81886,7 +81891,7 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
     for (const c of issueComments) {
         if (!isNewer(c.created_at, cursor) || !isRealPerson(c.user, author))
             continue;
-        if (isRouterComment(c.body))
+        if (isRouterComment(c.body) || isSlashCommand(c.body))
             continue;
         events.push({
             kind: "comment",
@@ -82367,10 +82372,14 @@ async function handleLabeled(octokit, ctx) {
         core.warning(`Failed to apply labels: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (ctx.headSha) {
-        const routedSlugs = allLabelNames
+        // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
+        const existingTeamLabels = ctx.labels.filter((l) => l.startsWith(ctx.inputs.needsReviewPrefix + ":"));
+        const pendingSlugs = [...new Set([...existingTeamLabels, ...allLabelNames])]
             .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.headSha, routedSlugs);
+        if (pendingSlugs.length > 0) {
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
+        }
     }
     if (allTeamSlugs.length > 0) {
         try {

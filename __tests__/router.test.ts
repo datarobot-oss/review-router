@@ -1880,6 +1880,53 @@ describe("review check wiring", () => {
     expect([...args[4]].sort()).toEqual(["customer-engineering", "platform-team"]);
   });
 
+  const labeledCtx = {
+    owner: "datarobot-community",
+    repo: "test-repo",
+    prNumber: 1,
+    baseBranch: "main",
+    prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+    prTitle: "Test PR",
+    author: "alice",
+    additions: 10,
+    deletions: 5,
+    commits: 1,
+    inputs,
+    capabilities: { hasOrgAccess: false },
+    teamsConfig,
+    headSha: "sha123",
+  };
+
+  function routeWith(codeownersContent: string) {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest.spyOn(codeowners, "fetchCodeownersContent").mockResolvedValue(codeownersContent);
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+  }
+
+  it("handleLabeled counts Needs Review labels already on the PR as pending", async () => {
+    routeWith("* @datarobot-community/customer-engineering\n");
+
+    await handleLabeled(mockOctokit as any, {
+      ...labeledCtx,
+      labels: ["Needs Review: Platform", "bug"],
+    });
+
+    const pending = (checks.upsertReviewCheck as jest.Mock).mock.calls[0][4] as string[];
+    expect([...pending].sort()).toEqual(["customer-engineering", "platform-team"]);
+  });
+
+  it("handleLabeled skips the check when no team is pending", async () => {
+    routeWith("docs/ @datarobot-community/customer-engineering\n");
+
+    await handleLabeled(mockOctokit as any, { ...labeledCtx, labels: ["bug"] });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
+  });
+
   it("handleReviewSubmitted upserts the check with the remaining pending teams", async () => {
     mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
       data: [{ name: "Needs Review: Customer Engineering" }, { name: "Needs Review: Platform" }],

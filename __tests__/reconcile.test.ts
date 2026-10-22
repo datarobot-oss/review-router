@@ -292,6 +292,38 @@ describe("reconcileForkPulls", () => {
     );
   });
 
+  it("ignores /review and /ai-review slash commands, as the live comment path does", async () => {
+    const created = "2026-10-23T10:05:00Z";
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      issueComments: [
+        { user: human("bob"), body: "/review", created_at: created, html_url: "a" },
+        { user: human("bob"), body: "/ai-review", created_at: created, html_url: "b" },
+        {
+          user: human("bob"),
+          body: "/ai-review focus on tests",
+          created_at: created,
+          html_url: "c",
+        },
+        {
+          user: human("carol"),
+          body: "please review the new tests",
+          created_at: created,
+          html_url: "d",
+        },
+      ],
+    });
+
+    await reconcileForkPulls(octokit as any, ctx);
+
+    expect(handleComment).toHaveBeenCalledTimes(1);
+    expect(handleComment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ commenter: "carol" })
+    );
+  });
+
   it("advances the cursor to the newest handled event", async () => {
     const octokit = octokitFor({
       pulls: [forkPr(1, bodyWithCursor)],

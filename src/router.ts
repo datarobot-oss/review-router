@@ -282,10 +282,16 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   }
 
   if (ctx.headSha) {
-    const routedSlugs = allLabelNames
+    // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
+    const existingTeamLabels = ctx.labels.filter((l) =>
+      l.startsWith(ctx.inputs.needsReviewPrefix + ":")
+    );
+    const pendingSlugs = [...new Set([...existingTeamLabels, ...allLabelNames])]
       .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
       .filter((slug): slug is string => slug !== undefined);
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, routedSlugs);
+    if (pendingSlugs.length > 0) {
+      await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
+    }
   }
 
   if (allTeamSlugs.length > 0) {

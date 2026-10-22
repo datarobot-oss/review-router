@@ -12,6 +12,7 @@ import {
 } from "./router";
 import { COMMENT_MARKER } from "./comment";
 import { handleSchedule } from "./reminders";
+import { reconcileForkPulls } from "./reconcile";
 import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
@@ -166,6 +167,7 @@ async function run(): Promise<void> {
   const capabilities = await detectCapabilities(octokit, owner);
 
   if (eventName === "schedule") {
+    await reconcileForkPulls(octokit, { owner, repo, inputs, capabilities, teamsConfig });
     await handleSchedule(octokit, {
       owner,
       repo,

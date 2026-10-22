@@ -170,6 +170,38 @@ describe("reconcileForkPulls", () => {
     expect(handleComment).not.toHaveBeenCalled();
   });
 
+  it("does not touch the description of a PR whose author and assignees have no Slack ID", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, "body")],
+      reviews: [{ user: human("bob"), state: "APPROVED" }],
+    });
+
+    await reconcileForkPulls(octokit as any, { ...ctx, teamsConfig: { teams: {}, users: {} } });
+
+    expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+    expect(handleReviewSubmitted).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes the cursor when only an assignee has a Slack ID", async () => {
+    const withAssignee = { ...forkPr(1, "body"), assignees: [{ login: "carol" }] };
+    const octokit = octokitFor({ pulls: [withAssignee], freshBody: "body" });
+
+    await reconcileForkPulls(octokit as any, {
+      ...ctx,
+      teamsConfig: { teams: {}, users: { carol: "U2" } },
+    });
+
+    expect(octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not touch the description without a Slack token", async () => {
+    const octokit = octokitFor({ pulls: [forkPr(1, "body")] });
+
+    await reconcileForkPulls(octokit as any, { ...ctx, inputs: { ...inputs, slackToken: "" } });
+
+    expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+  });
+
   it("treats a deleted cursor marker as first sight and does not DM old comments", async () => {
     const octokit = octokitFor({
       pulls: [forkPr(1, "body without marker")],

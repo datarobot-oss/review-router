@@ -158,6 +158,13 @@ export function getLabelForTeam(config: OrgConfig, teamSlug: string, prefix: str
   return `${prefix}: ${humanizeSlug(teamSlug)}`;
 }
 
+export function isDmEnabledFor(config: OrgConfig, githubLogin: string): boolean {
+  const dm = config.notifications?.dm;
+  if (dm?.enabled === false) return false;
+  const login = githubLogin.toLowerCase();
+  return !(dm?.opt_out ?? []).some((optedOut) => optedOut.toLowerCase() === login);
+}
+
 export function humanizeSlug(slug: string): string {
   return slug
     .split("-")

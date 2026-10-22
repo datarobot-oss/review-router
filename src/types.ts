@@ -8,6 +8,15 @@ export interface RemindersConfig {
   stale_hours?: number;
 }
 
+export interface DmConfig {
+  enabled?: boolean;
+  opt_out?: string[];
+}
+
+export interface NotificationsConfig {
+  dm?: DmConfig;
+}
+
 export interface DependabotConfig {
   auto_label: boolean;
 }
@@ -57,6 +66,7 @@ export interface OrgConfig {
   default_slack_channel?: string;
   ready_label_aliases?: string[];
   reminders?: RemindersConfig;
+  notifications?: NotificationsConfig;
   dependabot?: DependabotConfig;
   external_contributors?: ExternalContributorsConfig;
   reactions?: ReactionsConfig;

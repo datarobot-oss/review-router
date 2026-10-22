@@ -42,6 +42,9 @@
         "reminders": {
           "$ref": "#/$defs/RemindersConfig"
         },
+        "notifications": {
+          "$ref": "#/$defs/NotificationsConfig"
+        },
         "dependabot": {
           "$ref": "#/$defs/DependabotConfig"
         },
@@ -188,6 +191,30 @@
           "exclusiveMinimum": 0,
           "maximum": 20,
           "description": "Hard cap on list-price spend per review, in USD. Default 3."
+        }
+      }
+    },
+    "NotificationsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dm": {
+          "$ref": "#/$defs/DmConfig"
+        }
+      }
+    },
+    "DmConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Send Slack DMs to PR authors and watching assignees on approvals and comments. Default: true."
+        },
+        "opt_out": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "GitHub logins that do not receive DMs. They keep the Slack thread reply."
         }
       }
     },

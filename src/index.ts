@@ -239,6 +239,7 @@ async function run(): Promise<void> {
       merged: pr.merged ?? false,
       inputs,
       teamsConfig,
+      headSha: pr.head?.sha,
     });
     return;
   }
@@ -297,6 +298,7 @@ async function run(): Promise<void> {
       commits: pr.commits ?? 0,
       labels: (pr.labels ?? []).map((l: { name: string }) => l.name),
       teamLabel,
+      headSha: pr.head?.sha,
       inputs,
       capabilities,
       teamsConfig,
@@ -335,6 +337,7 @@ async function run(): Promise<void> {
         inputs,
         capabilities,
         teamsConfig,
+        headSha: pr.head?.sha,
       });
 
       // Thread notification for approval

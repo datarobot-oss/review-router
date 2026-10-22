@@ -33,6 +33,12 @@ describe("buildReviewCheck", () => {
     expect(check.conclusion).toBe("neutral");
   });
 
+  it("makes no approval claim when the PR is closed", () => {
+    const { summary } = buildReviewCheck(["a", "b"], ["b"], true);
+    expect(summary).not.toContain("Approved");
+    expect(summary).toContain("closed");
+  });
+
   it("lists approved and pending teams", () => {
     const { summary } = buildReviewCheck(["a", "b"], ["b"], false);
     expect(summary).toContain("**Approved:** `a`");

@@ -16,6 +16,7 @@ import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
 import * as comment from "../src/comment";
 import * as slack from "../src/slack";
+import * as checks from "../src/checks";
 
 const mockPostExternalComment = comment.postExternalComment as jest.MockedFunction<
   typeof comment.postExternalComment
@@ -25,6 +26,7 @@ import { OrgConfig } from "../src/types";
 jest.mock("../src/labels");
 jest.mock("../src/comment");
 jest.mock("../src/slack");
+jest.mock("../src/checks");
 
 const mockOctokit = {
   rest: {
@@ -1798,6 +1800,167 @@ describe("handleComment DMs", () => {
 
     expect(slack.sendSlackDm).not.toHaveBeenCalled();
     expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+  });
+});
+
+describe("review check wiring", () => {
+  const inputs = {
+    githubToken: "token",
+    slackToken: "",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+    jiraToken: "",
+    aiToken: "",
+  };
+
+  const reviewCtx = {
+    owner: "datarobot-oss",
+    repo: "test-repo",
+    prNumber: 1,
+    prBody: "",
+    prUrl: "https://github.com/datarobot-oss/test-repo/pull/1",
+    author: "alice",
+    reviewer: "bob",
+    inputs,
+    teamsConfig,
+    capabilities: { hasOrgAccess: true },
+  };
+
+  const closedCtx = {
+    owner: "org",
+    repo: "repo",
+    prNumber: 1,
+    prBody: "",
+    inputs,
+    teamsConfig,
+  };
+
+  it("handleLabeled upserts the check with the routed team slugs", async () => {
+    mockOctokit.paginate.mockResolvedValue([
+      { filename: "src/app.py" },
+      { filename: "infra/main.tf" },
+    ]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue(
+        "* @datarobot-community/customer-engineering\ninfra/ @datarobot-community/platform-team\n"
+      );
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs,
+      capabilities: { hasOrgAccess: false },
+      teamsConfig,
+      headSha: "sha123",
+    });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledTimes(1);
+    const args = (checks.upsertReviewCheck as jest.Mock).mock.calls[0];
+    expect(args.slice(1, 4)).toEqual(["datarobot-community", "test-repo", "sha123"]);
+    expect([...args[4]].sort()).toEqual(["customer-engineering", "platform-team"]);
+  });
+
+  it("handleReviewSubmitted upserts the check with the remaining pending teams", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }, { name: "Needs Review: Platform" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockImplementation(
+      async ({ team_slug }: { team_slug: string }) => {
+        if (team_slug === "customer-engineering") return {};
+        throw { status: 404 };
+      }
+    );
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+
+    await handleReviewSubmitted(mockOctokit as any, { ...reviewCtx, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      "sha123",
+      ["platform-team"]
+    );
+  });
+
+  it("handleReviewSubmitted upserts an empty pending list when the last label is removed", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockResolvedValue({});
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+
+    await handleReviewSubmitted(mockOctokit as any, { ...reviewCtx, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      "sha123",
+      []
+    );
+  });
+
+  it("handleClosed upserts a closed check for merged and unmerged PRs", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [] });
+
+    await handleClosed(mockOctokit as any, { ...closedCtx, merged: false, headSha: "sha123" });
+    await handleClosed(mockOctokit as any, { ...closedCtx, merged: true, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledTimes(2);
+    expect(checks.upsertReviewCheck).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "org",
+      "repo",
+      "sha123",
+      [],
+      true
+    );
+    expect(checks.upsertReviewCheck).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "org",
+      "repo",
+      "sha123",
+      [],
+      true
+    );
+  });
+
+  it("handlers skip the check when headSha is undefined", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockResolvedValue({});
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+
+    await handleReviewSubmitted(mockOctokit as any, reviewCtx);
+    await handleClosed(mockOctokit as any, { ...closedCtx, merged: false });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
   });
 });
 

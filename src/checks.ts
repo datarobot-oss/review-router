@@ -26,13 +26,20 @@ export function buildReviewCheck(
   pendingTeams: string[],
   closed: boolean
 ): ReviewCheck {
-  const approved = routedTeams.filter((t) => !pendingTeams.includes(t));
-  const summary = `**Approved:** ${formatTeams(approved)}\n**Pending:** ${formatTeams(pendingTeams)}`;
   const externalId = `${EXTERNAL_ID_PREFIX}${routedTeams.join(",")}`;
 
   if (closed) {
-    return { status: "completed", conclusion: "neutral", title: "PR closed", summary, externalId };
+    return {
+      status: "completed",
+      conclusion: "neutral",
+      title: "PR closed",
+      summary: "The PR was closed.",
+      externalId,
+    };
   }
+
+  const approved = routedTeams.filter((t) => !pendingTeams.includes(t));
+  const summary = `**Approved:** ${formatTeams(approved)}\n**Pending:** ${formatTeams(pendingTeams)}`;
   if (pendingTeams.length === 0) {
     return {
       status: "completed",

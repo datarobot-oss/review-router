@@ -25,6 +25,7 @@ import {
   SlackMessageRef,
 } from "./slack";
 import { getLabelForTeam, getSlackChannel, isDmEnabledFor } from "./config";
+import { upsertReviewCheck } from "./checks";
 import { isRepoMaintainer } from "./auth";
 import {
   ActionInputs,
@@ -126,6 +127,7 @@ export interface LabeledContext {
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
+  headSha?: string;
 }
 
 export interface ReviewContext {
@@ -139,6 +141,7 @@ export interface ReviewContext {
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
+  headSha?: string;
 }
 
 async function getSlackRefsWithFallback(
@@ -278,6 +281,13 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     );
   }
 
+  if (ctx.headSha) {
+    const routedSlugs = allLabelNames
+      .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
+      .filter((slug): slug is string => slug !== undefined);
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, routedSlugs);
+  }
+
   if (allTeamSlugs.length > 0) {
     try {
       await octokit.rest.pulls.requestReviewers({
@@ -396,6 +406,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
   }
 
   const approvedChannels = new Set<string>();
+  const removedLabelNames = new Set<string>();
   for (const label of needsReviewLabels) {
     const teamSlug = resolveTeamSlugFromLabel(
       label.name,
@@ -411,6 +422,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         username: ctx.reviewer,
       });
       await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, label.name);
+      removedLabelNames.add(label.name);
       core.info(`Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`);
       const channel = getSlackChannel(ctx.teamsConfig, teamSlug);
       if (channel) approvedChannels.add(channel);
@@ -424,6 +436,16 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         );
       }
     }
+  }
+
+  if (ctx.headSha) {
+    const pendingSlugs = needsReviewLabels
+      .filter((l: { name: string }) => !removedLabelNames.has(l.name))
+      .map((l: { name: string }) =>
+        resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
+      )
+      .filter((slug): slug is string => slug !== undefined);
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
   }
 
   if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
@@ -612,9 +634,14 @@ export interface ClosedContext {
   merged: boolean;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
+  headSha?: string;
 }
 
 export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
+  if (ctx.headSha) {
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, [], true);
+  }
+
   if (!ctx.merged) {
     core.info("PR was closed without merging, skipping label cleanup");
     if (ctx.inputs.slackToken) {

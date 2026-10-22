@@ -22,6 +22,7 @@ For other organizations, create a new GitHub App:
 
 1. Go to your org settings > Developer settings > GitHub Apps > New GitHub App
 2. Set the following permissions:
+   - **Checks**: Read and write (optional, enables the Review Router check)
    - **Contents**: Read
    - **Issues**: Write
    - **Members**: Read

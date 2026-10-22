@@ -73,6 +73,7 @@ The action handles these event types:
 - **`pull_request_review: submitted`** -- removes team labels on approval
 - **`pull_request_review_comment: created`** -- notifies PR author in Slack thread on inline review comments
 - **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing; also notifies PR author in Slack thread on general PR comments
+- **`schedule`** -- reconciles open fork PRs (label removal on approval, the `approved` reaction, the Review Router check, and Slack DMs for new approvals and comments), then sends stale PR reminders when enabled
 
 Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
 branch, so external contributors cannot modify it or access secrets.
@@ -109,6 +110,10 @@ orgs:
     reminders:
       enabled: true
       stale_hours: 24 # optional, default 24
+    notifications:
+      dm:
+        enabled: true # optional, default true
+        opt_out: ["octocat"] # optional, GitHub logins that skip DMs
     dependabot:
       auto_label: true
     jira:
@@ -179,20 +184,35 @@ on:
   # ...
 ```
 
+### Slack DMs
+
+When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees who watch the PR receive one for comments. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
+
+DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org, or list GitHub logins in `notifications.dm.opt_out` to skip specific people. A person who doesn't get a DM, or whose DM fails, receives the Slack thread notification instead.
+
+### Review Router check
+
+The action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as running while teams still need to approve and completes when the last team label is removed. The check is informational. A push creates a commit without the check until the next review-router run.
+
+The check needs the GitHub App permission **Checks**: Read and write. Without it, the action skips the check.
+
 ### Thread Notifications
 
 When someone comments on or approves a PR that was routed by review-router,
 the PR author receives an @-mention in the Slack thread of the original
-notification. This requires the `users` mapping in the config.
+notification, unless a DM was sent instead. This requires the `users` mapping in the config.
 
-**Fork PRs don't get thread replies or approval reactions.** GitHub
-withholds secrets from `pull_request_review`, `pull_request_review_comment`,
-and `issue_comment` runs whenever they're tied to a PR from a fork,
-regardless of the author's org membership. This is a platform restriction,
-not something review-router or your workflow config can work around. Fork
-PRs still get routed, labeled, and get their file-type/merged/closed
-reactions normally -- those run on `pull_request_target`, which isn't
-affected. See
+**Fork PRs are reconciled on a schedule.** GitHub withholds secrets from
+`pull_request_review`, `pull_request_review_comment`, and `issue_comment`
+runs whenever they're tied to a PR from a fork, regardless of the author's
+org membership, so review-router can't react to those events in real time.
+Instead, each `schedule` run scans open fork PRs. It removes team labels for
+current approvals, adds the `approved` reaction, updates the Review Router
+check, and sends DMs for approvals and comments that arrived since the
+previous run. Fork PRs in a repo without a `schedule` trigger get none of
+this. The first run on a PR sets a cursor in the PR description and doesn't
+replay earlier events. Routing, labels and the file-type/merged/closed
+reactions run on `pull_request_target` and work in real time. See
 [troubleshooting.md](docs/setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)
 for details.
 
@@ -217,7 +237,8 @@ Thread notifications are filtered automatically:
 - Review-router's own comments are skipped
 
 **Muting:** Add a `:mute:` or `:no_bell:` reaction to the Slack message to
-suppress thread notifications for that PR.
+suppress thread notifications for that PR. DMs ignore this reaction. Add the
+author's login to `notifications.dm.opt_out` instead.
 
 **Note:** The PR author must be a member of the Slack channel to receive
 @-mention notifications. This is a Slack limitation for private channels.

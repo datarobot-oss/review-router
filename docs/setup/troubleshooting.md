@@ -154,10 +154,10 @@ workflow configuration.
 ## Fork PRs get merged/file-type reactions but never an approval reaction or thread reply
 
 Routing, labels, the ownership comment, and the `merged`/`closed`/file-type
-Slack reactions all work fine on a fork PR. But approving the PR never adds
-the `approved` reaction, and comments/reviews never get a Slack thread
-reply pinging the author — even when the PR author is a member of your
-GitHub org.
+Slack reactions all work fine on a fork PR. But approving the PR doesn't add
+the `approved` reaction or remove the team label until the next scheduled
+run, and comments and reviews don't notify the author until then, even when
+the PR author is a member of your GitHub org.
 
 **Cause**: This isn't about the author's permissions. GitHub withholds
 secrets and downgrades the token to read-only for `pull_request_review`,
@@ -170,8 +170,11 @@ event types, which `pull_request_target` does not cover. The action logs
 [pull-request-target.md](../security/pull-request-target.md) for the full
 explanation.
 
-**Fix**: There isn't one at the config level -- this is a GitHub Actions
-platform restriction, not something switching triggers or tokens can work
-around. `handleReviewSubmitted` and `handleComment` will never run for a
-fork-originated PR. Everything driven by `pull_request_target`
-(opened/labeled/closed) is unaffected and continues to work normally.
+**Fix**: Add a `schedule` trigger to the consumer workflow. The action
+reconciles open fork PRs on each scheduled run. It removes team labels for
+current approvals, adds the `approved` reaction, updates the Review Router
+check, and sends DMs for new approvals and comments. The delay equals the
+schedule interval. GitHub still doesn't run the real-time handlers for fork
+PRs, so without a `schedule` trigger these PRs get none of this. Everything
+driven by `pull_request_target` (opened/labeled/closed) is unaffected and
+continues to work normally.

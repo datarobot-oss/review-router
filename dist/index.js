@@ -81921,6 +81921,10 @@ async function reconcilePull(octokit, ctx, pr) {
             headSha: pr.head.sha,
         });
     }
+    const watchers = [author, ...(pr.assignees ?? []).map((a) => a.login)];
+    const canMessage = watchers.some((login) => ctx.teamsConfig.users?.[login]);
+    if (!ctx.inputs.slackToken || !canMessage)
+        return;
     const cursor = (0, comment_1.extractDmCursor)(body);
     if (!cursor) {
         await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString());

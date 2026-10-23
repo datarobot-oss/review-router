@@ -318,6 +318,22 @@ orgs:
     expect(config.orgs.acme.ai_review?.effort).toEqual({ reviewer: "high", scorer: "low" });
   });
 
+  it("accepts an ai_review effort that sets one role to medium and leaves the other out", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+      models: { reviewer: a, scorer: b }
+      effort: { reviewer: medium }
+`);
+    expect(config.orgs.acme.ai_review?.effort).toEqual({ reviewer: "medium" });
+  });
+
   it("rejects an ai_review effort level that is not low, medium or high", () => {
     expect(() =>
       parseTeamsConfig(`

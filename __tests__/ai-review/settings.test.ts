@@ -45,6 +45,15 @@ describe("resolveAiReviewSettings", () => {
     expect(settings?.scorerEffort).toBe("low");
   });
 
+  it("defaults the reviewer when only the scorer has an effort", () => {
+    const settings = resolveAiReviewSettings(
+      { ...base, ai_review: { ...aiReview, effort: { scorer: "low" } } },
+      "api"
+    );
+    expect(settings?.reviewerEffort).toBe("medium");
+    expect(settings?.scorerEffort).toBe("low");
+  });
+
   it("defaults the role that has no effort", () => {
     const settings = resolveAiReviewSettings(
       { ...base, ai_review: { ...aiReview, effort: { reviewer: "low" } } },

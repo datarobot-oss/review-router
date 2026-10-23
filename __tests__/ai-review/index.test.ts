@@ -117,7 +117,11 @@ describe("runAiReview", () => {
   it("logs the model and effort each role runs at", async () => {
     const withEffort = {
       ...orgConfig,
-      ai_review: { ...orgConfig.ai_review, effort: { reviewer: "high" as const } },
+      ai_review: {
+        ...orgConfig.ai_review,
+        models: { reviewer: "rev", scorer: "sco" },
+        effort: { reviewer: "high" as const },
+      },
     };
     await runAiReview(
       octokit() as unknown as Octokit,
@@ -125,7 +129,7 @@ describe("runAiReview", () => {
       deps()
     );
     expect(core.info).toHaveBeenCalledWith(
-      "AI review settings: reviewer rev at high effort, scorer rev at medium effort"
+      "AI review settings: reviewer rev at high effort, scorer sco at medium effort"
     );
   });
 

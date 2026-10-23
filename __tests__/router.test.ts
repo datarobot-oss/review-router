@@ -4,6 +4,7 @@ import {
   handleOpened,
   handleReadyForReview,
   handleClosed,
+  syncReviewCheck,
   handleComment,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
@@ -16,6 +17,7 @@ import * as codeowners from "../src/codeowners";
 import * as labels from "../src/labels";
 import * as comment from "../src/comment";
 import * as slack from "../src/slack";
+import * as checks from "../src/checks";
 
 const mockPostExternalComment = comment.postExternalComment as jest.MockedFunction<
   typeof comment.postExternalComment
@@ -25,6 +27,7 @@ import { OrgConfig } from "../src/types";
 jest.mock("../src/labels");
 jest.mock("../src/comment");
 jest.mock("../src/slack");
+jest.mock("../src/checks");
 
 const mockOctokit = {
   rest: {
@@ -1412,6 +1415,7 @@ describe("handleComment", () => {
 
   const configWithUsers: OrgConfig = {
     ...teamsConfig,
+    notifications: { dm: { enabled: false } },
     users: { alice: "U12345" },
   };
 
@@ -1552,6 +1556,7 @@ describe("handleComment", () => {
   it("notifies assignees on comments", async () => {
     const configWithMultipleUsers: OrgConfig = {
       ...teamsConfig,
+      notifications: { dm: { enabled: false } },
       users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
     };
 
@@ -1595,6 +1600,7 @@ describe("handleComment", () => {
   it("skips assignee who is the commenter", async () => {
     const configWithMultipleUsers: OrgConfig = {
       ...teamsConfig,
+      notifications: { dm: { enabled: false } },
       users: { alice: "U_ALICE", bob: "U_BOB" },
     };
 
@@ -1632,6 +1638,7 @@ describe("handleComment", () => {
   it("skips assignees on approval (review kind)", async () => {
     const configWithMultipleUsers: OrgConfig = {
       ...teamsConfig,
+      notifications: { dm: { enabled: false } },
       users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
     };
 
@@ -1664,6 +1671,404 @@ describe("handleComment", () => {
       "1111.0000",
       expect.stringContaining("your PR was approved by *bob*")
     );
+  });
+});
+
+describe("handleComment DMs", () => {
+  const inputs = {
+    githubToken: "token",
+    slackToken: "xoxb-slack-token",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+    jiraToken: "",
+    aiToken: "",
+  };
+
+  const slackBody =
+    "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->";
+
+  const approval = {
+    owner: "org",
+    repo: "repo",
+    prNumber: 1,
+    prBody: slackBody,
+    prUrl: "https://github.com/org/repo/pull/1",
+    author: "alice",
+    commenter: "bob",
+    commentUrl: "",
+    assignees: [] as string[],
+    kind: "review" as const,
+    inputs,
+  };
+
+  const config: OrgConfig = { ...teamsConfig, users: { alice: "U12345" } };
+
+  beforeEach(() => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([
+      { channel: "C111", ts: "1111.0000" },
+    ]);
+    (slack.isSlackMessageMuted as jest.Mock).mockResolvedValue(false);
+    (slack.postSlackThreadReply as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it("sends a DM to the author and no thread reply", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: config });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      expect.stringContaining("approved by *bob*")
+    );
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+    expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
+  });
+
+  it("sends a DM when the PR has no Slack refs", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, { ...approval, prBody: "body", teamsConfig: config });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+    expect(comment.extractSlackRefsFromDescription).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a thread reply when the DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: config });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U12345>, your PR was approved by *bob*")
+    );
+  });
+
+  it("skips the DM for an opted-out author and uses the thread reply", async () => {
+    const optedOut: OrgConfig = {
+      ...config,
+      notifications: { dm: { opt_out: ["alice"] } },
+    };
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: optedOut });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues with the next recipient when one DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockImplementation(
+      async (_client: unknown, slackId: string) => slackId !== "U_ALICE"
+    );
+    const twoUsers: OrgConfig = {
+      ...teamsConfig,
+      users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
+    };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: twoUsers,
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledTimes(2);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      expect.stringContaining("<@U_ALICE>")
+    );
+  });
+
+  it("does nothing without a Slack token", async () => {
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      inputs: { ...inputs, slackToken: "" },
+      teamsConfig: config,
+    });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+    expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+  });
+});
+
+describe("review check wiring", () => {
+  const inputs = {
+    githubToken: "token",
+    slackToken: "",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+    jiraToken: "",
+    aiToken: "",
+  };
+
+  const reviewCtx = {
+    owner: "datarobot-oss",
+    repo: "test-repo",
+    prNumber: 1,
+    prBody: "",
+    prUrl: "https://github.com/datarobot-oss/test-repo/pull/1",
+    author: "alice",
+    reviewer: "bob",
+    inputs,
+    teamsConfig,
+    capabilities: { hasOrgAccess: true },
+  };
+
+  const closedCtx = {
+    owner: "org",
+    repo: "repo",
+    prNumber: 1,
+    prBody: "",
+    inputs,
+    teamsConfig,
+  };
+
+  it("handleLabeled upserts the check with the routed team slugs", async () => {
+    mockOctokit.paginate.mockResolvedValue([
+      { filename: "src/app.py" },
+      { filename: "infra/main.tf" },
+    ]);
+    jest
+      .spyOn(codeowners, "fetchCodeownersContent")
+      .mockResolvedValue(
+        "* @datarobot-community/customer-engineering\ninfra/ @datarobot-community/platform-team\n"
+      );
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+
+    await handleLabeled(mockOctokit as any, {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs,
+      capabilities: { hasOrgAccess: false },
+      teamsConfig,
+      headSha: "sha123",
+    });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledTimes(1);
+    const args = (checks.upsertReviewCheck as jest.Mock).mock.calls[0];
+    expect(args.slice(1, 5)).toEqual(["datarobot-community", "test-repo", 1, "sha123"]);
+    expect([...args[5]].sort()).toEqual(["customer-engineering", "platform-team"]);
+  });
+
+  const labeledCtx = {
+    owner: "datarobot-community",
+    repo: "test-repo",
+    prNumber: 1,
+    baseBranch: "main",
+    prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+    prTitle: "Test PR",
+    author: "alice",
+    additions: 10,
+    deletions: 5,
+    commits: 1,
+    inputs,
+    capabilities: { hasOrgAccess: false },
+    teamsConfig,
+    headSha: "sha123",
+  };
+
+  function routeWith(codeownersContent: string) {
+    mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+    jest.spyOn(codeowners, "fetchCodeownersContent").mockResolvedValue(codeownersContent);
+    (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+    (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+    (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+    (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+  }
+
+  it("handleLabeled counts Needs Review labels already on the PR as pending", async () => {
+    routeWith("* @datarobot-community/customer-engineering\n");
+
+    await handleLabeled(mockOctokit as any, {
+      ...labeledCtx,
+      labels: ["Needs Review: Platform", "bug"],
+    });
+
+    const pending = (checks.upsertReviewCheck as jest.Mock).mock.calls[0][5] as string[];
+    expect([...pending].sort()).toEqual(["customer-engineering", "platform-team"]);
+  });
+
+  it("handleLabeled skips the check when no team is pending", async () => {
+    routeWith("docs/ @datarobot-community/customer-engineering\n");
+
+    await handleLabeled(mockOctokit as any, { ...labeledCtx, labels: ["bug"] });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
+  });
+
+  it("handleReviewSubmitted upserts the check with the remaining pending teams", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }, { name: "Needs Review: Platform" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockImplementation(
+      async ({ team_slug }: { team_slug: string }) => {
+        if (team_slug === "customer-engineering") return {};
+        throw { status: 404 };
+      }
+    );
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+
+    await handleReviewSubmitted(mockOctokit as any, { ...reviewCtx, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      ["platform-team"]
+    );
+  });
+
+  it("handleReviewSubmitted upserts an empty pending list when the last label is removed", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockResolvedValue({});
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+
+    await handleReviewSubmitted(mockOctokit as any, { ...reviewCtx, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      []
+    );
+  });
+
+  it("handleClosed upserts a closed check for merged and unmerged PRs", async () => {
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [] });
+
+    await handleClosed(mockOctokit as any, { ...closedCtx, merged: false, headSha: "sha123" });
+    await handleClosed(mockOctokit as any, { ...closedCtx, merged: true, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledTimes(2);
+    expect(checks.upsertReviewCheck).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "org",
+      "repo",
+      1,
+      "sha123",
+      [],
+      true
+    );
+    expect(checks.upsertReviewCheck).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "org",
+      "repo",
+      1,
+      "sha123",
+      [],
+      true
+    );
+  });
+
+  const syncCtx = {
+    owner: "datarobot-oss",
+    repo: "test-repo",
+    prNumber: 1,
+    headSha: "sha123",
+    inputs,
+    teamsConfig,
+  };
+
+  it("syncReviewCheck upserts the check on the head with the teams still pending", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Platform" }, { name: "bug" }],
+    });
+
+    await syncReviewCheck(mockOctokit as any, syncCtx);
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      ["platform-team"]
+    );
+  });
+
+  it("syncReviewCheck passes no pending teams when no Needs Review label remains", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await syncReviewCheck(mockOctokit as any, syncCtx);
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      []
+    );
+  });
+
+  it("handleReviewSubmitted settles the check when no Needs Review label is left", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await handleReviewSubmitted(mockOctokit as any, { ...reviewCtx, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      []
+    );
+  });
+
+  it("handlers skip the check when headSha is undefined", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockResolvedValue({});
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+
+    await handleReviewSubmitted(mockOctokit as any, reviewCtx);
+    await handleClosed(mockOctokit as any, { ...closedCtx, merged: false });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
   });
 });
 

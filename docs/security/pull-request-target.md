@@ -82,9 +82,11 @@ action exits immediately with `No github-token provided -- skipping`.
 secrets, fork or not, which is the whole reason review-router uses it for
 opened/labeled/closed. But `handleReviewSubmitted` (approval reactions,
 label removal on approval) and `handleComment` (Slack thread replies) run
-on the other three event types, so neither ever fires for a fork-originated
-PR. There is no workflow configuration that restores secrets to these event
-types on fork PRs -- it's a hard platform boundary. See
+on the other three event types, so neither fires on those events for a
+fork-originated PR. There is no workflow configuration that restores secrets
+to these event types on fork PRs -- it's a hard platform boundary. The
+`schedule` trigger runs with full secrets, so the reconciler replays these
+handlers for open fork PRs from there. See
 [troubleshooting.md](../setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)
 for the symptom and confirmation steps.
 

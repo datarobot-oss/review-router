@@ -12,6 +12,7 @@ import {
 } from "./router";
 import { COMMENT_MARKER } from "./comment";
 import { handleSchedule } from "./reminders";
+import { reconcileOpenPulls } from "./reconcile";
 import { detectCapabilities } from "./auth";
 import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
@@ -166,6 +167,7 @@ async function run(): Promise<void> {
   const capabilities = await detectCapabilities(octokit, owner);
 
   if (eventName === "schedule") {
+    await reconcileOpenPulls(octokit, { owner, repo, inputs, capabilities, teamsConfig });
     await handleSchedule(octokit, {
       owner,
       repo,
@@ -239,6 +241,7 @@ async function run(): Promise<void> {
       merged: pr.merged ?? false,
       inputs,
       teamsConfig,
+      headSha: pr.head?.sha,
     });
     return;
   }
@@ -297,6 +300,7 @@ async function run(): Promise<void> {
       commits: pr.commits ?? 0,
       labels: (pr.labels ?? []).map((l: { name: string }) => l.name),
       teamLabel,
+      headSha: pr.head?.sha,
       inputs,
       capabilities,
       teamsConfig,
@@ -335,6 +339,7 @@ async function run(): Promise<void> {
         inputs,
         capabilities,
         teamsConfig,
+        headSha: pr.head?.sha,
       });
 
       // Thread notification for approval

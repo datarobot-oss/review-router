@@ -6,6 +6,7 @@ import {
   humanizeSlug,
   fetchConfigFromRepo,
   fetchConfigFromS3,
+  isDmEnabledFor,
 } from "../src/config";
 import { OrgConfig } from "../src/types";
 
@@ -19,6 +20,74 @@ describe("loadTeamsConfigForOrg", () => {
   it("returns empty teams for unknown org", async () => {
     const config = await loadTeamsConfigForOrg("unknown-org");
     expect(config.teams).toEqual({});
+  });
+});
+
+describe("notifications.dm config", () => {
+  it("accepts notifications.dm with enabled and opt_out", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    notifications:
+      dm:
+        enabled: false
+        opt_out: ["alice"]
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].notifications?.dm?.enabled).toBe(false);
+    expect(config.orgs["my-org"].notifications?.dm?.opt_out).toEqual(["alice"]);
+  });
+
+  it("rejects unknown keys under notifications", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    notifications:
+      sms:
+        enabled: true
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
+
+  it("rejects a non-string opt_out entry", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    notifications:
+      dm:
+        opt_out: [1]
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
+});
+
+describe("isDmEnabledFor", () => {
+  it("is true by default", () => {
+    expect(isDmEnabledFor({ teams: {} }, "alice")).toBe(true);
+  });
+
+  it("is false when dm.enabled is false", () => {
+    const config: OrgConfig = { teams: {}, notifications: { dm: { enabled: false } } };
+    expect(isDmEnabledFor(config, "alice")).toBe(false);
+  });
+
+  it("is false for an opted-out login, case-insensitively", () => {
+    const config: OrgConfig = { teams: {}, notifications: { dm: { opt_out: ["Alice"] } } };
+    expect(isDmEnabledFor(config, "alice")).toBe(false);
+    expect(isDmEnabledFor(config, "bob")).toBe(true);
   });
 });
 

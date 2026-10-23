@@ -20,10 +20,12 @@ import {
   addSlackReactions,
   isSlackMessageMuted,
   postSlackThreadReply,
+  sendSlackDm,
   FileStats,
   SlackMessageRef,
 } from "./slack";
-import { getLabelForTeam, getSlackChannel } from "./config";
+import { getLabelForTeam, getSlackChannel, isDmEnabledFor } from "./config";
+import { upsertReviewCheck } from "./checks";
 import { isRepoMaintainer } from "./auth";
 import {
   ActionInputs,
@@ -125,6 +127,7 @@ export interface LabeledContext {
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
+  headSha?: string;
 }
 
 export interface ReviewContext {
@@ -138,6 +141,7 @@ export interface ReviewContext {
   inputs: ActionInputs;
   capabilities: Capabilities;
   teamsConfig: OrgConfig;
+  headSha?: string;
 }
 
 async function getSlackRefsWithFallback(
@@ -277,6 +281,26 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     );
   }
 
+  if (ctx.headSha) {
+    // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
+    const existingTeamLabels = ctx.labels.filter((l) =>
+      l.startsWith(ctx.inputs.needsReviewPrefix + ":")
+    );
+    const pendingSlugs = [...new Set([...existingTeamLabels, ...allLabelNames])]
+      .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
+      .filter((slug): slug is string => slug !== undefined);
+    if (pendingSlugs.length > 0) {
+      await upsertReviewCheck(
+        octokit,
+        ctx.owner,
+        ctx.repo,
+        ctx.prNumber,
+        ctx.headSha,
+        pendingSlugs
+      );
+    }
+  }
+
   if (allTeamSlugs.length > 0) {
     try {
       await octokit.rest.pulls.requestReviewers({
@@ -391,10 +415,14 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
 
   if (needsReviewLabels.length === 0) {
     core.info("No 'Needs Review' labels found on PR, nothing to remove");
+    if (ctx.headSha) {
+      await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+    }
     return;
   }
 
   const approvedChannels = new Set<string>();
+  const removedLabelNames = new Set<string>();
   for (const label of needsReviewLabels) {
     const teamSlug = resolveTeamSlugFromLabel(
       label.name,
@@ -410,6 +438,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         username: ctx.reviewer,
       });
       await removeLabel(octokit, ctx.owner, ctx.repo, ctx.prNumber, label.name);
+      removedLabelNames.add(label.name);
       core.info(`Removed "${label.name}" — reviewer ${ctx.reviewer} is a member of ${teamSlug}`);
       const channel = getSlackChannel(ctx.teamsConfig, teamSlug);
       if (channel) approvedChannels.add(channel);
@@ -423,6 +452,16 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         );
       }
     }
+  }
+
+  if (ctx.headSha) {
+    const pendingSlugs = needsReviewLabels
+      .filter((l: { name: string }) => !removedLabelNames.has(l.name))
+      .map((l: { name: string }) =>
+        resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
+      )
+      .filter((slug): slug is string => slug !== undefined);
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
   }
 
   if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
@@ -453,6 +492,35 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
       );
     }
   }
+}
+
+export interface CheckSyncContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  headSha: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+/**
+ * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
+ * Checks belong to a commit, so a push leaves the new head without one until this runs, and
+ * labels removed by hand leave a running check behind.
+ */
+export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
+  const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: ctx.prNumber,
+  });
+  const pendingSlugs = prLabels
+    .filter((l: { name: string }) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
+    .map((l: { name: string }) =>
+      resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
+    )
+    .filter((slug): slug is string => slug !== undefined);
+  await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
 }
 
 export function resolveTeamSlugFromLabel(
@@ -611,9 +679,14 @@ export interface ClosedContext {
   merged: boolean;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
+  headSha?: string;
 }
 
 export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
+  if (ctx.headSha) {
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
+  }
+
   if (!ctx.merged) {
     core.info("PR was closed without merging, skipping label cleanup");
     if (ctx.inputs.slackToken) {
@@ -698,11 +771,75 @@ export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promis
   }
 }
 
+interface CommentRecipient {
+  login: string;
+  slackId: string;
+  dmText: string;
+  threadText: string;
+}
+
 export async function handleComment(octokit: Octokit, ctx: CommentContext): Promise<void> {
   if (!ctx.inputs.slackToken) {
     core.debug("No Slack token provided, skipping thread notification");
     return;
   }
+
+  const client = new WebClient(ctx.inputs.slackToken);
+  const kindLabel =
+    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
+  const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+
+  const recipients: CommentRecipient[] = [];
+
+  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+  if (authorSlackId) {
+    const approved = ctx.kind === "review" && ctx.commentUrl === "";
+    recipients.push({
+      login: ctx.author,
+      slackId: authorSlackId,
+      dmText: approved
+        ? `:white_check_mark: Your PR ${prLink} was approved by *${ctx.commenter}*`
+        : `:speech_balloon: New ${kindLabel} from *${ctx.commenter}* on ${prLink}${
+            ctx.commentUrl ? ` (<${ctx.commentUrl}|view>)` : ""
+          }`,
+      threadText: approved
+        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
+        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`,
+    });
+  }
+
+  if (ctx.kind !== "review") {
+    for (const assignee of ctx.assignees) {
+      if (assignee === ctx.commenter || assignee === ctx.author) continue;
+      const slackId = ctx.teamsConfig.users?.[assignee];
+      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
+      recipients.push({
+        login: assignee,
+        slackId,
+        dmText: `:eyes: New ${kindLabel} from *${ctx.commenter}* on ${prLink}, a PR you're watching`,
+        threadText: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+      });
+    }
+  }
+
+  if (recipients.length === 0) {
+    core.debug("No recipients with Slack IDs found, skipping notifications");
+    return;
+  }
+
+  const needsThreadReply: CommentRecipient[] = [];
+  for (const recipient of recipients) {
+    const dmSent =
+      isDmEnabledFor(ctx.teamsConfig, recipient.login) &&
+      (await sendSlackDm(client, recipient.slackId, recipient.dmText));
+    if (dmSent) {
+      core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);
+    } else {
+      needsThreadReply.push(recipient);
+    }
+  }
+  if (needsThreadReply.length === 0) return;
 
   const refs = await getSlackRefsWithFallback(
     octokit,
@@ -716,39 +853,6 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     return;
   }
 
-  const client = new WebClient(ctx.inputs.slackToken);
-  const kindLabel =
-    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
-  const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
-
-  const recipients: Array<{ slackId: string; text: string }> = [];
-
-  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-  if (authorSlackId) {
-    const text =
-      ctx.kind === "review" && ctx.commentUrl === ""
-        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
-        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`;
-    recipients.push({ slackId: authorSlackId, text });
-  }
-
-  if (ctx.kind !== "review") {
-    for (const assignee of ctx.assignees) {
-      if (assignee === ctx.commenter || assignee === ctx.author) continue;
-      const slackId = ctx.teamsConfig.users?.[assignee];
-      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
-      recipients.push({
-        slackId,
-        text: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
-      });
-    }
-  }
-
-  if (recipients.length === 0) {
-    core.debug("No recipients with Slack IDs found, skipping thread notifications");
-    return;
-  }
-
   for (const ref of refs) {
     try {
       const muted = await isSlackMessageMuted(client, ref.channel, ref.ts);
@@ -756,11 +860,11 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
         core.debug(`Slack message in ${ref.channel} is muted, skipping thread reply`);
         continue;
       }
-      for (const { text } of recipients) {
-        await postSlackThreadReply(client, ref.channel, ref.ts, text);
+      for (const { threadText } of needsThreadReply) {
+        await postSlackThreadReply(client, ref.channel, ref.ts, threadText);
       }
       core.info(
-        `Posted ${recipients.length} thread reply(s) in ${ref.channel} for PR #${ctx.prNumber}`
+        `Posted ${needsThreadReply.length} thread reply(s) in ${ref.channel} for PR #${ctx.prNumber}`
       );
     } catch (error) {
       core.warning(

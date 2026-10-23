@@ -81430,6 +81430,24 @@ async function run() {
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        (action === "synchronize" || action === "reopened")) {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        // Checks belong to a commit, so a push leaves the new head without the Review Router check.
+        await (0, router_1.syncReviewCheck)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            headSha: pr.head.sha,
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         action === "closed") {
         const pr = context.payload.pull_request;
         if (!pr) {

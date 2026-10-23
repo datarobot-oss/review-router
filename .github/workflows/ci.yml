@@ -5,6 +5,8 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # The merge queue runs the required check on its temporary merge commit.
+  merge_group:
 
 permissions:
   contents: read

@@ -24,7 +24,7 @@ import {
   FileStats,
   SlackMessageRef,
 } from "./slack";
-import { getLabelForTeam, getSlackChannel, isDmEnabledFor } from "./config";
+import { getLabelForTeam, getSlackChannel, isDmEnabled } from "./config";
 import { upsertReviewCheck } from "./checks";
 import { isRepoMaintainer } from "./auth";
 import {
@@ -831,7 +831,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   const needsThreadReply: CommentRecipient[] = [];
   for (const recipient of recipients) {
     const dmSent =
-      isDmEnabledFor(ctx.teamsConfig, recipient.login) &&
+      isDmEnabled(ctx.teamsConfig) &&
       (await sendSlackDm(client, recipient.slackId, recipient.dmText));
     if (dmSent) {
       core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);

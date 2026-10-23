@@ -10,7 +10,6 @@ export interface RemindersConfig {
 
 export interface DmConfig {
   enabled?: boolean;
-  opt_out?: string[];
 }
 
 export interface NotificationsConfig {

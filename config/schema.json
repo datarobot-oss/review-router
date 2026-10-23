@@ -210,11 +210,6 @@
         "enabled": {
           "type": "boolean",
           "description": "Send Slack DMs to PR authors and watching assignees on approvals and comments. Default: true."
-        },
-        "opt_out": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "GitHub logins that do not receive DMs. They keep the Slack thread reply."
         }
       }
     },

@@ -113,7 +113,6 @@ orgs:
     notifications:
       dm:
         enabled: true # optional, default true
-        opt_out: ["octocat"] # optional, GitHub logins that skip DMs
     dependabot:
       auto_label: true
     jira:
@@ -188,7 +187,7 @@ on:
 
 When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees who watch the PR receive one for comments. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
 
-DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org, or list GitHub logins in `notifications.dm.opt_out` to skip specific people. A person who doesn't get a DM, or whose DM fails, receives the Slack thread notification instead.
+DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org. When DMs are off or a DM fails, the person receives the Slack thread notification instead. To stop DMs for yourself, mute the bot's conversation in Slack.
 
 ### Review Router check
 
@@ -238,8 +237,8 @@ Thread notifications are filtered automatically:
 - Review-router's own comments are skipped
 
 **Muting:** Add a `:mute:` or `:no_bell:` reaction to the Slack message to
-suppress thread notifications for that PR. DMs ignore this reaction. Add the
-author's login to `notifications.dm.opt_out` instead.
+suppress thread notifications for that PR. DMs ignore this reaction. Mute the
+bot's conversation in Slack to stop DMs.
 
 **Note:** The PR author must be a member of the Slack channel to receive
 @-mention notifications. This is a Slack limitation for private channels.

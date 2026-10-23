@@ -191,7 +191,7 @@ DMs are on by default. Set `notifications.dm.enabled: false` to turn them off fo
 
 ### Review Router check
 
-The action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as running while teams still need to approve and completes when the last team label is removed. The check is informational. A push creates a commit without the check until the next review-router run.
+For the repos listed in `ai_review.repos`, the action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as queued while teams still need to approve and completes when the last team label is removed. Other repos get no check. The check is informational. A push creates a commit without the check until the next review-router run.
 
 The check needs the GitHub App permission **Checks**: Read and write. Without it, the action skips the check.
 
@@ -210,7 +210,7 @@ current approvals, adds the `approved` reaction, updates the Review Router
 check, and sends DMs for approvals and comments that arrived since the
 previous run. Fork PRs in a repo without a `schedule` trigger get none of
 this. For every open PR, the run also rewrites the check on the latest commit, because a
-push leaves the new commit without one and a removed label leaves a running one. The first run on a PR sets a cursor in the PR description and doesn't
+push leaves the new commit without one and a removed label leaves a queued one. The first run on a PR sets a cursor in the PR description and doesn't
 replay earlier events. Routing, labels and the file-type/merged/closed
 reactions run on `pull_request_target` and work in real time. See
 [troubleshooting.md](docs/setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)

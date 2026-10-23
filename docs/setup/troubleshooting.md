@@ -176,7 +176,7 @@ current approvals, adds the `approved` reaction, updates the Review Router
 check, and sends DMs for new approvals and comments. The delay equals the
 schedule interval. The run also rewrites the check on the latest commit of every
 open PR, because a push leaves the new commit without one and a removed label
-leaves a running one.
+leaves a queued one.
 GitHub still doesn't run the real-time handlers for fork
 PRs, so without a `schedule` trigger these PRs get none of this. Everything
 driven by `pull_request_target` (opened/labeled/closed) is unaffected and

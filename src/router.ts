@@ -15,6 +15,7 @@ import {
   postExternalComment,
 } from "./comment";
 import { postJiraComment } from "./jira";
+import { resolveAiReviewSettings } from "./ai-review/settings";
 import {
   sendSlackNotification,
   addSlackReactions,
@@ -281,7 +282,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     );
   }
 
-  if (ctx.headSha) {
+  if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
     // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
     const existingTeamLabels = ctx.labels.filter((l) =>
       l.startsWith(ctx.inputs.needsReviewPrefix + ":")
@@ -415,7 +416,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
 
   if (needsReviewLabels.length === 0) {
     core.info("No 'Needs Review' labels found on PR, nothing to remove");
-    if (ctx.headSha) {
+    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
       await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
     }
     return;
@@ -454,7 +455,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
     }
   }
 
-  if (ctx.headSha) {
+  if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
     const pendingSlugs = needsReviewLabels
       .filter((l: { name: string }) => !removedLabelNames.has(l.name))
       .map((l: { name: string }) =>
@@ -494,6 +495,11 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
   }
 }
 
+/** The Review Router check is on for the repos that subscribe to the AI review. */
+function reviewCheckEnabled(teamsConfig: OrgConfig, repo: string): boolean {
+  return resolveAiReviewSettings(teamsConfig, repo) !== null;
+}
+
 export interface CheckSyncContext {
   owner: string;
   repo: string;
@@ -506,9 +512,10 @@ export interface CheckSyncContext {
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
  * Checks belong to a commit, so a push leaves the new head without one until this runs, and
- * labels removed by hand leave a running check behind.
+ * labels removed by hand leave a queued check behind.
  */
 export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
+  if (!reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) return;
   const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
     owner: ctx.owner,
     repo: ctx.repo,
@@ -683,7 +690,7 @@ export interface ClosedContext {
 }
 
 export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
-  if (ctx.headSha) {
+  if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
     await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
   }
 

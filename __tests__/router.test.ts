@@ -1938,6 +1938,17 @@ describe("review check wiring", () => {
     aiToken: "",
   };
 
+  // The check is on for the repos that subscribe to the AI review.
+  const subscribed: OrgConfig = {
+    ...teamsConfig,
+    ai_review: {
+      enabled: true,
+      repos: ["test-repo", "repo"],
+      endpoint: "https://x/api/v2",
+      models: { reviewer: "rev", scorer: "sco" },
+    },
+  };
+
   const reviewCtx = {
     owner: "datarobot-oss",
     repo: "test-repo",
@@ -1947,7 +1958,7 @@ describe("review check wiring", () => {
     author: "alice",
     reviewer: "bob",
     inputs,
-    teamsConfig,
+    teamsConfig: subscribed,
     capabilities: { hasOrgAccess: true },
   };
 
@@ -1957,7 +1968,7 @@ describe("review check wiring", () => {
     prNumber: 1,
     prBody: "",
     inputs,
-    teamsConfig,
+    teamsConfig: subscribed,
   };
 
   it("handleLabeled upserts the check with the routed team slugs", async () => {
@@ -1990,7 +2001,7 @@ describe("review check wiring", () => {
       labels: [],
       inputs,
       capabilities: { hasOrgAccess: false },
-      teamsConfig,
+      teamsConfig: subscribed,
       headSha: "sha123",
     });
 
@@ -2013,7 +2024,7 @@ describe("review check wiring", () => {
     commits: 1,
     inputs,
     capabilities: { hasOrgAccess: false },
-    teamsConfig,
+    teamsConfig: subscribed,
     headSha: "sha123",
   };
 
@@ -2126,7 +2137,7 @@ describe("review check wiring", () => {
     prNumber: 1,
     headSha: "sha123",
     inputs,
-    teamsConfig,
+    teamsConfig: subscribed,
   };
 
   it("syncReviewCheck upserts the check on the head with the teams still pending", async () => {
@@ -2174,6 +2185,73 @@ describe("review check wiring", () => {
       "sha123",
       []
     );
+  });
+
+  it("handlers create no check in a repo without an ai_review block", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockResolvedValue({});
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+    routeWith("* @datarobot-community/customer-engineering\n");
+
+    await handleLabeled(mockOctokit as any, { ...labeledCtx, teamsConfig, labels: [] });
+    await handleReviewSubmitted(mockOctokit as any, {
+      ...reviewCtx,
+      teamsConfig,
+      headSha: "sha123",
+    });
+    await handleClosed(mockOctokit as any, {
+      ...closedCtx,
+      teamsConfig,
+      merged: true,
+      headSha: "s",
+    });
+    await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
+  });
+
+  it("syncReviewCheck creates no check and reads no labels when the AI review is off", async () => {
+    const off: OrgConfig = {
+      ...subscribed,
+      ai_review: {
+        ...(subscribed.ai_review as NonNullable<OrgConfig["ai_review"]>),
+        enabled: false,
+      },
+    };
+
+    await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig: off });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.listLabelsOnIssue).not.toHaveBeenCalled();
+  });
+
+  it("syncReviewCheck creates no check for a repo outside ai_review.repos", async () => {
+    const other: OrgConfig = {
+      ...subscribed,
+      ai_review: {
+        ...(subscribed.ai_review as NonNullable<OrgConfig["ai_review"]>),
+        repos: ["another-repo"],
+      },
+    };
+
+    await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig: other });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
+  });
+
+  it("handleReviewSubmitted creates no check without an ai_review block when no label is left", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await handleReviewSubmitted(mockOctokit as any, {
+      ...reviewCtx,
+      teamsConfig,
+      headSha: "sha123",
+    });
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
   });
 
   it("handlers skip the check when headSha is undefined", async () => {

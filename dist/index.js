@@ -80519,8 +80519,8 @@ function buildReviewCheck(routedTeams, pendingTeams, closed) {
         };
     }
     return {
-        status: "in_progress",
-        title: `Waiting for approval from ${pendingTeams.length} team(s)`,
+        status: "queued",
+        title: `Waiting for approval from ${pendingTeams.length} ${pendingTeams.length === 1 ? "team" : "teams"}`,
         summary,
         externalId,
     };
@@ -82289,6 +82289,7 @@ const codeowners_1 = __nccwpck_require__(3586);
 const labels_1 = __nccwpck_require__(4584);
 const comment_1 = __nccwpck_require__(2246);
 const jira_1 = __nccwpck_require__(7647);
+const settings_1 = __nccwpck_require__(9188);
 const slack_1 = __nccwpck_require__(6691);
 const config_1 = __nccwpck_require__(2973);
 const checks_1 = __nccwpck_require__(2122);
@@ -82454,7 +82455,7 @@ async function handleLabeled(octokit, ctx) {
     catch (error) {
         core.warning(`Failed to apply labels: ${error instanceof Error ? error.message : String(error)}`);
     }
-    if (ctx.headSha) {
+    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
         // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
         const existingTeamLabels = ctx.labels.filter((l) => l.startsWith(ctx.inputs.needsReviewPrefix + ":"));
         const pendingSlugs = [...new Set([...existingTeamLabels, ...allLabelNames])]
@@ -82559,7 +82560,7 @@ async function handleReviewSubmitted(octokit, ctx) {
     const needsReviewLabels = prLabels.filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
     if (needsReviewLabels.length === 0) {
         core.info("No 'Needs Review' labels found on PR, nothing to remove");
-        if (ctx.headSha) {
+        if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
             await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
         }
         return;
@@ -82593,7 +82594,7 @@ async function handleReviewSubmitted(octokit, ctx) {
             }
         }
     }
-    if (ctx.headSha) {
+    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
         const pendingSlugs = needsReviewLabels
             .filter((l) => !removedLabelNames.has(l.name))
             .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
@@ -82620,12 +82621,18 @@ async function handleReviewSubmitted(octokit, ctx) {
         }
     }
 }
+/** The Review Router check is on for the repos that subscribe to the AI review. */
+function reviewCheckEnabled(teamsConfig, repo) {
+    return (0, settings_1.resolveAiReviewSettings)(teamsConfig, repo) !== null;
+}
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
  * Checks belong to a commit, so a push leaves the new head without one until this runs, and
- * labels removed by hand leave a running check behind.
+ * labels removed by hand leave a queued check behind.
  */
 async function syncReviewCheck(octokit, ctx) {
+    if (!reviewCheckEnabled(ctx.teamsConfig, ctx.repo))
+        return;
     const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
         owner: ctx.owner,
         repo: ctx.repo,
@@ -82727,7 +82734,7 @@ async function handleReadyForReview(octokit, ctx) {
     }
 }
 async function handleClosed(octokit, ctx) {
-    if (ctx.headSha) {
+    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
         await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
     }
     if (!ctx.merged) {

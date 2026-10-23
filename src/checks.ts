@@ -6,7 +6,7 @@ const EXTERNAL_ID_PREFIX = "rr:teams=";
 const MAX_EARLIER_COMMITS = 10;
 
 export interface ReviewCheck {
-  status: "in_progress" | "completed";
+  status: "queued" | "completed";
   conclusion?: "success" | "neutral";
   title: string;
   summary: string;
@@ -51,8 +51,8 @@ export function buildReviewCheck(
     };
   }
   return {
-    status: "in_progress",
-    title: `Waiting for approval from ${pendingTeams.length} team(s)`,
+    status: "queued",
+    title: `Waiting for approval from ${pendingTeams.length} ${pendingTeams.length === 1 ? "team" : "teams"}`,
     summary,
     externalId,
   };

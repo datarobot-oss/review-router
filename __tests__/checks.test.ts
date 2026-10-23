@@ -27,10 +27,20 @@ function checksByRef(octokit: ReturnType<typeof checksOctokit>, byRef: Record<st
 const commit = (sha: string) => ({ sha });
 
 describe("buildReviewCheck", () => {
-  it("is in_progress while teams are pending", () => {
+  it("is queued while teams are pending, so it does not read as a running job", () => {
     const check = buildReviewCheck(["a", "b"], ["b"], false);
-    expect(check.status).toBe("in_progress");
+    expect(check.status).toBe("queued");
     expect(check.conclusion).toBeUndefined();
+  });
+
+  it("names one pending team in the singular", () => {
+    expect(buildReviewCheck(["a"], ["a"], false).title).toBe("Waiting for approval from 1 team");
+  });
+
+  it("names several pending teams in the plural", () => {
+    expect(buildReviewCheck(["a", "b"], ["a", "b"], false).title).toBe(
+      "Waiting for approval from 2 teams"
+    );
   });
 
   it("completes with success when no team is pending", () => {
@@ -85,7 +95,7 @@ describe("upsertReviewCheck", () => {
         repo: "repo",
         name: "Review Router",
         head_sha: "abc123",
-        status: "in_progress",
+        status: "queued",
         external_id: "rr:teams=a",
       })
     );

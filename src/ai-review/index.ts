@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as fs from "fs";
+import { finishAiReviewCheck, startAiReviewCheck, withRunLink } from "../checks";
 import { Octokit, OrgConfig } from "../types";
 import { prepareWorkspace } from "./inputs";
 import { PipelineResult, runPipeline } from "./pipeline";
@@ -118,6 +119,7 @@ export async function runAiReview(
   );
   const started = deps.now();
   if (req.commentId) await react(octokit, req.owner, req.repo, req.commentId, "eyes");
+  const checkId = await startAiReviewCheck(octokit, req.owner, req.repo, pr.head.sha, req.runUrl);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), WALL_CLOCK_MS);
   let workspaceRoot: string | undefined;
@@ -169,6 +171,14 @@ export async function runAiReview(
       postReview(octokit, req.owner, req.repo, req.prNumber, pr.head.sha, review)
     );
     if (req.commentId) await react(octokit, req.owner, req.repo, req.commentId, "hooray");
+    if (checkId !== undefined) {
+      const count = result.findings.length;
+      await finishAiReviewCheck(octokit, req.owner, req.repo, checkId, {
+        conclusion: "success",
+        title: count === 0 ? "No issues found" : `Found ${count} issue${count === 1 ? "" : "s"}`,
+        summary: withRunLink("The review is posted on the pull request.", req.runUrl),
+      });
+    }
     core.info(
       `AI review posted: ${result.findings.length} findings, $${result.costUsd.toFixed(2)} at list price`
     );
@@ -179,9 +189,19 @@ export async function runAiReview(
         ? error.userMessage
         : "unexpected error, see the workflow logs";
     if (req.commentId) await react(octokit, req.owner, req.repo, req.commentId, "confused");
-    await postFailure(octokit, req.owner, req.repo, req.prNumber, reason, req.runUrl).catch((e) =>
-      core.warning(`Could not post the failure comment: ${errorText(e)}`)
-    );
+    if (checkId !== undefined) {
+      await finishAiReviewCheck(octokit, req.owner, req.repo, checkId, {
+        conclusion: "neutral",
+        title: "Could not finish",
+        summary: withRunLink(`AI review couldn't finish: ${reason}.`, req.runUrl),
+      });
+    }
+    // The check reports an automatic run. A person who asked with /ai-review gets a comment too.
+    if (checkId === undefined || req.commentId) {
+      await postFailure(octokit, req.owner, req.repo, req.prNumber, reason, req.runUrl).catch((e) =>
+        core.warning(`Could not post the failure comment: ${errorText(e)}`)
+      );
+    }
   } finally {
     clearTimeout(timer);
     deps.tools.stop();

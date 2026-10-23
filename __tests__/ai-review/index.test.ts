@@ -360,6 +360,14 @@ describe("runAiReview", () => {
       expect(args.output.title).toBe("No issues found");
     });
 
+    it("puts the run link first in the completed summary, where the check page shows it", async () => {
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, { ...request, runUrl }, deps());
+      expect(updateArgs(gh)[0].output.summary).toBe(
+        `[View the workflow run](${runUrl})\n\nThe review is posted on the pull request.`
+      );
+    });
+
     it("names the number of findings it posted", async () => {
       (runPipeline as jest.Mock).mockResolvedValue(oneFinding);
       const gh = octokit();
@@ -376,7 +384,7 @@ describe("runAiReview", () => {
       expect(args.conclusion).toBe("neutral");
       expect(args.output.title).toBe("Could not finish");
       expect(args.output.summary).toContain("could not install the review tools");
-      expect(args.output.summary).toContain(`[workflow run](${runUrl})`);
+      expect(args.output.summary.startsWith(`[View the workflow run](${runUrl})`)).toBe(true);
     });
 
     it("leaves out the failure comment for an automatic run the check already reports", async () => {

@@ -166,7 +166,7 @@ export interface AiReviewCheckResult {
 }
 
 export function withRunLink(text: string, runUrl?: string): string {
-  return runUrl ? `${text} See the [workflow run](${runUrl}).` : text;
+  return runUrl ? `[View the workflow run](${runUrl})\n\n${text}` : text;
 }
 
 /**

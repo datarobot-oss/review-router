@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import { COMMENT_MARKER, EXTERNAL_COMMENT_MARKER, embedDmCursor, extractDmCursor } from "./comment";
 import { isAiReviewCommand } from "./ai-review/trigger";
-import { handleComment, handleReviewSubmitted } from "./router";
+import { handleComment, handleReviewSubmitted, syncReviewCheck } from "./router";
 import { ActionInputs, Capabilities, CommentContext, OrgConfig, Octokit } from "./types";
 
 export interface ReconcileContext {
@@ -209,12 +209,30 @@ async function reconcilePull(
   }
 }
 
+async function refreshCheck(
+  octokit: Octokit,
+  ctx: ReconcileContext,
+  pr: PullSummary
+): Promise<void> {
+  const prefix = `${ctx.inputs.needsReviewPrefix}:`;
+  if (!(pr.labels ?? []).some((l) => l.name.startsWith(prefix))) return;
+  await syncReviewCheck(octokit, {
+    owner: ctx.owner,
+    repo: ctx.repo,
+    prNumber: pr.number,
+    headSha: pr.head.sha,
+    inputs: ctx.inputs,
+    teamsConfig: ctx.teamsConfig,
+  });
+}
+
 /**
  * Replays what review events could not deliver for open fork PRs, whose workflow runs have no
  * secrets: label removal and the approved reaction on approvals, and DMs for new approvals and
- * comments. Runs from the schedule trigger. Never throws.
+ * comments. For every open PR it also rewrites the review check on the current head, which
+ * pushes leave behind. Runs from the schedule trigger. Never throws.
  */
-export async function reconcileForkPulls(octokit: Octokit, ctx: ReconcileContext): Promise<void> {
+export async function reconcileOpenPulls(octokit: Octokit, ctx: ReconcileContext): Promise<void> {
   let pulls: PullSummary[];
   try {
     pulls = await octokit.paginate(octokit.rest.pulls.list, {
@@ -231,12 +249,20 @@ export async function reconcileForkPulls(octokit: Octokit, ctx: ReconcileContext
   }
 
   for (const pr of pulls) {
-    if (pr.head.repo?.full_name === pr.base.repo.full_name) continue;
+    if (pr.head.repo?.full_name !== pr.base.repo.full_name) {
+      try {
+        await reconcilePull(octokit, ctx, pr);
+      } catch (error) {
+        core.warning(
+          `Failed to reconcile PR #${pr.number}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
     try {
-      await reconcilePull(octokit, ctx, pr);
+      await refreshCheck(octokit, ctx, pr);
     } catch (error) {
       core.warning(
-        `Failed to reconcile PR #${pr.number}: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to refresh the review check on PR #${pr.number}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

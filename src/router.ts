@@ -290,7 +290,14 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
       .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
       .filter((slug): slug is string => slug !== undefined);
     if (pendingSlugs.length > 0) {
-      await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
+      await upsertReviewCheck(
+        octokit,
+        ctx.owner,
+        ctx.repo,
+        ctx.prNumber,
+        ctx.headSha,
+        pendingSlugs
+      );
     }
   }
 
@@ -451,7 +458,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
       )
       .filter((slug): slug is string => slug !== undefined);
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
   }
 
   if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
@@ -481,6 +488,36 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         `Failed to add approval reaction: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+}
+
+export interface CheckSyncContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  headSha: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+/**
+ * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
+ * Checks belong to a commit, so a push leaves the new head without one until this runs.
+ */
+export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
+  const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
+    owner: ctx.owner,
+    repo: ctx.repo,
+    issue_number: ctx.prNumber,
+  });
+  const pendingSlugs = prLabels
+    .filter((l: { name: string }) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
+    .map((l: { name: string }) =>
+      resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
+    )
+    .filter((slug): slug is string => slug !== undefined);
+  if (pendingSlugs.length > 0) {
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
   }
 }
 
@@ -645,7 +682,7 @@ export interface ClosedContext {
 
 export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
   if (ctx.headSha) {
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.headSha, [], true);
+    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
   }
 
   if (!ctx.merged) {

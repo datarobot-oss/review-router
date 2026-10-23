@@ -4,6 +4,7 @@ import {
   handleOpened,
   handleReadyForReview,
   handleClosed,
+  syncReviewCheck,
   handleComment,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
@@ -1876,8 +1877,8 @@ describe("review check wiring", () => {
 
     expect(checks.upsertReviewCheck).toHaveBeenCalledTimes(1);
     const args = (checks.upsertReviewCheck as jest.Mock).mock.calls[0];
-    expect(args.slice(1, 4)).toEqual(["datarobot-community", "test-repo", "sha123"]);
-    expect([...args[4]].sort()).toEqual(["customer-engineering", "platform-team"]);
+    expect(args.slice(1, 5)).toEqual(["datarobot-community", "test-repo", 1, "sha123"]);
+    expect([...args[5]].sort()).toEqual(["customer-engineering", "platform-team"]);
   });
 
   const labeledCtx = {
@@ -1915,7 +1916,7 @@ describe("review check wiring", () => {
       labels: ["Needs Review: Platform", "bug"],
     });
 
-    const pending = (checks.upsertReviewCheck as jest.Mock).mock.calls[0][4] as string[];
+    const pending = (checks.upsertReviewCheck as jest.Mock).mock.calls[0][5] as string[];
     expect([...pending].sort()).toEqual(["customer-engineering", "platform-team"]);
   });
 
@@ -1945,6 +1946,7 @@ describe("review check wiring", () => {
       expect.anything(),
       "datarobot-oss",
       "test-repo",
+      1,
       "sha123",
       ["platform-team"]
     );
@@ -1963,6 +1965,7 @@ describe("review check wiring", () => {
       expect.anything(),
       "datarobot-oss",
       "test-repo",
+      1,
       "sha123",
       []
     );
@@ -1981,6 +1984,7 @@ describe("review check wiring", () => {
       expect.anything(),
       "org",
       "repo",
+      1,
       "sha123",
       [],
       true
@@ -1990,10 +1994,45 @@ describe("review check wiring", () => {
       expect.anything(),
       "org",
       "repo",
+      1,
       "sha123",
       [],
       true
     );
+  });
+
+  const syncCtx = {
+    owner: "datarobot-oss",
+    repo: "test-repo",
+    prNumber: 1,
+    headSha: "sha123",
+    inputs,
+    teamsConfig,
+  };
+
+  it("syncReviewCheck upserts the check on the head with the teams still pending", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Platform" }, { name: "bug" }],
+    });
+
+    await syncReviewCheck(mockOctokit as any, syncCtx);
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      ["platform-team"]
+    );
+  });
+
+  it("syncReviewCheck leaves the check alone when no Needs Review label remains", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await syncReviewCheck(mockOctokit as any, syncCtx);
+
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
   });
 
   it("handlers skip the check when headSha is undefined", async () => {

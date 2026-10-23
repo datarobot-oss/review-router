@@ -1,5 +1,5 @@
-import { latestApprovers, reconcileForkPulls } from "../src/reconcile";
-import { handleReviewSubmitted, handleComment } from "../src/router";
+import { latestApprovers, reconcileOpenPulls } from "../src/reconcile";
+import { handleReviewSubmitted, handleComment, syncReviewCheck } from "../src/router";
 import { COMMENT_MARKER } from "../src/comment";
 import { OrgConfig } from "../src/types";
 
@@ -37,6 +37,7 @@ const forkPr = (number: number, body = "") => ({
   html_url: `https://github.com/org/repo/pull/${number}`,
   user: { login: "alice" },
   assignees: [],
+  labels: [] as { name: string }[],
   head: { sha: `sha${number}`, repo: { full_name: "fork/repo" } },
   base: { repo: { full_name: "org/repo" } },
 });
@@ -103,7 +104,7 @@ describe("latestApprovers", () => {
   });
 });
 
-describe("reconcileForkPulls", () => {
+describe("reconcileOpenPulls", () => {
   it("skips same-repo PRs", async () => {
     const sameRepo = { ...forkPr(1), head: { sha: "s", repo: { full_name: "org/repo" } } };
     const octokit = octokitFor({
@@ -111,7 +112,7 @@ describe("reconcileForkPulls", () => {
       reviews: [{ user: human("bob"), state: "APPROVED" }],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleReviewSubmitted).not.toHaveBeenCalled();
     expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
@@ -124,7 +125,7 @@ describe("reconcileForkPulls", () => {
       reviews: [{ user: human("bob"), state: "APPROVED" }],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleReviewSubmitted).toHaveBeenCalledTimes(1);
   });
@@ -139,7 +140,7 @@ describe("reconcileForkPulls", () => {
       ],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleReviewSubmitted).toHaveBeenCalledTimes(2);
     expect(handleReviewSubmitted).toHaveBeenCalledWith(
@@ -159,7 +160,7 @@ describe("reconcileForkPulls", () => {
       reviews: [{ user: human("bob"), state: "APPROVED", submitted_at: "2026-10-22T09:00:00Z" }],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(octokit.rest.pulls.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -176,7 +177,7 @@ describe("reconcileForkPulls", () => {
       reviews: [{ user: human("bob"), state: "APPROVED" }],
     });
 
-    await reconcileForkPulls(octokit as any, { ...ctx, teamsConfig: { teams: {}, users: {} } });
+    await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: { teams: {}, users: {} } });
 
     expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
     expect(handleReviewSubmitted).toHaveBeenCalledTimes(1);
@@ -186,7 +187,7 @@ describe("reconcileForkPulls", () => {
     const withAssignee = { ...forkPr(1, "body"), assignees: [{ login: "carol" }] };
     const octokit = octokitFor({ pulls: [withAssignee], freshBody: "body" });
 
-    await reconcileForkPulls(octokit as any, {
+    await reconcileOpenPulls(octokit as any, {
       ...ctx,
       teamsConfig: { teams: {}, users: { carol: "U2" } },
     });
@@ -197,7 +198,7 @@ describe("reconcileForkPulls", () => {
   it("does not touch the description without a Slack token", async () => {
     const octokit = octokitFor({ pulls: [forkPr(1, "body")] });
 
-    await reconcileForkPulls(octokit as any, { ...ctx, inputs: { ...inputs, slackToken: "" } });
+    await reconcileOpenPulls(octokit as any, { ...ctx, inputs: { ...inputs, slackToken: "" } });
 
     expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
   });
@@ -215,7 +216,7 @@ describe("reconcileForkPulls", () => {
       ],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleComment).not.toHaveBeenCalled();
   });
@@ -246,7 +247,7 @@ describe("reconcileForkPulls", () => {
       ],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     const calls = (handleComment as jest.Mock).mock.calls.map(([, c]) => [
       c.kind,
@@ -283,7 +284,7 @@ describe("reconcileForkPulls", () => {
       ],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleComment).toHaveBeenCalledTimes(1);
     expect(handleComment).toHaveBeenCalledWith(
@@ -315,7 +316,7 @@ describe("reconcileForkPulls", () => {
       ],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleComment).toHaveBeenCalledTimes(1);
     expect(handleComment).toHaveBeenCalledWith(
@@ -334,7 +335,7 @@ describe("reconcileForkPulls", () => {
       ],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     const body = octokit.rest.pulls.update.mock.calls[0][0].body as string;
     expect(body).toContain("<!-- rr:dm-cursor:2026-10-23T10:15:00Z -->");
@@ -344,7 +345,7 @@ describe("reconcileForkPulls", () => {
   it("does not rewrite the description when there are no new events", async () => {
     const octokit = octokitFor({ pulls: [forkPr(1, bodyWithCursor)], freshBody: bodyWithCursor });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
   });
@@ -356,12 +357,97 @@ describe("reconcileForkPulls", () => {
       reviews: [{ user: human("bob"), state: "APPROVED" }],
     });
 
-    await reconcileForkPulls(octokit as any, ctx);
+    await reconcileOpenPulls(octokit as any, ctx);
 
     expect(handleReviewSubmitted).toHaveBeenCalledTimes(2);
     expect(handleReviewSubmitted).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({ prNumber: 2 })
     );
+  });
+
+  describe("review check refresh", () => {
+    const needsReview = [{ name: "Needs Review: Platform" }];
+
+    it("refreshes the check on the current head of a fork PR with a Needs Review label", async () => {
+      const octokit = octokitFor({ pulls: [{ ...forkPr(1), labels: needsReview }] });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(syncReviewCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ owner: "org", repo: "repo", prNumber: 1, headSha: "sha1" })
+      );
+    });
+
+    it("refreshes after the approvals are replayed", async () => {
+      const octokit = octokitFor({
+        pulls: [{ ...forkPr(1), labels: needsReview }],
+        reviews: [{ user: human("bob"), state: "APPROVED" }],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      const replayed = (handleReviewSubmitted as jest.Mock).mock.invocationCallOrder[0];
+      const refreshed = (syncReviewCheck as jest.Mock).mock.invocationCallOrder[0];
+      expect(replayed).toBeLessThan(refreshed);
+    });
+
+    it("does not refresh the check when the PR has no Needs Review label", async () => {
+      const octokit = octokitFor({
+        pulls: [{ ...forkPr(1), labels: [{ name: "bug" }] }, forkPr(2)],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(syncReviewCheck).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the check on a same-repo PR and does nothing else", async () => {
+      const sameRepo = {
+        ...forkPr(1),
+        labels: needsReview,
+        head: { sha: "s1", repo: { full_name: "org/repo" } },
+      };
+      const octokit = octokitFor({
+        pulls: [sameRepo],
+        reviews: [{ user: human("bob"), state: "APPROVED" }],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(syncReviewCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ prNumber: 1, headSha: "s1" })
+      );
+      expect(handleReviewSubmitted).not.toHaveBeenCalled();
+      expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it("refreshes the check even when replaying the PR's approvals throws", async () => {
+      (handleReviewSubmitted as jest.Mock).mockRejectedValueOnce(new Error("boom"));
+      const octokit = octokitFor({
+        pulls: [{ ...forkPr(1), labels: needsReview }],
+        reviews: [{ user: human("bob"), state: "APPROVED" }],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(syncReviewCheck).toHaveBeenCalledTimes(1);
+    });
+
+    it("continues with the next PR after a refresh throws", async () => {
+      (syncReviewCheck as jest.Mock).mockRejectedValueOnce(new Error("boom"));
+      const octokit = octokitFor({
+        pulls: [
+          { ...forkPr(1), labels: needsReview },
+          { ...forkPr(2), labels: needsReview },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(syncReviewCheck).toHaveBeenCalledTimes(2);
+    });
   });
 });

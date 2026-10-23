@@ -10,9 +10,20 @@ function checksOctokit(existing: object[] = []) {
         create: jest.fn().mockResolvedValue({}),
         update: jest.fn().mockResolvedValue({}),
       },
+      pulls: { listCommits: jest.fn() },
     },
+    paginate: jest.fn().mockResolvedValue([]),
   };
 }
+
+/** Check runs per ref; any ref not listed has none. */
+function checksByRef(octokit: ReturnType<typeof checksOctokit>, byRef: Record<string, object[]>) {
+  octokit.rest.checks.listForRef.mockImplementation(async ({ ref }: { ref: string }) => ({
+    data: { check_runs: byRef[ref] ?? [] },
+  }));
+}
+
+const commit = (sha: string) => ({ sha });
 
 describe("buildReviewCheck", () => {
   it("is in_progress while teams are pending", () => {
@@ -65,7 +76,7 @@ describe("upsertReviewCheck", () => {
   it("creates a run when none exists", async () => {
     const octokit = checksOctokit();
 
-    await upsertReviewCheck(octokit as any, "org", "repo", "abc123", ["a"]);
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"]);
 
     expect(octokit.rest.checks.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -83,7 +94,7 @@ describe("upsertReviewCheck", () => {
   it("updates the existing run and keeps previously routed teams", async () => {
     const octokit = checksOctokit([{ id: 7, external_id: "rr:teams=a,b" }]);
 
-    await upsertReviewCheck(octokit as any, "org", "repo", "abc123", ["b"]);
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["b"]);
 
     expect(octokit.rest.checks.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -100,7 +111,7 @@ describe("upsertReviewCheck", () => {
     octokit.rest.checks.listForRef.mockRejectedValue({ status: 403 });
 
     await expect(
-      upsertReviewCheck(octokit as any, "org", "repo", "abc123", ["a"])
+      upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"])
     ).resolves.toBeUndefined();
     expect(octokit.rest.checks.create).not.toHaveBeenCalled();
   });
@@ -110,7 +121,72 @@ describe("upsertReviewCheck", () => {
     octokit.rest.checks.create.mockRejectedValue(new Error("boom"));
 
     await expect(
-      upsertReviewCheck(octokit as any, "org", "repo", "abc123", ["a"])
+      upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"])
     ).resolves.toBeUndefined();
+  });
+
+  it("seeds routed teams from the latest earlier commit's check when the head has none", async () => {
+    const octokit = checksOctokit();
+    octokit.paginate.mockResolvedValue([commit("c1"), commit("c2"), commit("abc123")]);
+    checksByRef(octokit, { c1: [{ id: 3, external_id: "rr:teams=a,b" }] });
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["b"]);
+
+    expect(octokit.rest.checks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        head_sha: "abc123",
+        external_id: "rr:teams=a,b",
+        output: expect.objectContaining({ summary: expect.stringContaining("**Approved:** `a`") }),
+      })
+    );
+  });
+
+  it("does not look at earlier commits when the head already has a check", async () => {
+    const octokit = checksOctokit([{ id: 7, external_id: "rr:teams=a" }]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"]);
+
+    expect(octokit.paginate).not.toHaveBeenCalled();
+  });
+
+  it("routes only the pending teams when no earlier commit has a check", async () => {
+    const octokit = checksOctokit();
+    octokit.paginate.mockResolvedValue([commit("c1"), commit("abc123")]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["b"]);
+
+    expect(octokit.rest.checks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ external_id: "rr:teams=b" })
+    );
+  });
+
+  it("still creates the check when listing the PR commits fails", async () => {
+    const octokit = checksOctokit();
+    octokit.paginate.mockRejectedValue(new Error("boom"));
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["b"]);
+
+    expect(octokit.rest.checks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ external_id: "rr:teams=b" })
+    );
+  });
+
+  it("looks back at no more than 10 earlier commits", async () => {
+    const octokit = checksOctokit();
+    const shas = Array.from({ length: 30 }, (_, i) => `c${i}`);
+    octokit.paginate.mockResolvedValue([...shas.map(commit), commit("abc123")]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["b"]);
+
+    // One lookup for the head plus at most 10 earlier commits.
+    expect(octokit.rest.checks.listForRef).toHaveBeenCalledTimes(11);
+  });
+
+  it("skips the history lookup for a closed PR", async () => {
+    const octokit = checksOctokit();
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", [], true);
+
+    expect(octokit.paginate).not.toHaveBeenCalled();
   });
 });

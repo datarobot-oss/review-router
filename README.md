@@ -73,7 +73,7 @@ The action handles these event types:
 - **`pull_request_review: submitted`** -- removes team labels on approval
 - **`pull_request_review_comment: created`** -- notifies PR author in Slack thread on inline review comments
 - **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing; also notifies PR author in Slack thread on general PR comments
-- **`schedule`** -- reconciles open fork PRs (label removal on approval, the `approved` reaction, the Review Router check, and Slack DMs for new approvals and comments), then sends stale PR reminders when enabled
+- **`schedule`** -- reconciles open fork PRs (label removal on approval, the `approved` reaction, the Review Router check, and Slack DMs for new approvals and comments), refreshes the Review Router check on the latest commit of every open PR with a team label, then sends stale PR reminders when enabled
 
 Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
 branch, so external contributors cannot modify it or access secrets.
@@ -210,7 +210,8 @@ Instead, each `schedule` run scans open fork PRs. It removes team labels for
 current approvals, adds the `approved` reaction, updates the Review Router
 check, and sends DMs for approvals and comments that arrived since the
 previous run. Fork PRs in a repo without a `schedule` trigger get none of
-this. The first run on a PR sets a cursor in the PR description and doesn't
+this. For every open PR with a team label, the run also rewrites the check on the
+latest commit, because a push leaves the new commit without one. The first run on a PR sets a cursor in the PR description and doesn't
 replay earlier events. Routing, labels and the file-type/merged/closed
 reactions run on `pull_request_target` and work in real time. See
 [troubleshooting.md](docs/setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)

@@ -80483,6 +80483,7 @@ exports.upsertReviewCheck = upsertReviewCheck;
 const core = __importStar(__nccwpck_require__(7484));
 exports.CHECK_NAME = "Review Router";
 const EXTERNAL_ID_PREFIX = "rr:teams=";
+const MAX_EARLIER_COMMITS = 10;
 function parseRoutedTeams(externalId) {
     if (!externalId?.startsWith(EXTERNAL_ID_PREFIX))
         return [];
@@ -80520,20 +80521,53 @@ function buildReviewCheck(routedTeams, pendingTeams, closed) {
         externalId,
     };
 }
+async function listChecks(octokit, owner, repo, ref) {
+    const { data } = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref,
+        check_name: exports.CHECK_NAME,
+    });
+    return data.check_runs;
+}
+/** Checks belong to a commit, so a push leaves the new head without the routed-team history. */
+async function routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha) {
+    try {
+        const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
+            owner,
+            repo,
+            pull_number: prNumber,
+            per_page: 100,
+        });
+        const earlier = commits
+            .map((c) => c.sha)
+            .filter((sha) => sha !== headSha)
+            .reverse()
+            .slice(0, MAX_EARLIER_COMMITS);
+        for (const sha of earlier) {
+            const [check] = await listChecks(octokit, owner, repo, sha);
+            if (check)
+                return parseRoutedTeams(check.external_id);
+        }
+    }
+    catch (error) {
+        core.debug(`Could not read earlier ${exports.CHECK_NAME} checks: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return [];
+}
 /**
  * Creates or updates the "Review Router" check on a commit. Never throws: a missing
  * Checks permission (403, 404) is expected until an installation approves it.
  */
-async function upsertReviewCheck(octokit, owner, repo, headSha, pendingTeams, closed = false) {
+async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendingTeams, closed = false) {
     try {
-        const { data } = await octokit.rest.checks.listForRef({
-            owner,
-            repo,
-            ref: headSha,
-            check_name: exports.CHECK_NAME,
-        });
-        const existing = data.check_runs[0];
-        const routedTeams = [...new Set([...parseRoutedTeams(existing?.external_id), ...pendingTeams])];
+        const [existing] = await listChecks(octokit, owner, repo, headSha);
+        const previouslyRouted = existing
+            ? parseRoutedTeams(existing.external_id)
+            : closed
+                ? []
+                : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);
+        const routedTeams = [...new Set([...previouslyRouted, ...pendingTeams])];
         const check = buildReviewCheck(routedTeams, pendingTeams, closed);
         const fields = {
             owner,
@@ -81273,7 +81307,7 @@ async function run() {
     const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configPath, inputs.configS3);
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     if (eventName === "schedule") {
-        await (0, reconcile_1.reconcileForkPulls)(octokit, { owner, repo, inputs, capabilities, teamsConfig });
+        await (0, reconcile_1.reconcileOpenPulls)(octokit, { owner, repo, inputs, capabilities, teamsConfig });
         await (0, reminders_1.handleSchedule)(octokit, {
             owner,
             repo,
@@ -81802,7 +81836,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.latestApprovers = latestApprovers;
-exports.reconcileForkPulls = reconcileForkPulls;
+exports.reconcileOpenPulls = reconcileOpenPulls;
 const core = __importStar(__nccwpck_require__(7484));
 const comment_1 = __nccwpck_require__(2246);
 const trigger_1 = __nccwpck_require__(5789);
@@ -81957,12 +81991,26 @@ async function reconcilePull(octokit, ctx, pr) {
         await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, events[events.length - 1].at);
     }
 }
+async function refreshCheck(octokit, ctx, pr) {
+    const prefix = `${ctx.inputs.needsReviewPrefix}:`;
+    if (!(pr.labels ?? []).some((l) => l.name.startsWith(prefix)))
+        return;
+    await (0, router_1.syncReviewCheck)(octokit, {
+        owner: ctx.owner,
+        repo: ctx.repo,
+        prNumber: pr.number,
+        headSha: pr.head.sha,
+        inputs: ctx.inputs,
+        teamsConfig: ctx.teamsConfig,
+    });
+}
 /**
  * Replays what review events could not deliver for open fork PRs, whose workflow runs have no
  * secrets: label removal and the approved reaction on approvals, and DMs for new approvals and
- * comments. Runs from the schedule trigger. Never throws.
+ * comments. For every open PR it also rewrites the review check on the current head, which
+ * pushes leave behind. Runs from the schedule trigger. Never throws.
  */
-async function reconcileForkPulls(octokit, ctx) {
+async function reconcileOpenPulls(octokit, ctx) {
     let pulls;
     try {
         pulls = await octokit.paginate(octokit.rest.pulls.list, {
@@ -81977,13 +82025,19 @@ async function reconcileForkPulls(octokit, ctx) {
         return;
     }
     for (const pr of pulls) {
-        if (pr.head.repo?.full_name === pr.base.repo.full_name)
-            continue;
+        if (pr.head.repo?.full_name !== pr.base.repo.full_name) {
+            try {
+                await reconcilePull(octokit, ctx, pr);
+            }
+            catch (error) {
+                core.warning(`Failed to reconcile PR #${pr.number}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
         try {
-            await reconcilePull(octokit, ctx, pr);
+            await refreshCheck(octokit, ctx, pr);
         }
         catch (error) {
-            core.warning(`Failed to reconcile PR #${pr.number}: ${error instanceof Error ? error.message : String(error)}`);
+            core.warning(`Failed to refresh the review check on PR #${pr.number}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 }
@@ -82193,6 +82247,7 @@ exports.classifyLabel = classifyLabel;
 exports.shouldSkipDuplicateRouting = shouldSkipDuplicateRouting;
 exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
+exports.syncReviewCheck = syncReviewCheck;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
 exports.handleOpened = handleOpened;
 exports.handleReadyForReview = handleReadyForReview;
@@ -82378,7 +82433,7 @@ async function handleLabeled(octokit, ctx) {
             .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
         if (pendingSlugs.length > 0) {
-            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
         }
     }
     if (allTeamSlugs.length > 0) {
@@ -82512,7 +82567,7 @@ async function handleReviewSubmitted(octokit, ctx) {
             .filter((l) => !removedLabelNames.has(l.name))
             .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.headSha, pendingSlugs);
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
     }
     if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
         try {
@@ -82532,6 +82587,24 @@ async function handleReviewSubmitted(octokit, ctx) {
         catch (error) {
             core.warning(`Failed to add approval reaction: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+}
+/**
+ * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
+ * Checks belong to a commit, so a push leaves the new head without one until this runs.
+ */
+async function syncReviewCheck(octokit, ctx) {
+    const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
+        owner: ctx.owner,
+        repo: ctx.repo,
+        issue_number: ctx.prNumber,
+    });
+    const pendingSlugs = prLabels
+        .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
+        .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
+        .filter((slug) => slug !== undefined);
+    if (pendingSlugs.length > 0) {
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
     }
 }
 function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
@@ -82625,7 +82698,7 @@ async function handleReadyForReview(octokit, ctx) {
 }
 async function handleClosed(octokit, ctx) {
     if (ctx.headSha) {
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.headSha, [], true);
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
     }
     if (!ctx.merged) {
         core.info("PR was closed without merging, skipping label cleanup");

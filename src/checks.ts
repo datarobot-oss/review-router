@@ -3,6 +3,7 @@ import { Octokit } from "./types";
 
 export const CHECK_NAME = "Review Router";
 const EXTERNAL_ID_PREFIX = "rr:teams=";
+const MAX_EARLIER_COMMITS = 10;
 
 export interface ReviewCheck {
   status: "in_progress" | "completed";
@@ -57,6 +58,48 @@ export function buildReviewCheck(
   };
 }
 
+async function listChecks(octokit: Octokit, owner: string, repo: string, ref: string) {
+  const { data } = await octokit.rest.checks.listForRef({
+    owner,
+    repo,
+    ref,
+    check_name: CHECK_NAME,
+  });
+  return data.check_runs;
+}
+
+/** Checks belong to a commit, so a push leaves the new head without the routed-team history. */
+async function routedTeamsFromEarlierCommits(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  headSha: string
+): Promise<string[]> {
+  try {
+    const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
+      owner,
+      repo,
+      pull_number: prNumber,
+      per_page: 100,
+    });
+    const earlier = commits
+      .map((c) => c.sha)
+      .filter((sha) => sha !== headSha)
+      .reverse()
+      .slice(0, MAX_EARLIER_COMMITS);
+    for (const sha of earlier) {
+      const [check] = await listChecks(octokit, owner, repo, sha);
+      if (check) return parseRoutedTeams(check.external_id);
+    }
+  } catch (error) {
+    core.debug(
+      `Could not read earlier ${CHECK_NAME} checks: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return [];
+}
+
 /**
  * Creates or updates the "Review Router" check on a commit. Never throws: a missing
  * Checks permission (403, 404) is expected until an installation approves it.
@@ -65,19 +108,19 @@ export async function upsertReviewCheck(
   octokit: Octokit,
   owner: string,
   repo: string,
+  prNumber: number,
   headSha: string,
   pendingTeams: string[],
   closed = false
 ): Promise<void> {
   try {
-    const { data } = await octokit.rest.checks.listForRef({
-      owner,
-      repo,
-      ref: headSha,
-      check_name: CHECK_NAME,
-    });
-    const existing = data.check_runs[0];
-    const routedTeams = [...new Set([...parseRoutedTeams(existing?.external_id), ...pendingTeams])];
+    const [existing] = await listChecks(octokit, owner, repo, headSha);
+    const previouslyRouted = existing
+      ? parseRoutedTeams(existing.external_id)
+      : closed
+        ? []
+        : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);
+    const routedTeams = [...new Set([...previouslyRouted, ...pendingTeams])];
     const check = buildReviewCheck(routedTeams, pendingTeams, closed);
     const fields = {
       owner,

@@ -21,7 +21,7 @@ npm run all           # lint + test + build
   - `comment.ts` -- PR comment builder
   - `labels.ts` -- GitHub label operations
   - `checks.ts` -- Review Router PR check run
-  - `reconcile.ts` -- scheduled reconciliation of fork PRs
+  - `reconcile.ts` -- scheduled reconciliation of fork PRs and check refresh for open PRs
   - `slack.ts` -- Slack notifications
   - `auth.ts` -- capability detection
   - `types.ts` -- shared interfaces
@@ -59,7 +59,7 @@ The action handles four GitHub event types:
 1. **`pull_request_target: labeled`** -- parses CODEOWNERS from the base branch, maps changed files to teams, applies "Needs Review: {team}" labels, requests team reviews, posts ownership comment, sends Slack notifications
 2. **`pull_request_review: submitted`** -- removes team labels when a member of that team approves
 3. **`issue_comment: created`** -- on `/review` comment, adds "Ready for Review" label to trigger routing
-4. **`schedule`** -- reconciles open fork PRs, whose review events run without secrets: removes team labels for current approvals, adds the `approved` reaction, updates the Review Router check, and sends Slack DMs for new approvals and comments. Then sends stale PR reminders when enabled
+4. **`schedule`** -- reconciles open fork PRs, whose review events run without secrets: removes team labels for current approvals, adds the `approved` reaction, updates the Review Router check, and sends Slack DMs for new approvals and comments. Also refreshes the check on the latest commit of every open PR with a team label. Then sends stale PR reminders when enabled
 
 The optional AI review (`src/ai-review/`) runs after routing on the labeled event, and on `/ai-review` comments. See `docs/setup/ai-review.md`.
 

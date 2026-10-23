@@ -69,6 +69,7 @@ The action handles these event types:
 
 - **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added; when a person adds a "Needs Review: {team}" label, notifies only that team
 - **`pull_request_target: opened`** -- triggers dependabot auto-labeling when enabled in config
+- **`pull_request_target: synchronize`, `reopened`** -- refreshes the Review Router check on the new head commit
 - **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
 - **`pull_request_review: submitted`** -- removes team labels on approval
 - **`pull_request_review_comment: created`** -- notifies PR author in Slack thread on inline review comments
@@ -191,7 +192,7 @@ DMs are on by default. Set `notifications.dm.enabled: false` to turn them off fo
 
 ### Review Router check
 
-For the repos listed in `ai_review.repos`, the action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as queued while teams still need to approve and completes when the last team label is removed. Other repos get no new check, and one that already exists still completes. The check is informational. A push creates a commit without the check until the next review-router run.
+For the repos listed in `ai_review.repos`, the action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as queued while teams still need to approve and completes when the last team label is removed. Other repos get no new check, and one that already exists still completes. The check is informational. A push creates a commit without the check until the next review-router run. To refresh it on every push, add `synchronize` and `reopened` to the `pull_request_target` types of your workflow. Each push then runs the workflow once, and a PR with no pending teams still gets no check.
 
 The check needs the GitHub App permission **Checks**: Read and write. Without it, the action skips the check.
 

@@ -130,7 +130,8 @@ The optional AI review downloads the PR head through the tarball API and lets a 
 
 - GitHub App tokens are generated per-run and expire in 1 hour
 - The app token is scoped to the permissions configured in the app
-  (Contents: Read, Pull requests: Write, Members: Read, Issues: Write)
+  (Contents: Read, Pull requests: Write, Members: Read, Issues: Write,
+  Checks: Read and write). See [Basic setup](../setup/basic.md#1-create-a-github-app).
 - The config token (when used) is scoped to a single config repository
 - Slack token can only post messages to channels the bot is in
 

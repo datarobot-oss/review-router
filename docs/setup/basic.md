@@ -21,18 +21,37 @@ https://github.com/apps/datarobot-pr-review-router
 For other organizations, create a new GitHub App:
 
 1. Go to your org settings > Developer settings > GitHub Apps > New GitHub App
-2. Set the following permissions:
-   - **Checks**: Read and write (optional, enables the Review Router check)
-   - **Contents**: Read
-   - **Issues**: Write
-   - **Members**: Read
-   - **Metadata**: Read
-   - **Pull requests**: Write
+2. Set the repository permissions in the following table
 3. Install the app on your organization
 4. Note the **App ID** and generate a **Private Key**
 
+| Permission | Level | Used for | Without it |
+|------------|-------|----------|------------|
+| Metadata | Read | Reads the repository and organization. | GitHub grants it to every app. |
+| Contents | Read | Reads CODEOWNERS, the config, commit history, and the source archive for AI review. | Routing and AI review fail. |
+| Pull requests | Write | Reads PRs, files, and reviews, requests reviewers, and posts AI review comments. | Routing and AI review fail. |
+| Issues | Write | Adds and removes labels and posts comments. | Labeling and comments fail. |
+| Members | Read | Looks up team and organization membership. | Membership lookups fail. |
+| Checks | Read and write | Creates the Review Router check on the PR head commit. | The action skips the check and logs why. Routing keeps working. |
+| Actions | Read | Optional. Reads workflow runs and their logs. | No current feature uses it. |
+| Commit statuses | Read | Optional. Reads legacy commit statuses. | No current feature uses it. |
+| Dependabot alerts | Read | Optional. Reads vulnerability alerts for the repository. | No current feature uses it. |
+
 If you prefer, you can use a fine-grained PAT with the same permissions
 instead of a GitHub App.
+
+### Add or change permissions on an existing installation
+
+A new installation receives every permission the app requests when someone with the
+organization owner role installs it. After you change the app's permissions,
+GitHub doesn't apply them to installations that already exist. Each installation
+shows a pending permission request that an organization owner must accept under
+**Settings > GitHub Apps > Configure**. Until then, the installation keeps its
+old permissions and the features that need the new one stay off. The Review Router
+check is the usual case: the action logs that it skips the check (403) and carries on.
+
+An organization that installs your app, such as an external one, accepts the request
+for its own installation. Ask its owners to accept it.
 
 ## 2. Add repository secrets
 

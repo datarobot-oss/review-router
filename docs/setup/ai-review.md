@@ -38,11 +38,14 @@ A review usually takes about 5 minutes and costs about $1 to $1.50 at list price
          models:
            reviewer: bedrock/anthropic.claude-sonnet-5
            scorer: bedrock/anthropic.claude-sonnet-5
+         effort: # optional, per role
+           reviewer: high
+           scorer: low
          threshold: 70 # optional, 0-100
          max_cost_usd: 3 # optional
    ```
 
-   Model ids must exist in the endpoint's LLM Gateway catalog.
+   Model ids must exist in the endpoint's LLM Gateway catalog. `effort` sets the Claude Code effort level for each role to `low`, `medium` or `high`. A role left out runs at `medium`.
 
 If a caller workflow skips comments with `contains(github.event.comment.body, '/review')`, that filter drops `/ai-review`, because `/ai-review` doesn't contain the substring `/review`. Add `|| contains(github.event.comment.body, '/ai-review')` to it.
 

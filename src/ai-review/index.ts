@@ -112,6 +112,10 @@ export async function runAiReview(
   }
 
   const settings = gate.settings;
+  core.info(
+    `AI review settings: reviewer ${settings.reviewerModel} at ${settings.reviewerEffort} effort, ` +
+      `scorer ${settings.scorerModel} at ${settings.scorerEffort} effort`
+  );
   const started = deps.now();
   if (req.commentId) await react(octokit, req.owner, req.repo, req.commentId, "eyes");
   const controller = new AbortController();

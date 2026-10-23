@@ -4,6 +4,8 @@ const settings = {
   endpoint: "https://x/api/v2",
   reviewerModel: "m",
   scorerModel: "m",
+  reviewerEffort: "medium" as const,
+  scorerEffort: "medium" as const,
   threshold: 70,
   maxCostUsd: 3,
 };

@@ -6,6 +6,7 @@ import {
   handleClosed,
   syncReviewCheck,
   handleComment,
+  formatGitHubUser,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
   isReadyLabel,
@@ -1448,7 +1449,8 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("new comment from *bob*")
+      ":speech_balloon: <@U12345>, <https://github.com/bob|bob> commented on your pull request. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
     );
   });
 
@@ -1550,7 +1552,7 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("your PR was approved by *bob*")
+      expect.stringContaining("<https://github.com/bob|bob> approved your pull request.")
     );
   });
   it("notifies assignees on comments", async () => {
@@ -1669,7 +1671,27 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("your PR was approved by *bob*")
+      expect.stringContaining("<https://github.com/bob|bob> approved your pull request.")
+    );
+  });
+});
+
+describe("formatGitHubUser", () => {
+  it("mentions a login that has a Slack user", () => {
+    expect(formatGitHubUser("bob", { bob: "U_BOB" })).toBe("<@U_BOB>");
+  });
+
+  it("links the GitHub profile of a login without a Slack user", () => {
+    expect(formatGitHubUser("bob", { alice: "U12345" })).toBe("<https://github.com/bob|bob>");
+  });
+
+  it("links the GitHub profile when there is no users mapping", () => {
+    expect(formatGitHubUser("bob", undefined)).toBe("<https://github.com/bob|bob>");
+  });
+
+  it("links the app page of a bot login", () => {
+    expect(formatGitHubUser("cursor[bot]", {})).toBe(
+      "<https://github.com/apps/cursor|cursor[bot]>"
     );
   });
 });
@@ -1724,10 +1746,107 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U12345",
-      expect.stringContaining("approved by *bob*")
+      ":white_check_mark: <https://github.com/bob|bob> approved your pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>."
     );
     expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
     expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
+  });
+
+  it("mentions the commenter when the commenter has a Slack user", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    const mapped: OrgConfig = { ...teamsConfig, users: { alice: "U12345", bob: "U_BOB" } };
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: mapped });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      ":white_check_mark: <@U_BOB> approved your pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>."
+    );
+  });
+
+  it.each(["comment", "review", "review_comment"] as const)(
+    "sends the same comment DM to the author for a %s",
+    async (kind) => {
+      (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+      await handleComment(mockOctokit as any, {
+        ...approval,
+        kind,
+        commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+        teamsConfig: config,
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U12345",
+        ":speech_balloon: <https://github.com/bob|bob> commented on your pull request " +
+          "<https://github.com/org/repo/pull/1|org/repo#1>. " +
+          "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+      );
+    }
+  );
+
+  it("ends the comment DM after the PR link when there is no comment URL", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "",
+      teamsConfig: config,
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      ":speech_balloon: <https://github.com/bob|bob> commented on your pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>."
+    );
+  });
+
+  it("tells an assignee the pull request is assigned to them", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    const withAssignee: OrgConfig = { ...teamsConfig, users: { charlie: "U_CHARLIE" } };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: withAssignee,
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CHARLIE",
+      ":eyes: <https://github.com/bob|bob> commented on your assigned pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+    );
+  });
+
+  it("falls back to a thread reply for an assignee when the DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+    const withAssignee: OrgConfig = { ...teamsConfig, users: { charlie: "U_CHARLIE" } };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: withAssignee,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      ":eyes: <@U_CHARLIE>, <https://github.com/bob|bob> commented on your assigned pull request. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+    );
   });
 
   it("sends a DM when the PR has no Slack refs", async () => {
@@ -1749,7 +1868,7 @@ describe("handleComment DMs", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("<@U12345>, your PR was approved by *bob*")
+      ":white_check_mark: <@U12345>, <https://github.com/bob|bob> approved your pull request."
     );
   });
 
@@ -1819,6 +1938,17 @@ describe("review check wiring", () => {
     aiToken: "",
   };
 
+  // The check is on for the repos that subscribe to the AI review.
+  const subscribed: OrgConfig = {
+    ...teamsConfig,
+    ai_review: {
+      enabled: true,
+      repos: ["test-repo", "repo"],
+      endpoint: "https://x/api/v2",
+      models: { reviewer: "rev", scorer: "sco" },
+    },
+  };
+
   const reviewCtx = {
     owner: "datarobot-oss",
     repo: "test-repo",
@@ -1828,7 +1958,7 @@ describe("review check wiring", () => {
     author: "alice",
     reviewer: "bob",
     inputs,
-    teamsConfig,
+    teamsConfig: subscribed,
     capabilities: { hasOrgAccess: true },
   };
 
@@ -1838,7 +1968,7 @@ describe("review check wiring", () => {
     prNumber: 1,
     prBody: "",
     inputs,
-    teamsConfig,
+    teamsConfig: subscribed,
   };
 
   it("handleLabeled upserts the check with the routed team slugs", async () => {
@@ -1871,7 +2001,7 @@ describe("review check wiring", () => {
       labels: [],
       inputs,
       capabilities: { hasOrgAccess: false },
-      teamsConfig,
+      teamsConfig: subscribed,
       headSha: "sha123",
     });
 
@@ -1894,7 +2024,7 @@ describe("review check wiring", () => {
     commits: 1,
     inputs,
     capabilities: { hasOrgAccess: false },
-    teamsConfig,
+    teamsConfig: subscribed,
     headSha: "sha123",
   };
 
@@ -1948,7 +2078,9 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      ["platform-team"]
+      ["platform-team"],
+      false,
+      true
     );
   });
 
@@ -1967,7 +2099,9 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      []
+      [],
+      false,
+      true
     );
   });
 
@@ -1987,6 +2121,7 @@ describe("review check wiring", () => {
       1,
       "sha123",
       [],
+      true,
       true
     );
     expect(checks.upsertReviewCheck).toHaveBeenNthCalledWith(
@@ -1997,6 +2132,7 @@ describe("review check wiring", () => {
       1,
       "sha123",
       [],
+      true,
       true
     );
   });
@@ -2007,7 +2143,7 @@ describe("review check wiring", () => {
     prNumber: 1,
     headSha: "sha123",
     inputs,
-    teamsConfig,
+    teamsConfig: subscribed,
   };
 
   it("syncReviewCheck upserts the check on the head with the teams still pending", async () => {
@@ -2023,7 +2159,9 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      ["platform-team"]
+      ["platform-team"],
+      false,
+      true
     );
   });
 
@@ -2038,7 +2176,9 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      []
+      [],
+      false,
+      true
     );
   });
 
@@ -2053,7 +2193,94 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      []
+      [],
+      false,
+      true
+    );
+  });
+
+  it("handlers never create a check in a repo without an ai_review block", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({
+      data: [{ name: "Needs Review: Customer Engineering" }],
+    });
+    mockOctokit.rest.teams.getMembershipForUserInOrg.mockResolvedValue({});
+    (labels.removeLabel as jest.Mock).mockResolvedValue(undefined);
+    (comment.extractSlackRefsFromDescription as jest.Mock).mockReturnValue([]);
+    routeWith("* @datarobot-community/customer-engineering\n");
+
+    await handleLabeled(mockOctokit as any, { ...labeledCtx, teamsConfig, labels: [] });
+    await handleReviewSubmitted(mockOctokit as any, {
+      ...reviewCtx,
+      teamsConfig,
+      headSha: "sha123",
+    });
+    await handleClosed(mockOctokit as any, {
+      ...closedCtx,
+      teamsConfig,
+      merged: true,
+      headSha: "s",
+    });
+    await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig });
+
+    // The handlers still report, so a check that already exists settles. None may create one.
+    const calls = (checks.upsertReviewCheck as jest.Mock).mock.calls;
+    expect(calls).toHaveLength(4);
+    calls.forEach((call) => expect(call[7]).toBe(false));
+  });
+
+  const offConfig: OrgConfig = {
+    ...subscribed,
+    ai_review: {
+      ...(subscribed.ai_review as NonNullable<OrgConfig["ai_review"]>),
+      enabled: false,
+    },
+  };
+  const otherRepoConfig: OrgConfig = {
+    ...subscribed,
+    ai_review: {
+      ...(subscribed.ai_review as NonNullable<OrgConfig["ai_review"]>),
+      repos: ["another-repo"],
+    },
+  };
+
+  it.each([
+    ["the AI review is off", offConfig],
+    ["the repo is outside ai_review.repos", otherRepoConfig],
+  ])("syncReviewCheck settles but never creates a check when %s", async (_name, config) => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig: config });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      [],
+      false,
+      false
+    );
+  });
+
+  it("handleReviewSubmitted settles but never creates a check without an ai_review block when no label is left", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await handleReviewSubmitted(mockOctokit as any, {
+      ...reviewCtx,
+      teamsConfig,
+      headSha: "sha123",
+    });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      [],
+      false,
+      false
     );
   });
 

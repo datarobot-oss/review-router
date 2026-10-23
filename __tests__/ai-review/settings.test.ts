@@ -29,9 +29,38 @@ describe("resolveAiReviewSettings", () => {
       endpoint: "https://app.eu.datarobot.com/api/v2",
       reviewerModel: "rev-model",
       scorerModel: "score-model",
+      reviewerEffort: "medium",
+      scorerEffort: "medium",
       threshold: 70,
       maxCostUsd: 3,
     });
+  });
+
+  it("keeps an explicit effort for each role", () => {
+    const settings = resolveAiReviewSettings(
+      { ...base, ai_review: { ...aiReview, effort: { reviewer: "high", scorer: "low" } } },
+      "api"
+    );
+    expect(settings?.reviewerEffort).toBe("high");
+    expect(settings?.scorerEffort).toBe("low");
+  });
+
+  it("defaults the reviewer when only the scorer has an effort", () => {
+    const settings = resolveAiReviewSettings(
+      { ...base, ai_review: { ...aiReview, effort: { scorer: "low" } } },
+      "api"
+    );
+    expect(settings?.reviewerEffort).toBe("medium");
+    expect(settings?.scorerEffort).toBe("low");
+  });
+
+  it("defaults the role that has no effort", () => {
+    const settings = resolveAiReviewSettings(
+      { ...base, ai_review: { ...aiReview, effort: { reviewer: "low" } } },
+      "api"
+    );
+    expect(settings?.reviewerEffort).toBe("low");
+    expect(settings?.scorerEffort).toBe("medium");
   });
 
   it("keeps explicit threshold and cost cap", () => {

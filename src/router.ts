@@ -15,6 +15,7 @@ import {
   postExternalComment,
 } from "./comment";
 import { postJiraComment } from "./jira";
+import { resolveAiReviewSettings } from "./ai-review/settings";
 import {
   sendSlackNotification,
   addSlackReactions,
@@ -296,7 +297,9 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
         ctx.repo,
         ctx.prNumber,
         ctx.headSha,
-        pendingSlugs
+        pendingSlugs,
+        false,
+        reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
       );
     }
   }
@@ -416,7 +419,16 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
   if (needsReviewLabels.length === 0) {
     core.info("No 'Needs Review' labels found on PR, nothing to remove");
     if (ctx.headSha) {
-      await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+      await upsertReviewCheck(
+        octokit,
+        ctx.owner,
+        ctx.repo,
+        ctx.prNumber,
+        ctx.headSha,
+        [],
+        false,
+        reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+      );
     }
     return;
   }
@@ -461,7 +473,16 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
         resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
       )
       .filter((slug): slug is string => slug !== undefined);
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+    await upsertReviewCheck(
+      octokit,
+      ctx.owner,
+      ctx.repo,
+      ctx.prNumber,
+      ctx.headSha,
+      pendingSlugs,
+      false,
+      reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+    );
   }
 
   if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
@@ -494,6 +515,11 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
   }
 }
 
+/** Repos that subscribe to the AI review get new checks. Other repos only settle ones that exist. */
+function reviewCheckEnabled(teamsConfig: OrgConfig, repo: string): boolean {
+  return resolveAiReviewSettings(teamsConfig, repo) !== null;
+}
+
 export interface CheckSyncContext {
   owner: string;
   repo: string;
@@ -506,7 +532,7 @@ export interface CheckSyncContext {
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
  * Checks belong to a commit, so a push leaves the new head without one until this runs, and
- * labels removed by hand leave a running check behind.
+ * labels removed by hand leave a queued check behind.
  */
 export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
   const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
@@ -520,7 +546,16 @@ export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): 
       resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
     )
     .filter((slug): slug is string => slug !== undefined);
-  await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+  await upsertReviewCheck(
+    octokit,
+    ctx.owner,
+    ctx.repo,
+    ctx.prNumber,
+    ctx.headSha,
+    pendingSlugs,
+    false,
+    reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+  );
 }
 
 export function resolveTeamSlugFromLabel(
@@ -684,7 +719,16 @@ export interface ClosedContext {
 
 export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
   if (ctx.headSha) {
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
+    await upsertReviewCheck(
+      octokit,
+      ctx.owner,
+      ctx.repo,
+      ctx.prNumber,
+      ctx.headSha,
+      [],
+      true,
+      reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+    );
   }
 
   if (!ctx.merged) {
@@ -771,6 +815,18 @@ export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promis
   }
 }
 
+/**
+ * Formats a GitHub login for Slack: a mention when the login has a Slack user, otherwise a link
+ * to its GitHub page. Bot logins link to the app page, because github.com/<name>[bot] does not resolve.
+ */
+export function formatGitHubUser(login: string, users: Record<string, string> | undefined): string {
+  const slackId = users?.[login];
+  if (slackId) return `<@${slackId}>`;
+  const botSuffix = "[bot]";
+  const page = login.endsWith(botSuffix) ? `apps/${login.slice(0, -botSuffix.length)}` : login;
+  return `<https://github.com/${page}|${login}>`;
+}
+
 interface CommentRecipient {
   login: string;
   slackId: string;
@@ -785,10 +841,9 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   }
 
   const client = new WebClient(ctx.inputs.slackToken);
-  const kindLabel =
-    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
-  const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
   const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
+  const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
 
   const recipients: CommentRecipient[] = [];
 
@@ -799,13 +854,11 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       login: ctx.author,
       slackId: authorSlackId,
       dmText: approved
-        ? `:white_check_mark: Your PR ${prLink} was approved by *${ctx.commenter}*`
-        : `:speech_balloon: New ${kindLabel} from *${ctx.commenter}* on ${prLink}${
-            ctx.commentUrl ? ` (<${ctx.commentUrl}|view>)` : ""
-          }`,
+        ? `:white_check_mark: ${person} approved your pull request ${prLink}.`
+        : `:speech_balloon: ${person} commented on your pull request ${prLink}.${readLink}`,
       threadText: approved
-        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
-        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`,
+        ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
+        : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
     });
   }
 
@@ -817,8 +870,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       recipients.push({
         login: assignee,
         slackId,
-        dmText: `:eyes: New ${kindLabel} from *${ctx.commenter}* on ${prLink}, a PR you're watching`,
-        threadText: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+        dmText: `:eyes: ${person} commented on your assigned pull request ${prLink}.${readLink}`,
+        threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
       });
     }
   }

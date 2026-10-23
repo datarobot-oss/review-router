@@ -6,7 +6,7 @@ const EXTERNAL_ID_PREFIX = "rr:teams=";
 const MAX_EARLIER_COMMITS = 10;
 
 export interface ReviewCheck {
-  status: "in_progress" | "completed";
+  status: "queued" | "completed";
   conclusion?: "success" | "neutral";
   title: string;
   summary: string;
@@ -51,8 +51,8 @@ export function buildReviewCheck(
     };
   }
   return {
-    status: "in_progress",
-    title: `Waiting for approval from ${pendingTeams.length} team(s)`,
+    status: "queued",
+    title: `Waiting for approval from ${pendingTeams.length} ${pendingTeams.length === 1 ? "team" : "teams"}`,
     summary,
     externalId,
   };
@@ -101,8 +101,9 @@ async function routedTeamsFromEarlierCommits(
 }
 
 /**
- * Creates or updates the "Review Router" check on a commit. Never throws: a missing
- * Checks permission (403, 404) is expected until an installation approves it.
+ * Creates or updates the "Review Router" check on a commit. With createIfMissing off it only
+ * updates a check that already exists, so a repo outside the rollout still settles old checks.
+ * Never throws: a missing Checks permission (403, 404) is expected until an installation approves it.
  */
 export async function upsertReviewCheck(
   octokit: Octokit,
@@ -111,12 +112,13 @@ export async function upsertReviewCheck(
   prNumber: number,
   headSha: string,
   pendingTeams: string[],
-  closed = false
+  closed = false,
+  createIfMissing = true
 ): Promise<void> {
   try {
     const [existing] = await listChecks(octokit, owner, repo, headSha);
     // A check exists only to show pending teams: settle one that exists, never open an empty one.
-    if (!existing && (closed || pendingTeams.length === 0)) return;
+    if (!existing && (closed || pendingTeams.length === 0 || !createIfMissing)) return;
     const previouslyRouted = existing
       ? parseRoutedTeams(existing.external_id)
       : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);

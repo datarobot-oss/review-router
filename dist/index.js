@@ -78930,6 +78930,8 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
         return;
     }
     const settings = gate.settings;
+    core.info(`AI review settings: reviewer ${settings.reviewerModel} at ${settings.reviewerEffort} effort, ` +
+        `scorer ${settings.scorerModel} at ${settings.scorerEffort} effort`);
     const started = deps.now();
     if (req.commentId)
         await (0, publish_1.react)(octokit, req.owner, req.repo, req.commentId, "eyes");
@@ -79283,7 +79285,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Budget = exports.EFFORT = exports.DEDUPE_LINES = exports.MAX_CANDIDATES = exports.MIN_SESSION_USD = exports.SCORER_BUDGET_USD = exports.PASS_BUDGET_USD = exports.SCORER_SOFT_CALLS = exports.SCORER_TURNS = exports.PASS_SOFT_CALLS = exports.PASS_TURNS = void 0;
+exports.Budget = exports.DEDUPE_LINES = exports.MAX_CANDIDATES = exports.MIN_SESSION_USD = exports.SCORER_BUDGET_USD = exports.PASS_BUDGET_USD = exports.SCORER_SOFT_CALLS = exports.SCORER_TURNS = exports.PASS_SOFT_CALLS = exports.PASS_TURNS = void 0;
 exports.mergeCandidates = mergeCandidates;
 exports.selectForScoring = selectForScoring;
 exports.selectFindings = selectFindings;
@@ -79302,7 +79304,6 @@ exports.SCORER_BUDGET_USD = 0.35;
 exports.MIN_SESSION_USD = 0.15;
 exports.MAX_CANDIDATES = 6;
 exports.DEDUPE_LINES = 15;
-exports.EFFORT = "medium";
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 /** Tracks list-price spend against the review's cap. */
 class Budget {
@@ -79366,7 +79367,7 @@ async function scoreOne(run, ws, settings, candidate, budgetUsd) {
         model: settings.scorerModel,
         maxTurns: exports.SCORER_TURNS,
         maxBudgetUsd: budgetUsd,
-        effort: exports.EFFORT,
+        effort: settings.scorerEffort,
     });
     const scores = result.output?.scores;
     const score = result.ok ? scores?.find((s) => s.id === candidate.id) : undefined;
@@ -79393,7 +79394,7 @@ async function runPipeline(run, ws, settings, signal) {
             model: settings.reviewerModel,
             maxTurns: exports.PASS_TURNS[pass],
             maxBudgetUsd: perPass,
-            effort: exports.EFFORT,
+            effort: settings.reviewerEffort,
         }),
     })));
     passResults.forEach((p) => budget.charge(p.result.costUsd));
@@ -80095,10 +80096,11 @@ async function runSession(runner, claudeBin, proxy, spec, signal) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_MAX_COST_USD = exports.DEFAULT_THRESHOLD = void 0;
+exports.DEFAULT_EFFORT = exports.DEFAULT_MAX_COST_USD = exports.DEFAULT_THRESHOLD = void 0;
 exports.resolveAiReviewSettings = resolveAiReviewSettings;
 exports.DEFAULT_THRESHOLD = 70;
 exports.DEFAULT_MAX_COST_USD = 3;
+exports.DEFAULT_EFFORT = "medium";
 /** Returns the repo's AI review settings, or null when the feature is off for it. */
 function resolveAiReviewSettings(org, repo) {
     const config = org.ai_review;
@@ -80108,6 +80110,8 @@ function resolveAiReviewSettings(org, repo) {
         endpoint: config.endpoint.replace(/\/+$/, ""),
         reviewerModel: config.models.reviewer,
         scorerModel: config.models.scorer,
+        reviewerEffort: config.effort?.reviewer ?? exports.DEFAULT_EFFORT,
+        scorerEffort: config.effort?.scorer ?? exports.DEFAULT_EFFORT,
         threshold: config.threshold ?? exports.DEFAULT_THRESHOLD,
         maxCostUsd: config.max_cost_usd ?? exports.DEFAULT_MAX_COST_USD,
     };
@@ -80515,8 +80519,8 @@ function buildReviewCheck(routedTeams, pendingTeams, closed) {
         };
     }
     return {
-        status: "in_progress",
-        title: `Waiting for approval from ${pendingTeams.length} team(s)`,
+        status: "queued",
+        title: `Waiting for approval from ${pendingTeams.length} ${pendingTeams.length === 1 ? "team" : "teams"}`,
         summary,
         externalId,
     };
@@ -80556,14 +80560,15 @@ async function routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, hea
     return [];
 }
 /**
- * Creates or updates the "Review Router" check on a commit. Never throws: a missing
- * Checks permission (403, 404) is expected until an installation approves it.
+ * Creates or updates the "Review Router" check on a commit. With createIfMissing off it only
+ * updates a check that already exists, so a repo outside the rollout still settles old checks.
+ * Never throws: a missing Checks permission (403, 404) is expected until an installation approves it.
  */
-async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendingTeams, closed = false) {
+async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendingTeams, closed = false, createIfMissing = true) {
     try {
         const [existing] = await listChecks(octokit, owner, repo, headSha);
         // A check exists only to show pending teams: settle one that exists, never open an empty one.
-        if (!existing && (closed || pendingTeams.length === 0))
+        if (!existing && (closed || pendingTeams.length === 0 || !createIfMissing))
             return;
         const previouslyRouted = existing
             ? parseRoutedTeams(existing.external_id)
@@ -82275,6 +82280,7 @@ exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
 exports.handleOpened = handleOpened;
 exports.handleReadyForReview = handleReadyForReview;
 exports.handleClosed = handleClosed;
+exports.formatGitHubUser = formatGitHubUser;
 exports.handleComment = handleComment;
 exports.getFileTypeEmojis = getFileTypeEmojis;
 exports.getStatusEmoji = getStatusEmoji;
@@ -82284,6 +82290,7 @@ const codeowners_1 = __nccwpck_require__(3586);
 const labels_1 = __nccwpck_require__(4584);
 const comment_1 = __nccwpck_require__(2246);
 const jira_1 = __nccwpck_require__(7647);
+const settings_1 = __nccwpck_require__(9188);
 const slack_1 = __nccwpck_require__(6691);
 const config_1 = __nccwpck_require__(2973);
 const checks_1 = __nccwpck_require__(2122);
@@ -82456,7 +82463,7 @@ async function handleLabeled(octokit, ctx) {
             .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
         if (pendingSlugs.length > 0) {
-            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs, false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
         }
     }
     if (allTeamSlugs.length > 0) {
@@ -82555,7 +82562,7 @@ async function handleReviewSubmitted(octokit, ctx) {
     if (needsReviewLabels.length === 0) {
         core.info("No 'Needs Review' labels found on PR, nothing to remove");
         if (ctx.headSha) {
-            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
         }
         return;
     }
@@ -82593,7 +82600,7 @@ async function handleReviewSubmitted(octokit, ctx) {
             .filter((l) => !removedLabelNames.has(l.name))
             .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs, false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
     }
     if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
         try {
@@ -82615,10 +82622,14 @@ async function handleReviewSubmitted(octokit, ctx) {
         }
     }
 }
+/** Repos that subscribe to the AI review get new checks. Other repos only settle ones that exist. */
+function reviewCheckEnabled(teamsConfig, repo) {
+    return (0, settings_1.resolveAiReviewSettings)(teamsConfig, repo) !== null;
+}
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
  * Checks belong to a commit, so a push leaves the new head without one until this runs, and
- * labels removed by hand leave a running check behind.
+ * labels removed by hand leave a queued check behind.
  */
 async function syncReviewCheck(octokit, ctx) {
     const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
@@ -82630,7 +82641,7 @@ async function syncReviewCheck(octokit, ctx) {
         .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
         .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
         .filter((slug) => slug !== undefined);
-    await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+    await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs, false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
 }
 function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
     for (const [slug, cfg] of Object.entries(teamsConfig.teams)) {
@@ -82723,7 +82734,7 @@ async function handleReadyForReview(octokit, ctx) {
 }
 async function handleClosed(octokit, ctx) {
     if (ctx.headSha) {
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
     }
     if (!ctx.merged) {
         core.info("PR was closed without merging, skipping label cleanup");
@@ -82786,15 +82797,27 @@ async function handleClosed(octokit, ctx) {
         }
     }
 }
+/**
+ * Formats a GitHub login for Slack: a mention when the login has a Slack user, otherwise a link
+ * to its GitHub page. Bot logins link to the app page, because github.com/<name>[bot] does not resolve.
+ */
+function formatGitHubUser(login, users) {
+    const slackId = users?.[login];
+    if (slackId)
+        return `<@${slackId}>`;
+    const botSuffix = "[bot]";
+    const page = login.endsWith(botSuffix) ? `apps/${login.slice(0, -botSuffix.length)}` : login;
+    return `<https://github.com/${page}|${login}>`;
+}
 async function handleComment(octokit, ctx) {
     if (!ctx.inputs.slackToken) {
         core.debug("No Slack token provided, skipping thread notification");
         return;
     }
     const client = new web_api_1.WebClient(ctx.inputs.slackToken);
-    const kindLabel = ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
-    const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
     const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
+    const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
     const recipients = [];
     const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
     if (authorSlackId) {
@@ -82803,11 +82826,11 @@ async function handleComment(octokit, ctx) {
             login: ctx.author,
             slackId: authorSlackId,
             dmText: approved
-                ? `:white_check_mark: Your PR ${prLink} was approved by *${ctx.commenter}*`
-                : `:speech_balloon: New ${kindLabel} from *${ctx.commenter}* on ${prLink}${ctx.commentUrl ? ` (<${ctx.commentUrl}|view>)` : ""}`,
+                ? `:white_check_mark: ${person} approved your pull request ${prLink}.`
+                : `:speech_balloon: ${person} commented on your pull request ${prLink}.${readLink}`,
             threadText: approved
-                ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
-                : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`,
+                ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
+                : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
         });
     }
     if (ctx.kind !== "review") {
@@ -82820,8 +82843,8 @@ async function handleComment(octokit, ctx) {
             recipients.push({
                 login: assignee,
                 slackId,
-                dmText: `:eyes: New ${kindLabel} from *${ctx.commenter}* on ${prLink}, a PR you're watching`,
-                threadText: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+                dmText: `:eyes: ${person} commented on your assigned pull request ${prLink}.${readLink}`,
+                threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
             });
         }
     }

@@ -1,3 +1,4 @@
+import * as core from "@actions/core";
 import { runAiReview, AiReviewDeps, AiReviewRequest } from "../../src/ai-review";
 import { prepareWorkspace } from "../../src/ai-review/inputs";
 import { runPipeline } from "../../src/ai-review/pipeline";
@@ -111,6 +112,25 @@ describe("runAiReview", () => {
     expect(body).toContain("· 1m 5s</sub>");
     expect(d.tools.startProxy).toHaveBeenCalledWith("https://x/api/v2", "tok");
     expect(d.tools.stop).toHaveBeenCalled();
+  });
+
+  it("logs the model and effort each role runs at", async () => {
+    const withEffort = {
+      ...orgConfig,
+      ai_review: {
+        ...orgConfig.ai_review,
+        models: { reviewer: "rev", scorer: "sco" },
+        effort: { reviewer: "high" as const },
+      },
+    };
+    await runAiReview(
+      octokit() as unknown as Octokit,
+      { ...request, orgConfig: withEffort },
+      deps()
+    );
+    expect(core.info).toHaveBeenCalledWith(
+      "AI review settings: reviewer rev at high effort, scorer sco at medium effort"
+    );
   });
 
   it("skips a label trigger when this SHA was already reviewed", async () => {

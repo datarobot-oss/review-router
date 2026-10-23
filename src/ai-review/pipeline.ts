@@ -56,7 +56,6 @@ export const SCORER_BUDGET_USD = 0.35;
 export const MIN_SESSION_USD = 0.15;
 export const MAX_CANDIDATES = 6;
 export const DEDUPE_LINES = 15;
-export const EFFORT = "medium" as const;
 
 const SEVERITY_ORDER: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
 
@@ -132,7 +131,7 @@ async function scoreOne(
     model: settings.scorerModel,
     maxTurns: SCORER_TURNS,
     maxBudgetUsd: budgetUsd,
-    effort: EFFORT,
+    effort: settings.scorerEffort,
   });
   const scores = (
     result.output as { scores?: { id: string; score: number; reason: string }[] } | null
@@ -173,7 +172,7 @@ export async function runPipeline(
         model: settings.reviewerModel,
         maxTurns: PASS_TURNS[pass],
         maxBudgetUsd: perPass,
-        effort: EFFORT,
+        effort: settings.reviewerEffort,
       }),
     }))
   );

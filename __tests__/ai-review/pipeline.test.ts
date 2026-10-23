@@ -18,6 +18,8 @@ const settings = {
   endpoint: "https://x/api/v2",
   reviewerModel: "rev",
   scorerModel: "sco",
+  reviewerEffort: "medium" as const,
+  scorerEffort: "medium" as const,
   threshold: 70,
   maxCostUsd: 3,
 };
@@ -205,6 +207,24 @@ describe("runPipeline", () => {
     expect(scorer.maxTurns).toBe(10);
     expect(scorer.label).toBe("scorer claims-0");
     expect(scorer.addDirs[0]).toBe(ws.contextDir);
+  });
+
+  it("runs the passes and the scorers at the effort set for each role", async () => {
+    const { run, specs } = fakeRun(
+      { claims: ok({ findings: [finding()] }), rules: ok({ findings: [] }) },
+      { "claims-0": 90 }
+    );
+    await runPipeline(run, workspace(), {
+      ...settings,
+      reviewerEffort: "high",
+      scorerEffort: "low",
+    });
+    const passes = specs.filter((s) => s.model === "rev");
+    const scorers = specs.filter((s) => s.model === "sco");
+    expect(passes).toHaveLength(2);
+    expect(scorers).toHaveLength(1);
+    passes.forEach((s) => expect(s.effort).toBe("high"));
+    scorers.forEach((s) => expect(s.effort).toBe("low"));
   });
 
   it("counts scorer sessions that fail", async () => {

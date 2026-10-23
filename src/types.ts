@@ -1,3 +1,5 @@
+import type { Effort } from "./ai-review/session";
+
 export interface TeamConfig {
   label: string;
   slack_channel: string;
@@ -52,11 +54,17 @@ export interface AiReviewModels {
   scorer: string;
 }
 
+export interface AiReviewEfforts {
+  reviewer?: Effort;
+  scorer?: Effort;
+}
+
 export interface AiReviewConfig {
   enabled: boolean;
   repos: string[];
   endpoint: string;
   models: AiReviewModels;
+  effort?: AiReviewEfforts;
   threshold?: number;
   max_cost_usd?: number;
 }

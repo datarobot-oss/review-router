@@ -302,6 +302,56 @@ orgs:
     expect(config.orgs.acme.ai_review?.repos).toEqual(["api"]);
   });
 
+  it("accepts an ai_review effort for each role", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+      models: { reviewer: a, scorer: b }
+      effort: { reviewer: high, scorer: low }
+`);
+    expect(config.orgs.acme.ai_review?.effort).toEqual({ reviewer: "high", scorer: "low" });
+  });
+
+  it("rejects an ai_review effort level that is not low, medium or high", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+      models: { reviewer: a, scorer: b }
+      effort: { reviewer: max }
+`)
+    ).toThrow("Config validation failed");
+  });
+
+  it("rejects an ai_review effort for a role other than reviewer and scorer", () => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  acme:
+    teams:
+      web: { label: "Needs Review: Web", slack_channel: "C1" }
+    ai_review:
+      enabled: true
+      repos: [api]
+      endpoint: https://app.eu.datarobot.com/api/v2
+      models: { reviewer: a, scorer: b }
+      effort: { judge: low }
+`)
+    ).toThrow("Config validation failed");
+  });
+
   it("rejects an ai_review block without models", () => {
     expect(() =>
       parseTeamsConfig(`

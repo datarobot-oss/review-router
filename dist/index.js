@@ -78930,6 +78930,8 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
         return;
     }
     const settings = gate.settings;
+    core.info(`AI review settings: reviewer ${settings.reviewerModel} at ${settings.reviewerEffort} effort, ` +
+        `scorer ${settings.scorerModel} at ${settings.scorerEffort} effort`);
     const started = deps.now();
     if (req.commentId)
         await (0, publish_1.react)(octokit, req.owner, req.repo, req.commentId, "eyes");
@@ -79283,7 +79285,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Budget = exports.EFFORT = exports.DEDUPE_LINES = exports.MAX_CANDIDATES = exports.MIN_SESSION_USD = exports.SCORER_BUDGET_USD = exports.PASS_BUDGET_USD = exports.SCORER_SOFT_CALLS = exports.SCORER_TURNS = exports.PASS_SOFT_CALLS = exports.PASS_TURNS = void 0;
+exports.Budget = exports.DEDUPE_LINES = exports.MAX_CANDIDATES = exports.MIN_SESSION_USD = exports.SCORER_BUDGET_USD = exports.PASS_BUDGET_USD = exports.SCORER_SOFT_CALLS = exports.SCORER_TURNS = exports.PASS_SOFT_CALLS = exports.PASS_TURNS = void 0;
 exports.mergeCandidates = mergeCandidates;
 exports.selectForScoring = selectForScoring;
 exports.selectFindings = selectFindings;
@@ -79302,7 +79304,6 @@ exports.SCORER_BUDGET_USD = 0.35;
 exports.MIN_SESSION_USD = 0.15;
 exports.MAX_CANDIDATES = 6;
 exports.DEDUPE_LINES = 15;
-exports.EFFORT = "medium";
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 /** Tracks list-price spend against the review's cap. */
 class Budget {
@@ -79366,7 +79367,7 @@ async function scoreOne(run, ws, settings, candidate, budgetUsd) {
         model: settings.scorerModel,
         maxTurns: exports.SCORER_TURNS,
         maxBudgetUsd: budgetUsd,
-        effort: exports.EFFORT,
+        effort: settings.scorerEffort,
     });
     const scores = result.output?.scores;
     const score = result.ok ? scores?.find((s) => s.id === candidate.id) : undefined;
@@ -79393,7 +79394,7 @@ async function runPipeline(run, ws, settings, signal) {
             model: settings.reviewerModel,
             maxTurns: exports.PASS_TURNS[pass],
             maxBudgetUsd: perPass,
-            effort: exports.EFFORT,
+            effort: settings.reviewerEffort,
         }),
     })));
     passResults.forEach((p) => budget.charge(p.result.costUsd));
@@ -80095,10 +80096,11 @@ async function runSession(runner, claudeBin, proxy, spec, signal) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_MAX_COST_USD = exports.DEFAULT_THRESHOLD = void 0;
+exports.DEFAULT_EFFORT = exports.DEFAULT_MAX_COST_USD = exports.DEFAULT_THRESHOLD = void 0;
 exports.resolveAiReviewSettings = resolveAiReviewSettings;
 exports.DEFAULT_THRESHOLD = 70;
 exports.DEFAULT_MAX_COST_USD = 3;
+exports.DEFAULT_EFFORT = "medium";
 /** Returns the repo's AI review settings, or null when the feature is off for it. */
 function resolveAiReviewSettings(org, repo) {
     const config = org.ai_review;
@@ -80108,6 +80110,8 @@ function resolveAiReviewSettings(org, repo) {
         endpoint: config.endpoint.replace(/\/+$/, ""),
         reviewerModel: config.models.reviewer,
         scorerModel: config.models.scorer,
+        reviewerEffort: config.effort?.reviewer ?? exports.DEFAULT_EFFORT,
+        scorerEffort: config.effort?.scorer ?? exports.DEFAULT_EFFORT,
         threshold: config.threshold ?? exports.DEFAULT_THRESHOLD,
         maxCostUsd: config.max_cost_usd ?? exports.DEFAULT_MAX_COST_USD,
     };

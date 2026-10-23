@@ -180,6 +180,20 @@
             }
           }
         },
+        "effort": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reviewer": {
+              "enum": ["low", "medium", "high"],
+              "description": "Effort level for the review passes. Default medium."
+            },
+            "scorer": {
+              "enum": ["low", "medium", "high"],
+              "description": "Effort level for the finding scorer. Default medium."
+            }
+          }
+        },
         "threshold": {
           "type": "integer",
           "minimum": 0,

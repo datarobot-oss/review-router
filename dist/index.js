@@ -80629,7 +80629,7 @@ function reportCheckError(error, name) {
     core.warning(`Failed to update the ${name} check: ${error instanceof Error ? error.message : String(error)}`);
 }
 function withRunLink(text, runUrl) {
-    return runUrl ? `${text} See the [workflow run](${runUrl}).` : text;
+    return runUrl ? `[View the workflow run](${runUrl})\n\n${text}` : text;
 }
 /**
  * Opens the "Review Router AI review" check on a commit and returns its id, or undefined when

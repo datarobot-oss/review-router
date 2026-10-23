@@ -312,7 +312,7 @@ describe("startAiReviewCheck", () => {
       })
     );
     const { output } = octokit.rest.checks.create.mock.calls[0][0];
-    expect(output.summary).toContain(`[workflow run](${runUrl})`);
+    expect(output.summary.startsWith(`[View the workflow run](${runUrl})`)).toBe(true);
   });
 
   it("is named so it sorts beside the Review Router check and gate", () => {

@@ -1,0 +1,42 @@
+name: Probe App rules access
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { owner: datarobot-labs, repo: site }
+          - { owner: datarobot-labs, repo: datarobot-sync }
+          - { owner: datarobot-labs, repo: labs-team-hermes-agent }
+          - { owner: datarobot-oss, repo: review-router }
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.REVIEW_ROUTER_APP_ID }}
+          private-key: ${{ secrets.REVIEW_ROUTER_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.target.owner }}
+          repositories: ${{ matrix.target.repo }}
+      - name: Read rules and repo settings as the App
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TARGET: ${{ matrix.target.owner }}/${{ matrix.target.repo }}
+        run: |
+          echo "== rules/branches/main for $TARGET"
+          gh api "repos/$TARGET/rules/branches/main" --jq '.[] | {type, ruleset_source_type, ruleset_id}' || echo "rules read failed"
+          echo "== pull_request rule parameters"
+          gh api "repos/$TARGET/rules/branches/main" --jq '.[] | select(.type=="pull_request") | .parameters' || true
+          echo "== repo settings"
+          gh api "repos/$TARGET" --jq '{allow_auto_merge, allow_merge_commit, allow_squash_merge, allow_rebase_merge, default_branch}' || echo "repo read failed"
+          echo "== classic branch protection"
+          gh api "repos/$TARGET/branches/main/protection" --jq '{required_status_checks, required_pull_request_reviews}' || echo "protection read failed"
+          echo "== repo rulesets list"
+          gh api "repos/$TARGET/rulesets" --jq '.[] | {id, name, enforcement, source_type}' || echo "rulesets list failed"

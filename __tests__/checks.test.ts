@@ -1,3 +1,4 @@
+import * as core from "@actions/core";
 import { buildReviewCheck, parseRoutedTeams, upsertReviewCheck } from "../src/checks";
 
 jest.mock("@actions/core");
@@ -114,6 +115,29 @@ describe("upsertReviewCheck", () => {
       upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"])
     ).resolves.toBeUndefined();
     expect(octokit.rest.checks.create).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when the check run is not found (404)", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.listForRef.mockRejectedValue({ status: 404 });
+
+    await expect(
+      upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"])
+    ).resolves.toBeUndefined();
+  });
+
+  it("logs the API message when it skips on a 403, so a rate limit is not read as a missing permission", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.listForRef.mockRejectedValue({
+      status: 403,
+      message: "You have exceeded a secondary rate limit",
+    });
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"]);
+
+    expect(core.info).toHaveBeenCalledWith(
+      expect.stringContaining("You have exceeded a secondary rate limit")
+    );
   });
 
   it("does not throw on a generic error", async () => {

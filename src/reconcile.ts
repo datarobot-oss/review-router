@@ -72,6 +72,19 @@ async function writeCursor(
   });
 }
 
+/** The events that get a DM: the first per commenter and kind, so a burst of inline comments does not flood the author. */
+function firstOfEachBurst(events: CommentEvent[]): Set<CommentEvent> {
+  const seen = new Set<string>();
+  const first = new Set<CommentEvent>();
+  for (const event of events) {
+    const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    first.add(event);
+  }
+  return first;
+}
+
 type PullSummary = Awaited<ReturnType<Octokit["rest"]["pulls"]["list"]>>["data"][number];
 
 async function collectEvents(
@@ -109,20 +122,24 @@ async function collectEvents(
     }
   }
 
+  // No `since` filter: a comment drafted in a pending review keeps its draft time, so the
+  // review's submission time decides whether it is new.
+  const submittedAt = new Map(reviews.map((r) => [r.id, r.submitted_at]));
   const reviewComments = await octokit.paginate(octokit.rest.pulls.listReviewComments, {
     owner: ctx.owner,
     repo: ctx.repo,
     pull_number: pr.number,
-    since: cursor,
     per_page: 100,
   });
   for (const c of reviewComments) {
-    if (!isNewer(c.created_at, cursor) || !isRealPerson(c.user, author)) continue;
+    const at =
+      (c.pull_request_review_id && submittedAt.get(c.pull_request_review_id)) || c.created_at;
+    if (!isNewer(at, cursor) || !isRealPerson(c.user, author)) continue;
     events.push({
       kind: "review_comment",
       commenter: c.user.login,
       commentUrl: c.html_url ?? "",
-      at: c.created_at,
+      at,
     });
   }
 
@@ -189,25 +206,31 @@ async function reconcilePull(
   }
 
   const events = await collectEvents(octokit, ctx, pr, reviews, cursor);
-  for (const event of events) {
-    await handleComment(octokit, {
-      owner: ctx.owner,
-      repo: ctx.repo,
-      prNumber: pr.number,
-      prBody: body,
-      prUrl: pr.html_url ?? "",
-      author,
-      commenter: event.commenter,
-      commentUrl: event.commentUrl,
-      assignees: (pr.assignees ?? []).map((a) => a.login),
-      kind: event.kind,
-      inputs: ctx.inputs,
-      teamsConfig: ctx.teamsConfig,
-    });
-  }
-
-  if (events.length > 0) {
-    await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, events[events.length - 1].at);
+  const toSend = firstOfEachBurst(events);
+  let lastHandled: string | undefined;
+  try {
+    for (const event of events) {
+      if (toSend.has(event)) {
+        await handleComment(octokit, {
+          owner: ctx.owner,
+          repo: ctx.repo,
+          prNumber: pr.number,
+          prBody: body,
+          prUrl: pr.html_url ?? "",
+          author,
+          commenter: event.commenter,
+          commentUrl: event.commentUrl,
+          assignees: (pr.assignees ?? []).map((a) => a.login),
+          kind: event.kind,
+          inputs: ctx.inputs,
+          teamsConfig: ctx.teamsConfig,
+        });
+      }
+      lastHandled = event.at;
+    }
+  } finally {
+    // Keep what was delivered even when a later event throws, so the next run does not re-send it.
+    if (lastHandled) await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, lastHandled);
   }
 }
 

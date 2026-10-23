@@ -280,6 +280,170 @@ describe("reconcileOpenPulls", () => {
     expect(commenters).toEqual(["carol"]);
   });
 
+  it("sends one DM for a burst of inline comments from the same reviewer and links the first", async () => {
+    const at = (m: number) => `2026-10-23T10:${String(m).padStart(2, "0")}:00Z`;
+    const inline = (id: number, user: string, minute: number) => ({
+      user: human(user),
+      body: "nit",
+      created_at: at(minute),
+      html_url: `https://github.com/org/repo/pull/1#discussion_r${id}`,
+    });
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      reviewComments: [
+        inline(1, "bob", 5),
+        inline(2, "bob", 6),
+        inline(3, "carol", 7),
+        inline(4, "bob", 8),
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    const calls = (handleComment as jest.Mock).mock.calls.map(([, c]) => [
+      c.commenter,
+      c.commentUrl,
+    ]);
+    expect(calls).toEqual([
+      ["bob", "https://github.com/org/repo/pull/1#discussion_r1"],
+      ["carol", "https://github.com/org/repo/pull/1#discussion_r3"],
+    ]);
+    expect(octokit.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.stringContaining(`rr:dm-cursor:${at(8)}`) })
+    );
+  });
+
+  it("does not merge an approval with a review comment from the same reviewer", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      reviews: [
+        {
+          user: human("bob"),
+          state: "COMMENTED",
+          body: "see inline",
+          html_url: "https://github.com/org/repo/pull/1#pullrequestreview-1",
+          submitted_at: "2026-10-23T10:05:00Z",
+        },
+        { user: human("bob"), state: "APPROVED", submitted_at: "2026-10-23T10:06:00Z" },
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends inline comments drafted before the cursor once their review is submitted after it", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      reviews: [
+        {
+          id: 77,
+          user: human("bob"),
+          state: "COMMENTED",
+          body: "",
+          submitted_at: "2026-10-23T10:20:00Z",
+        },
+      ],
+      reviewComments: [
+        {
+          user: human("bob"),
+          pull_request_review_id: 77,
+          body: "nit",
+          created_at: "2026-10-23T09:50:00Z",
+          html_url: "https://github.com/org/repo/pull/1#discussion_r1",
+        },
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).toHaveBeenCalledTimes(1);
+    expect(octokit.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("rr:dm-cursor:2026-10-23T10:20:00Z"),
+      })
+    );
+  });
+
+  it("skips inline comments whose review was submitted before the cursor", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      reviews: [
+        {
+          id: 77,
+          user: human("bob"),
+          state: "COMMENTED",
+          body: "",
+          submitted_at: "2026-10-23T09:55:00Z",
+        },
+      ],
+      reviewComments: [
+        {
+          user: human("bob"),
+          pull_request_review_id: 77,
+          body: "nit",
+          created_at: "2026-10-23T09:50:00Z",
+          html_url: "https://github.com/org/repo/pull/1#discussion_r1",
+        },
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).not.toHaveBeenCalled();
+  });
+
+  it("moves the cursor to the last handled event when a later event fails, so handled ones are not re-sent", async () => {
+    (handleComment as jest.Mock)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("boom"));
+    const issueComment = (user: string, minute: number) => ({
+      user: human(user),
+      body: "hi",
+      created_at: `2026-10-23T10:0${minute}:00Z`,
+      html_url: `https://github.com/org/repo/pull/1#issuecomment-${minute}`,
+    });
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      issueComments: [issueComment("bob", 5), issueComment("carol", 6), issueComment("dave", 7)],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).toHaveBeenCalledTimes(2);
+    expect(octokit.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining("rr:dm-cursor:2026-10-23T10:05:00Z"),
+      })
+    );
+  });
+
+  it("leaves the cursor alone when the first event fails", async () => {
+    (handleComment as jest.Mock).mockRejectedValueOnce(new Error("boom"));
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      issueComments: [
+        {
+          user: human("bob"),
+          body: "hi",
+          created_at: "2026-10-23T10:05:00Z",
+          html_url: "https://github.com/org/repo/pull/1#issuecomment-1",
+        },
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+  });
+
   it("ignores bot comments, the router's own comments and the author's own comments", async () => {
     const created = "2026-10-23T10:05:00Z";
     const octokit = octokitFor({

@@ -139,7 +139,11 @@ export async function upsertReviewCheck(
   } catch (error) {
     const status = (error as { status?: number }).status;
     if (status === 403 || status === 404) {
-      core.info(`Skipping the ${CHECK_NAME} check: the Checks permission is not granted here`);
+      const reason =
+        error instanceof Error ? error.message : (error as { message?: string }).message;
+      core.info(
+        `Skipping the ${CHECK_NAME} check (${status}${reason ? `: ${reason}` : ""}); the Checks permission may not be granted here`
+      );
       return;
     }
     core.warning(

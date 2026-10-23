@@ -412,14 +412,12 @@ describe("reconcileOpenPulls", () => {
       expect(replayed).toBeLessThan(refreshed);
     });
 
-    it("does not refresh the check when the PR has no Needs Review label", async () => {
-      const octokit = octokitFor({
-        pulls: [{ ...forkPr(1), labels: [{ name: "bug" }] }, forkPr(2)],
-      });
+    it("refreshes the check on a PR whose team labels are gone, so a running check can settle", async () => {
+      const octokit = octokitFor({ pulls: [{ ...forkPr(1), labels: [{ name: "bug" }] }] });
 
       await reconcileOpenPulls(octokit as any, ctx);
 
-      expect(syncReviewCheck).not.toHaveBeenCalled();
+      expect(syncReviewCheck).toHaveBeenCalledTimes(1);
     });
 
     it("refreshes the check on a same-repo PR and does nothing else", async () => {

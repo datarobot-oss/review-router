@@ -182,11 +182,41 @@ describe("upsertReviewCheck", () => {
     expect(octokit.rest.checks.listForRef).toHaveBeenCalledTimes(11);
   });
 
-  it("skips the history lookup for a closed PR", async () => {
+  it("creates no check for a closed PR that has none", async () => {
     const octokit = checksOctokit();
 
     await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", [], true);
 
+    expect(octokit.rest.checks.create).not.toHaveBeenCalled();
+    expect(octokit.paginate).not.toHaveBeenCalled();
+  });
+
+  it("closes an existing check when the PR is closed", async () => {
+    const octokit = checksOctokit([{ id: 7, external_id: "rr:teams=a" }]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", [], true);
+
+    expect(octokit.rest.checks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ check_run_id: 7, status: "completed", conclusion: "neutral" })
+    );
+  });
+
+  it("completes a running check when no team is pending any more", async () => {
+    const octokit = checksOctokit([{ id: 7, external_id: "rr:teams=a" }]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", []);
+
+    expect(octokit.rest.checks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ check_run_id: 7, status: "completed", conclusion: "success" })
+    );
+  });
+
+  it("creates no check when no team is pending and none exists", async () => {
+    const octokit = checksOctokit();
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", []);
+
+    expect(octokit.rest.checks.create).not.toHaveBeenCalled();
     expect(octokit.paginate).not.toHaveBeenCalled();
   });
 });

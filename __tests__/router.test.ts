@@ -2027,12 +2027,34 @@ describe("review check wiring", () => {
     );
   });
 
-  it("syncReviewCheck leaves the check alone when no Needs Review label remains", async () => {
+  it("syncReviewCheck passes no pending teams when no Needs Review label remains", async () => {
     mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
 
     await syncReviewCheck(mockOctokit as any, syncCtx);
 
-    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      []
+    );
+  });
+
+  it("handleReviewSubmitted settles the check when no Needs Review label is left", async () => {
+    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
+
+    await handleReviewSubmitted(mockOctokit as any, { ...reviewCtx, headSha: "sha123" });
+
+    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "datarobot-oss",
+      "test-repo",
+      1,
+      "sha123",
+      []
+    );
   });
 
   it("handlers skip the check when headSha is undefined", async () => {

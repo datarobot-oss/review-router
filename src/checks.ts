@@ -115,11 +115,11 @@ export async function upsertReviewCheck(
 ): Promise<void> {
   try {
     const [existing] = await listChecks(octokit, owner, repo, headSha);
+    // A check exists only to show pending teams: settle one that exists, never open an empty one.
+    if (!existing && (closed || pendingTeams.length === 0)) return;
     const previouslyRouted = existing
       ? parseRoutedTeams(existing.external_id)
-      : closed
-        ? []
-        : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);
+      : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);
     const routedTeams = [...new Set([...previouslyRouted, ...pendingTeams])];
     const check = buildReviewCheck(routedTeams, pendingTeams, closed);
     const fields = {

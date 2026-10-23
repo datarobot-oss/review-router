@@ -216,8 +216,6 @@ async function refreshCheck(
   ctx: ReconcileContext,
   pr: PullSummary
 ): Promise<void> {
-  const prefix = `${ctx.inputs.needsReviewPrefix}:`;
-  if (!(pr.labels ?? []).some((l) => l.name.startsWith(prefix))) return;
   await syncReviewCheck(octokit, {
     owner: ctx.owner,
     repo: ctx.repo,
@@ -232,7 +230,7 @@ async function refreshCheck(
  * Replays what review events could not deliver for open fork PRs, whose workflow runs have no
  * secrets: label removal and the approved reaction on approvals, and DMs for new approvals and
  * comments. For every open PR it also rewrites the review check on the current head, which
- * pushes leave behind. Runs from the schedule trigger. Never throws.
+ * pushes and hand-removed labels leave behind. Runs from the schedule trigger. Never throws.
  */
 export async function reconcileOpenPulls(octokit: Octokit, ctx: ReconcileContext): Promise<void> {
   let pulls: PullSummary[];

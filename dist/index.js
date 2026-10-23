@@ -80562,11 +80562,12 @@ async function routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, hea
 async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendingTeams, closed = false) {
     try {
         const [existing] = await listChecks(octokit, owner, repo, headSha);
+        // A check exists only to show pending teams: settle one that exists, never open an empty one.
+        if (!existing && (closed || pendingTeams.length === 0))
+            return;
         const previouslyRouted = existing
             ? parseRoutedTeams(existing.external_id)
-            : closed
-                ? []
-                : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);
+            : await routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, headSha);
         const routedTeams = [...new Set([...previouslyRouted, ...pendingTeams])];
         const check = buildReviewCheck(routedTeams, pendingTeams, closed);
         const fields = {
@@ -81995,9 +81996,6 @@ async function reconcilePull(octokit, ctx, pr) {
     }
 }
 async function refreshCheck(octokit, ctx, pr) {
-    const prefix = `${ctx.inputs.needsReviewPrefix}:`;
-    if (!(pr.labels ?? []).some((l) => l.name.startsWith(prefix)))
-        return;
     await (0, router_1.syncReviewCheck)(octokit, {
         owner: ctx.owner,
         repo: ctx.repo,
@@ -82011,7 +82009,7 @@ async function refreshCheck(octokit, ctx, pr) {
  * Replays what review events could not deliver for open fork PRs, whose workflow runs have no
  * secrets: label removal and the approved reaction on approvals, and DMs for new approvals and
  * comments. For every open PR it also rewrites the review check on the current head, which
- * pushes leave behind. Runs from the schedule trigger. Never throws.
+ * pushes and hand-removed labels leave behind. Runs from the schedule trigger. Never throws.
  */
 async function reconcileOpenPulls(octokit, ctx) {
     let pulls;
@@ -82534,6 +82532,9 @@ async function handleReviewSubmitted(octokit, ctx) {
     const needsReviewLabels = prLabels.filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
     if (needsReviewLabels.length === 0) {
         core.info("No 'Needs Review' labels found on PR, nothing to remove");
+        if (ctx.headSha) {
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+        }
         return;
     }
     const approvedChannels = new Set();
@@ -82594,7 +82595,8 @@ async function handleReviewSubmitted(octokit, ctx) {
 }
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
- * Checks belong to a commit, so a push leaves the new head without one until this runs.
+ * Checks belong to a commit, so a push leaves the new head without one until this runs, and
+ * labels removed by hand leave a running check behind.
  */
 async function syncReviewCheck(octokit, ctx) {
     const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
@@ -82606,9 +82608,7 @@ async function syncReviewCheck(octokit, ctx) {
         .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
         .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
         .filter((slug) => slug !== undefined);
-    if (pendingSlugs.length > 0) {
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
-    }
+    await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
 }
 function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
     for (const [slug, cfg] of Object.entries(teamsConfig.teams)) {

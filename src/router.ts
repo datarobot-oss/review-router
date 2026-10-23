@@ -415,6 +415,9 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
 
   if (needsReviewLabels.length === 0) {
     core.info("No 'Needs Review' labels found on PR, nothing to remove");
+    if (ctx.headSha) {
+      await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+    }
     return;
   }
 
@@ -502,7 +505,8 @@ export interface CheckSyncContext {
 
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
- * Checks belong to a commit, so a push leaves the new head without one until this runs.
+ * Checks belong to a commit, so a push leaves the new head without one until this runs, and
+ * labels removed by hand leave a running check behind.
  */
 export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
   const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
@@ -516,9 +520,7 @@ export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): 
       resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
     )
     .filter((slug): slug is string => slug !== undefined);
-  if (pendingSlugs.length > 0) {
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
-  }
+  await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
 }
 
 export function resolveTeamSlugFromLabel(

@@ -80989,7 +80989,7 @@ exports.fetchConfigFromRepo = fetchConfigFromRepo;
 exports.fetchConfigFromS3 = fetchConfigFromS3;
 exports.loadTeamsConfigForOrg = loadTeamsConfigForOrg;
 exports.getLabelForTeam = getLabelForTeam;
-exports.isDmEnabledFor = isDmEnabledFor;
+exports.isDmEnabled = isDmEnabled;
 exports.humanizeSlug = humanizeSlug;
 exports.getSlackChannel = getSlackChannel;
 const fs = __importStar(__nccwpck_require__(9896));
@@ -81127,12 +81127,8 @@ function getLabelForTeam(config, teamSlug, prefix) {
     }
     return `${prefix}: ${humanizeSlug(teamSlug)}`;
 }
-function isDmEnabledFor(config, githubLogin) {
-    const dm = config.notifications?.dm;
-    if (dm?.enabled === false)
-        return false;
-    const login = githubLogin.toLowerCase();
-    return !(dm?.opt_out ?? []).some((optedOut) => optedOut.toLowerCase() === login);
+function isDmEnabled(config) {
+    return config.notifications?.dm?.enabled !== false;
 }
 function humanizeSlug(slug) {
     return slug
@@ -82835,7 +82831,7 @@ async function handleComment(octokit, ctx) {
     }
     const needsThreadReply = [];
     for (const recipient of recipients) {
-        const dmSent = (0, config_1.isDmEnabledFor)(ctx.teamsConfig, recipient.login) &&
+        const dmSent = (0, config_1.isDmEnabled)(ctx.teamsConfig) &&
             (await (0, slack_1.sendSlackDm)(client, recipient.slackId, recipient.dmText));
         if (dmSent) {
             core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);

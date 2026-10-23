@@ -1753,13 +1753,13 @@ describe("handleComment DMs", () => {
     );
   });
 
-  it("skips the DM for an opted-out author and uses the thread reply", async () => {
-    const optedOut: OrgConfig = {
+  it("skips the DM when DMs are disabled and uses the thread reply", async () => {
+    const disabled: OrgConfig = {
       ...config,
-      notifications: { dm: { opt_out: ["alice"] } },
+      notifications: { dm: { enabled: false } },
     };
 
-    await handleComment(mockOctokit as any, { ...approval, teamsConfig: optedOut });
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: disabled });
 
     expect(slack.sendSlackDm).not.toHaveBeenCalled();
     expect(slack.postSlackThreadReply).toHaveBeenCalledTimes(1);

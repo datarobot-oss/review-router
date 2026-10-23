@@ -79,6 +79,12 @@ Use `verdict: real` for a confirmed bug and `verdict: false-positive` for a find
 
 Like the rules, precedents are read from the base branch and take effect after they merge, and each one adds to every review's input tokens.
 
+## Progress and failures
+
+While a review runs, a check named "Review Router AI review" shows on the PR's head commit with a link to the workflow run. It completes with `success` and the number of issues found. If the review can't finish, it completes with `neutral` and the reason, so a service failure never reads as a failed PR. The check isn't a merge requirement.
+
+When you start a review with `/ai-review`, the comment also gets a 👀 reaction while it runs, and a failure also posts a comment. An automatic run reports a failure only through the check. Without the GitHub App's **Checks**: Read and write permission, the action posts the failure comment instead.
+
 ## When it doesn't run
 
 - Fork PRs, always.

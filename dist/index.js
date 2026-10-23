@@ -78845,6 +78845,7 @@ exports.runAiReview = runAiReview;
 exports.runAiReviewSafely = runAiReviewSafely;
 const core = __importStar(__nccwpck_require__(7484));
 const fs = __importStar(__nccwpck_require__(9896));
+const checks_1 = __nccwpck_require__(2122);
 const inputs_1 = __nccwpck_require__(3580);
 const pipeline_1 = __nccwpck_require__(9287);
 const process_1 = __nccwpck_require__(4772);
@@ -78935,6 +78936,7 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
     const started = deps.now();
     if (req.commentId)
         await (0, publish_1.react)(octokit, req.owner, req.repo, req.commentId, "eyes");
+    const checkId = await (0, checks_1.startAiReviewCheck)(octokit, req.owner, req.repo, pr.head.sha, req.runUrl);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), exports.WALL_CLOCK_MS);
     let workspaceRoot;
@@ -78968,6 +78970,14 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
         await stage("could not post the review", () => (0, publish_1.postReview)(octokit, req.owner, req.repo, req.prNumber, pr.head.sha, review));
         if (req.commentId)
             await (0, publish_1.react)(octokit, req.owner, req.repo, req.commentId, "hooray");
+        if (checkId !== undefined) {
+            const count = result.findings.length;
+            await (0, checks_1.finishAiReviewCheck)(octokit, req.owner, req.repo, checkId, {
+                conclusion: "success",
+                title: count === 0 ? "No issues found" : `Found ${count} issue${count === 1 ? "" : "s"}`,
+                summary: (0, checks_1.withRunLink)("The review is posted on the pull request.", req.runUrl),
+            });
+        }
         core.info(`AI review posted: ${result.findings.length} findings, $${result.costUsd.toFixed(2)} at list price`);
     }
     catch (error) {
@@ -78977,7 +78987,17 @@ async function runAiReview(octokit, req, deps = defaultDeps()) {
             : "unexpected error, see the workflow logs";
         if (req.commentId)
             await (0, publish_1.react)(octokit, req.owner, req.repo, req.commentId, "confused");
-        await (0, publish_1.postFailure)(octokit, req.owner, req.repo, req.prNumber, reason, req.runUrl).catch((e) => core.warning(`Could not post the failure comment: ${errorText(e)}`));
+        if (checkId !== undefined) {
+            await (0, checks_1.finishAiReviewCheck)(octokit, req.owner, req.repo, checkId, {
+                conclusion: "neutral",
+                title: "Could not finish",
+                summary: (0, checks_1.withRunLink)(`AI review couldn't finish: ${reason}.`, req.runUrl),
+            });
+        }
+        // The check reports an automatic run. A person who asked with /ai-review gets a comment too.
+        if (checkId === undefined || req.commentId) {
+            await (0, publish_1.postFailure)(octokit, req.owner, req.repo, req.prNumber, reason, req.runUrl).catch((e) => core.warning(`Could not post the failure comment: ${errorText(e)}`));
+        }
     }
     finally {
         clearTimeout(timer);
@@ -80480,12 +80500,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CHECK_NAME = void 0;
+exports.AI_REVIEW_CHECK_NAME = exports.CHECK_NAME = void 0;
 exports.parseRoutedTeams = parseRoutedTeams;
 exports.buildReviewCheck = buildReviewCheck;
 exports.upsertReviewCheck = upsertReviewCheck;
+exports.withRunLink = withRunLink;
+exports.startAiReviewCheck = startAiReviewCheck;
+exports.finishAiReviewCheck = finishAiReviewCheck;
 const core = __importStar(__nccwpck_require__(7484));
 exports.CHECK_NAME = "Review Router";
+exports.AI_REVIEW_CHECK_NAME = "Review Router AI review";
 const EXTERNAL_ID_PREFIX = "rr:teams=";
 const MAX_EARLIER_COMMITS = 10;
 function parseRoutedTeams(externalId) {
@@ -80591,13 +80615,61 @@ async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendin
         }
     }
     catch (error) {
-        const status = error.status;
-        if (status === 403 || status === 404) {
-            const reason = error instanceof Error ? error.message : error.message;
-            core.info(`Skipping the ${exports.CHECK_NAME} check (${status}${reason ? `: ${reason}` : ""}); the Checks permission may not be granted here`);
-            return;
-        }
-        core.warning(`Failed to update the ${exports.CHECK_NAME} check: ${error instanceof Error ? error.message : String(error)}`);
+        reportCheckError(error, exports.CHECK_NAME);
+    }
+}
+/** A missing Checks permission (403, 404) is logged quietly, anything else as a warning. */
+function reportCheckError(error, name) {
+    const status = error.status;
+    if (status === 403 || status === 404) {
+        const reason = error instanceof Error ? error.message : error.message;
+        core.info(`Skipping the ${name} check (${status}${reason ? `: ${reason}` : ""}); the Checks permission may not be granted here`);
+        return;
+    }
+    core.warning(`Failed to update the ${name} check: ${error instanceof Error ? error.message : String(error)}`);
+}
+function withRunLink(text, runUrl) {
+    return runUrl ? `${text} See the [workflow run](${runUrl}).` : text;
+}
+/**
+ * Opens the "Review Router AI review" check on a commit and returns its id, or undefined when
+ * the check could not be opened. Never throws.
+ */
+async function startAiReviewCheck(octokit, owner, repo, headSha, runUrl) {
+    try {
+        const { data } = await octokit.rest.checks.create({
+            owner,
+            repo,
+            name: exports.AI_REVIEW_CHECK_NAME,
+            head_sha: headSha,
+            status: "in_progress",
+            ...(runUrl ? { details_url: runUrl } : {}),
+            output: {
+                title: "Reviewing the changes",
+                summary: withRunLink("The AI review is running.", runUrl),
+            },
+        });
+        return data.id;
+    }
+    catch (error) {
+        reportCheckError(error, exports.AI_REVIEW_CHECK_NAME);
+        return undefined;
+    }
+}
+/** Completes the check that startAiReviewCheck opened. Never throws. */
+async function finishAiReviewCheck(octokit, owner, repo, checkId, result) {
+    try {
+        await octokit.rest.checks.update({
+            owner,
+            repo,
+            check_run_id: checkId,
+            status: "completed",
+            conclusion: result.conclusion,
+            output: { title: result.title, summary: result.summary },
+        });
+    }
+    catch (error) {
+        reportCheckError(error, exports.AI_REVIEW_CHECK_NAME);
     }
 }
 

@@ -40,6 +40,10 @@ function octokit(reviews: { body: string; user: { type: string } }[] = []) {
       },
       issues: { createComment: jest.fn(async () => ({})) },
       reactions: { createForIssueComment: jest.fn(async () => ({})) },
+      checks: {
+        create: jest.fn(async () => ({ data: { id: 55 } })),
+        update: jest.fn(async () => ({})),
+      },
     },
   };
 }
@@ -69,6 +73,14 @@ const request: AiReviewRequest = {
   kind: "label",
   orgConfig,
   aiToken: "tok",
+};
+
+/** A person asked with /ai-review, so a failure also gets a comment. */
+const commandRequest: AiReviewRequest = {
+  ...request,
+  kind: "comment",
+  commentId: 9,
+  commenterAssociation: "MEMBER",
 };
 
 beforeEach(() => {
@@ -160,7 +172,7 @@ describe("runAiReview", () => {
       timedOut: false,
     });
     const gh = octokit();
-    await runAiReview(gh as unknown as Octokit, request, deps());
+    await runAiReview(gh as unknown as Octokit, commandRequest, deps());
     expect(gh.rest.pulls.createReview).not.toHaveBeenCalled();
     expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({ body: "AI review couldn't finish: every review pass failed." })
@@ -179,7 +191,7 @@ describe("runAiReview", () => {
       timedOut: false,
     });
     const gh = octokit();
-    await runAiReview(gh as unknown as Octokit, request, deps());
+    await runAiReview(gh as unknown as Octokit, commandRequest, deps());
     expect(gh.rest.pulls.createReview).not.toHaveBeenCalled();
     expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({ body: "AI review couldn't finish: every scoring session failed." })
@@ -198,7 +210,7 @@ describe("runAiReview", () => {
       timedOut: true,
     });
     const gh = octokit();
-    await runAiReview(gh as unknown as Octokit, request, deps());
+    await runAiReview(gh as unknown as Octokit, commandRequest, deps());
     expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({ body: "AI review couldn't finish: stopped at the time limit." })
     );
@@ -216,7 +228,7 @@ describe("runAiReview", () => {
       timedOut: true,
     });
     const gh = octokit();
-    await runAiReview(gh as unknown as Octokit, request, deps());
+    await runAiReview(gh as unknown as Octokit, commandRequest, deps());
     expect(gh.rest.pulls.createReview).not.toHaveBeenCalled();
     expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({ body: "AI review couldn't finish: stopped at the time limit." })
@@ -242,7 +254,7 @@ describe("runAiReview", () => {
       ...counts,
     });
     const gh = octokit();
-    await runAiReview(gh as unknown as Octokit, request, deps());
+    await runAiReview(gh as unknown as Octokit, commandRequest, deps());
     expect(gh.rest.pulls.createReview).not.toHaveBeenCalled();
     expect(gh.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({ body: `AI review couldn't finish: ${reason}.` })
@@ -267,7 +279,7 @@ describe("runAiReview", () => {
     const failing = deps();
     (failing.tools.install as jest.Mock).mockRejectedValue(new Error("boom"));
     const gh2 = octokit();
-    await runAiReview(gh2 as unknown as Octokit, { ...request, runUrl }, failing);
+    await runAiReview(gh2 as unknown as Octokit, { ...commandRequest, runUrl }, failing);
     expect(gh2.rest.issues.createComment).toHaveBeenCalledWith(
       expect.objectContaining({ body: expect.stringContaining(`[workflow run](${runUrl})`) })
     );
@@ -298,5 +310,118 @@ describe("runAiReview", () => {
     });
     await runAiReview(gh as unknown as Octokit, request, deps());
     expect(prepareWorkspace).not.toHaveBeenCalled();
+  });
+
+  describe("Review Router AI review check", () => {
+    const runUrl = "https://github.com/acme/api/actions/runs/42";
+    const oneFinding = {
+      findings: [{ path: "a.ts", line: 1, severity: "high", title: "t", body: "b" }],
+      costUsd: 0.5,
+      passes: ["claims"],
+      failedPasses: [],
+      skippedCandidates: 0,
+      scoredCandidates: 1,
+      failedCandidates: 0,
+      timedOut: false,
+    };
+
+    function updateArgs(gh: ReturnType<typeof octokit>) {
+      return gh.rest.checks.update.mock.calls[0] as unknown as [
+        {
+          check_run_id: number;
+          conclusion: string;
+          output: { title: string; summary: string };
+        },
+      ];
+    }
+
+    it("opens the check on the head commit before the pipeline starts", async () => {
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, { ...request, runUrl }, deps());
+      expect(gh.rest.checks.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Review Router AI review",
+          head_sha: "abc123",
+          status: "in_progress",
+          details_url: runUrl,
+        })
+      );
+      expect(gh.rest.checks.create.mock.invocationCallOrder[0]).toBeLessThan(
+        (runPipeline as jest.Mock).mock.invocationCallOrder[0]
+      );
+    });
+
+    it("completes it with success and says so when nothing was found", async () => {
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, request, deps());
+      const [args] = updateArgs(gh);
+      expect(args.check_run_id).toBe(55);
+      expect(args.conclusion).toBe("success");
+      expect(args.output.title).toBe("No issues found");
+    });
+
+    it("names the number of findings it posted", async () => {
+      (runPipeline as jest.Mock).mockResolvedValue(oneFinding);
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, request, deps());
+      expect(updateArgs(gh)[0].output.title).toBe("Found 1 issue");
+    });
+
+    it("settles as neutral with the reason when the review could not finish", async () => {
+      const failing = deps();
+      (failing.tools.install as jest.Mock).mockRejectedValue(new Error("boom"));
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, { ...request, runUrl }, failing);
+      const [args] = updateArgs(gh);
+      expect(args.conclusion).toBe("neutral");
+      expect(args.output.title).toBe("Could not finish");
+      expect(args.output.summary).toContain("could not install the review tools");
+      expect(args.output.summary).toContain(`[workflow run](${runUrl})`);
+    });
+
+    it("leaves out the failure comment for an automatic run the check already reports", async () => {
+      const failing = deps();
+      (failing.tools.install as jest.Mock).mockRejectedValue(new Error("boom"));
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, request, failing);
+      expect(gh.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it("still posts the failure comment when the person asked with /ai-review", async () => {
+      const failing = deps();
+      (failing.tools.install as jest.Mock).mockRejectedValue(new Error("boom"));
+      const gh = octokit();
+      await runAiReview(
+        gh as unknown as Octokit,
+        { ...request, kind: "comment", commentId: 9, commenterAssociation: "MEMBER" },
+        failing
+      );
+      expect(gh.rest.issues.createComment).toHaveBeenCalledTimes(1);
+      expect(gh.rest.checks.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("posts the failure comment when the check could not be opened", async () => {
+      const failing = deps();
+      (failing.tools.install as jest.Mock).mockRejectedValue(new Error("boom"));
+      const gh = octokit();
+      gh.rest.checks.create.mockRejectedValue({ status: 403, message: "denied" });
+      await runAiReview(gh as unknown as Octokit, request, failing);
+      expect(gh.rest.issues.createComment).toHaveBeenCalledTimes(1);
+      expect(gh.rest.checks.update).not.toHaveBeenCalled();
+    });
+
+    it("still posts the review when the check could not be opened", async () => {
+      const gh = octokit();
+      gh.rest.checks.create.mockRejectedValue({ status: 403, message: "denied" });
+      await runAiReview(gh as unknown as Octokit, request, deps());
+      expect(gh.rest.pulls.createReview).toHaveBeenCalledTimes(1);
+      expect(gh.rest.checks.update).not.toHaveBeenCalled();
+    });
+
+    it("opens no check when the run is skipped by a gate", async () => {
+      const gh = octokit();
+      await runAiReview(gh as unknown as Octokit, { ...request, aiToken: "" }, deps());
+      expect(gh.rest.checks.create).not.toHaveBeenCalled();
+    });
   });
 });

@@ -1,5 +1,12 @@
 import * as core from "@actions/core";
-import { buildReviewCheck, parseRoutedTeams, upsertReviewCheck } from "../src/checks";
+import {
+  AI_REVIEW_CHECK_NAME,
+  buildReviewCheck,
+  finishAiReviewCheck,
+  parseRoutedTeams,
+  startAiReviewCheck,
+  upsertReviewCheck,
+} from "../src/checks";
 
 jest.mock("@actions/core");
 
@@ -281,5 +288,100 @@ describe("upsertReviewCheck", () => {
 
     expect(octokit.rest.checks.create).not.toHaveBeenCalled();
     expect(octokit.paginate).not.toHaveBeenCalled();
+  });
+});
+
+describe("startAiReviewCheck", () => {
+  const runUrl = "https://github.com/acme/api/actions/runs/42";
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("opens an in-progress check on the head commit, linked to the workflow run", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.create.mockResolvedValue({ data: { id: 77 } });
+    const id = await startAiReviewCheck(octokit as never, "acme", "api", "abc123", runUrl);
+    expect(id).toBe(77);
+    expect(octokit.rest.checks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "acme",
+        repo: "api",
+        name: AI_REVIEW_CHECK_NAME,
+        head_sha: "abc123",
+        status: "in_progress",
+        details_url: runUrl,
+      })
+    );
+    const { output } = octokit.rest.checks.create.mock.calls[0][0];
+    expect(output.summary).toContain(`[workflow run](${runUrl})`);
+  });
+
+  it("is named so it sorts beside the Review Router check and gate", () => {
+    expect(AI_REVIEW_CHECK_NAME).toBe("Review Router AI review");
+  });
+
+  it("omits the link when the run URL is unknown", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.create.mockResolvedValue({ data: { id: 1 } });
+    await startAiReviewCheck(octokit as never, "acme", "api", "abc123");
+    const args = octokit.rest.checks.create.mock.calls[0][0];
+    expect(args).not.toHaveProperty("details_url");
+    expect(args.output.summary).not.toContain("workflow run");
+  });
+
+  it("returns undefined and does not throw when the Checks permission is missing (403)", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.create.mockRejectedValue({ status: 403, message: "denied" });
+    await expect(
+      startAiReviewCheck(octokit as never, "acme", "api", "abc123", runUrl)
+    ).resolves.toBeUndefined();
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining(AI_REVIEW_CHECK_NAME));
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+
+  it("returns undefined and warns on any other failure", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.create.mockRejectedValue(new Error("boom"));
+    await expect(
+      startAiReviewCheck(octokit as never, "acme", "api", "abc123", runUrl)
+    ).resolves.toBeUndefined();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("boom"));
+  });
+});
+
+describe("finishAiReviewCheck", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const result = { conclusion: "success" as const, title: "No issues found", summary: "Done." };
+
+  it("completes the check it opened with the given conclusion and text", async () => {
+    const octokit = checksOctokit();
+    await finishAiReviewCheck(octokit as never, "acme", "api", 77, result);
+    expect(octokit.rest.checks.update).toHaveBeenCalledWith({
+      owner: "acme",
+      repo: "api",
+      check_run_id: 77,
+      status: "completed",
+      conclusion: "success",
+      output: { title: "No issues found", summary: "Done." },
+    });
+  });
+
+  it("settles as neutral so a service failure does not read as a failed PR", async () => {
+    const octokit = checksOctokit();
+    await finishAiReviewCheck(octokit as never, "acme", "api", 77, {
+      conclusion: "neutral",
+      title: "Could not finish",
+      summary: "every review pass failed.",
+    });
+    expect(octokit.rest.checks.update.mock.calls[0][0].conclusion).toBe("neutral");
+  });
+
+  it("does not throw when the update fails", async () => {
+    const octokit = checksOctokit();
+    octokit.rest.checks.update.mockRejectedValue(new Error("boom"));
+    await expect(
+      finishAiReviewCheck(octokit as never, "acme", "api", 77, result)
+    ).resolves.toBeUndefined();
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("boom"));
   });
 });

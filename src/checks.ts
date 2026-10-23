@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import { Octokit } from "./types";
 
 export const CHECK_NAME = "Review Router";
+export const AI_REVIEW_CHECK_NAME = "Review Router AI review";
 const EXTERNAL_ID_PREFIX = "rr:teams=";
 const MAX_EARLIER_COMMITS = 10;
 
@@ -139,17 +140,84 @@ export async function upsertReviewCheck(
       await octokit.rest.checks.create({ ...fields, name: CHECK_NAME, head_sha: headSha });
     }
   } catch (error) {
-    const status = (error as { status?: number }).status;
-    if (status === 403 || status === 404) {
-      const reason =
-        error instanceof Error ? error.message : (error as { message?: string }).message;
-      core.info(
-        `Skipping the ${CHECK_NAME} check (${status}${reason ? `: ${reason}` : ""}); the Checks permission may not be granted here`
-      );
-      return;
-    }
-    core.warning(
-      `Failed to update the ${CHECK_NAME} check: ${error instanceof Error ? error.message : String(error)}`
+    reportCheckError(error, CHECK_NAME);
+  }
+}
+
+/** A missing Checks permission (403, 404) is logged quietly, anything else as a warning. */
+function reportCheckError(error: unknown, name: string): void {
+  const status = (error as { status?: number }).status;
+  if (status === 403 || status === 404) {
+    const reason = error instanceof Error ? error.message : (error as { message?: string }).message;
+    core.info(
+      `Skipping the ${name} check (${status}${reason ? `: ${reason}` : ""}); the Checks permission may not be granted here`
     );
+    return;
+  }
+  core.warning(
+    `Failed to update the ${name} check: ${error instanceof Error ? error.message : String(error)}`
+  );
+}
+
+export interface AiReviewCheckResult {
+  conclusion: "success" | "neutral";
+  title: string;
+  summary: string;
+}
+
+export function withRunLink(text: string, runUrl?: string): string {
+  return runUrl ? `${text} See the [workflow run](${runUrl}).` : text;
+}
+
+/**
+ * Opens the "Review Router AI review" check on a commit and returns its id, or undefined when
+ * the check could not be opened. Never throws.
+ */
+export async function startAiReviewCheck(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  headSha: string,
+  runUrl?: string
+): Promise<number | undefined> {
+  try {
+    const { data } = await octokit.rest.checks.create({
+      owner,
+      repo,
+      name: AI_REVIEW_CHECK_NAME,
+      head_sha: headSha,
+      status: "in_progress",
+      ...(runUrl ? { details_url: runUrl } : {}),
+      output: {
+        title: "Reviewing the changes",
+        summary: withRunLink("The AI review is running.", runUrl),
+      },
+    });
+    return data.id;
+  } catch (error) {
+    reportCheckError(error, AI_REVIEW_CHECK_NAME);
+    return undefined;
+  }
+}
+
+/** Completes the check that startAiReviewCheck opened. Never throws. */
+export async function finishAiReviewCheck(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  checkId: number,
+  result: AiReviewCheckResult
+): Promise<void> {
+  try {
+    await octokit.rest.checks.update({
+      owner,
+      repo,
+      check_run_id: checkId,
+      status: "completed",
+      conclusion: result.conclusion,
+      output: { title: result.title, summary: result.summary },
+    });
+  } catch (error) {
+    reportCheckError(error, AI_REVIEW_CHECK_NAME);
   }
 }

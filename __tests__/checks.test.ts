@@ -245,6 +245,35 @@ describe("upsertReviewCheck", () => {
     );
   });
 
+  it("creates no check when creation is off, even with teams pending", async () => {
+    const octokit = checksOctokit();
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["a"], false, false);
+
+    expect(octokit.rest.checks.create).not.toHaveBeenCalled();
+    expect(octokit.paginate).not.toHaveBeenCalled();
+  });
+
+  it("completes an existing check when creation is off and no team is pending", async () => {
+    const octokit = checksOctokit([{ id: 7, external_id: "rr:teams=a" }]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", [], false, false);
+
+    expect(octokit.rest.checks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ check_run_id: 7, status: "completed", conclusion: "success" })
+    );
+  });
+
+  it("keeps updating an existing check while teams are pending when creation is off", async () => {
+    const octokit = checksOctokit([{ id: 7, external_id: "rr:teams=a,b" }]);
+
+    await upsertReviewCheck(octokit as any, "org", "repo", 5, "abc123", ["b"], false, false);
+
+    expect(octokit.rest.checks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ check_run_id: 7, status: "queued" })
+    );
+  });
+
   it("creates no check when no team is pending and none exists", async () => {
     const octokit = checksOctokit();
 

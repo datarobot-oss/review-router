@@ -191,7 +191,7 @@ DMs are on by default. Set `notifications.dm.enabled: false` to turn them off fo
 
 ### Review Router check
 
-For the repos listed in `ai_review.repos`, the action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as queued while teams still need to approve and completes when the last team label is removed. Other repos get no check. The check is informational. A push creates a commit without the check until the next review-router run.
+For the repos listed in `ai_review.repos`, the action reports pending team approvals as a check named "Review Router" on the PR head commit. The check shows as queued while teams still need to approve and completes when the last team label is removed. Other repos get no new check, and one that already exists still completes. The check is informational. A push creates a commit without the check until the next review-router run.
 
 The check needs the GitHub App permission **Checks**: Read and write. Without it, the action skips the check.
 

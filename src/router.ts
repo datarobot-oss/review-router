@@ -282,7 +282,7 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
     );
   }
 
-  if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
+  if (ctx.headSha) {
     // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
     const existingTeamLabels = ctx.labels.filter((l) =>
       l.startsWith(ctx.inputs.needsReviewPrefix + ":")
@@ -297,7 +297,9 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
         ctx.repo,
         ctx.prNumber,
         ctx.headSha,
-        pendingSlugs
+        pendingSlugs,
+        false,
+        reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
       );
     }
   }
@@ -416,8 +418,17 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
 
   if (needsReviewLabels.length === 0) {
     core.info("No 'Needs Review' labels found on PR, nothing to remove");
-    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
-      await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+    if (ctx.headSha) {
+      await upsertReviewCheck(
+        octokit,
+        ctx.owner,
+        ctx.repo,
+        ctx.prNumber,
+        ctx.headSha,
+        [],
+        false,
+        reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+      );
     }
     return;
   }
@@ -455,14 +466,23 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
     }
   }
 
-  if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
+  if (ctx.headSha) {
     const pendingSlugs = needsReviewLabels
       .filter((l: { name: string }) => !removedLabelNames.has(l.name))
       .map((l: { name: string }) =>
         resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
       )
       .filter((slug): slug is string => slug !== undefined);
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+    await upsertReviewCheck(
+      octokit,
+      ctx.owner,
+      ctx.repo,
+      ctx.prNumber,
+      ctx.headSha,
+      pendingSlugs,
+      false,
+      reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+    );
   }
 
   if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
@@ -495,7 +515,7 @@ export async function handleReviewSubmitted(octokit: Octokit, ctx: ReviewContext
   }
 }
 
-/** The Review Router check is on for the repos that subscribe to the AI review. */
+/** Repos that subscribe to the AI review get new checks. Other repos only settle ones that exist. */
 function reviewCheckEnabled(teamsConfig: OrgConfig, repo: string): boolean {
   return resolveAiReviewSettings(teamsConfig, repo) !== null;
 }
@@ -515,7 +535,6 @@ export interface CheckSyncContext {
  * labels removed by hand leave a queued check behind.
  */
 export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
-  if (!reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) return;
   const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
     owner: ctx.owner,
     repo: ctx.repo,
@@ -527,7 +546,16 @@ export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): 
       resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
     )
     .filter((slug): slug is string => slug !== undefined);
-  await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+  await upsertReviewCheck(
+    octokit,
+    ctx.owner,
+    ctx.repo,
+    ctx.prNumber,
+    ctx.headSha,
+    pendingSlugs,
+    false,
+    reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+  );
 }
 
 export function resolveTeamSlugFromLabel(
@@ -690,8 +718,17 @@ export interface ClosedContext {
 }
 
 export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promise<void> {
-  if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
-    await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
+  if (ctx.headSha) {
+    await upsertReviewCheck(
+      octokit,
+      ctx.owner,
+      ctx.repo,
+      ctx.prNumber,
+      ctx.headSha,
+      [],
+      true,
+      reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
+    );
   }
 
   if (!ctx.merged) {

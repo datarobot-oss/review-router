@@ -80560,14 +80560,15 @@ async function routedTeamsFromEarlierCommits(octokit, owner, repo, prNumber, hea
     return [];
 }
 /**
- * Creates or updates the "Review Router" check on a commit. Never throws: a missing
- * Checks permission (403, 404) is expected until an installation approves it.
+ * Creates or updates the "Review Router" check on a commit. With createIfMissing off it only
+ * updates a check that already exists, so a repo outside the rollout still settles old checks.
+ * Never throws: a missing Checks permission (403, 404) is expected until an installation approves it.
  */
-async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendingTeams, closed = false) {
+async function upsertReviewCheck(octokit, owner, repo, prNumber, headSha, pendingTeams, closed = false, createIfMissing = true) {
     try {
         const [existing] = await listChecks(octokit, owner, repo, headSha);
         // A check exists only to show pending teams: settle one that exists, never open an empty one.
-        if (!existing && (closed || pendingTeams.length === 0))
+        if (!existing && (closed || pendingTeams.length === 0 || !createIfMissing))
             return;
         const previouslyRouted = existing
             ? parseRoutedTeams(existing.external_id)
@@ -82455,14 +82456,14 @@ async function handleLabeled(octokit, ctx) {
     catch (error) {
         core.warning(`Failed to apply labels: ${error instanceof Error ? error.message : String(error)}`);
     }
-    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
+    if (ctx.headSha) {
         // Pending teams are every Needs Review label on the PR, not only the ones this pass applied.
         const existingTeamLabels = ctx.labels.filter((l) => l.startsWith(ctx.inputs.needsReviewPrefix + ":"));
         const pendingSlugs = [...new Set([...existingTeamLabels, ...allLabelNames])]
             .map((name) => resolveTeamSlugFromLabel(name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
         if (pendingSlugs.length > 0) {
-            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs, false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
         }
     }
     if (allTeamSlugs.length > 0) {
@@ -82560,8 +82561,8 @@ async function handleReviewSubmitted(octokit, ctx) {
     const needsReviewLabels = prLabels.filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"));
     if (needsReviewLabels.length === 0) {
         core.info("No 'Needs Review' labels found on PR, nothing to remove");
-        if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
-            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, []);
+        if (ctx.headSha) {
+            await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
         }
         return;
     }
@@ -82594,12 +82595,12 @@ async function handleReviewSubmitted(octokit, ctx) {
             }
         }
     }
-    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
+    if (ctx.headSha) {
         const pendingSlugs = needsReviewLabels
             .filter((l) => !removedLabelNames.has(l.name))
             .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
             .filter((slug) => slug !== undefined);
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs, false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
     }
     if (approvedChannels.size > 0 && ctx.inputs.slackToken) {
         try {
@@ -82621,7 +82622,7 @@ async function handleReviewSubmitted(octokit, ctx) {
         }
     }
 }
-/** The Review Router check is on for the repos that subscribe to the AI review. */
+/** Repos that subscribe to the AI review get new checks. Other repos only settle ones that exist. */
 function reviewCheckEnabled(teamsConfig, repo) {
     return (0, settings_1.resolveAiReviewSettings)(teamsConfig, repo) !== null;
 }
@@ -82631,8 +82632,6 @@ function reviewCheckEnabled(teamsConfig, repo) {
  * labels removed by hand leave a queued check behind.
  */
 async function syncReviewCheck(octokit, ctx) {
-    if (!reviewCheckEnabled(ctx.teamsConfig, ctx.repo))
-        return;
     const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
         owner: ctx.owner,
         repo: ctx.repo,
@@ -82642,7 +82641,7 @@ async function syncReviewCheck(octokit, ctx) {
         .filter((l) => l.name.startsWith(ctx.inputs.needsReviewPrefix + ":"))
         .map((l) => resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix))
         .filter((slug) => slug !== undefined);
-    await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
+    await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs, false, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
 }
 function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
     for (const [slug, cfg] of Object.entries(teamsConfig.teams)) {
@@ -82734,8 +82733,8 @@ async function handleReadyForReview(octokit, ctx) {
     }
 }
 async function handleClosed(octokit, ctx) {
-    if (ctx.headSha && reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) {
-        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true);
+    if (ctx.headSha) {
+        await (0, checks_1.upsertReviewCheck)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, [], true, reviewCheckEnabled(ctx.teamsConfig, ctx.repo));
     }
     if (!ctx.merged) {
         core.info("PR was closed without merging, skipping label cleanup");

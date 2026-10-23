@@ -40,3 +40,25 @@ jobs:
           gh api "repos/$TARGET/branches/main/protection" --jq '{required_status_checks, required_pull_request_reviews}' || echo "protection read failed"
           echo "== repo rulesets list"
           gh api "repos/$TARGET/rulesets" --jq '.[] | {id, name, enforcement, source_type}' || echo "rulesets list failed"
+
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.REVIEW_ROUTER_APP_ID }}
+          private-key: ${{ secrets.REVIEW_ROUTER_APP_PRIVATE_KEY }}
+          repositories: review-router
+      - name: Approve this PR as the App and read the merge state
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "== before"
+          gh pr view "$PR" -R "$REPO" --json reviewDecision,mergeStateStatus --jq '.' || echo "view failed"
+          echo "== approve"
+          gh api -X POST "repos/$REPO/pulls/$PR/reviews" -f event=APPROVE -f body="Probe: testing an App approval. Ignore." --jq '{state, author_association, user: .user.login}' || echo "approve failed"
+          echo "== after"
+          gh pr view "$PR" -R "$REPO" --json reviewDecision,mergeStateStatus,reviews --jq '{reviewDecision, mergeStateStatus, reviews: [.reviews[] | {author: .author.login, state, authorAssociation}]}' || echo "view failed"

@@ -82279,6 +82279,7 @@ exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
 exports.handleOpened = handleOpened;
 exports.handleReadyForReview = handleReadyForReview;
 exports.handleClosed = handleClosed;
+exports.formatGitHubUser = formatGitHubUser;
 exports.handleComment = handleComment;
 exports.getFileTypeEmojis = getFileTypeEmojis;
 exports.getStatusEmoji = getStatusEmoji;
@@ -82790,15 +82791,27 @@ async function handleClosed(octokit, ctx) {
         }
     }
 }
+/**
+ * Formats a GitHub login for Slack: a mention when the login has a Slack user, otherwise a link
+ * to its GitHub page. Bot logins link to the app page, because github.com/<name>[bot] does not resolve.
+ */
+function formatGitHubUser(login, users) {
+    const slackId = users?.[login];
+    if (slackId)
+        return `<@${slackId}>`;
+    const botSuffix = "[bot]";
+    const page = login.endsWith(botSuffix) ? `apps/${login.slice(0, -botSuffix.length)}` : login;
+    return `<https://github.com/${page}|${login}>`;
+}
 async function handleComment(octokit, ctx) {
     if (!ctx.inputs.slackToken) {
         core.debug("No Slack token provided, skipping thread notification");
         return;
     }
     const client = new web_api_1.WebClient(ctx.inputs.slackToken);
-    const kindLabel = ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
-    const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
     const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
+    const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
     const recipients = [];
     const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
     if (authorSlackId) {
@@ -82807,11 +82820,11 @@ async function handleComment(octokit, ctx) {
             login: ctx.author,
             slackId: authorSlackId,
             dmText: approved
-                ? `:white_check_mark: Your PR ${prLink} was approved by *${ctx.commenter}*`
-                : `:speech_balloon: New ${kindLabel} from *${ctx.commenter}* on ${prLink}${ctx.commentUrl ? ` (<${ctx.commentUrl}|view>)` : ""}`,
+                ? `:white_check_mark: ${person} approved your pull request ${prLink}.`
+                : `:speech_balloon: ${person} commented on your pull request ${prLink}.${readLink}`,
             threadText: approved
-                ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
-                : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`,
+                ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
+                : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
         });
     }
     if (ctx.kind !== "review") {
@@ -82824,8 +82837,8 @@ async function handleComment(octokit, ctx) {
             recipients.push({
                 login: assignee,
                 slackId,
-                dmText: `:eyes: New ${kindLabel} from *${ctx.commenter}* on ${prLink}, a PR you're watching`,
-                threadText: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+                dmText: `:eyes: ${person} commented on your assigned pull request ${prLink}.${readLink}`,
+                threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
             });
         }
     }

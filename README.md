@@ -185,7 +185,7 @@ on:
 
 ### Slack DMs
 
-When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees who watch the PR receive one for comments. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
+When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees receive one for comments. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
 
 DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org. When DMs are off or a DM fails, the person receives the Slack thread notification instead. To stop DMs for yourself, mute the bot's conversation in Slack.
 

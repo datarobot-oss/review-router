@@ -771,6 +771,18 @@ export async function handleClosed(octokit: Octokit, ctx: ClosedContext): Promis
   }
 }
 
+/**
+ * Formats a GitHub login for Slack: a mention when the login has a Slack user, otherwise a link
+ * to its GitHub page. Bot logins link to the app page, because github.com/<name>[bot] does not resolve.
+ */
+export function formatGitHubUser(login: string, users: Record<string, string> | undefined): string {
+  const slackId = users?.[login];
+  if (slackId) return `<@${slackId}>`;
+  const botSuffix = "[bot]";
+  const page = login.endsWith(botSuffix) ? `apps/${login.slice(0, -botSuffix.length)}` : login;
+  return `<https://github.com/${page}|${login}>`;
+}
+
 interface CommentRecipient {
   login: string;
   slackId: string;
@@ -785,10 +797,9 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   }
 
   const client = new WebClient(ctx.inputs.slackToken);
-  const kindLabel =
-    ctx.kind === "review_comment" ? "review comment" : ctx.kind === "review" ? "review" : "comment";
-  const urlPart = ctx.commentUrl ? ` — <${ctx.commentUrl}|view>` : "";
   const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
+  const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
 
   const recipients: CommentRecipient[] = [];
 
@@ -799,13 +810,11 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       login: ctx.author,
       slackId: authorSlackId,
       dmText: approved
-        ? `:white_check_mark: Your PR ${prLink} was approved by *${ctx.commenter}*`
-        : `:speech_balloon: New ${kindLabel} from *${ctx.commenter}* on ${prLink}${
-            ctx.commentUrl ? ` (<${ctx.commentUrl}|view>)` : ""
-          }`,
+        ? `:white_check_mark: ${person} approved your pull request ${prLink}.`
+        : `:speech_balloon: ${person} commented on your pull request ${prLink}.${readLink}`,
       threadText: approved
-        ? `:white_check_mark: <@${authorSlackId}>, your PR was approved by *${ctx.commenter}*`
-        : `:speech_balloon: <@${authorSlackId}>, you have a new ${kindLabel} from *${ctx.commenter}*${urlPart}`,
+        ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
+        : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
     });
   }
 
@@ -817,8 +826,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       recipients.push({
         login: assignee,
         slackId,
-        dmText: `:eyes: New ${kindLabel} from *${ctx.commenter}* on ${prLink}, a PR you're watching`,
-        threadText: `:eyes: <@${slackId}> new ${kindLabel} on a PR you're watching from *${ctx.commenter}*${urlPart}`,
+        dmText: `:eyes: ${person} commented on your assigned pull request ${prLink}.${readLink}`,
+        threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
       });
     }
   }

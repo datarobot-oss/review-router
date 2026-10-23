@@ -6,6 +6,7 @@ import {
   handleClosed,
   syncReviewCheck,
   handleComment,
+  formatGitHubUser,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
   isReadyLabel,
@@ -1448,7 +1449,8 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("new comment from *bob*")
+      ":speech_balloon: <@U12345>, <https://github.com/bob|bob> commented on your pull request. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
     );
   });
 
@@ -1550,7 +1552,7 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("your PR was approved by *bob*")
+      expect.stringContaining("<https://github.com/bob|bob> approved your pull request.")
     );
   });
   it("notifies assignees on comments", async () => {
@@ -1669,7 +1671,27 @@ describe("handleComment", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("your PR was approved by *bob*")
+      expect.stringContaining("<https://github.com/bob|bob> approved your pull request.")
+    );
+  });
+});
+
+describe("formatGitHubUser", () => {
+  it("mentions a login that has a Slack user", () => {
+    expect(formatGitHubUser("bob", { bob: "U_BOB" })).toBe("<@U_BOB>");
+  });
+
+  it("links the GitHub profile of a login without a Slack user", () => {
+    expect(formatGitHubUser("bob", { alice: "U12345" })).toBe("<https://github.com/bob|bob>");
+  });
+
+  it("links the GitHub profile when there is no users mapping", () => {
+    expect(formatGitHubUser("bob", undefined)).toBe("<https://github.com/bob|bob>");
+  });
+
+  it("links the app page of a bot login", () => {
+    expect(formatGitHubUser("cursor[bot]", {})).toBe(
+      "<https://github.com/apps/cursor|cursor[bot]>"
     );
   });
 });
@@ -1724,10 +1746,107 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U12345",
-      expect.stringContaining("approved by *bob*")
+      ":white_check_mark: <https://github.com/bob|bob> approved your pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>."
     );
     expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
     expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
+  });
+
+  it("mentions the commenter when the commenter has a Slack user", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    const mapped: OrgConfig = { ...teamsConfig, users: { alice: "U12345", bob: "U_BOB" } };
+
+    await handleComment(mockOctokit as any, { ...approval, teamsConfig: mapped });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      ":white_check_mark: <@U_BOB> approved your pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>."
+    );
+  });
+
+  it.each(["comment", "review", "review_comment"] as const)(
+    "sends the same comment DM to the author for a %s",
+    async (kind) => {
+      (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+      await handleComment(mockOctokit as any, {
+        ...approval,
+        kind,
+        commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+        teamsConfig: config,
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U12345",
+        ":speech_balloon: <https://github.com/bob|bob> commented on your pull request " +
+          "<https://github.com/org/repo/pull/1|org/repo#1>. " +
+          "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+      );
+    }
+  );
+
+  it("ends the comment DM after the PR link when there is no comment URL", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "",
+      teamsConfig: config,
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      ":speech_balloon: <https://github.com/bob|bob> commented on your pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>."
+    );
+  });
+
+  it("tells an assignee the pull request is assigned to them", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    const withAssignee: OrgConfig = { ...teamsConfig, users: { charlie: "U_CHARLIE" } };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: withAssignee,
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CHARLIE",
+      ":eyes: <https://github.com/bob|bob> commented on your assigned pull request " +
+        "<https://github.com/org/repo/pull/1|org/repo#1>. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+    );
+  });
+
+  it("falls back to a thread reply for an assignee when the DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+    const withAssignee: OrgConfig = { ...teamsConfig, users: { charlie: "U_CHARLIE" } };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: withAssignee,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      ":eyes: <@U_CHARLIE>, <https://github.com/bob|bob> commented on your assigned pull request. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+    );
   });
 
   it("sends a DM when the PR has no Slack refs", async () => {
@@ -1749,7 +1868,7 @@ describe("handleComment DMs", () => {
       expect.anything(),
       "C111",
       "1111.0000",
-      expect.stringContaining("<@U12345>, your PR was approved by *bob*")
+      ":white_check_mark: <@U12345>, <https://github.com/bob|bob> approved your pull request."
     );
   });
 

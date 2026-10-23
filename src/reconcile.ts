@@ -83,10 +83,12 @@ async function collectEvents(
 ): Promise<CommentEvent[]> {
   const author = pr.user?.login ?? "";
   const events: CommentEvent[] = [];
+  const currentApprovers = new Set(latestApprovers(reviews));
 
   for (const review of reviews) {
     if (!isNewer(review.submitted_at, cursor) || !isRealPerson(review.user, author)) continue;
     if (review.state === "APPROVED") {
+      if (!currentApprovers.has(review.user.login)) continue;
       events.push({
         kind: "review",
         commenter: review.user.login,

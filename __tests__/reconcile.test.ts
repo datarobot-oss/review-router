@@ -261,6 +261,25 @@ describe("reconcileOpenPulls", () => {
     ]);
   });
 
+  it("sends no approval DM for an approval that a later review superseded", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      reviews: [
+        { user: human("bob"), state: "APPROVED", submitted_at: "2026-10-23T10:05:00Z" },
+        { user: human("bob"), state: "CHANGES_REQUESTED", submitted_at: "2026-10-23T10:20:00Z" },
+        { user: human("carol"), state: "APPROVED", submitted_at: "2026-10-23T10:06:00Z" },
+        { user: human("dave"), state: "APPROVED", submitted_at: "2026-10-23T10:07:00Z" },
+        { user: human("dave"), state: "DISMISSED", submitted_at: "2026-10-23T10:21:00Z" },
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    const commenters = (handleComment as jest.Mock).mock.calls.map(([, c]) => c.commenter);
+    expect(commenters).toEqual(["carol"]);
+  });
+
   it("ignores bot comments, the router's own comments and the author's own comments", async () => {
     const created = "2026-10-23T10:05:00Z";
     const octokit = octokitFor({

@@ -2159,9 +2159,7 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      ["platform-team"],
-      false,
-      true
+      ["platform-team"]
     );
   });
 
@@ -2176,9 +2174,7 @@ describe("review check wiring", () => {
       "test-repo",
       1,
       "sha123",
-      [],
-      false,
-      true
+      []
     );
   });
 
@@ -2220,11 +2216,10 @@ describe("review check wiring", () => {
       merged: true,
       headSha: "s",
     });
-    await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig });
 
     // The handlers still report, so a check that already exists settles. None may create one.
     const calls = (checks.upsertReviewCheck as jest.Mock).mock.calls;
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(3);
     calls.forEach((call) => expect(call[7]).toBe(false));
   });
 
@@ -2246,21 +2241,11 @@ describe("review check wiring", () => {
   it.each([
     ["the AI review is off", offConfig],
     ["the repo is outside ai_review.repos", otherRepoConfig],
-  ])("syncReviewCheck settles but never creates a check when %s", async (_name, config) => {
-    mockOctokit.rest.issues.listLabelsOnIssue.mockResolvedValue({ data: [{ name: "bug" }] });
-
+  ])("syncReviewCheck makes no API calls when %s", async (_name, config) => {
     await syncReviewCheck(mockOctokit as any, { ...syncCtx, teamsConfig: config });
 
-    expect(checks.upsertReviewCheck).toHaveBeenCalledWith(
-      expect.anything(),
-      "datarobot-oss",
-      "test-repo",
-      1,
-      "sha123",
-      [],
-      false,
-      false
-    );
+    expect(mockOctokit.rest.issues.listLabelsOnIssue).not.toHaveBeenCalled();
+    expect(checks.upsertReviewCheck).not.toHaveBeenCalled();
   });
 
   it("handleReviewSubmitted settles but never creates a check without an ai_review block when no label is left", async () => {

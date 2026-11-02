@@ -532,9 +532,11 @@ export interface CheckSyncContext {
 /**
  * Rewrites the "Review Router" check on the current head from the PR's Needs Review labels.
  * Checks belong to a commit, so a push leaves the new head without one until this runs, and
- * labels removed by hand leave a queued check behind.
+ * labels removed by hand leave a queued check behind. Repos outside the AI review rollout are
+ * skipped without API calls, since they have no check to rewrite.
  */
 export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): Promise<void> {
+  if (!reviewCheckEnabled(ctx.teamsConfig, ctx.repo)) return;
   const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
     owner: ctx.owner,
     repo: ctx.repo,
@@ -546,16 +548,7 @@ export async function syncReviewCheck(octokit: Octokit, ctx: CheckSyncContext): 
       resolveTeamSlugFromLabel(l.name, ctx.teamsConfig, ctx.inputs.needsReviewPrefix)
     )
     .filter((slug): slug is string => slug !== undefined);
-  await upsertReviewCheck(
-    octokit,
-    ctx.owner,
-    ctx.repo,
-    ctx.prNumber,
-    ctx.headSha,
-    pendingSlugs,
-    false,
-    reviewCheckEnabled(ctx.teamsConfig, ctx.repo)
-  );
+  await upsertReviewCheck(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.headSha, pendingSlugs);
 }
 
 export function resolveTeamSlugFromLabel(

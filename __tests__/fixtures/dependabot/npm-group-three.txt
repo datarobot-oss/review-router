@@ -1,0 +1,40 @@
+Bump the typescript-eslint group with 3 updates
+
+Bumps the typescript-eslint group with 3 updates: [@typescript-eslint/eslint-plugin](https://github.com/typescript-eslint/typescript-eslint/tree/HEAD/packages/eslint-plugin), [@typescript-eslint/parser](https://github.com/typescript-eslint/typescript-eslint/tree/HEAD/packages/parser) and [typescript-eslint](https://github.com/typescript-eslint/typescript-eslint/tree/HEAD/packages/typescript-eslint).
+
+
+Updates `@typescript-eslint/eslint-plugin` from 8.72.0 to 8.72.1
+- [Release notes](https://github.com/typescript-eslint/typescript-eslint/releases)
+- [Changelog](https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/CHANGELOG.md)
+- [Commits](https://github.com/typescript-eslint/typescript-eslint/commits/v8.72.1/packages/eslint-plugin)
+
+Updates `@typescript-eslint/parser` from 8.72.0 to 8.72.1
+- [Release notes](https://github.com/typescript-eslint/typescript-eslint/releases)
+- [Changelog](https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/parser/CHANGELOG.md)
+- [Commits](https://github.com/typescript-eslint/typescript-eslint/commits/v8.72.1/packages/parser)
+
+Updates `typescript-eslint` from 8.72.0 to 8.72.1
+- [Release notes](https://github.com/typescript-eslint/typescript-eslint/releases)
+- [Changelog](https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/typescript-eslint/CHANGELOG.md)
+- [Commits](https://github.com/typescript-eslint/typescript-eslint/commits/v8.72.1/packages/typescript-eslint)
+
+---
+updated-dependencies:
+- dependency-name: "@typescript-eslint/eslint-plugin"
+  dependency-version: 8.72.1
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: typescript-eslint
+- dependency-name: "@typescript-eslint/parser"
+  dependency-version: 8.72.1
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: typescript-eslint
+- dependency-name: typescript-eslint
+  dependency-version: 8.72.1
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: typescript-eslint
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>

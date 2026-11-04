@@ -1,10 +1,10 @@
-import { DependabotPolicy, GatePolicy, matchesAny, UpdateType } from "./policy";
+import { DependencyFacts, evaluateDependencies } from "./dependabot";
+import { DependabotPolicy, GatePolicy, matchesAny } from "./policy";
 
 export const DEPENDABOT_LOGIN = "dependabot[bot]";
 const GITHUB_WEB_COMMITTER = "web-flow";
 const DEPENDABOT_BRANCH_PREFIX = "dependabot/";
 const WORKFLOW_DIRECTORY = ".github/";
-const UPDATE_TYPE_PATTERN = /update-type:\s*version-update:semver-(patch|minor|major)/g;
 
 export interface CommitFacts {
   authorLogin: string | null;
@@ -35,6 +35,8 @@ export interface GateFacts {
   /** Everyone who pushed to the head branch, from the repository's push history. */
   pushers: string[];
   commits: CommitFacts[];
+  /** The dependencies Dependabot lists, with scores when the policy needs them. Empty for other authors. */
+  dependencies: DependencyFacts[];
   reviews: ReviewFacts[];
 }
 
@@ -81,10 +83,6 @@ function findChangeRequest(facts: GateFacts): string | undefined {
   )?.user;
 }
 
-function updateTypesOf(message: string): UpdateType[] {
-  return [...message.matchAll(UPDATE_TYPE_PATTERN)].map((match) => match[1] as UpdateType);
-}
-
 function evaluateDependabot(facts: GateFacts, policy: DependabotPolicy | undefined): FamilyResult {
   if (facts.author !== DEPENDABOT_LOGIN || facts.authorType !== "Bot") {
     return { ok: false, why: "The author is not Dependabot." };
@@ -126,19 +124,9 @@ function evaluateDependabot(facts: GateFacts, policy: DependabotPolicy | undefin
   const outside = facts.files.find((file) => !matchesAny(file, policy.allowedPaths));
   if (outside) return { ok: false, why: `\`${outside}\` is outside the allowed paths.` };
 
-  const types = new Set<UpdateType>();
-  for (const commit of facts.commits) {
-    const found = updateTypesOf(commit.message);
-    if (found.length === 0) return { ok: false, why: "A commit states no update type." };
-    found.forEach((type) => types.add(type));
-  }
-  const refused = [...types].find((type) => !policy.updateTypes.includes(type));
-  if (refused) return { ok: false, why: `The update type \`${refused}\` needs a person.` };
-
-  return {
-    ok: true,
-    summary: `A verified Dependabot ${[...types].sort().join(" and ")} update inside the allowed paths.`,
-  };
+  const dependencies = evaluateDependencies(facts.dependencies, policy);
+  if (!dependencies.ok) return { ok: false, why: dependencies.why };
+  return { ok: true, summary: dependencies.summary };
 }
 
 /**

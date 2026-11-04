@@ -1,17 +1,30 @@
 import { decideGate, GateFacts, CommitFacts, ReviewFacts } from "../../src/gate/decide";
-import { GatePolicy } from "../../src/gate/policy";
+import { DependencyFacts } from "../../src/gate/dependabot";
+import { GatePolicy, parsePolicy } from "../../src/gate/policy";
 
 const HEAD = "head111";
 
-const policy: GatePolicy = {
-  dependabot: {
-    allowedPaths: ["requirements/**", "config/requirements.txt", "Dockerfile"],
-    maxChangedFiles: 5,
-    updateTypes: ["patch", "minor"],
-  },
-};
+const policy: GatePolicy = parsePolicy(
+  [
+    "dependabot:",
+    "  allowed_paths: ['requirements/**', config/requirements.txt, Dockerfile]",
+    "  max_changed_files: 5",
+    "  update_types: [patch, minor]",
+  ].join("\n")
+);
 
 const noFamilies: GatePolicy = {};
+
+const dependency = (over: Partial<DependencyFacts> = {}): DependencyFacts => ({
+  name: "pypdf",
+  ecosystem: "pip",
+  dependencyType: "direct:production",
+  updateType: "patch",
+  version: "6.0.1",
+  previous: "6.0.0",
+  compatibility: 90,
+  ...over,
+});
 
 const metadata = (type: string) =>
   `Bumps pypdf from 6.0.0 to 6.0.1.\n\n---\nupdated-dependencies:\n- dependency-name: pypdf\n  dependency-type: direct:production\n  update-type: version-update:semver-${type}\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>`;
@@ -34,6 +47,7 @@ const dependabotFacts = (over: Partial<GateFacts> = {}): GateFacts => ({
   changedFileCount: 1,
   pushers: ["dependabot[bot]"],
   commits: [dependabotCommit()],
+  dependencies: [dependency()],
   reviews: [],
   ...over,
 });
@@ -48,6 +62,7 @@ const humanFacts = (over: Partial<GateFacts> = {}): GateFacts => ({
   changedFileCount: 1,
   pushers: ["alice"],
   commits: [{ authorLogin: "alice", committerLogin: "alice", verified: true, message: "Add x" }],
+  dependencies: [],
   reviews: [],
   ...over,
 });
@@ -180,32 +195,46 @@ describe("Dependabot family", () => {
   });
 
   it("passes a minor bump", () => {
-    const facts = dependabotFacts({ commits: [dependabotCommit({ message: metadata("minor") })] });
+    const facts = dependabotFacts({ dependencies: [dependency({ updateType: "minor" })] });
     expect(decideGate(facts, policy).conclusion).toBe("success");
   });
 
-  it("passes a grouped update when every dependency is patch or minor", () => {
-    const grouped = `${metadata("patch")}\n- dependency-name: other\n  update-type: version-update:semver-minor`;
-    const facts = dependabotFacts({ commits: [dependabotCommit({ message: grouped })] });
-    expect(decideGate(facts, policy).conclusion).toBe("success");
+  it("names the dependencies it passed", () => {
+    const facts = dependabotFacts({
+      dependencies: [dependency(), dependency({ name: "other", updateType: "minor" })],
+    });
+    const decision = decideGate(facts, policy);
+    expect(decision.conclusion).toBe("success");
+    expect(decision.summary).toContain("pypdf");
+    expect(decision.summary).toContain("other");
   });
 
-  it("needs a person for a major bump", () => {
-    const facts = dependabotFacts({ commits: [dependabotCommit({ message: metadata("major") })] });
+  it("needs a person for a major bump, and says which dependency", () => {
+    const facts = dependabotFacts({ dependencies: [dependency({ updateType: "major" })] });
     const decision = decideGate(facts, policy);
     expect(decision.conclusion).toBe("action_required");
+    expect(decision.summary).toContain("pypdf");
     expect(decision.summary).toContain("major");
   });
 
   it("needs a person when one dependency of a group is a major bump", () => {
-    const grouped = `${metadata("patch")}\n- dependency-name: other\n  update-type: version-update:semver-major`;
-    const facts = dependabotFacts({ commits: [dependabotCommit({ message: grouped })] });
+    const facts = dependabotFacts({
+      dependencies: [dependency(), dependency({ name: "other", updateType: "major" })],
+    });
     expect(decideGate(facts, policy).conclusion).toBe("action_required");
   });
 
-  it("needs a person when the commit carries no update type", () => {
-    const facts = dependabotFacts({ commits: [dependabotCommit({ message: "Bump pypdf" })] });
-    expect(decideGate(facts, policy).conclusion).toBe("action_required");
+  it("needs a person when the commit lists no dependency", () => {
+    expect(decideGate(dependabotFacts({ dependencies: [] }), policy).conclusion).toBe(
+      "action_required"
+    );
+  });
+
+  it("needs a person for a compatibility score below the minimum", () => {
+    const facts = dependabotFacts({ dependencies: [dependency({ compatibility: 50 })] });
+    const decision = decideGate(facts, policy);
+    expect(decision.conclusion).toBe("action_required");
+    expect(decision.summary).toContain("50%");
   });
 
   it("needs a person when the repository enables no family", () => {

@@ -19,6 +19,7 @@ import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 import { runAiReviewSafely } from "./ai-review";
 import { isAiReviewCommand } from "./ai-review/trigger";
+import { GateEvent, runGate } from "./gate/run";
 
 async function run(): Promise<void> {
   const githubToken = core.getInput("github-token");
@@ -50,6 +51,14 @@ async function run(): Promise<void> {
 
   const eventName = context.eventName;
   const action = context.payload.action;
+
+  // First and on its own: the gate must not wait for, or fail with, the team config.
+  await runGate(
+    octokit,
+    { eventName, action, payload: context.payload as GateEvent["payload"] },
+    { owner, repo, runUrl }
+  );
+  if (eventName === "merge_group") return;
 
   if (eventName === "issue_comment" && action === "created") {
     const comment = context.payload.comment;

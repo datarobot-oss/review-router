@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { Octokit } from "../types";
-import { postGateCheck } from "./check";
+import { hasGateCheck, postGateCheck } from "./check";
 import { decideGate, GateDecision } from "./decide";
 import { Enrollment, loadEnrollment } from "./enroll";
 import { collectFacts, currentHead } from "./facts";
@@ -126,6 +126,29 @@ async function gatePull(
 }
 
 /**
+ * A failure before the pull request is evaluated leaves an earlier result standing, and an
+ * earlier success would let the pull request merge. Replace it with a blocking result. A commit
+ * with no result needs nothing: the missing required check already blocks, and a repository
+ * that never used the gate gets no stray check.
+ */
+async function failClosed(
+  octokit: Octokit,
+  ref: RepoRef,
+  target: GateTarget,
+  error: unknown
+): Promise<void> {
+  const sha =
+    target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
+  if (!sha) return;
+  try {
+    if (!(await hasGateCheck(octokit, ref.owner, ref.repo, sha))) return;
+    await postGateCheck(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+  } catch (e) {
+    core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+/**
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
  * so the Review Router's other work is not blocked by it.
  */
@@ -178,5 +201,6 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
     }
   } catch (error) {
     core.warning(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
+    await failClosed(octokit, ref, target, error);
   }
 }

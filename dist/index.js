@@ -81570,6 +81570,7 @@ function getSlackChannel(config, teamSlug) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GATE_CHECK_NAME = void 0;
 exports.postGateCheck = postGateCheck;
+exports.hasGateCheck = hasGateCheck;
 exports.GATE_CHECK_NAME = "Review Router gate";
 const EXTERNAL_ID_PREFIX = "rr-gate:";
 /** The decision as the check run records it. The external id carries the reason for dedupe. */
@@ -81611,6 +81612,17 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
     });
     return true;
 }
+/** True when the commit already has a gate result, which a failure must then replace. */
+async function hasGateCheck(octokit, owner, repo, headSha) {
+    const { data } = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: headSha,
+        check_name: exports.GATE_CHECK_NAME,
+        filter: "latest",
+    });
+    return data.check_runs.length > 0;
+}
 
 
 /***/ }),
@@ -81637,6 +81649,8 @@ function commitUsers(facts) {
         if (commit.committerLogin)
             users.add(commit.committerLogin);
     }
+    // Commit emails can name anyone or nobody, so the push history is what proves who pushed.
+    facts.pushers.forEach((pusher) => users.add(pusher));
     return users;
 }
 /** A person other than the author or a committer, with write access, approved the current head. */
@@ -81650,8 +81664,7 @@ function findApprover(facts) {
         !involved.has(review.user))?.user;
 }
 function findChangeRequest(facts) {
-    return facts.reviews.find((review) => review.state === "CHANGES_REQUESTED" && review.canWrite)
-        ?.user;
+    return facts.reviews.find((review) => review.state === "CHANGES_REQUESTED" && review.userType === "User" && review.canWrite)?.user;
 }
 function updateTypesOf(message) {
     return [...message.matchAll(UPDATE_TYPE_PATTERN)].map((match) => match[1]);
@@ -81669,6 +81682,10 @@ function evaluateDependabot(facts, policy) {
     if (facts.commits.length === 0) {
         return { ok: false, why: "The pull request has no commits." };
     }
+    // The commit fields below can be set by any token that may write to the branch.
+    if (facts.pushers.length === 0 || facts.pushers.some((pusher) => pusher !== exports.DEPENDABOT_LOGIN)) {
+        return { ok: false, why: "An account other than Dependabot pushed to the branch." };
+    }
     for (const commit of facts.commits) {
         if (commit.authorLogin !== exports.DEPENDABOT_LOGIN ||
             commit.committerLogin !== GITHUB_WEB_COMMITTER ||
@@ -81682,7 +81699,7 @@ function evaluateDependabot(facts, policy) {
     if (facts.files.length === 0) {
         return { ok: false, why: "The pull request changes no file." };
     }
-    if (facts.files.length > policy.maxChangedFiles) {
+    if (facts.changedFileCount > policy.maxChangedFiles) {
         return { ok: false, why: `It changes more than ${policy.maxChangedFiles} files.` };
     }
     const workflow = facts.files.find((file) => file.startsWith(WORKFLOW_DIRECTORY));
@@ -81817,23 +81834,20 @@ async function readPolicyFile(octokit, owner, repo, defaultBranch) {
         throw error;
     }
 }
-/** True when a rule on the default branch requires the gate check. */
+/**
+ * True when a rule on the default branch requires the gate check. Throws when the rules can't be
+ * read: a repository enrolled only through its ruleset must not drop out on a transient error.
+ */
 async function gateIsRequired(octokit, owner, repo, defaultBranch) {
-    try {
-        const rules = await octokit.paginate(octokit.rest.repos.getBranchRules, {
-            owner,
-            repo,
-            branch: defaultBranch,
-            per_page: 100,
-        });
-        return rules.some((rule) => rule.type === "required_status_checks" &&
-            "parameters" in rule &&
-            rule.parameters?.required_status_checks.some((check) => check.context === check_1.GATE_CHECK_NAME));
-    }
-    catch (error) {
-        core.info(`Could not read the branch rules: ${error instanceof Error ? error.message : String(error)}`);
-        return false;
-    }
+    const rules = await octokit.paginate(octokit.rest.repos.getBranchRules, {
+        owner,
+        repo,
+        branch: defaultBranch,
+        per_page: 100,
+    });
+    return rules.some((rule) => rule.type === "required_status_checks" &&
+        "parameters" in rule &&
+        rule.parameters?.required_status_checks.some((check) => check.context === check_1.GATE_CHECK_NAME));
 }
 /**
  * Decides whether the repository uses the gate, and under which policy. A repository is
@@ -81872,6 +81886,7 @@ exports.currentHead = currentHead;
 const MAX_COMMITS = 250;
 const MAX_FILES = 3000;
 const PAGE_SIZE = 100;
+const PUSH_ACTIVITIES = new Set(["push", "force_push", "branch_creation"]);
 /**
  * Resolves the reviews in order to one standing review per person: an approval or a change
  * request replaces the earlier one, a dismissal removes it, a plain comment changes nothing.
@@ -81895,15 +81910,43 @@ async function canWrite(octokit, owner, repo, username, cache) {
     const known = cache.get(username);
     if (known !== undefined)
         return known;
-    // Not caught: a failed lookup must fail the gate closed, not read as "no access".
-    const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    try {
+        const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+            owner,
+            repo,
+            username,
+        });
+        const allowed = data.permission === "admin" || data.permission === "write";
+        cache.set(username, allowed);
+        return allowed;
+    }
+    catch (error) {
+        // Anyone can review a public repository, and a stranger has no permission to look up.
+        // Any other failure must fail the gate closed, not read as "no access".
+        if (error.status !== 404)
+            throw error;
+        cache.set(username, false);
+        return false;
+    }
+}
+/**
+ * Lists everyone who created or pushed to the branch, from the repository's activity feed of
+ * the head repository. A full page may hide older pushes, so it fails instead of guessing.
+ */
+async function readPushers(octokit, owner, repo, branch) {
+    const { data } = await octokit.rest.repos.listActivities({
         owner,
         repo,
-        username,
+        ref: `refs/heads/${branch}`,
+        per_page: PAGE_SIZE,
     });
-    const allowed = data.permission === "admin" || data.permission === "write";
-    cache.set(username, allowed);
-    return allowed;
+    if (data.length >= PAGE_SIZE) {
+        throw new Error(`The branch has ${PAGE_SIZE} or more pushes on record.`);
+    }
+    const pushers = data
+        .filter((activity) => PUSH_ACTIVITIES.has(activity.activity_type))
+        .map((activity) => activity.actor?.login ?? "(unknown)");
+    return [...new Set(pushers)];
 }
 /** Reads everything the decision needs. Throws when a list is cut short or a call fails. */
 async function collectFacts(octokit, owner, repo, prNumber) {
@@ -81914,12 +81957,16 @@ async function collectFacts(octokit, owner, repo, prNumber) {
     if (pr.changed_files > MAX_FILES) {
         throw new Error(`The pull request changes more than ${MAX_FILES} files.`);
     }
+    if (!pr.head.repo)
+        throw new Error("The head repository of the pull request is gone.");
     const params = { owner, repo, pull_number: prNumber, per_page: PAGE_SIZE };
-    const [rawFiles, rawCommits, rawReviews] = await Promise.all([
+    const [rawFiles, rawCommits, pushers] = await Promise.all([
         octokit.paginate(octokit.rest.pulls.listFiles, params),
         octokit.paginate(octokit.rest.pulls.listCommits, params),
-        octokit.paginate(octokit.rest.pulls.listReviews, params),
+        readPushers(octokit, pr.head.repo.owner.login, pr.head.repo.name, pr.head.ref),
     ]);
+    // Last, so the reviews are as fresh as the write that follows.
+    const rawReviews = await octokit.paginate(octokit.rest.pulls.listReviews, params);
     if (rawCommits.length < pr.commits || rawFiles.length < pr.changed_files) {
         throw new Error("GitHub returned fewer commits or files than the pull request has.");
     }
@@ -81951,6 +81998,8 @@ async function collectFacts(octokit, owner, repo, prNumber) {
             headRef: pr.head.ref,
             headSha: pr.head.sha,
             files,
+            changedFileCount: rawFiles.length,
+            pushers,
             commits,
             reviews,
         },
@@ -82221,6 +82270,25 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
     }
 }
 /**
+ * A failure before the pull request is evaluated leaves an earlier result standing, and an
+ * earlier success would let the pull request merge. Replace it with a blocking result. A commit
+ * with no result needs nothing: the missing required check already blocks, and a repository
+ * that never used the gate gets no stray check.
+ */
+async function failClosed(octokit, ref, target, error) {
+    const sha = target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
+    if (!sha)
+        return;
+    try {
+        if (!(await (0, check_1.hasGateCheck)(octokit, ref.owner, ref.repo, sha)))
+            return;
+        await (0, check_1.postGateCheck)(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+    }
+    catch (e) {
+        core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
+    }
+}
+/**
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
  * so the Review Router's other work is not blocked by it.
  */
@@ -82258,6 +82326,7 @@ async function runGate(octokit, event, ref) {
     }
     catch (error) {
         core.warning(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
+        await failClosed(octokit, ref, target, error);
     }
 }
 

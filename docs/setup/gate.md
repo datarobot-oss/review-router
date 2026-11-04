@@ -12,11 +12,11 @@ The gate checks these rules in order:
 2. A person approves the pull request when all of these hold:
    - The reviewer has write or admin access and is a user, not an App or a bot.
    - The review is on the current head commit.
-   - The reviewer is not the author and did not author or commit any commit in the pull request.
+   - The reviewer is not the author, did not author or commit any commit in the pull request, and never pushed to its branch. The push history comes from the repository activity feed, because commit emails can name anyone.
 3. A policy family passes the pull request without a review when every rule of the family holds.
 4. Otherwise the pull request waits for a person.
 
-An error while reading the pull request posts `action_required` with the reason, so the gate fails closed.
+An error while reading the pull request posts `action_required` with the reason, so the gate fails closed. When the error happens before the pull request is read, the gate replaces an earlier result on that commit. A commit with no result stays blocked by the missing required check.
 
 ### Dependabot family
 
@@ -24,12 +24,13 @@ The family passes a pull request when all of these hold:
 
 - The author is `dependabot[bot]`, and the branch is a `dependabot/` branch of the same repository.
 - Every commit has the author `dependabot[bot]`, the committer `web-flow`, and a verified signature.
+- Only `dependabot[bot]` pushed to the branch. Any token with write access can create a commit that looks like Dependabot's, so the push history is the proof.
 - No changed file is under `.github/`.
 - Every changed file, including the previous name of a renamed file, matches `allowed_paths`.
 - The pull request changes at most `max_changed_files` files.
 - Every commit states an `update-type` in its Dependabot metadata, and each type is in `update_types`.
 
-A person who pushes a commit to the Dependabot branch, or updates it with a merge commit, moves the pull request to the approval rule.
+An account that pushes to the Dependabot branch moves the pull request to the approval rule. That includes a person, a merge commit from the **Update branch** button, and an automation that commits to the branch, such as a CI job that rebuilds generated files.
 
 ## Enable the gate
 
@@ -70,7 +71,17 @@ on:
     - cron: "*/30 * * * *"
 ```
 
+The gate reads the repository activity feed, so the Review Router App needs the **Contents: read** permission.
+
 `synchronize` posts the result on a new head commit. `merge_group` posts the result on the commit of a merge queue entry. `schedule` re-evaluates every open pull request and fixes a result that no event updated.
+
+Add a concurrency group to the job so runs for one pull request finish in order. Without it, a slow run for an earlier event can post its result after a newer run blocked the pull request.
+
+```yaml
+concurrency:
+  group: review-router-${{ github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
+  cancel-in-progress: false
+```
 
 ## Require the gate
 
@@ -85,5 +96,5 @@ To roll back, restore the required approvals and remove the check from the rules
 
 - The gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. Treat write access as the trust boundary until the gate runs under its own GitHub App.
 - The gate does not post `in_progress`. A pull request shows no result between a push and the next run.
-- A review on a pull request from a fork starts no run with secrets, so the scheduled run posts the new result.
-- A pull request with more than 250 commits or 3000 changed files fails closed.
+- A review on a pull request from a fork starts no run with secrets. A change request or a dismissal on such a pull request takes effect at the next scheduled run, and a merge queue re-evaluates it when the pull request enters the queue.
+- A pull request with more than 250 commits, 3000 changed files, or 100 pushes to its branch fails closed.

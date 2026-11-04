@@ -37,32 +37,28 @@ async function readPolicyFile(
   }
 }
 
-/** True when a rule on the default branch requires the gate check. */
+/**
+ * True when a rule on the default branch requires the gate check. Throws when the rules can't be
+ * read: a repository enrolled only through its ruleset must not drop out on a transient error.
+ */
 async function gateIsRequired(
   octokit: Octokit,
   owner: string,
   repo: string,
   defaultBranch: string
 ): Promise<boolean> {
-  try {
-    const rules = await octokit.paginate(octokit.rest.repos.getBranchRules, {
-      owner,
-      repo,
-      branch: defaultBranch,
-      per_page: 100,
-    });
-    return rules.some(
-      (rule) =>
-        rule.type === "required_status_checks" &&
-        "parameters" in rule &&
-        rule.parameters?.required_status_checks.some((check) => check.context === GATE_CHECK_NAME)
-    );
-  } catch (error) {
-    core.info(
-      `Could not read the branch rules: ${error instanceof Error ? error.message : String(error)}`
-    );
-    return false;
-  }
+  const rules = await octokit.paginate(octokit.rest.repos.getBranchRules, {
+    owner,
+    repo,
+    branch: defaultBranch,
+    per_page: 100,
+  });
+  return rules.some(
+    (rule) =>
+      rule.type === "required_status_checks" &&
+      "parameters" in rule &&
+      rule.parameters?.required_status_checks.some((check) => check.context === GATE_CHECK_NAME)
+  );
 }
 
 /**

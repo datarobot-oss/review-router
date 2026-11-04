@@ -61,9 +61,9 @@ describe("loadEnrollment", () => {
     expect(await loadEnrollment(octokit, "o", "r", "main")).toBeNull();
   });
 
-  it("does not enroll a repository whose rules can't be read", async () => {
+  it("fails when the branch rules can't be read, instead of reading it as not enrolled", async () => {
     const { octokit } = fakeOctokit({ rules: new Error("boom") });
-    expect(await loadEnrollment(octokit, "o", "r", "main")).toBeNull();
+    await expect(loadEnrollment(octokit, "o", "r", "main")).rejects.toThrow("boom");
   });
 
   it("keeps the repository enrolled with no family when the policy file is invalid", async () => {

@@ -32,6 +32,8 @@ export interface GateFacts {
   files: string[];
   /** Number of changed files as GitHub counts them, so a rename counts once. */
   changedFileCount: number;
+  /** Everyone who pushed to the head branch, from the repository's push history. */
+  pushers: string[];
   commits: CommitFacts[];
   reviews: ReviewFacts[];
 }
@@ -53,6 +55,8 @@ function commitUsers(facts: GateFacts): Set<string> {
     if (commit.authorLogin) users.add(commit.authorLogin);
     if (commit.committerLogin) users.add(commit.committerLogin);
   }
+  // Commit emails can name anyone or nobody, so the push history is what proves who pushed.
+  facts.pushers.forEach((pusher) => users.add(pusher));
   return users;
 }
 
@@ -93,6 +97,10 @@ function evaluateDependabot(facts: GateFacts, policy: DependabotPolicy | undefin
   }
   if (facts.commits.length === 0) {
     return { ok: false, why: "The pull request has no commits." };
+  }
+  // The commit fields below can be set by any token that may write to the branch.
+  if (facts.pushers.length === 0 || facts.pushers.some((pusher) => pusher !== DEPENDABOT_LOGIN)) {
+    return { ok: false, why: "An account other than Dependabot pushed to the branch." };
   }
   for (const commit of facts.commits) {
     if (

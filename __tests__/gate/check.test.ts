@@ -1,4 +1,4 @@
-import { GATE_CHECK_NAME, postGateCheck } from "../../src/gate/check";
+import { GATE_CHECK_NAME, hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { GateDecision } from "../../src/gate/decide";
 import { Octokit } from "../../src/types";
 
@@ -101,5 +101,20 @@ describe("postGateCheck", () => {
     const { octokit, create } = fakeOctokit();
     create.mockRejectedValue(new Error("403"));
     await expect(postGateCheck(octokit, "o", "r", "sha1", pass)).rejects.toThrow("403");
+  });
+});
+
+describe("hasGateCheck", () => {
+  it("is true when a gate result exists on the commit", async () => {
+    const { octokit } = fakeOctokit([run("success", "approved")]);
+    expect(await hasGateCheck(octokit, "o", "r", "sha1")).toBe(true);
+  });
+
+  it("is false when the commit has no gate result", async () => {
+    const { octokit, listForRef } = fakeOctokit();
+    expect(await hasGateCheck(octokit, "o", "r", "sha1")).toBe(false);
+    expect(listForRef).toHaveBeenCalledWith(
+      expect.objectContaining({ check_name: GATE_CHECK_NAME })
+    );
   });
 });

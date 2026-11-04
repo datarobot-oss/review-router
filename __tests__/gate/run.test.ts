@@ -1,5 +1,5 @@
 import { gateTarget, runGate } from "../../src/gate/run";
-import { postGateCheck } from "../../src/gate/check";
+import { hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { collectFacts, currentHead } from "../../src/gate/facts";
 import { loadEnrollment } from "../../src/gate/enroll";
 import { GateFacts } from "../../src/gate/decide";
@@ -96,6 +96,7 @@ const humanFacts: GateFacts = {
   headSha: "h1",
   files: ["a.txt"],
   changedFileCount: 1,
+  pushers: ["alice"],
   commits: [],
   reviews: [],
 };
@@ -204,6 +205,83 @@ describe("runGate", () => {
     await expect(
       runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF)
     ).resolves.toBeUndefined();
+    expect(postGateCheck).not.toHaveBeenCalled();
+  });
+
+  it("replaces an earlier result with a blocking one when the enrollment can't be read", async () => {
+    jest.mocked(loadEnrollment).mockRejectedValue(new Error("502"));
+    jest.mocked(hasGateCheck).mockResolvedValue(true);
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(hasGateCheck).toHaveBeenCalledWith(expect.anything(), "o", "r", "evt-sha");
+    expect(postGateCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "o",
+      "r",
+      "evt-sha",
+      expect.objectContaining({
+        conclusion: "action_required",
+        summary: expect.stringContaining("502"),
+      }),
+      "https://run"
+    );
+  });
+
+  it("opens no result in a repository that never had one when the enrollment can't be read", async () => {
+    jest.mocked(loadEnrollment).mockRejectedValue(new Error("502"));
+    jest.mocked(hasGateCheck).mockResolvedValue(false);
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(postGateCheck).not.toHaveBeenCalled();
+  });
+
+  it("replaces an earlier result when the default branch can't be read", async () => {
+    const octokit = fakeOctokit();
+    octokit.rest.repos.get.mockRejectedValue(new Error("502"));
+    jest.mocked(hasGateCheck).mockResolvedValue(true);
+    const event = { ...pullEvent(), payload: { pull_request: pr() } };
+    await runGate(octokit as unknown as Octokit, event, REF);
+    expect(postGateCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "o",
+      "r",
+      "evt-sha",
+      expect.objectContaining({ conclusion: "action_required" }),
+      "https://run"
+    );
+  });
+
+  it("replaces an earlier result on a queue entry when the enrollment can't be read", async () => {
+    jest.mocked(loadEnrollment).mockRejectedValue(new Error("502"));
+    jest.mocked(hasGateCheck).mockResolvedValue(true);
+    const event = {
+      eventName: "merge_group",
+      action: "checks_requested",
+      payload: {
+        repository,
+        merge_group: { head_sha: "q1", head_ref: "refs/heads/gh-readonly-queue/main/pr-44-abc" },
+      },
+    };
+    await runGate(fakeOctokit() as unknown as Octokit, event, REF);
+    expect(postGateCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "o",
+      "r",
+      "q1",
+      expect.objectContaining({ conclusion: "action_required" }),
+      "https://run"
+    );
+  });
+
+  it("posts nothing for a queue entry whose pull request targets another branch", async () => {
+    jest.mocked(collectFacts).mockResolvedValue(found({ baseRef: "release" }));
+    const event = {
+      eventName: "merge_group",
+      action: "checks_requested",
+      payload: {
+        repository,
+        merge_group: { head_sha: "q1", head_ref: "refs/heads/gh-readonly-queue/release/pr-44-abc" },
+      },
+    };
+    await runGate(fakeOctokit() as unknown as Octokit, event, REF);
     expect(postGateCheck).not.toHaveBeenCalled();
   });
 

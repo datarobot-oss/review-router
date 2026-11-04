@@ -51,6 +51,7 @@ interface Overrides {
   commits?: object[];
   reviews?: object[];
   permission?: (username: string) => Promise<{ data: { permission: string } }>;
+  activities?: object[] | Error;
 }
 
 function fakeOctokit(over: Overrides = {}) {
@@ -60,7 +61,11 @@ function fakeOctokit(over: Overrides = {}) {
     changed_files: 1,
     user: user("dependabot[bot]", "Bot"),
     base: { ref: "main", repo: { full_name: "o/r" } },
-    head: { ref: "dependabot/pip/x", sha: "h1", repo: { full_name: "o/r" } },
+    head: {
+      ref: "dependabot/pip/x",
+      sha: "h1",
+      repo: { full_name: "o/r", name: "r", owner: { login: "o" } },
+    },
     ...over.pr,
   };
   const listFiles = Symbol("listFiles");
@@ -80,6 +85,14 @@ function fakeOctokit(over: Overrides = {}) {
     ],
     [listReviews, over.reviews ?? []],
   ]);
+  const listActivities = jest.fn(async () => {
+    if (over.activities instanceof Error) throw over.activities;
+    return {
+      data: over.activities ?? [
+        { activity_type: "branch_creation", actor: { login: "dependabot[bot]" } },
+      ],
+    };
+  });
   const permission = jest.fn(over.permission ?? (async () => ({ data: { permission: "write" } })));
   const octokit = {
     rest: {
@@ -89,11 +102,17 @@ function fakeOctokit(over: Overrides = {}) {
         listCommits,
         listReviews,
       },
-      repos: { getCollaboratorPermissionLevel: permission },
+      repos: { getCollaboratorPermissionLevel: permission, listActivities },
     },
     paginate: jest.fn(async (method: symbol) => lists.get(method) ?? []),
   };
-  return { octokit: octokit as unknown as Octokit, permission };
+  return {
+    octokit: octokit as unknown as Octokit,
+    permission,
+    listActivities,
+    paginate: octokit.paginate,
+    lists: { listFiles, listCommits, listReviews },
+  };
 }
 
 describe("collectFacts", () => {
@@ -128,13 +147,17 @@ describe("collectFacts", () => {
     expect(facts.files).toEqual(["new.txt", ".github/workflows/old.yml"]);
   });
 
-  it("marks a pull request from another repository as a fork, also when the fork is deleted", async () => {
+  it("marks a pull request from another repository as a fork", async () => {
     const other = fakeOctokit({
-      pr: { head: { ref: "dependabot/x", sha: "h1", repo: { full_name: "evil/r" } } },
+      pr: {
+        head: {
+          ref: "dependabot/x",
+          sha: "h1",
+          repo: { full_name: "evil/r", name: "r", owner: { login: "evil" } },
+        },
+      },
     });
     expect((await collectFacts(other.octokit, "o", "r", 7)).facts.isFork).toBe(true);
-    const deleted = fakeOctokit({ pr: { head: { ref: "dependabot/x", sha: "h1", repo: null } } });
-    expect((await collectFacts(deleted.octokit, "o", "r", 7)).facts.isFork).toBe(true);
   });
 
   it("treats a commit without a verification result as unverified", async () => {
@@ -188,6 +211,71 @@ describe("collectFacts", () => {
     const { facts } = await collectFacts(octokit, "o", "r", 7);
     expect(facts.changedFileCount).toBe(2);
     expect(facts.files).toHaveLength(3);
+  });
+
+  it("lists everyone who pushed to the head branch, once each", async () => {
+    const { octokit, listActivities } = fakeOctokit({
+      activities: [
+        { activity_type: "push", actor: { login: "alice" } },
+        { activity_type: "force_push", actor: { login: "alice" } },
+        { activity_type: "branch_creation", actor: { login: "dependabot[bot]" } },
+        { activity_type: "branch_deletion", actor: { login: "cleaner" } },
+      ],
+    });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.pushers.sort()).toEqual(["alice", "dependabot[bot]"]);
+    expect(listActivities).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "o", repo: "r", ref: "refs/heads/dependabot/pip/x" })
+    );
+  });
+
+  it("reads the pushes of a fork from the fork", async () => {
+    const { octokit, listActivities } = fakeOctokit({
+      pr: {
+        head: {
+          ref: "fix",
+          sha: "h1",
+          repo: { full_name: "evil/r", name: "r", owner: { login: "evil" } },
+        },
+      },
+    });
+    await collectFacts(octokit, "o", "r", 7);
+    expect(listActivities).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "evil", repo: "r", ref: "refs/heads/fix" })
+    );
+  });
+
+  it("records a push with no known actor as an unknown pusher", async () => {
+    const { octokit } = fakeOctokit({ activities: [{ activity_type: "push", actor: null }] });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.pushers).toEqual(["(unknown)"]);
+  });
+
+  it("fails when the pushes can't be read", async () => {
+    const { octokit } = fakeOctokit({ activities: new Error("forbidden") });
+    await expect(collectFacts(octokit, "o", "r", 7)).rejects.toThrow("forbidden");
+  });
+
+  it("fails when the head repository is gone, so the pushes can't be read", async () => {
+    const { octokit } = fakeOctokit({ pr: { head: { ref: "x", sha: "h1", repo: null } } });
+    await expect(collectFacts(octokit, "o", "r", 7)).rejects.toThrow(/head repository/);
+  });
+
+  it("fails when the push history fills a page, since older pushes may be missing", async () => {
+    const page = Array.from({ length: 100 }, () => ({
+      activity_type: "push",
+      actor: { login: "dependabot[bot]" },
+    }));
+    const { octokit } = fakeOctokit({ activities: page });
+    await expect(collectFacts(octokit, "o", "r", 7)).rejects.toThrow(/pushes/);
+  });
+
+  it("reads the reviews after the files, commits and pushes, to keep them as fresh as possible", async () => {
+    const { octokit, paginate, lists } = fakeOctokit({ reviews: [review("bob", "APPROVED")] });
+    await collectFacts(octokit, "o", "r", 7);
+    const order = paginate.mock.calls.map(([method]) => method);
+    expect(order.indexOf(lists.listReviews)).toBeGreaterThan(order.indexOf(lists.listFiles));
+    expect(order.indexOf(lists.listReviews)).toBeGreaterThan(order.indexOf(lists.listCommits));
   });
 
   it("fails when the permission lookup fails, instead of reading it as no access", async () => {

@@ -51,3 +51,20 @@ export async function postGateCheck(
   });
   return true;
 }
+
+/** True when the commit already has a gate result, which a failure must then replace. */
+export async function hasGateCheck(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  headSha: string
+): Promise<boolean> {
+  const { data } = await octokit.rest.checks.listForRef({
+    owner,
+    repo,
+    ref: headSha,
+    check_name: GATE_CHECK_NAME,
+    filter: "latest",
+  });
+  return data.check_runs.length > 0;
+}

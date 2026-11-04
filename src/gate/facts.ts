@@ -5,6 +5,7 @@ import { CommitFacts, GateFacts, ReviewFacts } from "./decide";
 const MAX_COMMITS = 250;
 const MAX_FILES = 3000;
 const PAGE_SIZE = 100;
+const PUSH_ACTIVITIES = new Set(["push", "force_push", "branch_creation"]);
 
 export interface PullRequestFacts {
   facts: GateFacts;
@@ -63,6 +64,31 @@ async function canWrite(
   }
 }
 
+/**
+ * Lists everyone who created or pushed to the branch, from the repository's activity feed of
+ * the head repository. A full page may hide older pushes, so it fails instead of guessing.
+ */
+async function readPushers(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  branch: string
+): Promise<string[]> {
+  const { data } = await octokit.rest.repos.listActivities({
+    owner,
+    repo,
+    ref: `refs/heads/${branch}`,
+    per_page: PAGE_SIZE,
+  });
+  if (data.length >= PAGE_SIZE) {
+    throw new Error(`The branch has ${PAGE_SIZE} or more pushes on record.`);
+  }
+  const pushers = data
+    .filter((activity) => PUSH_ACTIVITIES.has(activity.activity_type))
+    .map((activity) => activity.actor?.login ?? "(unknown)");
+  return [...new Set(pushers)];
+}
+
 /** Reads everything the decision needs. Throws when a list is cut short or a call fails. */
 export async function collectFacts(
   octokit: Octokit,
@@ -78,12 +104,15 @@ export async function collectFacts(
     throw new Error(`The pull request changes more than ${MAX_FILES} files.`);
   }
 
+  if (!pr.head.repo) throw new Error("The head repository of the pull request is gone.");
   const params = { owner, repo, pull_number: prNumber, per_page: PAGE_SIZE };
-  const [rawFiles, rawCommits, rawReviews] = await Promise.all([
+  const [rawFiles, rawCommits, pushers] = await Promise.all([
     octokit.paginate(octokit.rest.pulls.listFiles, params),
     octokit.paginate(octokit.rest.pulls.listCommits, params),
-    octokit.paginate(octokit.rest.pulls.listReviews, params),
+    readPushers(octokit, pr.head.repo.owner.login, pr.head.repo.name, pr.head.ref),
   ]);
+  // Last, so the reviews are as fresh as the write that follows.
+  const rawReviews = await octokit.paginate(octokit.rest.pulls.listReviews, params);
   if (rawCommits.length < pr.commits || rawFiles.length < pr.changed_files) {
     throw new Error("GitHub returned fewer commits or files than the pull request has.");
   }
@@ -121,6 +150,7 @@ export async function collectFacts(
       headSha: pr.head.sha,
       files,
       changedFileCount: rawFiles.length,
+      pushers,
       commits,
       reviews,
     },

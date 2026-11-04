@@ -32,6 +32,7 @@ const dependabotFacts = (over: Partial<GateFacts> = {}): GateFacts => ({
   headSha: HEAD,
   files: ["config/requirements.txt"],
   changedFileCount: 1,
+  pushers: ["dependabot[bot]"],
   commits: [dependabotCommit()],
   reviews: [],
   ...over,
@@ -45,6 +46,7 @@ const humanFacts = (over: Partial<GateFacts> = {}): GateFacts => ({
   headSha: HEAD,
   files: ["src/app.py"],
   changedFileCount: 1,
+  pushers: ["alice"],
   commits: [{ authorLogin: "alice", committerLogin: "alice", verified: true, message: "Add x" }],
   reviews: [],
   ...over,
@@ -96,6 +98,15 @@ describe("approval by a person", () => {
     const facts = humanFacts({
       commits: [{ authorLogin: "carol", committerLogin: "carol", verified: true, message: "x" }],
       reviews: [review({ user: "alice" })],
+    });
+    expect(decideGate(facts, policy).conclusion).toBe("action_required");
+  });
+
+  it("ignores an approval from someone who pushed to the branch, whatever the commit emails say", () => {
+    const facts = humanFacts({
+      commits: [{ authorLogin: null, committerLogin: null, verified: false, message: "x" }],
+      pushers: ["alice", "bob"],
+      reviews: [review({ user: "bob" })],
     });
     expect(decideGate(facts, policy).conclusion).toBe("action_required");
   });
@@ -263,6 +274,22 @@ describe("Dependabot family", () => {
       ],
     });
     expect(decideGate(facts, policy).conclusion).toBe("action_required");
+  });
+
+  it("needs a person when an account other than Dependabot pushed to the branch", () => {
+    const facts = dependabotFacts({ pushers: ["dependabot[bot]", "some-app[bot]"] });
+    const decision = decideGate(facts, policy);
+    expect(decision.conclusion).toBe("action_required");
+    expect(decision.summary).toContain("pushed");
+  });
+
+  it("needs a person when the CI rebuild bot pushed to the branch", () => {
+    const facts = dependabotFacts({ pushers: ["dependabot[bot]", "github-actions[bot]"] });
+    expect(decideGate(facts, policy).conclusion).toBe("action_required");
+  });
+
+  it("needs a person when no push to the branch is on record", () => {
+    expect(decideGate(dependabotFacts({ pushers: [] }), policy).conclusion).toBe("action_required");
   });
 
   it("needs a person when a commit claims Dependabot as author but another account committed it", () => {

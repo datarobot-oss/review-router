@@ -13,6 +13,39 @@ const DEPENDENCY_TYPES: readonly DependencyType[] = [
 ];
 const DEFAULT_MAX_CHANGED_FILES = 10;
 
+// Ecosystem names as they appear in Dependabot branches, `dependabot/<ecosystem>/...`. Only
+// npm_and_yarn, pip, uv, go_modules and github_actions were checked against real branches.
+const ECOSYSTEMS: readonly string[] = [
+  "npm_and_yarn",
+  "pip",
+  "uv",
+  "go_modules",
+  "github_actions",
+  "docker",
+  "docker_compose",
+  "bundler",
+  "bun",
+  "cargo",
+  "composer",
+  "maven",
+  "gradle",
+  "nuget",
+  "terraform",
+  "opentofu",
+  "helm",
+  "mix",
+  "pub",
+  "swift",
+  "elm",
+  "gitsubmodule",
+  "devcontainers",
+  "dotnet_sdk",
+  "rust_toolchain",
+  "vcpkg",
+];
+// The `package-ecosystem` names of dependabot.yml that differ from the branch name.
+const ECOSYSTEM_ALIASES: Record<string, string> = { npm: "npm_and_yarn", gomod: "go_modules" };
+
 /** The risk dials of one dependency update. A rule can change any of them. */
 export interface DependencySettings {
   /** Dependabot ecosystems that pass, by the name in its branch: `npm_and_yarn`, `pip`, `uv`. */
@@ -79,6 +112,18 @@ function checkKeys(where: string, record: Record<string, unknown>, known: readon
   if (unknown.length > 0) throw new Error(`${where} has an unknown key: ${unknown.join(", ")}`);
 }
 
+/** Reads an ecosystem as written in dependabot.yml or in a branch, and returns the branch name. */
+function ecosystemName(where: string, value: unknown): string {
+  const written = typeof value === "string" ? value : "";
+  const name = ECOSYSTEM_ALIASES[written] ?? written.replace(/-/g, "_");
+  if (!ECOSYSTEMS.includes(name)) {
+    throw new Error(
+      `${where} has an unknown ecosystem "${written}". Use one of: ${ECOSYSTEMS.join(", ")}`
+    );
+  }
+  return name;
+}
+
 function enumList<T extends string>(where: string, value: unknown, allowed: readonly T[]): T[] {
   if (
     !Array.isArray(value) ||
@@ -111,14 +156,10 @@ function parseSettings(where: string, raw: Record<string, unknown>): Partial<Dep
   const settings: Partial<DependencySettings> = {};
   if (raw.ecosystems !== undefined) {
     const list = raw.ecosystems;
-    if (
-      !Array.isArray(list) ||
-      list.length === 0 ||
-      !list.every((e) => typeof e === "string" && e)
-    ) {
+    if (!Array.isArray(list) || list.length === 0) {
       throw new Error(`${where}.ecosystems must be a list of ecosystem names`);
     }
-    settings.ecosystems = list;
+    settings.ecosystems = list.map((name) => ecosystemName(`${where}.ecosystems`, name));
   }
   if (raw.update_types !== undefined) {
     settings.updateTypes = enumList(`${where}.update_types`, raw.update_types, UPDATE_TYPES);
@@ -175,7 +216,7 @@ function parseMatch(where: string, raw: unknown): RuleMatch {
     "group",
   ]);
   const match: RuleMatch = {};
-  for (const key of ["dependency", "ecosystem", "group"] as const) {
+  for (const key of ["dependency", "group"] as const) {
     if (raw[key] !== undefined) {
       if (typeof raw[key] !== "string" || raw[key] === "") {
         throw new Error(`${where}.match.${key} must be a non-empty string`);
@@ -183,6 +224,8 @@ function parseMatch(where: string, raw: unknown): RuleMatch {
       match[key] = raw[key];
     }
   }
+  if (raw.ecosystem !== undefined)
+    match.ecosystem = ecosystemName(`${where}.match.ecosystem`, raw.ecosystem);
   if (raw.dependency_type !== undefined) {
     match.dependencyType = enumValue(
       `${where}.match.dependency_type`,
@@ -322,4 +365,14 @@ export function matchesName(name: string, pattern: string): boolean {
     .map((char) => (char === "*" ? ".*" : char === "?" ? "." : escapeRegExp(char)))
     .join("");
   return new RegExp(`^${source}$`).test(name);
+}
+
+// pip and uv compare names without case and treat "-", "_" and "." alike (PEP 503).
+const PEP_503_ECOSYSTEMS = new Set(["pip", "uv"]);
+
+/** Matches a dependency name against a rule's glob the way its ecosystem compares names. */
+export function matchesDependency(name: string, pattern: string, ecosystem: string): boolean {
+  if (!PEP_503_ECOSYSTEMS.has(ecosystem)) return matchesName(name, pattern);
+  const normalize = (text: string) => text.toLowerCase().replace(/[-_.]+/g, "-");
+  return matchesName(normalize(name), normalize(pattern));
 }

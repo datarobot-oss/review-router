@@ -7,9 +7,19 @@ const MAX_LOOKUPS = 30;
 const BATCH_SIZE = 8;
 const SCORE = /aria-label="compatibility: (\d{1,3})%"/;
 
+// A host that fails this many requests in a row is skipped for the rest of the run, so a black
+// hole costs seconds on a sweep of many pull requests, not minutes.
+const MAX_CONSECUTIVE_FAILURES = 3;
+let consecutiveFailures = 0;
+
+/** Forgets earlier failures. Only tests need it: a run is one process. */
+export function resetCompatibilityBreaker(): void {
+  consecutiveFailures = 0;
+}
+
 type FetchFn = (
   url: string,
-  init: { signal: AbortSignal }
+  init: { signal: AbortSignal; redirect: "error" }
 ) => Promise<{
   ok: boolean;
   text: () => Promise<string>;
@@ -36,14 +46,20 @@ export async function fetchCompatibility(
   fetchFn: FetchFn = fetch as unknown as FetchFn
 ): Promise<number | undefined> {
   const url = badgeUrl(dep);
-  if (!url) return undefined;
+  if (!url || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) return undefined;
   try {
-    const response = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const response = await fetchFn(url, {
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      // The answer must come from the badge host and nowhere else.
+      redirect: "error",
+    });
+    consecutiveFailures = 0;
     if (!response.ok) return undefined;
     const match = SCORE.exec((await response.text()).slice(0, 5000));
     const score = match ? Number(match[1]) : undefined;
     return score !== undefined && score <= 100 ? score : undefined;
   } catch (error) {
+    consecutiveFailures += 1;
     core.info(
       `No compatibility score for ${dep.name}: ${error instanceof Error ? error.message : String(error)}`
     );

@@ -28,7 +28,7 @@ The family passes a pull request when all of these hold:
 - No changed file is under `.github/`.
 - Every changed file, including the previous name of a renamed file, matches `allowed_paths`.
 - The pull request changes at most `max_changed_files` files.
-- Every dependency in the commit metadata passes the dependency settings and rules below. A grouped update passes only when each of its dependencies does.
+- Every dependency in the commit metadata passes the dependency settings and rules below. A grouped update passes only when each of its dependencies does. A commit whose metadata is missing or unreadable sends the whole pull request to a person.
 
 An account that pushes to the Dependabot branch moves the pull request to the approval rule. That includes a person, a merge commit from the **Update branch** button, and an automation that commits to the branch, such as a CI job that rebuilds generated files.
 
@@ -62,28 +62,28 @@ dependabot:
 | `defaults`          | see below | The risk settings for every dependency.                                                                                                                                             |
 | `rules`             | none      | Ordered overrides for dependencies that match.                                                                                                                                      |
 
-An unknown key inside `dependabot` is an error, so a typo can't silently remove a limit.
+An unknown key inside `dependabot` is an error, so a typo can't silently remove a limit. Unknown keys at the top of the file are ignored, so a newer file still parses.
 
 ### Dependency settings
 
 Set these in `defaults`, or in a rule to change them for the dependencies it matches. A rule changes only the settings it lists.
 
-| Setting                 | Default                               | Description                                                                                                                                                              |
-| ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ecosystems`            | `[npm_and_yarn, pip, uv, go_modules]` | Dependabot ecosystems that pass, by the name in the `dependabot/<ecosystem>/` branch. Others, such as `docker` and `github_actions`, go to a person until listed.        |
-| `update_types`          | `[patch, minor]`                      | Sizes of version bump that pass: `patch`, `minor`, `major`. Also valid directly under `dependabot` as a shorthand for `defaults.update_types`.                           |
-| `dependency_types`      | all three                             | Kinds that pass: `direct:production`, `direct:development`, `indirect`.                                                                                                  |
-| `min_compatibility`     | `70`                                  | Lowest Dependabot compatibility score (the badge in the pull request body), 0 to 100. `0` turns the score off.                                                           |
-| `unknown_compatibility` | `human`                               | What happens when no score exists: `human` or `pass`.                                                                                                                    |
-| `unknown_update_type`   | `derive`                              | When the metadata has no update type, `derive` it from the two versions, or send the dependency to a `human`. Indirect dependencies and some security updates have none. |
-| `zero_minor_is_major`   | `true`                                | Count a minor bump below version 1.0 as a major bump.                                                                                                                    |
-| `allow_prerelease`      | `false`                               | Pass a prerelease version such as `1.0.0-rc.1`.                                                                                                                          |
+| Setting                 | Default                               | Description                                                                                                                                                                                                                                                     |
+| ----------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ecosystems`            | `[npm_and_yarn, pip, uv, go_modules]` | Dependabot ecosystems that pass. Write the name from `dependabot.yml` (`npm`, `gomod`, `github-actions`) or from the `dependabot/<ecosystem>/` branch. An unknown name is an error. Others, such as `docker` and `github_actions`, go to a person until listed. |
+| `update_types`          | `[patch, minor]`                      | Sizes of version bump that pass: `patch`, `minor`, `major`. Also valid directly under `dependabot` as a shorthand for `defaults.update_types`.                                                                                                                  |
+| `dependency_types`      | all three                             | Kinds that pass: `direct:production`, `direct:development`, `indirect`.                                                                                                                                                                                         |
+| `min_compatibility`     | `70`                                  | Lowest Dependabot compatibility score (the badge in the pull request body), 0 to 100. `0` turns the score off.                                                                                                                                                  |
+| `unknown_compatibility` | `human`                               | What happens when no score exists: `human` or `pass`.                                                                                                                                                                                                           |
+| `unknown_update_type`   | `derive`                              | When the metadata has no update type, `derive` it from the two versions, or send the dependency to a `human`. Indirect dependencies and some security updates have none.                                                                                        |
+| `zero_minor_is_major`   | `true`                                | Count a minor bump below version 1.0 as a major bump.                                                                                                                                                                                                           |
+| `allow_prerelease`      | `false`                               | Pass a prerelease version. A hyphen after the numbers (`1.0.0-M1`, `21-ea`, a Go pseudo-version), a suffix such as `2.0.0b1`, and words such as `.dev` all count.                                                                                               |
 
-The gate builds the score lookup from the dependency name, ecosystem and the two versions, so grouped updates get a score too. It asks `dependabot-badges.githubapp.com` for at most 30 dependencies per pull request and only when a setting needs the score. A failed or missing answer counts as no score. A runner that can't reach that host sends every dependency to a person unless `min_compatibility` is `0`.
+The gate builds the score lookup from the dependency name, ecosystem and the two versions, so grouped updates get a score too. It asks `dependabot-badges.githubapp.com` for at most 30 dependencies per pull request and only when a setting needs the score. A failed or missing answer counts as no score. A runner that can't reach that host sends every dependency to a person, unless `min_compatibility` is `0`, `unknown_compatibility` is `pass`, or a rule passes the dependency. After 3 failed requests in a row the gate stops asking for the rest of the run, and it never follows a redirect.
 
 ### Rules
 
-A rule has a `match`, and either an `action` or settings. A `match` takes `dependency` (a name glob where `*` also matches a slash), `ecosystem`, `dependency_type`, `update_type` and `group`. Every key of a match must hold.
+A rule has a `match`, and either an `action` or settings. A `match` takes `dependency` (a name glob where `*` also matches a slash, compared without case and with `-`, `_` and `.` alike for pip and uv, and exactly for other ecosystems), `ecosystem`, `dependency_type`, `update_type` and `group`. Every key of a match must hold.
 
 The gate decides each dependency in this order:
 

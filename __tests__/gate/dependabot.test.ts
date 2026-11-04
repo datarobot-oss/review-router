@@ -91,6 +91,45 @@ describe("parseDependencies", () => {
     expect(parseDependencies([message], "pip")[0].previous).toBeUndefined();
   });
 
+  it("keeps a version such as 1.10 as written, not as the number 1.1", () => {
+    const message =
+      "---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: 1.10\n...\n";
+    expect(parseDependencies([message], "pip")[0].version).toBe("1.10");
+  });
+
+  it("keeps a numeric package name as text", () => {
+    const message =
+      "---\nupdated-dependencies:\n- dependency-name: 123\n  dependency-version: 1.0.1\n...\n";
+    expect(parseDependencies([message], "pip")[0].name).toBe("123");
+  });
+
+  it.each([
+    ["a scalar entry", "- ok-one\n- dependency-name: fine\n  dependency-version: 1.0.1"],
+    [
+      "an entry without a name",
+      "- dependency-version: 2.0.0\n  update-type: version-update:semver-major\n- dependency-name: fine\n  dependency-version: 1.0.1",
+    ],
+    [
+      "an entry whose name is a list",
+      "- dependency-name: [a, b]\n- dependency-name: fine\n  dependency-version: 1.0.1",
+    ],
+    ["an empty list", "[]"],
+  ])("returns nothing for the whole commit when it holds %s", (_label, entries) => {
+    const message = `---\nupdated-dependencies:\n${entries}\n...\n`;
+    expect(parseDependencies([message], "pip")).toEqual([]);
+  });
+
+  it("returns nothing for the whole pull request when one commit lists no dependency", () => {
+    const empty = "---\nupdated-dependencies: []\n...\n";
+    expect(parseDependencies([fixture("pip-minor"), empty], "pip")).toEqual([]);
+  });
+
+  it("returns nothing for the whole pull request when one commit has no readable metadata", () => {
+    const good = fixture("pip-minor");
+    expect(parseDependencies([good, "A commit with no metadata"], "pip")).toEqual([]);
+    expect(parseDependencies(["A commit with no metadata", good], "pip")).toEqual([]);
+  });
+
   it("keeps a missing dependency type as an empty string, so no allow-list matches it", () => {
     const message =
       "---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: 1.0.1\n...\n";
@@ -216,6 +255,20 @@ describe("evaluateDependencies with the defaults", () => {
       verdict([{ ...zero, previous: "0.3.1", version: "0.3.2", updateType: "patch" }]).ok
     ).toBe(true);
     expect(verdict([{ ...zero, previous: "1.3.1", version: "1.4.0" }]).ok).toBe(true);
+  });
+
+  it("treats a minor bump to a 0.x version as major even when the previous version is unknown", () => {
+    const body = "  defaults:\n    min_compatibility: 0";
+    const zero = dep({ updateType: "minor", previous: undefined, version: "0.5.0" });
+    expect(verdict([zero], body).ok).toBe(false);
+    expect(verdict([{ ...zero, version: "1.5.0" }], body).ok).toBe(true);
+  });
+
+  it("sends a minor bump to a person when no version is known to tell if it is below 1.0", () => {
+    const body = "  defaults:\n    min_compatibility: 0";
+    expect(
+      verdict([dep({ updateType: "minor", previous: undefined, version: undefined })], body).ok
+    ).toBe(false);
   });
 
   it("sends a prerelease to a person", () => {
@@ -417,6 +470,54 @@ describe("evaluateDependencies with rules", () => {
       verdict([dep({ updateType: undefined, previous: "1.0.0", version: "1.1.0" })], body).ok
     ).toBe(false);
     expect(verdict([dep({ updateType: "patch" })], body).ok).toBe(true);
+  });
+
+  it("matches a rule on the update type the policy enforces, not the raw one", () => {
+    // A 0.x minor bump counts as major, so a rule that holds back majors must catch it.
+    const body = [
+      "  defaults:",
+      "    update_types: [patch, minor, major]",
+      "    min_compatibility: 0",
+      "  rules:",
+      "    - match: { update_type: major }",
+      "      action: human",
+    ].join("\n");
+    const zero = dep({ updateType: "minor", previous: "0.4.0", version: "0.5.0" });
+    const result = verdict([zero], body);
+    expect(result.ok).toBe(false);
+    expect(failed(result)).toContain("rule 1");
+  });
+
+  it("does not let a rule match a derived update type when the policy does not trust derivation", () => {
+    const body = [
+      "  defaults:",
+      "    unknown_update_type: human",
+      "  rules:",
+      "    - match: { update_type: patch }",
+      "      action: pass",
+    ].join("\n");
+    const indirect = dep({ updateType: undefined, previous: "1.0.0", version: "1.0.1" });
+    const result = verdict([indirect], body);
+    expect(result.ok).toBe(false);
+    expect(failed(result)).toContain("update type");
+  });
+
+  it("matches pip and uv package names the way pip does: any case, and - _ . alike", () => {
+    const human = rule("dependency: typing-extensions", "action: human");
+    expect(verdict([dep({ name: "typing_extensions" })], human).ok).toBe(false);
+    expect(verdict([dep({ name: "Typing.Extensions", ecosystem: "uv" })], human).ok).toBe(false);
+    expect(verdict([dep({ name: "Django" })], rule("dependency: django", "action: human")).ok).toBe(
+      false
+    );
+    expect(verdict([dep({ name: "PyYAML" })], rule("dependency: 'py*'", "action: human")).ok).toBe(
+      false
+    );
+  });
+
+  it("keeps npm package names case-sensitive", () => {
+    const human = rule("dependency: foo", "action: human");
+    expect(verdict([dep({ name: "Foo", ecosystem: "npm_and_yarn" })], human).ok).toBe(true);
+    expect(verdict([dep({ name: "foo", ecosystem: "npm_and_yarn" })], human).ok).toBe(false);
   });
 
   it("needs every key of a match to hold", () => {

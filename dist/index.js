@@ -81666,6 +81666,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resetCompatibilityBreaker = resetCompatibilityBreaker;
 exports.badgeUrl = badgeUrl;
 exports.fetchCompatibility = fetchCompatibility;
 exports.addCompatibility = addCompatibility;
@@ -81675,6 +81676,14 @@ const TIMEOUT_MS = 10_000;
 const MAX_LOOKUPS = 30;
 const BATCH_SIZE = 8;
 const SCORE = /aria-label="compatibility: (\d{1,3})%"/;
+// A host that fails this many requests in a row is skipped for the rest of the run, so a black
+// hole costs seconds on a sweep of many pull requests, not minutes.
+const MAX_CONSECUTIVE_FAILURES = 3;
+let consecutiveFailures = 0;
+/** Forgets earlier failures. Only tests need it: a run is one process. */
+function resetCompatibilityBreaker() {
+    consecutiveFailures = 0;
+}
 /** The badge Dependabot shows for the bump, built from the dependency and its two versions. */
 function badgeUrl(dep) {
     if (!dep.previous || !dep.version)
@@ -81693,10 +81702,15 @@ function badgeUrl(dep) {
  */
 async function fetchCompatibility(dep, fetchFn = fetch) {
     const url = badgeUrl(dep);
-    if (!url)
+    if (!url || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES)
         return undefined;
     try {
-        const response = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        const response = await fetchFn(url, {
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+            // The answer must come from the badge host and nowhere else.
+            redirect: "error",
+        });
+        consecutiveFailures = 0;
         if (!response.ok)
             return undefined;
         const match = SCORE.exec((await response.text()).slice(0, 5000));
@@ -81704,6 +81718,7 @@ async function fetchCompatibility(dep, fetchFn = fetch) {
         return score !== undefined && score <= 100 ? score : undefined;
     }
     catch (error) {
+        consecutiveFailures += 1;
         core.info(`No compatibility score for ${dep.name}: ${error instanceof Error ? error.message : String(error)}`);
         return undefined;
     }
@@ -81902,9 +81917,12 @@ const METADATA_BLOCK = /(?:^|\n)---\nupdated-dependencies:[\s\S]*?\n\.\.\./;
 const UPDATE_TYPE = /^version-update:semver-(patch|minor|major)$/;
 const SINGLE_BUMP = /Bumps \[([^\]]+)\]\([^)]*\) from (\S+) to (\S+)/g;
 const GROUP_BUMP = /Updates `([^`]+)` from (\S+) to (\S+)/g;
+// A hyphen after the numeric core (1.0.0-M1, 21-ea, v0.0.0-2024...) or a PEP 440 suffix
+// (2.0.0b1, 3.14.0rc1-slim) marks a prerelease, and so do the usual words after a dot.
 const PRERELEASE = [
-    /[-.](alpha|beta|rc|pre|preview|dev|snapshot|canary|next)/i,
-    /\d(a|b|c|rc)\d+$/i,
+    /^v?\d+(\.\d+)*-/,
+    /\d(a|b|c|rc)\d+/i,
+    /\.(alpha|beta|rc|pre|preview|dev|snapshot|canary|next)/i,
 ];
 const MAX_REASONS = 5;
 function trimPunctuation(version) {
@@ -81938,33 +81956,47 @@ function pickBump(bumps, version) {
         ? first
         : undefined;
 }
+/**
+ * Reads the entries of the metadata block of one commit message. Every scalar is read as text,
+ * so a version such as 1.10 stays 1.10. Returns undefined when the block is missing, does not
+ * parse, is empty, or holds an entry without a text name: the caller then trusts none of it.
+ */
 function readBlock(message) {
     const block = METADATA_BLOCK.exec(message);
     if (!block)
-        return [];
+        return undefined;
     try {
-        const doc = yaml.load(block[0].replace(/^\n?---\n/, "").replace(/\n\.\.\.$/, ""));
+        const doc = yaml.load(block[0].replace(/^\n?---\n/, "").replace(/\n\.\.\.$/, ""), {
+            schema: yaml.FAILSAFE_SCHEMA,
+        });
         const list = doc?.["updated-dependencies"];
-        if (!Array.isArray(list))
-            return [];
-        return list.filter((entry) => typeof entry === "object" && entry !== null);
+        if (!Array.isArray(list) || list.length === 0)
+            return undefined;
+        const valid = list.every((entry) => typeof entry === "object" &&
+            entry !== null &&
+            !Array.isArray(entry) &&
+            typeof entry["dependency-name"] === "string");
+        return valid ? list : undefined;
     }
     catch {
-        return [];
+        return undefined;
     }
 }
 /**
- * Reads the dependencies Dependabot lists in its commit messages. A message with no metadata
- * block, or one that doesn't parse, adds nothing, which the gate reads as "send to a person".
+ * Reads the dependencies Dependabot lists in its commit messages. A commit with no metadata
+ * block, or one that is not fully readable, makes the result empty, which the gate reads as
+ * "send to a person".
  */
 function parseDependencies(messages, ecosystem) {
     const dependencies = [];
     for (const message of messages) {
+        const entries = readBlock(message);
+        // One unreadable commit makes the whole list untrustworthy, not just that commit.
+        if (!entries)
+            return [];
         const bumps = bumpsByName(message);
-        for (const entry of readBlock(message)) {
+        for (const entry of entries) {
             const name = entry["dependency-name"];
-            if (typeof name !== "string")
-                continue;
             const metadataVersion = entry["dependency-version"] === undefined ? undefined : String(entry["dependency-version"]);
             const bump = pickBump(bumps.get(name), metadataVersion);
             const type = UPDATE_TYPE.exec(String(entry["update-type"] ?? ""))?.[1];
@@ -82006,15 +82038,33 @@ function isPrerelease(version) {
 }
 function ruleMatches(rule, dep, type) {
     const { match } = rule;
-    return ((match.dependency === undefined || (0, policy_1.matchesName)(dep.name, match.dependency)) &&
+    return ((match.dependency === undefined ||
+        (0, policy_1.matchesDependency)(dep.name, match.dependency, dep.ecosystem)) &&
         (match.ecosystem === undefined || match.ecosystem === dep.ecosystem) &&
         (match.dependencyType === undefined || match.dependencyType === dep.dependencyType) &&
         (match.updateType === undefined || match.updateType === type) &&
         (match.group === undefined || (dep.group !== undefined && (0, policy_1.matchesName)(dep.group, match.group))));
 }
+/**
+ * The update type the policy enforces: the metadata type, else the one derived from the versions
+ * when `unknown_update_type` allows it, and a minor bump to a 0.x version counted as major.
+ * The major part comes from the new version, which is known even when the previous one is not.
+ */
+function effectiveType(dep, settings) {
+    let type = dep.updateType ??
+        (settings.unknownUpdateType === "derive"
+            ? deriveUpdateType(dep.previous, dep.version)
+            : undefined);
+    if (type === "minor" && settings.zeroMinorIsMajor) {
+        const major = numericParts(dep.version ?? dep.previous ?? "")?.[0];
+        if (major === undefined || major === 0)
+            type = "major";
+    }
+    return type;
+}
 function evaluateOne(dep, policy) {
-    const derived = deriveUpdateType(dep.previous, dep.version);
-    const matchType = dep.updateType ?? derived;
+    // Rules match on the type under the defaults, so a rule can't change what it is matched on.
+    const matchType = effectiveType(dep, policy.defaults);
     const matching = policy.rules
         .map((rule, index) => ({ rule, number: index + 1 }))
         .filter(({ rule }) => ruleMatches(rule, dep, matchType));
@@ -82037,14 +82087,9 @@ function evaluateOne(dep, policy) {
     if (!settings.allowPrerelease && isPrerelease(dep.version)) {
         return fail(`${dep.version} is a prerelease`);
     }
-    let type = dep.updateType ?? (settings.unknownUpdateType === "derive" ? derived : undefined);
+    const type = effectiveType(dep, settings);
     if (!type)
         return fail("the update type is unknown");
-    if (type === "minor" &&
-        settings.zeroMinorIsMajor &&
-        numericParts(dep.previous ?? "")?.[0] === 0) {
-        type = "major";
-    }
     if (!settings.updateTypes.includes(type))
         return fail(`the update type ${type} is not allowed`);
     if (settings.minCompatibility > 0) {
@@ -82391,6 +82436,7 @@ exports.DEFAULT_SETTINGS = exports.POLICY_PATH = void 0;
 exports.parsePolicy = parsePolicy;
 exports.matchesAny = matchesAny;
 exports.matchesName = matchesName;
+exports.matchesDependency = matchesDependency;
 const yaml = __importStar(__nccwpck_require__(4484));
 exports.POLICY_PATH = ".github/review-router.yml";
 const UPDATE_TYPES = ["patch", "minor", "major"];
@@ -82400,6 +82446,38 @@ const DEPENDENCY_TYPES = [
     "indirect",
 ];
 const DEFAULT_MAX_CHANGED_FILES = 10;
+// Ecosystem names as they appear in Dependabot branches, `dependabot/<ecosystem>/...`. Only
+// npm_and_yarn, pip, uv, go_modules and github_actions were checked against real branches.
+const ECOSYSTEMS = [
+    "npm_and_yarn",
+    "pip",
+    "uv",
+    "go_modules",
+    "github_actions",
+    "docker",
+    "docker_compose",
+    "bundler",
+    "bun",
+    "cargo",
+    "composer",
+    "maven",
+    "gradle",
+    "nuget",
+    "terraform",
+    "opentofu",
+    "helm",
+    "mix",
+    "pub",
+    "swift",
+    "elm",
+    "gitsubmodule",
+    "devcontainers",
+    "dotnet_sdk",
+    "rust_toolchain",
+    "vcpkg",
+];
+// The `package-ecosystem` names of dependabot.yml that differ from the branch name.
+const ECOSYSTEM_ALIASES = { npm: "npm_and_yarn", gomod: "go_modules" };
 exports.DEFAULT_SETTINGS = {
     ecosystems: ["npm_and_yarn", "pip", "uv", "go_modules"],
     updateTypes: ["patch", "minor"],
@@ -82418,6 +82496,15 @@ function checkKeys(where, record, known) {
     const unknown = Object.keys(record).filter((key) => !known.includes(key));
     if (unknown.length > 0)
         throw new Error(`${where} has an unknown key: ${unknown.join(", ")}`);
+}
+/** Reads an ecosystem as written in dependabot.yml or in a branch, and returns the branch name. */
+function ecosystemName(where, value) {
+    const written = typeof value === "string" ? value : "";
+    const name = ECOSYSTEM_ALIASES[written] ?? written.replace(/-/g, "_");
+    if (!ECOSYSTEMS.includes(name)) {
+        throw new Error(`${where} has an unknown ecosystem "${written}". Use one of: ${ECOSYSTEMS.join(", ")}`);
+    }
+    return name;
 }
 function enumList(where, value, allowed) {
     if (!Array.isArray(value) ||
@@ -82447,12 +82534,10 @@ function parseSettings(where, raw) {
     const settings = {};
     if (raw.ecosystems !== undefined) {
         const list = raw.ecosystems;
-        if (!Array.isArray(list) ||
-            list.length === 0 ||
-            !list.every((e) => typeof e === "string" && e)) {
+        if (!Array.isArray(list) || list.length === 0) {
             throw new Error(`${where}.ecosystems must be a list of ecosystem names`);
         }
-        settings.ecosystems = list;
+        settings.ecosystems = list.map((name) => ecosystemName(`${where}.ecosystems`, name));
     }
     if (raw.update_types !== undefined) {
         settings.updateTypes = enumList(`${where}.update_types`, raw.update_types, UPDATE_TYPES);
@@ -82497,7 +82582,7 @@ function parseMatch(where, raw) {
         "group",
     ]);
     const match = {};
-    for (const key of ["dependency", "ecosystem", "group"]) {
+    for (const key of ["dependency", "group"]) {
         if (raw[key] !== undefined) {
             if (typeof raw[key] !== "string" || raw[key] === "") {
                 throw new Error(`${where}.match.${key} must be a non-empty string`);
@@ -82505,6 +82590,8 @@ function parseMatch(where, raw) {
             match[key] = raw[key];
         }
     }
+    if (raw.ecosystem !== undefined)
+        match.ecosystem = ecosystemName(`${where}.match.ecosystem`, raw.ecosystem);
     if (raw.dependency_type !== undefined) {
         match.dependencyType = enumValue(`${where}.match.dependency_type`, raw.dependency_type, DEPENDENCY_TYPES);
     }
@@ -82640,6 +82727,15 @@ function matchesName(name, pattern) {
         .map((char) => (char === "*" ? ".*" : char === "?" ? "." : escapeRegExp(char)))
         .join("");
     return new RegExp(`^${source}$`).test(name);
+}
+// pip and uv compare names without case and treat "-", "_" and "." alike (PEP 503).
+const PEP_503_ECOSYSTEMS = new Set(["pip", "uv"]);
+/** Matches a dependency name against a rule's glob the way its ecosystem compares names. */
+function matchesDependency(name, pattern, ecosystem) {
+    if (!PEP_503_ECOSYSTEMS.has(ecosystem))
+        return matchesName(name, pattern);
+    const normalize = (text) => text.toLowerCase().replace(/[-_.]+/g, "-");
+    return matchesName(normalize(name), normalize(pattern));
 }
 
 

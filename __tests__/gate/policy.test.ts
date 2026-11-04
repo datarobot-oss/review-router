@@ -1,4 +1,10 @@
-import { DEFAULT_SETTINGS, matchesAny, matchesName, parsePolicy } from "../../src/gate/policy";
+import {
+  DEFAULT_SETTINGS,
+  matchesAny,
+  matchesDependency,
+  matchesName,
+  parsePolicy,
+} from "../../src/gate/policy";
 
 const dependabot = (body: string) => parsePolicy(`dependabot:\n${body}`).dependabot;
 
@@ -220,6 +226,50 @@ describe("parsePolicy", () => {
         "  allowed_paths: [a]\n  defaults:\n    min_compatibility: 0\n  rules:\n    - match: { dependency: x }\n      min_compatibility: 80"
       )?.usesCompatibility
     ).toBe(true);
+  });
+});
+
+describe("ecosystem names", () => {
+  const rule = (name: string) =>
+    dependabot(
+      `  allowed_paths: [a]\n  rules:\n    - match: { ecosystem: ${name} }\n      action: human`
+    )?.rules[0].match.ecosystem;
+  const listed = (name: string) =>
+    dependabot(`  allowed_paths: [a]\n  defaults:\n    ecosystems: [${name}]`)?.defaults.ecosystems;
+
+  it.each([
+    ["npm", "npm_and_yarn"],
+    ["npm_and_yarn", "npm_and_yarn"],
+    ["github-actions", "github_actions"],
+    ["github_actions", "github_actions"],
+    ["gomod", "go_modules"],
+    ["go_modules", "go_modules"],
+    ["pip", "pip"],
+    ["uv", "uv"],
+    ["docker", "docker"],
+  ])("reads %s as %s, the name in Dependabot branches", (written, stored) => {
+    expect(rule(written)).toBe(stored);
+    expect(listed(written)).toEqual([stored]);
+  });
+
+  it("rejects a name that is no Dependabot ecosystem, since a rule that never matches loosens the policy", () => {
+    expect(() => rule("githubactions")).toThrow(/ecosystem/);
+    expect(() => listed("pipp")).toThrow(/ecosystems/);
+  });
+});
+
+describe("matchesDependency", () => {
+  it("matches pip and uv names without case and with - _ . treated alike", () => {
+    expect(matchesDependency("Typing_Extensions", "typing-extensions", "pip")).toBe(true);
+    expect(matchesDependency("typing.extensions", "typing-extensions", "uv")).toBe(true);
+    expect(matchesDependency("PyYAML", "py*", "pip")).toBe(true);
+    expect(matchesDependency("django-rest", "django", "pip")).toBe(false);
+  });
+
+  it("keeps other ecosystems exact", () => {
+    expect(matchesDependency("Foo", "foo", "npm_and_yarn")).toBe(false);
+    expect(matchesDependency("foo_bar", "foo-bar", "npm_and_yarn")).toBe(false);
+    expect(matchesDependency("@types/node", "@types/*", "npm_and_yarn")).toBe(true);
   });
 });
 

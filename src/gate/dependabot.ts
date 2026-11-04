@@ -1,13 +1,23 @@
 import * as yaml from "js-yaml";
-import { DependabotPolicy, DependencyRule, matchesName, UpdateType } from "./policy";
+import {
+  DependabotPolicy,
+  DependencyRule,
+  DependencySettings,
+  matchesDependency,
+  matchesName,
+  UpdateType,
+} from "./policy";
 
 const METADATA_BLOCK = /(?:^|\n)---\nupdated-dependencies:[\s\S]*?\n\.\.\./;
 const UPDATE_TYPE = /^version-update:semver-(patch|minor|major)$/;
 const SINGLE_BUMP = /Bumps \[([^\]]+)\]\([^)]*\) from (\S+) to (\S+)/g;
 const GROUP_BUMP = /Updates `([^`]+)` from (\S+) to (\S+)/g;
+// A hyphen after the numeric core (1.0.0-M1, 21-ea, v0.0.0-2024...) or a PEP 440 suffix
+// (2.0.0b1, 3.14.0rc1-slim) marks a prerelease, and so do the usual words after a dot.
 const PRERELEASE = [
-  /[-.](alpha|beta|rc|pre|preview|dev|snapshot|canary|next)/i,
-  /\d(a|b|c|rc)\d+$/i,
+  /^v?\d+(\.\d+)*-/,
+  /\d(a|b|c|rc)\d+/i,
+  /\.(alpha|beta|rc|pre|preview|dev|snapshot|canary|next)/i,
 ];
 const MAX_REASONS = 5;
 
@@ -66,32 +76,47 @@ function pickBump(bumps: Bump[] | undefined, version: string | undefined): Bump 
     : undefined;
 }
 
-function readBlock(message: string): Record<string, unknown>[] {
+/**
+ * Reads the entries of the metadata block of one commit message. Every scalar is read as text,
+ * so a version such as 1.10 stays 1.10. Returns undefined when the block is missing, does not
+ * parse, is empty, or holds an entry without a text name: the caller then trusts none of it.
+ */
+function readBlock(message: string): Record<string, unknown>[] | undefined {
   const block = METADATA_BLOCK.exec(message);
-  if (!block) return [];
+  if (!block) return undefined;
   try {
-    const doc = yaml.load(block[0].replace(/^\n?---\n/, "").replace(/\n\.\.\.$/, ""));
+    const doc = yaml.load(block[0].replace(/^\n?---\n/, "").replace(/\n\.\.\.$/, ""), {
+      schema: yaml.FAILSAFE_SCHEMA,
+    });
     const list = (doc as Record<string, unknown> | undefined)?.["updated-dependencies"];
-    if (!Array.isArray(list)) return [];
-    return list.filter(
-      (entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null
+    if (!Array.isArray(list) || list.length === 0) return undefined;
+    const valid = list.every(
+      (entry) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        !Array.isArray(entry) &&
+        typeof (entry as Record<string, unknown>)["dependency-name"] === "string"
     );
+    return valid ? (list as Record<string, unknown>[]) : undefined;
   } catch {
-    return [];
+    return undefined;
   }
 }
 
 /**
- * Reads the dependencies Dependabot lists in its commit messages. A message with no metadata
- * block, or one that doesn't parse, adds nothing, which the gate reads as "send to a person".
+ * Reads the dependencies Dependabot lists in its commit messages. A commit with no metadata
+ * block, or one that is not fully readable, makes the result empty, which the gate reads as
+ * "send to a person".
  */
 export function parseDependencies(messages: string[], ecosystem: string): DependencyFacts[] {
   const dependencies: DependencyFacts[] = [];
   for (const message of messages) {
+    const entries = readBlock(message);
+    // One unreadable commit makes the whole list untrustworthy, not just that commit.
+    if (!entries) return [];
     const bumps = bumpsByName(message);
-    for (const entry of readBlock(message)) {
-      const name = entry["dependency-name"];
-      if (typeof name !== "string") continue;
+    for (const entry of entries) {
+      const name = entry["dependency-name"] as string;
       const metadataVersion =
         entry["dependency-version"] === undefined ? undefined : String(entry["dependency-version"]);
       const bump = pickBump(bumps.get(name), metadataVersion);
@@ -142,12 +167,31 @@ function ruleMatches(
 ): boolean {
   const { match } = rule;
   return (
-    (match.dependency === undefined || matchesName(dep.name, match.dependency)) &&
+    (match.dependency === undefined ||
+      matchesDependency(dep.name, match.dependency, dep.ecosystem)) &&
     (match.ecosystem === undefined || match.ecosystem === dep.ecosystem) &&
     (match.dependencyType === undefined || match.dependencyType === dep.dependencyType) &&
     (match.updateType === undefined || match.updateType === type) &&
     (match.group === undefined || (dep.group !== undefined && matchesName(dep.group, match.group)))
   );
+}
+
+/**
+ * The update type the policy enforces: the metadata type, else the one derived from the versions
+ * when `unknown_update_type` allows it, and a minor bump to a 0.x version counted as major.
+ * The major part comes from the new version, which is known even when the previous one is not.
+ */
+function effectiveType(dep: DependencyFacts, settings: DependencySettings): UpdateType | undefined {
+  let type =
+    dep.updateType ??
+    (settings.unknownUpdateType === "derive"
+      ? deriveUpdateType(dep.previous, dep.version)
+      : undefined);
+  if (type === "minor" && settings.zeroMinorIsMajor) {
+    const major = numericParts(dep.version ?? dep.previous ?? "")?.[0];
+    if (major === undefined || major === 0) type = "major";
+  }
+  return type;
 }
 
 interface DependencyResult {
@@ -156,8 +200,8 @@ interface DependencyResult {
 }
 
 function evaluateOne(dep: DependencyFacts, policy: DependabotPolicy): DependencyResult {
-  const derived = deriveUpdateType(dep.previous, dep.version);
-  const matchType = dep.updateType ?? derived;
+  // Rules match on the type under the defaults, so a rule can't change what it is matched on.
+  const matchType = effectiveType(dep, policy.defaults);
   const matching = policy.rules
     .map((rule, index) => ({ rule, number: index + 1 }))
     .filter(({ rule }) => ruleMatches(rule, dep, matchType));
@@ -183,15 +227,8 @@ function evaluateOne(dep: DependencyFacts, policy: DependabotPolicy): Dependency
     return fail(`${dep.version} is a prerelease`);
   }
 
-  let type = dep.updateType ?? (settings.unknownUpdateType === "derive" ? derived : undefined);
+  const type = effectiveType(dep, settings);
   if (!type) return fail("the update type is unknown");
-  if (
-    type === "minor" &&
-    settings.zeroMinorIsMajor &&
-    numericParts(dep.previous ?? "")?.[0] === 0
-  ) {
-    type = "major";
-  }
   if (!settings.updateTypes.includes(type)) return fail(`the update type ${type} is not allowed`);
 
   if (settings.minCompatibility > 0) {

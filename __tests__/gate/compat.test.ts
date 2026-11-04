@@ -1,4 +1,9 @@
-import { addCompatibility, badgeUrl, fetchCompatibility } from "../../src/gate/compat";
+import {
+  addCompatibility,
+  badgeUrl,
+  fetchCompatibility,
+  resetCompatibilityBreaker,
+} from "../../src/gate/compat";
 import { DependencyFacts } from "../../src/gate/dependabot";
 
 jest.mock("@actions/core");
@@ -11,6 +16,8 @@ const dep = (over: Partial<DependencyFacts> = {}): DependencyFacts => ({
   previous: "6.21.2",
   ...over,
 });
+
+beforeEach(() => resetCompatibilityBreaker());
 
 const svg = (label: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="compatibility: ${label}"><title>compatibility: ${label}</title></svg>`;
@@ -96,6 +103,38 @@ describe("fetchCompatibility", () => {
     const [url, init] = fetchFn.mock.calls[0];
     expect(new URL(url).host).toBe("dependabot-badges.githubapp.com");
     expect(init.signal).toBeDefined();
+  });
+
+  it("refuses a redirect, so the answer can only come from the badge host", async () => {
+    const fetchFn = respond(svg("82%"));
+    await fetchCompatibility(dep(), fetchFn);
+    expect(fetchFn.mock.calls[0][1].redirect).toBe("error");
+  });
+
+  it("stops asking after three failed requests in a row, so a dead host costs seconds, not minutes", async () => {
+    const fetchFn = jest.fn().mockRejectedValue(new Error("timeout"));
+    for (let i = 0; i < 5; i++) await fetchCompatibility(dep(), fetchFn);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not count an unknown score or an error status as a failure of the host", async () => {
+    const fetchFn = respond(svg("unknown"));
+    for (let i = 0; i < 5; i++) await fetchCompatibility(dep(), fetchFn);
+    expect(fetchFn).toHaveBeenCalledTimes(5);
+    const failing = respond("", false);
+    for (let i = 0; i < 5; i++) await fetchCompatibility(dep(), failing);
+    expect(failing).toHaveBeenCalledTimes(5);
+  });
+
+  it("starts counting again after an answer", async () => {
+    const fetchFn = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockResolvedValueOnce({ ok: true, text: async () => svg("80%") })
+      .mockRejectedValue(new Error("timeout"));
+    for (let i = 0; i < 6; i++) await fetchCompatibility(dep(), fetchFn);
+    expect(fetchFn).toHaveBeenCalledTimes(6);
   });
 });
 

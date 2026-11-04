@@ -220,10 +220,12 @@ describe("collectFacts", () => {
         { activity_type: "force_push", actor: { login: "alice" } },
         { activity_type: "branch_creation", actor: { login: "dependabot[bot]" } },
         { activity_type: "branch_deletion", actor: { login: "cleaner" } },
+        { activity_type: "pr_merge", actor: { login: "merger" } },
+        { activity_type: "merge_queue_merge", actor: { login: "queue-app[bot]" } },
       ],
     });
     const { facts } = await collectFacts(octokit, "o", "r", 7);
-    expect(facts.pushers.sort()).toEqual(["alice", "dependabot[bot]"]);
+    expect(facts.pushers.sort()).toEqual(["alice", "dependabot[bot]", "merger", "queue-app[bot]"]);
     expect(listActivities).toHaveBeenCalledWith(
       expect.objectContaining({ owner: "o", repo: "r", ref: "refs/heads/dependabot/pip/x" })
     );

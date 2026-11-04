@@ -81886,7 +81886,8 @@ exports.currentHead = currentHead;
 const MAX_COMMITS = 250;
 const MAX_FILES = 3000;
 const PAGE_SIZE = 100;
-const PUSH_ACTIVITIES = new Set(["push", "force_push", "branch_creation"]);
+// Anything that put commits on the branch counts, merges included. Only a deletion adds none.
+const NON_PUSH_ACTIVITIES = new Set(["branch_deletion"]);
 /**
  * Resolves the reviews in order to one standing review per person: an approval or a change
  * request replaces the earlier one, a dismissal removes it, a plain comment changes nothing.
@@ -81952,7 +81953,7 @@ async function readPushers(octokit, owner, repo, branch) {
         throw new Error(`The branch has ${PAGE_SIZE} or more pushes on record.`);
     }
     const pushers = data
-        .filter((activity) => PUSH_ACTIVITIES.has(activity.activity_type))
+        .filter((activity) => !NON_PUSH_ACTIVITIES.has(activity.activity_type))
         .map((activity) => activity.actor?.login ?? "(unknown)");
     return [...new Set(pushers)];
 }

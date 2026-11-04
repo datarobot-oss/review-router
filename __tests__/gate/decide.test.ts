@@ -31,6 +31,7 @@ const dependabotFacts = (over: Partial<GateFacts> = {}): GateFacts => ({
   headRef: "dependabot/pip/pypdf-6.0.1",
   headSha: HEAD,
   files: ["config/requirements.txt"],
+  changedFileCount: 1,
   commits: [dependabotCommit()],
   reviews: [],
   ...over,
@@ -43,6 +44,7 @@ const humanFacts = (over: Partial<GateFacts> = {}): GateFacts => ({
   headRef: "alice/feature",
   headSha: HEAD,
   files: ["src/app.py"],
+  changedFileCount: 1,
   commits: [{ authorLogin: "alice", committerLogin: "alice", verified: true, message: "Add x" }],
   reviews: [],
   ...over,
@@ -143,6 +145,16 @@ describe("approval by a person", () => {
     expect(decideGate(facts, policy).conclusion).toBe("success");
   });
 
+  it("does not block on a change request from a bot with write access", () => {
+    const facts = humanFacts({
+      reviews: [
+        review(),
+        review({ user: "some-app[bot]", userType: "Bot", state: "CHANGES_REQUESTED" }),
+      ],
+    });
+    expect(decideGate(facts, policy).conclusion).toBe("success");
+  });
+
   it("lets a person approve a pull request that changes workflow files", () => {
     const facts = humanFacts({ files: [".github/workflows/ci.yml"], reviews: [review()] });
     expect(decideGate(facts, policy).conclusion).toBe("success");
@@ -214,12 +226,24 @@ describe("Dependabot family", () => {
 
   it("needs a person when the change is larger than the file limit", () => {
     const files = Array.from({ length: 6 }, (_, i) => `requirements/r${i}.txt`);
-    expect(decideGate(dependabotFacts({ files }), policy).conclusion).toBe("action_required");
+    const facts = dependabotFacts({ files, changedFileCount: 6 });
+    expect(decideGate(facts, policy).conclusion).toBe("action_required");
   });
 
   it("passes a change of exactly the file limit", () => {
     const files = Array.from({ length: 5 }, (_, i) => `requirements/r${i}.txt`);
-    expect(decideGate(dependabotFacts({ files }), policy).conclusion).toBe("success");
+    const facts = dependabotFacts({ files, changedFileCount: 5 });
+    expect(decideGate(facts, policy).conclusion).toBe("success");
+  });
+
+  it("counts a renamed file once toward the file limit", () => {
+    const files = [
+      ...Array.from({ length: 4 }, (_, i) => `requirements/r${i}.txt`),
+      "requirements/new.txt",
+      "requirements/old.txt",
+    ];
+    const facts = dependabotFacts({ files, changedFileCount: 5 });
+    expect(decideGate(facts, policy).conclusion).toBe("success");
   });
 
   it("needs a person for a pull request that changes no file", () => {

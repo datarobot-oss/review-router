@@ -45,15 +45,22 @@ async function canWrite(
 ): Promise<boolean> {
   const known = cache.get(username);
   if (known !== undefined) return known;
-  // Not caught: a failed lookup must fail the gate closed, not read as "no access".
-  const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
-    owner,
-    repo,
-    username,
-  });
-  const allowed = data.permission === "admin" || data.permission === "write";
-  cache.set(username, allowed);
-  return allowed;
+  try {
+    const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+      owner,
+      repo,
+      username,
+    });
+    const allowed = data.permission === "admin" || data.permission === "write";
+    cache.set(username, allowed);
+    return allowed;
+  } catch (error) {
+    // Anyone can review a public repository, and a stranger has no permission to look up.
+    // Any other failure must fail the gate closed, not read as "no access".
+    if ((error as { status?: number }).status !== 404) throw error;
+    cache.set(username, false);
+    return false;
+  }
 }
 
 /** Reads everything the decision needs. Throws when a list is cut short or a call fails. */
@@ -113,6 +120,7 @@ export async function collectFacts(
       headRef: pr.head.ref,
       headSha: pr.head.sha,
       files,
+      changedFileCount: rawFiles.length,
       commits,
       reviews,
     },

@@ -169,6 +169,27 @@ describe("collectFacts", () => {
     expect((await collectFacts(octokit, "o", "r", 7)).facts.reviews[0].canWrite).toBe(false);
   });
 
+  it("reads a reviewer who is not a collaborator as having no write access", async () => {
+    const { octokit } = fakeOctokit({
+      reviews: [review("stranger", "CHANGES_REQUESTED")],
+      permission: async () => {
+        throw Object.assign(new Error("Not Found"), { status: 404 });
+      },
+    });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.reviews[0].canWrite).toBe(false);
+  });
+
+  it("reports the number of changed files, counting a rename once", async () => {
+    const { octokit } = fakeOctokit({
+      pr: { changed_files: 2 },
+      files: [{ filename: "a.txt" }, { filename: "new.txt", previous_filename: "old.txt" }],
+    });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.changedFileCount).toBe(2);
+    expect(facts.files).toHaveLength(3);
+  });
+
   it("fails when the permission lookup fails, instead of reading it as no access", async () => {
     const { octokit } = fakeOctokit({
       reviews: [review("bob", "CHANGES_REQUESTED")],

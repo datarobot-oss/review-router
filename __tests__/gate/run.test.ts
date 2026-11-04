@@ -95,6 +95,7 @@ const humanFacts: GateFacts = {
   headRef: "alice/x",
   headSha: "h1",
   files: ["a.txt"],
+  changedFileCount: 1,
   commits: [],
   reviews: [],
 };

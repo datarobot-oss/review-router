@@ -30,6 +30,8 @@ export interface GateFacts {
   headSha: string;
   /** Changed paths. A renamed file appears under both its new and its previous name. */
   files: string[];
+  /** Number of changed files as GitHub counts them, so a rename counts once. */
+  changedFileCount: number;
   commits: CommitFacts[];
   reviews: ReviewFacts[];
 }
@@ -69,8 +71,10 @@ function findApprover(facts: GateFacts): string | undefined {
 }
 
 function findChangeRequest(facts: GateFacts): string | undefined {
-  return facts.reviews.find((review) => review.state === "CHANGES_REQUESTED" && review.canWrite)
-    ?.user;
+  return facts.reviews.find(
+    (review) =>
+      review.state === "CHANGES_REQUESTED" && review.userType === "User" && review.canWrite
+  )?.user;
 }
 
 function updateTypesOf(message: string): UpdateType[] {
@@ -106,7 +110,7 @@ function evaluateDependabot(facts: GateFacts, policy: DependabotPolicy | undefin
   if (facts.files.length === 0) {
     return { ok: false, why: "The pull request changes no file." };
   }
-  if (facts.files.length > policy.maxChangedFiles) {
+  if (facts.changedFileCount > policy.maxChangedFiles) {
     return { ok: false, why: `It changes more than ${policy.maxChangedFiles} files.` };
   }
   const workflow = facts.files.find((file) => file.startsWith(WORKFLOW_DIRECTORY));

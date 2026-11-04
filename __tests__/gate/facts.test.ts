@@ -253,7 +253,9 @@ describe("collectFacts", () => {
 
   it("fails when the pushes can't be read", async () => {
     const { octokit } = fakeOctokit({ activities: new Error("forbidden") });
-    await expect(collectFacts(octokit, "o", "r", 7)).rejects.toThrow("forbidden");
+    await expect(collectFacts(octokit, "o", "r", 7)).rejects.toThrow(
+      "Can't read the push history of o/r: forbidden"
+    );
   });
 
   it("fails when the head repository is gone, so the pushes can't be read", async () => {

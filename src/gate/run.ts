@@ -136,15 +136,17 @@ async function failClosed(
   ref: RepoRef,
   target: GateTarget,
   error: unknown
-): Promise<void> {
+): Promise<boolean> {
   const sha =
     target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
-  if (!sha) return;
+  if (!sha) return false;
   try {
-    if (!(await hasGateCheck(octokit, ref.owner, ref.repo, sha))) return;
+    if (!(await hasGateCheck(octokit, ref.owner, ref.repo, sha))) return false;
     await postGateCheck(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+    return true;
   } catch (e) {
     core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
+    return false;
   }
 }
 
@@ -200,7 +202,10 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
       );
     }
   } catch (error) {
-    core.warning(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
-    await failClosed(octokit, ref, target, error);
+    // A warning only where a result stood and was replaced, so a repository that never used
+    // the gate sees no new annotation on a transient API error.
+    const replaced = await failClosed(octokit, ref, target, error);
+    const log = replaced ? core.warning : core.info;
+    log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

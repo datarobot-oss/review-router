@@ -97,4 +97,5 @@ To roll back, restore the required approvals and remove the check from the rules
 - The gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. Treat write access as the trust boundary until the gate runs under its own GitHub App.
 - The gate does not post `in_progress`. A pull request shows no result between a push and the next run.
 - A review on a pull request from a fork starts no run with secrets. A change request or a dismissal on such a pull request takes effect at the next scheduled run, and a merge queue re-evaluates it when the pull request enters the queue.
+- A pull request from a fork whose push history the App can't read, such as a private fork, stays blocked. Merge it through a branch of the repository instead.
 - A pull request with more than 250 commits, 3000 changed files, or 100 pushes to its branch fails closed.

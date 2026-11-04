@@ -74,12 +74,19 @@ async function readPushers(
   repo: string,
   branch: string
 ): Promise<string[]> {
-  const { data } = await octokit.rest.repos.listActivities({
-    owner,
-    repo,
-    ref: `refs/heads/${branch}`,
-    per_page: PAGE_SIZE,
-  });
+  let data;
+  try {
+    ({ data } = await octokit.rest.repos.listActivities({
+      owner,
+      repo,
+      ref: `refs/heads/${branch}`,
+      per_page: PAGE_SIZE,
+    }));
+  } catch (error) {
+    // An App token can't read a private fork, and without the history nobody can be cleared.
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Can't read the push history of ${owner}/${repo}: ${reason}`, { cause: error });
+  }
   if (data.length >= PAGE_SIZE) {
     throw new Error(`The branch has ${PAGE_SIZE} or more pushes on record.`);
   }

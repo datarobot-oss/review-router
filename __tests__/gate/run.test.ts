@@ -3,6 +3,7 @@ import { hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { collectFacts, currentHead } from "../../src/gate/facts";
 import { loadEnrollment } from "../../src/gate/enroll";
 import { GateFacts } from "../../src/gate/decide";
+import * as core from "@actions/core";
 import { Octokit } from "../../src/types";
 
 jest.mock("@actions/core");
@@ -213,6 +214,7 @@ describe("runGate", () => {
     jest.mocked(hasGateCheck).mockResolvedValue(true);
     await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
     expect(hasGateCheck).toHaveBeenCalledWith(expect.anything(), "o", "r", "evt-sha");
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("502"));
     expect(postGateCheck).toHaveBeenCalledWith(
       expect.anything(),
       "o",
@@ -231,6 +233,9 @@ describe("runGate", () => {
     jest.mocked(hasGateCheck).mockResolvedValue(false);
     await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
     expect(postGateCheck).not.toHaveBeenCalled();
+
+    expect(core.warning).not.toHaveBeenCalled();
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining("502"));
   });
 
   it("replaces an earlier result when the default branch can't be read", async () => {

@@ -81934,12 +81934,20 @@ async function canWrite(octokit, owner, repo, username, cache) {
  * the head repository. A full page may hide older pushes, so it fails instead of guessing.
  */
 async function readPushers(octokit, owner, repo, branch) {
-    const { data } = await octokit.rest.repos.listActivities({
-        owner,
-        repo,
-        ref: `refs/heads/${branch}`,
-        per_page: PAGE_SIZE,
-    });
+    let data;
+    try {
+        ({ data } = await octokit.rest.repos.listActivities({
+            owner,
+            repo,
+            ref: `refs/heads/${branch}`,
+            per_page: PAGE_SIZE,
+        }));
+    }
+    catch (error) {
+        // An App token can't read a private fork, and without the history nobody can be cleared.
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Can't read the push history of ${owner}/${repo}: ${reason}`, { cause: error });
+    }
     if (data.length >= PAGE_SIZE) {
         throw new Error(`The branch has ${PAGE_SIZE} or more pushes on record.`);
     }
@@ -82278,14 +82286,16 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
 async function failClosed(octokit, ref, target, error) {
     const sha = target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
     if (!sha)
-        return;
+        return false;
     try {
         if (!(await (0, check_1.hasGateCheck)(octokit, ref.owner, ref.repo, sha)))
-            return;
+            return false;
         await (0, check_1.postGateCheck)(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+        return true;
     }
     catch (e) {
         core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
+        return false;
     }
 }
 /**
@@ -82325,8 +82335,11 @@ async function runGate(octokit, event, ref) {
         }
     }
     catch (error) {
-        core.warning(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
-        await failClosed(octokit, ref, target, error);
+        // A warning only where a result stood and was replaced, so a repository that never used
+        // the gate sees no new annotation on a transient API error.
+        const replaced = await failClosed(octokit, ref, target, error);
+        const log = replaced ? core.warning : core.info;
+        log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

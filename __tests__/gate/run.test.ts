@@ -99,6 +99,7 @@ const humanFacts: GateFacts = {
   changedFileCount: 1,
   pushers: ["alice"],
   commits: [],
+  dependencies: [],
   reviews: [],
 };
 
@@ -157,6 +158,28 @@ describe("runGate", () => {
     const event = { eventName: "issue_comment", action: "created", payload: {} };
     await runGate(fakeOctokit() as unknown as Octokit, event, REF);
     expect(loadEnrollment).not.toHaveBeenCalled();
+  });
+
+  it("asks for compatibility scores only when the policy uses them", async () => {
+    const withScores = { policy: { dependabot: { usesCompatibility: true } } };
+    jest.mocked(loadEnrollment).mockResolvedValue(withScores as never);
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(collectFacts).toHaveBeenLastCalledWith(expect.anything(), "o", "r", 7, {
+      fetchCompatibility: true,
+    });
+
+    const withoutScores = { policy: { dependabot: { usesCompatibility: false } } };
+    jest.mocked(loadEnrollment).mockResolvedValue(withoutScores as never);
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(collectFacts).toHaveBeenLastCalledWith(expect.anything(), "o", "r", 7, {
+      fetchCompatibility: false,
+    });
+
+    jest.mocked(loadEnrollment).mockResolvedValue({ policy: {} });
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(collectFacts).toHaveBeenLastCalledWith(expect.anything(), "o", "r", 7, {
+      fetchCompatibility: false,
+    });
   });
 
   it("skips a pull request for another base branch", async () => {
@@ -308,7 +331,7 @@ describe("runGate", () => {
       },
     };
     await runGate(fakeOctokit() as unknown as Octokit, event, REF);
-    expect(collectFacts).toHaveBeenCalledWith(expect.anything(), "o", "r", 44);
+    expect(collectFacts).toHaveBeenCalledWith(expect.anything(), "o", "r", 44, expect.anything());
     expect(postGateCheck).toHaveBeenCalledWith(
       expect.anything(),
       "o",

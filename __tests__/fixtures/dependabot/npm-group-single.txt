@@ -1,0 +1,20 @@
+Bump @aws-sdk/client-s3 from 3.1153.0 to 3.1157.0 in the aws-sdk group
+
+Bumps the aws-sdk group with 1 update: [@aws-sdk/client-s3](https://github.com/aws/aws-sdk-js-v3/tree/HEAD/clients/client-s3).
+
+
+Updates `@aws-sdk/client-s3` from 3.1153.0 to 3.1157.0
+- [Release notes](https://github.com/aws/aws-sdk-js-v3/releases)
+- [Changelog](https://github.com/aws/aws-sdk-js-v3/blob/main/clients/client-s3/CHANGELOG.md)
+- [Commits](https://github.com/aws/aws-sdk-js-v3/commits/v3.1157.0/clients/client-s3)
+
+---
+updated-dependencies:
+- dependency-name: "@aws-sdk/client-s3"
+  dependency-version: 3.1157.0
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+  dependency-group: aws-sdk
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>

@@ -1,0 +1,16 @@
+Bump pypdf from 6.20.1 to 6.21.2 in /config
+
+Bumps [pypdf](https://github.com/py-pdf/pypdf) from 6.20.1 to 6.21.2.
+- [Release notes](https://github.com/py-pdf/pypdf/releases)
+- [Changelog](https://github.com/py-pdf/pypdf/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/py-pdf/pypdf/compare/6.20.1...6.21.2)
+
+---
+updated-dependencies:
+- dependency-name: pypdf
+  dependency-version: 6.21.1
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>

@@ -81627,6 +81627,119 @@ async function hasGateCheck(octokit, owner, repo, headSha) {
 
 /***/ }),
 
+/***/ 2489:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resetCompatibilityBreaker = resetCompatibilityBreaker;
+exports.badgeUrl = badgeUrl;
+exports.fetchCompatibility = fetchCompatibility;
+exports.addCompatibility = addCompatibility;
+const core = __importStar(__nccwpck_require__(7484));
+const BADGE_URL = "https://dependabot-badges.githubapp.com/badges/compatibility_score";
+const TIMEOUT_MS = 10_000;
+const MAX_LOOKUPS = 30;
+const BATCH_SIZE = 8;
+const SCORE = /aria-label="compatibility: (\d{1,3})%"/;
+// A host that fails this many requests in a row is skipped for the rest of the run, so a black
+// hole costs seconds on a sweep of many pull requests, not minutes.
+const MAX_CONSECUTIVE_FAILURES = 3;
+let consecutiveFailures = 0;
+/** Forgets earlier failures. Only tests need it: a run is one process. */
+function resetCompatibilityBreaker() {
+    consecutiveFailures = 0;
+}
+/** The badge Dependabot shows for the bump, built from the dependency and its two versions. */
+function badgeUrl(dep) {
+    if (!dep.previous || !dep.version)
+        return undefined;
+    const query = new URLSearchParams({
+        "dependency-name": dep.name,
+        "package-manager": dep.ecosystem,
+        "previous-version": dep.previous,
+        "new-version": dep.version,
+    });
+    return `${BADGE_URL}?${query}`;
+}
+/**
+ * Reads the Dependabot compatibility score of a bump, 0 to 100. Returns undefined for an unknown
+ * score and for every failure, which the gate treats as "no score". Never throws.
+ */
+async function fetchCompatibility(dep, fetchFn = fetch) {
+    const url = badgeUrl(dep);
+    if (!url || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES)
+        return undefined;
+    try {
+        const response = await fetchFn(url, {
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+            // The answer must come from the badge host and nowhere else.
+            redirect: "error",
+        });
+        consecutiveFailures = 0;
+        if (!response.ok)
+            return undefined;
+        const match = SCORE.exec((await response.text()).slice(0, 5000));
+        const score = match ? Number(match[1]) : undefined;
+        return score !== undefined && score <= 100 ? score : undefined;
+    }
+    catch (error) {
+        consecutiveFailures += 1;
+        core.info(`No compatibility score for ${dep.name}: ${error instanceof Error ? error.message : String(error)}`);
+        return undefined;
+    }
+}
+/** Adds the score to each dependency. Looks up at most 30, in small batches. */
+async function addCompatibility(dependencies, fetchFn) {
+    const result = dependencies.map((dep) => ({ ...dep }));
+    const looked = result.slice(0, MAX_LOOKUPS);
+    for (let start = 0; start < looked.length; start += BATCH_SIZE) {
+        const batch = looked.slice(start, start + BATCH_SIZE);
+        const scores = await Promise.all(batch.map((dep) => fetchCompatibility(dep, fetchFn)));
+        batch.forEach((dep, index) => {
+            dep.compatibility = scores[index];
+        });
+    }
+    return result;
+}
+
+
+/***/ }),
+
 /***/ 5243:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -81635,12 +81748,12 @@ async function hasGateCheck(octokit, owner, repo, headSha) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEPENDABOT_LOGIN = void 0;
 exports.decideGate = decideGate;
+const dependabot_1 = __nccwpck_require__(5673);
 const policy_1 = __nccwpck_require__(4982);
 exports.DEPENDABOT_LOGIN = "dependabot[bot]";
 const GITHUB_WEB_COMMITTER = "web-flow";
 const DEPENDABOT_BRANCH_PREFIX = "dependabot/";
 const WORKFLOW_DIRECTORY = ".github/";
-const UPDATE_TYPE_PATTERN = /update-type:\s*version-update:semver-(patch|minor|major)/g;
 function commitUsers(facts) {
     const users = new Set();
     for (const commit of facts.commits) {
@@ -81665,9 +81778,6 @@ function findApprover(facts) {
 }
 function findChangeRequest(facts) {
     return facts.reviews.find((review) => review.state === "CHANGES_REQUESTED" && review.userType === "User" && review.canWrite)?.user;
-}
-function updateTypesOf(message) {
-    return [...message.matchAll(UPDATE_TYPE_PATTERN)].map((match) => match[1]);
 }
 function evaluateDependabot(facts, policy) {
     if (facts.author !== exports.DEPENDABOT_LOGIN || facts.authorType !== "Bot") {
@@ -81708,20 +81818,10 @@ function evaluateDependabot(facts, policy) {
     const outside = facts.files.find((file) => !(0, policy_1.matchesAny)(file, policy.allowedPaths));
     if (outside)
         return { ok: false, why: `\`${outside}\` is outside the allowed paths.` };
-    const types = new Set();
-    for (const commit of facts.commits) {
-        const found = updateTypesOf(commit.message);
-        if (found.length === 0)
-            return { ok: false, why: "A commit states no update type." };
-        found.forEach((type) => types.add(type));
-    }
-    const refused = [...types].find((type) => !policy.updateTypes.includes(type));
-    if (refused)
-        return { ok: false, why: `The update type \`${refused}\` needs a person.` };
-    return {
-        ok: true,
-        summary: `A verified Dependabot ${[...types].sort().join(" and ")} update inside the allowed paths.`,
-    };
+    const dependencies = (0, dependabot_1.evaluateDependencies)(facts.dependencies, policy);
+    if (!dependencies.ok)
+        return { ok: false, why: dependencies.why };
+    return { ok: true, summary: dependencies.summary };
 }
 /**
  * Decides the "Review Router gate" state of one pull request from plain facts.
@@ -81763,6 +81863,267 @@ function decideGate(facts, policy) {
         title: "Waiting for an approval",
         summary: `A person with write access, other than the author and committers, must approve the latest commit.${why}`,
     };
+}
+
+
+/***/ }),
+
+/***/ 5673:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseDependencies = parseDependencies;
+exports.deriveUpdateType = deriveUpdateType;
+exports.isPrerelease = isPrerelease;
+exports.evaluateDependencies = evaluateDependencies;
+const yaml = __importStar(__nccwpck_require__(4484));
+const policy_1 = __nccwpck_require__(4982);
+const METADATA_BLOCK = /(?:^|\n)---\nupdated-dependencies:[\s\S]*?\n\.\.\./;
+const UPDATE_TYPE = /^version-update:semver-(patch|minor|major)$/;
+const SINGLE_BUMP = /Bumps \[([^\]]+)\]\([^)]*\) from (\S+) to (\S+)/g;
+const GROUP_BUMP = /Updates `([^`]+)` from (\S+) to (\S+)/g;
+// A hyphen after the numeric core (1.0.0-M1, 21-ea, v0.0.0-2024...) or a PEP 440 suffix
+// (2.0.0b1, 3.14.0rc1-slim) marks a prerelease, and so do the usual words after a dot.
+const PRERELEASE = [
+    /^v?\d+(\.\d+)*-/,
+    /\d(a|b|c|rc)\d+/i,
+    /\.(alpha|beta|rc|pre|preview|dev|snapshot|canary|next)/i,
+];
+const MAX_REASONS = 5;
+function trimPunctuation(version) {
+    return version.replace(/[.,]$/, "");
+}
+/** The bumps the commit message states in words, by package name. */
+function bumpsByName(message) {
+    const found = new Map();
+    for (const pattern of [SINGLE_BUMP, GROUP_BUMP]) {
+        for (const [, name, from, to] of message.matchAll(pattern)) {
+            found.set(name, [
+                ...(found.get(name) ?? []),
+                { from: trimPunctuation(from), to: trimPunctuation(to) },
+            ]);
+        }
+    }
+    return found;
+}
+/**
+ * Picks the bump of one dependency. The metadata version can differ from the message (a real
+ * commit lists 6.21.1 beside "to 6.21.2"), so the version only narrows several bumps of one name.
+ * Returns undefined when two different bumps remain.
+ */
+function pickBump(bumps, version) {
+    if (!bumps?.length)
+        return undefined;
+    const narrowed = bumps.filter((bump) => bump.to === version);
+    const candidates = narrowed.length > 0 ? narrowed : bumps;
+    const [first] = candidates;
+    return candidates.every((bump) => bump.from === first.from && bump.to === first.to)
+        ? first
+        : undefined;
+}
+/**
+ * Reads the entries of the metadata block of one commit message. Every scalar is read as text,
+ * so a version such as 1.10 stays 1.10. Returns undefined when the block is missing, does not
+ * parse, is empty, or holds an entry without a text name: the caller then trusts none of it.
+ */
+function readBlock(message) {
+    const block = METADATA_BLOCK.exec(message);
+    if (!block)
+        return undefined;
+    try {
+        const doc = yaml.load(block[0].replace(/^\n?---\n/, "").replace(/\n\.\.\.$/, ""), {
+            schema: yaml.FAILSAFE_SCHEMA,
+        });
+        const list = doc?.["updated-dependencies"];
+        if (!Array.isArray(list) || list.length === 0)
+            return undefined;
+        const valid = list.every((entry) => typeof entry === "object" &&
+            entry !== null &&
+            !Array.isArray(entry) &&
+            typeof entry["dependency-name"] === "string");
+        return valid ? list : undefined;
+    }
+    catch {
+        return undefined;
+    }
+}
+/**
+ * Reads the dependencies Dependabot lists in its commit messages. A commit with no metadata
+ * block, or one that is not fully readable, makes the result empty, which the gate reads as
+ * "send to a person".
+ */
+function parseDependencies(messages, ecosystem) {
+    const dependencies = [];
+    for (const message of messages) {
+        const entries = readBlock(message);
+        // One unreadable commit makes the whole list untrustworthy, not just that commit.
+        if (!entries)
+            return [];
+        const bumps = bumpsByName(message);
+        for (const entry of entries) {
+            const name = entry["dependency-name"];
+            const metadataVersion = entry["dependency-version"] === undefined ? undefined : String(entry["dependency-version"]);
+            const bump = pickBump(bumps.get(name), metadataVersion);
+            const type = UPDATE_TYPE.exec(String(entry["update-type"] ?? ""))?.[1];
+            dependencies.push({
+                name,
+                ecosystem,
+                dependencyType: String(entry["dependency-type"] ?? ""),
+                updateType: type,
+                group: entry["dependency-group"] === undefined ? undefined : String(entry["dependency-group"]),
+                version: bump?.to ?? metadataVersion,
+                previous: bump?.from,
+            });
+        }
+    }
+    return dependencies;
+}
+function numericParts(version) {
+    const match = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(version);
+    return match ? [Number(match[1]), Number(match[2] ?? 0), Number(match[3] ?? 0)] : undefined;
+}
+/** The size of a bump from two versions, or undefined when they can't be compared. */
+function deriveUpdateType(previous, version) {
+    const from = previous === undefined ? undefined : numericParts(previous);
+    const to = version === undefined ? undefined : numericParts(version);
+    if (!from || !to)
+        return undefined;
+    const names = ["major", "minor", "patch"];
+    const index = from.findIndex((part, i) => part !== to[i]);
+    if (index === -1 || to[index] < from[index])
+        return undefined;
+    return names[index];
+}
+/** True for versions such as 1.0.0-rc.1, 2.0.0b1 or 1.2.3.dev4. Build metadata does not count. */
+function isPrerelease(version) {
+    if (!version)
+        return false;
+    const core = version.split("+")[0];
+    return PRERELEASE.some((pattern) => pattern.test(core));
+}
+function ruleMatches(rule, dep, type) {
+    const { match } = rule;
+    return ((match.dependency === undefined ||
+        (0, policy_1.matchesDependency)(dep.name, match.dependency, dep.ecosystem)) &&
+        (match.ecosystem === undefined || match.ecosystem === dep.ecosystem) &&
+        (match.dependencyType === undefined || match.dependencyType === dep.dependencyType) &&
+        (match.updateType === undefined || match.updateType === type) &&
+        (match.group === undefined || (dep.group !== undefined && (0, policy_1.matchesName)(dep.group, match.group))));
+}
+/**
+ * The update type the policy enforces: the metadata type, else the one derived from the versions
+ * when `unknown_update_type` allows it, and a minor bump to a 0.x version counted as major.
+ * The major part comes from the new version, which is known even when the previous one is not.
+ */
+function effectiveType(dep, settings) {
+    let type = dep.updateType ??
+        (settings.unknownUpdateType === "derive"
+            ? deriveUpdateType(dep.previous, dep.version)
+            : undefined);
+    if (type === "minor" && settings.zeroMinorIsMajor) {
+        const major = numericParts(dep.version ?? dep.previous ?? "")?.[0];
+        if (major === undefined || major === 0)
+            type = "major";
+    }
+    return type;
+}
+function evaluateOne(dep, policy) {
+    // Rules match on the type under the defaults, so a rule can't change what it is matched on.
+    const matchType = effectiveType(dep, policy.defaults);
+    const matching = policy.rules
+        .map((rule, index) => ({ rule, number: index + 1 }))
+        .filter(({ rule }) => ruleMatches(rule, dep, matchType));
+    // A rule that sends a dependency to a person beats every other rule, wherever it sits.
+    const human = matching.find(({ rule }) => rule.action === "human");
+    if (human)
+        return { reason: `rule ${human.number} sends it to a person`, note: "" };
+    const first = matching[0];
+    const via = first ? `, rule ${first.number}` : "";
+    if (first?.rule.action === "pass")
+        return { note: `rule ${first.number}: pass` };
+    const settings = { ...policy.defaults, ...first?.rule.settings };
+    const fail = (reason) => ({ reason: `${reason}${via}`, note: "" });
+    if (!settings.ecosystems.includes(dep.ecosystem)) {
+        return fail(`the ecosystem ${dep.ecosystem || "(none)"} is not allowed`);
+    }
+    if (!settings.dependencyTypes.includes(dep.dependencyType)) {
+        return fail(`the dependency type ${dep.dependencyType || "(none)"} is not allowed`);
+    }
+    if (!settings.allowPrerelease && isPrerelease(dep.version)) {
+        return fail(`${dep.version} is a prerelease`);
+    }
+    const type = effectiveType(dep, settings);
+    if (!type)
+        return fail("the update type is unknown");
+    if (!settings.updateTypes.includes(type))
+        return fail(`the update type ${type} is not allowed`);
+    if (settings.minCompatibility > 0) {
+        if (dep.compatibility === undefined) {
+            if (settings.unknownCompatibility === "human")
+                return fail("the compatibility score is unknown");
+        }
+        else if (dep.compatibility < settings.minCompatibility) {
+            return fail(`the compatibility score ${dep.compatibility}% is below ${settings.minCompatibility}%`);
+        }
+    }
+    const score = dep.compatibility === undefined ? "" : `, ${dep.compatibility}%`;
+    return { note: `${type}${score}${via}` };
+}
+/**
+ * Decides every dependency of a pull request on its own. The pull request passes only when all
+ * of them pass. A rule with the action `human` beats every other rule. Otherwise the first
+ * matching rule decides, and a dependency no rule matches follows the defaults.
+ */
+function evaluateDependencies(dependencies, policy) {
+    if (dependencies.length === 0) {
+        return { ok: false, why: "The commit lists no dependency metadata." };
+    }
+    const results = dependencies.map((dep) => ({ dep, result: evaluateOne(dep, policy) }));
+    const failures = results.filter(({ result }) => result.reason);
+    if (failures.length > 0) {
+        const shown = failures
+            .slice(0, MAX_REASONS)
+            .map(({ dep, result }) => `\`${dep.name}\`: ${result.reason}.`);
+        const more = failures.length > MAX_REASONS ? ` And ${failures.length - MAX_REASONS} more.` : "";
+        return { ok: false, why: `${shown.join(" ")}${more}` };
+    }
+    const list = results.map(({ dep, result }) => `\`${dep.name}\` (${result.note})`).join(", ");
+    return { ok: true, summary: `Dependabot updates inside the policy: ${list}.` };
 }
 
 
@@ -81874,7 +82235,7 @@ async function loadEnrollment(octokit, owner, repo, defaultBranch) {
 /***/ }),
 
 /***/ 6324:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
@@ -81882,6 +82243,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.standingReviews = standingReviews;
 exports.collectFacts = collectFacts;
 exports.currentHead = currentHead;
+const compat_1 = __nccwpck_require__(2489);
+const decide_1 = __nccwpck_require__(5243);
+const dependabot_1 = __nccwpck_require__(5673);
 // The pull request commits and files endpoints stop listing at these counts.
 const MAX_COMMITS = 250;
 const MAX_FILES = 3000;
@@ -81958,7 +82322,7 @@ async function readPushers(octokit, owner, repo, branch) {
     return [...new Set(pushers)];
 }
 /** Reads everything the decision needs. Throws when a list is cut short or a call fails. */
-async function collectFacts(octokit, owner, repo, prNumber) {
+async function collectFacts(octokit, owner, repo, prNumber, options = {}) {
     const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
     if (pr.commits > MAX_COMMITS) {
         throw new Error(`The pull request has more than ${MAX_COMMITS} commits.`);
@@ -81986,6 +82350,11 @@ async function collectFacts(octokit, owner, repo, prNumber) {
         verified: commit.commit.verification?.verified === true,
         message: commit.commit.message,
     }));
+    let dependencies = pr.user?.login === decide_1.DEPENDABOT_LOGIN
+        ? (0, dependabot_1.parseDependencies)(commits.map((commit) => commit.message), pr.head.ref.split("/")[1] ?? "")
+        : [];
+    if (options.fetchCompatibility)
+        dependencies = await (0, compat_1.addCompatibility)(dependencies);
     const cache = new Map();
     const reviews = [];
     for (const review of standingReviews(rawReviews).values()) {
@@ -82010,6 +82379,7 @@ async function collectFacts(octokit, owner, repo, prNumber) {
             changedFileCount: rawFiles.length,
             pushers,
             commits,
+            dependencies,
             reviews,
         },
     };
@@ -82062,20 +82432,205 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.POLICY_PATH = void 0;
+exports.DEFAULT_SETTINGS = exports.POLICY_PATH = void 0;
 exports.parsePolicy = parsePolicy;
 exports.matchesAny = matchesAny;
+exports.matchesName = matchesName;
+exports.matchesDependency = matchesDependency;
 const yaml = __importStar(__nccwpck_require__(4484));
 exports.POLICY_PATH = ".github/review-router.yml";
 const UPDATE_TYPES = ["patch", "minor", "major"];
-const DEFAULT_UPDATE_TYPES = ["patch", "minor"];
+const DEPENDENCY_TYPES = [
+    "direct:production",
+    "direct:development",
+    "indirect",
+];
 const DEFAULT_MAX_CHANGED_FILES = 10;
+// Ecosystem names as they appear in Dependabot branches, `dependabot/<ecosystem>/...`. Only
+// npm_and_yarn, pip, uv, go_modules and github_actions were checked against real branches.
+const ECOSYSTEMS = [
+    "npm_and_yarn",
+    "pip",
+    "uv",
+    "go_modules",
+    "github_actions",
+    "docker",
+    "docker_compose",
+    "bundler",
+    "bun",
+    "cargo",
+    "composer",
+    "maven",
+    "gradle",
+    "nuget",
+    "terraform",
+    "opentofu",
+    "helm",
+    "mix",
+    "pub",
+    "swift",
+    "elm",
+    "gitsubmodule",
+    "devcontainers",
+    "dotnet_sdk",
+    "rust_toolchain",
+    "vcpkg",
+];
+// The `package-ecosystem` names of dependabot.yml that differ from the branch name.
+const ECOSYSTEM_ALIASES = { npm: "npm_and_yarn", gomod: "go_modules" };
+exports.DEFAULT_SETTINGS = {
+    ecosystems: ["npm_and_yarn", "pip", "uv", "go_modules"],
+    updateTypes: ["patch", "minor"],
+    dependencyTypes: [...DEPENDENCY_TYPES],
+    minCompatibility: 70,
+    unknownCompatibility: "human",
+    unknownUpdateType: "derive",
+    zeroMinorIsMajor: true,
+    allowPrerelease: false,
+};
 function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+/** Rejects a key the code does not know: in a security file a typo must not read as "no limit". */
+function checkKeys(where, record, known) {
+    const unknown = Object.keys(record).filter((key) => !known.includes(key));
+    if (unknown.length > 0)
+        throw new Error(`${where} has an unknown key: ${unknown.join(", ")}`);
+}
+/** Reads an ecosystem as written in dependabot.yml or in a branch, and returns the branch name. */
+function ecosystemName(where, value) {
+    const written = typeof value === "string" ? value : "";
+    const name = ECOSYSTEM_ALIASES[written] ?? written.replace(/-/g, "_");
+    if (!ECOSYSTEMS.includes(name)) {
+        throw new Error(`${where} has an unknown ecosystem "${written}". Use one of: ${ECOSYSTEMS.join(", ")}`);
+    }
+    return name;
+}
+function enumList(where, value, allowed) {
+    if (!Array.isArray(value) ||
+        value.length === 0 ||
+        !value.every((item) => allowed.includes(item))) {
+        throw new Error(`${where} must list ${allowed.join(", ")}`);
+    }
+    return value;
+}
+function enumValue(where, value, allowed) {
+    if (!allowed.includes(value))
+        throw new Error(`${where} must be ${allowed.join(" or ")}`);
+    return value;
+}
+const SETTING_KEYS = [
+    "ecosystems",
+    "update_types",
+    "dependency_types",
+    "min_compatibility",
+    "unknown_compatibility",
+    "unknown_update_type",
+    "zero_minor_is_major",
+    "allow_prerelease",
+];
+/** Reads the setting keys of a record. Only the keys present end up in the result. */
+function parseSettings(where, raw) {
+    const settings = {};
+    if (raw.ecosystems !== undefined) {
+        const list = raw.ecosystems;
+        if (!Array.isArray(list) || list.length === 0) {
+            throw new Error(`${where}.ecosystems must be a list of ecosystem names`);
+        }
+        settings.ecosystems = list.map((name) => ecosystemName(`${where}.ecosystems`, name));
+    }
+    if (raw.update_types !== undefined) {
+        settings.updateTypes = enumList(`${where}.update_types`, raw.update_types, UPDATE_TYPES);
+    }
+    if (raw.dependency_types !== undefined) {
+        settings.dependencyTypes = enumList(`${where}.dependency_types`, raw.dependency_types, DEPENDENCY_TYPES);
+    }
+    if (raw.min_compatibility !== undefined) {
+        const score = raw.min_compatibility;
+        if (typeof score !== "number" || !Number.isInteger(score) || score < 0 || score > 100) {
+            throw new Error(`${where}.min_compatibility must be an integer from 0 to 100`);
+        }
+        settings.minCompatibility = score;
+    }
+    if (raw.unknown_compatibility !== undefined) {
+        settings.unknownCompatibility = enumValue(`${where}.unknown_compatibility`, raw.unknown_compatibility, ["human", "pass"]);
+    }
+    if (raw.unknown_update_type !== undefined) {
+        settings.unknownUpdateType = enumValue(`${where}.unknown_update_type`, raw.unknown_update_type, ["derive", "human"]);
+    }
+    for (const [key, field] of [
+        ["zero_minor_is_major", "zeroMinorIsMajor"],
+        ["allow_prerelease", "allowPrerelease"],
+    ]) {
+        if (raw[key] !== undefined) {
+            if (typeof raw[key] !== "boolean")
+                throw new Error(`${where}.${key} must be true or false`);
+            settings[field] = raw[key];
+        }
+    }
+    return settings;
+}
+function parseMatch(where, raw) {
+    if (!isRecord(raw) || Object.keys(raw).length === 0) {
+        throw new Error(`${where} needs a match with at least one key`);
+    }
+    checkKeys(`${where}.match`, raw, [
+        "dependency",
+        "ecosystem",
+        "dependency_type",
+        "update_type",
+        "group",
+    ]);
+    const match = {};
+    for (const key of ["dependency", "group"]) {
+        if (raw[key] !== undefined) {
+            if (typeof raw[key] !== "string" || raw[key] === "") {
+                throw new Error(`${where}.match.${key} must be a non-empty string`);
+            }
+            match[key] = raw[key];
+        }
+    }
+    if (raw.ecosystem !== undefined)
+        match.ecosystem = ecosystemName(`${where}.match.ecosystem`, raw.ecosystem);
+    if (raw.dependency_type !== undefined) {
+        match.dependencyType = enumValue(`${where}.match.dependency_type`, raw.dependency_type, DEPENDENCY_TYPES);
+    }
+    if (raw.update_type !== undefined) {
+        match.updateType = enumValue(`${where}.match.update_type`, raw.update_type, UPDATE_TYPES);
+    }
+    return match;
+}
+function parseRule(index, raw) {
+    const where = `dependabot.rules[${index}]`;
+    if (!isRecord(raw))
+        throw new Error(`${where} must be a mapping`);
+    checkKeys(where, raw, ["match", "action", ...SETTING_KEYS]);
+    const match = parseMatch(where, raw.match);
+    const settings = parseSettings(where, raw);
+    const hasSettings = Object.keys(settings).length > 0;
+    if (raw.action === undefined) {
+        if (!hasSettings)
+            throw new Error(`${where} needs an action or a setting`);
+        return { match, settings };
+    }
+    if (hasSettings)
+        throw new Error(`${where} sets both an action and settings`);
+    return {
+        match,
+        settings,
+        action: enumValue(`${where}.action`, raw.action, ["human", "pass"]),
+    };
 }
 function parseDependabot(raw) {
     if (!isRecord(raw))
         throw new Error("dependabot must be a mapping");
+    checkKeys("dependabot", raw, [
+        "allowed_paths",
+        "max_changed_files",
+        "update_types",
+        "defaults",
+        "rules",
+    ]);
     const paths = raw.allowed_paths ?? [];
     if (!Array.isArray(paths) || !paths.every((p) => typeof p === "string" && p.length > 0)) {
         throw new Error("dependabot.allowed_paths must be a list of non-empty strings");
@@ -82084,19 +82639,32 @@ function parseDependabot(raw) {
     if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) {
         throw new Error("dependabot.max_changed_files must be a positive integer");
     }
-    const types = raw.update_types ?? DEFAULT_UPDATE_TYPES;
-    if (!Array.isArray(types) ||
-        types.length === 0 ||
-        !types.every((t) => UPDATE_TYPES.includes(t))) {
-        throw new Error("dependabot.update_types must list patch, minor or major");
+    const rawDefaults = raw.defaults ?? {};
+    if (!isRecord(rawDefaults))
+        throw new Error("dependabot.defaults must be a mapping");
+    checkKeys("dependabot.defaults", rawDefaults, SETTING_KEYS);
+    if (raw.update_types !== undefined && rawDefaults.update_types !== undefined) {
+        throw new Error("set update_types in dependabot or in dependabot.defaults, not both");
     }
+    // The top-level update_types of the first release stays valid as a shorthand.
+    const shorthand = raw.update_types === undefined ? {} : { update_types: raw.update_types };
+    const defaults = {
+        ...exports.DEFAULT_SETTINGS,
+        ...parseSettings("dependabot.defaults", { ...rawDefaults, ...shorthand }),
+    };
+    const rawRules = raw.rules ?? [];
+    if (!Array.isArray(rawRules))
+        throw new Error("dependabot.rules must be a list");
+    const rules = rawRules.map((rule, index) => parseRule(index, rule));
     // No allowed path means no file can qualify, so the family stays off.
     if (paths.length === 0)
         return undefined;
-    return { allowedPaths: paths, maxChangedFiles: limit, updateTypes: types };
+    const usesCompatibility = defaults.minCompatibility > 0 ||
+        rules.some((rule) => (rule.settings.minCompatibility ?? 0) > 0);
+    return { allowedPaths: paths, maxChangedFiles: limit, defaults, rules, usesCompatibility };
 }
 /**
- * Parses the contents of .github/review-router.yml. Unknown keys are ignored so a newer
+ * Parses the contents of .github/review-router.yml. Unknown top-level keys are ignored so a newer
  * file still parses. Throws on malformed input: the caller fails closed.
  */
 function parsePolicy(text) {
@@ -82116,6 +82684,9 @@ function parsePolicy(text) {
             policy.dependabot = dependabot;
     }
     return policy;
+}
+function escapeRegExp(char) {
+    return char.replace(/[\\^$.|+(){}[\]]/g, "\\$&");
 }
 function globToRegExp(pattern) {
     let source = "";
@@ -82139,7 +82710,7 @@ function globToRegExp(pattern) {
             source += "[^/]";
         }
         else {
-            source += char.replace(/[\\^$.|+(){}[\]]/g, "\\$&");
+            source += escapeRegExp(char);
         }
     }
     return new RegExp(`^${source}$`);
@@ -82149,6 +82720,22 @@ function matchesAny(path, patterns) {
     if (path.split("/").some((segment) => segment === "." || segment === ".."))
         return false;
     return patterns.some((pattern) => globToRegExp(pattern).test(path));
+}
+/** True when a package name matches a glob. Here `*` also matches a slash: `@aws-sdk/*`. */
+function matchesName(name, pattern) {
+    const source = [...pattern]
+        .map((char) => (char === "*" ? ".*" : char === "?" ? "." : escapeRegExp(char)))
+        .join("");
+    return new RegExp(`^${source}$`).test(name);
+}
+// pip and uv compare names without case and treat "-", "_" and "." alike (PEP 503).
+const PEP_503_ECOSYSTEMS = new Set(["pip", "uv"]);
+/** Matches a dependency name against a rule's glob the way its ecosystem compares names. */
+function matchesDependency(name, pattern, ecosystem) {
+    if (!PEP_503_ECOSYSTEMS.has(ecosystem))
+        return matchesName(name, pattern);
+    const normalize = (text) => text.toLowerCase().replace(/[-_.]+/g, "-");
+    return matchesName(normalize(name), normalize(pattern));
 }
 
 
@@ -82256,7 +82843,9 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
     try {
         if (number === undefined)
             throw new Error("The merge queue entry names no pull request.");
-        const found = await (0, facts_1.collectFacts)(octokit, owner, repo, number);
+        const found = await (0, facts_1.collectFacts)(octokit, owner, repo, number, {
+            fetchCompatibility: enrollment.policy.dependabot?.usesCompatibility === true,
+        });
         sha = queueSha ?? found.facts.headSha;
         if (found.baseRef !== defaultBranch || found.state !== "open") {
             core.info(`Skipping #${number}: not an open pull request for ${defaultBranch}.`);

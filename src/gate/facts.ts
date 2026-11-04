@@ -1,5 +1,7 @@
 import { Octokit } from "../types";
-import { CommitFacts, GateFacts, ReviewFacts } from "./decide";
+import { addCompatibility } from "./compat";
+import { CommitFacts, DEPENDABOT_LOGIN, GateFacts, ReviewFacts } from "./decide";
+import { parseDependencies } from "./dependabot";
 
 // The pull request commits and files endpoints stop listing at these counts.
 const MAX_COMMITS = 250;
@@ -97,12 +99,18 @@ async function readPushers(
   return [...new Set(pushers)];
 }
 
+export interface CollectOptions {
+  /** Look up the Dependabot compatibility score of each dependency. Off unless a policy needs it. */
+  fetchCompatibility?: boolean;
+}
+
 /** Reads everything the decision needs. Throws when a list is cut short or a call fails. */
 export async function collectFacts(
   octokit: Octokit,
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  options: CollectOptions = {}
 ): Promise<PullRequestFacts> {
   const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
   if (pr.commits > MAX_COMMITS) {
@@ -135,6 +143,15 @@ export async function collectFacts(
     message: commit.commit.message,
   }));
 
+  let dependencies =
+    pr.user?.login === DEPENDABOT_LOGIN
+      ? parseDependencies(
+          commits.map((commit) => commit.message),
+          pr.head.ref.split("/")[1] ?? ""
+        )
+      : [];
+  if (options.fetchCompatibility) dependencies = await addCompatibility(dependencies);
+
   const cache = new Map<string, boolean>();
   const reviews: ReviewFacts[] = [];
   for (const review of standingReviews(rawReviews as RawReview[]).values()) {
@@ -160,6 +177,7 @@ export async function collectFacts(
       changedFileCount: rawFiles.length,
       pushers,
       commits,
+      dependencies,
       reviews,
     },
   };

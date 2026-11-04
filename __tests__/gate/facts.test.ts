@@ -1,5 +1,8 @@
 import { collectFacts, standingReviews } from "../../src/gate/facts";
 import { Octokit } from "../../src/types";
+import { addCompatibility } from "../../src/gate/compat";
+
+jest.mock("../../src/gate/compat");
 
 const user = (login: string, type = "User") => ({ login, type });
 const review = (login: string, state: string, commitId = "h1") => ({
@@ -211,6 +214,78 @@ describe("collectFacts", () => {
     const { facts } = await collectFacts(octokit, "o", "r", 7);
     expect(facts.changedFileCount).toBe(2);
     expect(facts.files).toHaveLength(3);
+  });
+
+  const metadataCommit = (message: string) => ({
+    author: { login: "dependabot[bot]" },
+    committer: { login: "web-flow" },
+    commit: { message, verification: { verified: true } },
+  });
+  const DEPENDABOT_MESSAGE = [
+    "Bumps [pypdf](https://x) from 6.0.0 to 6.0.1.",
+    "",
+    "---",
+    "updated-dependencies:",
+    "- dependency-name: pypdf",
+    "  dependency-version: 6.0.1",
+    "  dependency-type: direct:production",
+    "  update-type: version-update:semver-patch",
+    "...",
+  ].join("\n");
+
+  it("reads the dependencies of a Dependabot pull request from its commits", async () => {
+    const { octokit } = fakeOctokit({ commits: [metadataCommit(DEPENDABOT_MESSAGE)] });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.dependencies).toEqual([
+      {
+        name: "pypdf",
+        ecosystem: "pip",
+        dependencyType: "direct:production",
+        updateType: "patch",
+        group: undefined,
+        version: "6.0.1",
+        previous: "6.0.0",
+      },
+    ]);
+  });
+
+  it("takes the ecosystem from the Dependabot branch name", async () => {
+    const { octokit } = fakeOctokit({
+      commits: [metadataCommit(DEPENDABOT_MESSAGE)],
+      pr: {
+        head: {
+          ref: "dependabot/uv/pkg-1",
+          sha: "h1",
+          repo: { full_name: "o/r", name: "r", owner: { login: "o" } },
+        },
+      },
+    });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.dependencies[0].ecosystem).toBe("uv");
+  });
+
+  it("reads no dependencies for a pull request that Dependabot did not open", async () => {
+    const { octokit } = fakeOctokit({
+      commits: [metadataCommit(DEPENDABOT_MESSAGE)],
+      pr: { user: user("mallory") },
+    });
+    const { facts } = await collectFacts(octokit, "o", "r", 7);
+    expect(facts.dependencies).toEqual([]);
+  });
+
+  it("looks up compatibility scores only when asked", async () => {
+    jest
+      .mocked(addCompatibility)
+      .mockImplementation(async (deps) => deps.map((dep) => ({ ...dep, compatibility: 88 })));
+    const asked = fakeOctokit({ commits: [metadataCommit(DEPENDABOT_MESSAGE)] });
+    const withScores = await collectFacts(asked.octokit, "o", "r", 7, { fetchCompatibility: true });
+    expect(withScores.facts.dependencies[0].compatibility).toBe(88);
+
+    jest.mocked(addCompatibility).mockClear();
+    const notAsked = fakeOctokit({ commits: [metadataCommit(DEPENDABOT_MESSAGE)] });
+    const without = await collectFacts(notAsked.octokit, "o", "r", 7);
+    expect(without.facts.dependencies[0].compatibility).toBeUndefined();
+    expect(addCompatibility).not.toHaveBeenCalled();
   });
 
   it("lists everyone who pushed to the head branch, once each", async () => {

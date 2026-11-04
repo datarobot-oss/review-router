@@ -94,7 +94,9 @@ async function gatePull(
   let sha = queueSha ?? eventSha;
   try {
     if (number === undefined) throw new Error("The merge queue entry names no pull request.");
-    const found = await collectFacts(octokit, owner, repo, number);
+    const found = await collectFacts(octokit, owner, repo, number, {
+      fetchCompatibility: enrollment.policy.dependabot?.usesCompatibility === true,
+    });
     sha = queueSha ?? found.facts.headSha;
     if (found.baseRef !== defaultBranch || found.state !== "open") {
       core.info(`Skipping #${number}: not an open pull request for ${defaultBranch}.`);

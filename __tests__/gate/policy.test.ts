@@ -25,6 +25,7 @@ describe("parsePolicy", () => {
 
   it("defaults to patch and minor, all dependency types, a score of 70 and a person for unknowns", () => {
     expect(DEFAULT_SETTINGS).toEqual({
+      ecosystems: ["npm_and_yarn", "pip", "uv", "go_modules"],
       updateTypes: ["patch", "minor"],
       dependencyTypes: ["direct:production", "direct:development", "indirect"],
       minCompatibility: 70,
@@ -40,6 +41,7 @@ describe("parsePolicy", () => {
       [
         "  allowed_paths: [a]",
         "  defaults:",
+        "    ecosystems: [docker]",
         "    update_types: [patch]",
         "    dependency_types: [indirect]",
         "    min_compatibility: 0",
@@ -50,6 +52,7 @@ describe("parsePolicy", () => {
       ].join("\n")
     );
     expect(policy?.defaults).toEqual({
+      ecosystems: ["docker"],
       updateTypes: ["patch"],
       dependencyTypes: ["indirect"],
       minCompatibility: 0,
@@ -185,6 +188,9 @@ describe("parsePolicy", () => {
   });
 
   it.each([
+    ["ecosystems: []", /ecosystems/],
+    ["ecosystems: npm_and_yarn", /ecosystems/],
+    ["ecosystems: [1]", /ecosystems/],
     ["update_types: [huge]", /update_types/],
     ["update_types: []", /update_types/],
     ["dependency_types: [other]", /dependency_types/],

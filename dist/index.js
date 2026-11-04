@@ -81675,15 +81675,13 @@ const TIMEOUT_MS = 10_000;
 const MAX_LOOKUPS = 30;
 const BATCH_SIZE = 8;
 const SCORE = /aria-label="compatibility: (\d{1,3})%"/;
-// The badge service names ecosystems as Dependabot does, except that it has no uv.
-const BADGE_MANAGER = { uv: "pip" };
 /** The badge Dependabot shows for the bump, built from the dependency and its two versions. */
 function badgeUrl(dep) {
     if (!dep.previous || !dep.version)
         return undefined;
     const query = new URLSearchParams({
         "dependency-name": dep.name,
-        "package-manager": BADGE_MANAGER[dep.ecosystem] ?? dep.ecosystem,
+        "package-manager": dep.ecosystem,
         "previous-version": dep.previous,
         "new-version": dep.version,
     });
@@ -82030,6 +82028,9 @@ function evaluateOne(dep, policy) {
         return { note: `rule ${first.number}: pass` };
     const settings = { ...policy.defaults, ...first?.rule.settings };
     const fail = (reason) => ({ reason: `${reason}${via}`, note: "" });
+    if (!settings.ecosystems.includes(dep.ecosystem)) {
+        return fail(`the ecosystem ${dep.ecosystem || "(none)"} is not allowed`);
+    }
     if (!settings.dependencyTypes.includes(dep.dependencyType)) {
         return fail(`the dependency type ${dep.dependencyType || "(none)"} is not allowed`);
     }
@@ -82400,6 +82401,7 @@ const DEPENDENCY_TYPES = [
 ];
 const DEFAULT_MAX_CHANGED_FILES = 10;
 exports.DEFAULT_SETTINGS = {
+    ecosystems: ["npm_and_yarn", "pip", "uv", "go_modules"],
     updateTypes: ["patch", "minor"],
     dependencyTypes: [...DEPENDENCY_TYPES],
     minCompatibility: 70,
@@ -82431,6 +82433,7 @@ function enumValue(where, value, allowed) {
     return value;
 }
 const SETTING_KEYS = [
+    "ecosystems",
     "update_types",
     "dependency_types",
     "min_compatibility",
@@ -82442,6 +82445,15 @@ const SETTING_KEYS = [
 /** Reads the setting keys of a record. Only the keys present end up in the result. */
 function parseSettings(where, raw) {
     const settings = {};
+    if (raw.ecosystems !== undefined) {
+        const list = raw.ecosystems;
+        if (!Array.isArray(list) ||
+            list.length === 0 ||
+            !list.every((e) => typeof e === "string" && e)) {
+            throw new Error(`${where}.ecosystems must be a list of ecosystem names`);
+        }
+        settings.ecosystems = list;
+    }
     if (raw.update_types !== undefined) {
         settings.updateTypes = enumList(`${where}.update_types`, raw.update_types, UPDATE_TYPES);
     }

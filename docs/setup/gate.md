@@ -55,12 +55,12 @@ dependabot:
       action: human
 ```
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `allowed_paths` | none | Glob patterns for the files the pull request may change. `*` stays in one directory, `**` spans directories. An empty list turns the family off. Files under `.github/` never pass. |
-| `max_changed_files` | `10` | Largest number of changed files. A renamed file counts once. |
-| `defaults` | see below | The risk settings for every dependency. |
-| `rules` | none | Ordered overrides for dependencies that match. |
+| Key                 | Default   | Description                                                                                                                                                                         |
+| ------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allowed_paths`     | none      | Glob patterns for the files the pull request may change. `*` stays in one directory, `**` spans directories. An empty list turns the family off. Files under `.github/` never pass. |
+| `max_changed_files` | `10`      | Largest number of changed files. A renamed file counts once.                                                                                                                        |
+| `defaults`          | see below | The risk settings for every dependency.                                                                                                                                             |
+| `rules`             | none      | Ordered overrides for dependencies that match.                                                                                                                                      |
 
 An unknown key inside `dependabot` is an error, so a typo can't silently remove a limit.
 
@@ -68,15 +68,16 @@ An unknown key inside `dependabot` is an error, so a typo can't silently remove 
 
 Set these in `defaults`, or in a rule to change them for the dependencies it matches. A rule changes only the settings it lists.
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `update_types` | `[patch, minor]` | Sizes of version bump that pass: `patch`, `minor`, `major`. Also valid directly under `dependabot` as a shorthand for `defaults.update_types`. |
-| `dependency_types` | all three | Kinds that pass: `direct:production`, `direct:development`, `indirect`. |
-| `min_compatibility` | `70` | Lowest Dependabot compatibility score (the badge in the pull request body), 0 to 100. `0` turns the score off. |
-| `unknown_compatibility` | `human` | What happens when no score exists: `human` or `pass`. |
-| `unknown_update_type` | `derive` | When the metadata has no update type, `derive` it from the two versions, or send the dependency to a `human`. Indirect dependencies and some security updates have none. |
-| `zero_minor_is_major` | `true` | Count a minor bump below version 1.0 as a major bump. |
-| `allow_prerelease` | `false` | Pass a prerelease version such as `1.0.0-rc.1`. |
+| Setting                 | Default                               | Description                                                                                                                                                              |
+| ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ecosystems`            | `[npm_and_yarn, pip, uv, go_modules]` | Dependabot ecosystems that pass, by the name in the `dependabot/<ecosystem>/` branch. Others, such as `docker` and `github_actions`, go to a person until listed.        |
+| `update_types`          | `[patch, minor]`                      | Sizes of version bump that pass: `patch`, `minor`, `major`. Also valid directly under `dependabot` as a shorthand for `defaults.update_types`.                           |
+| `dependency_types`      | all three                             | Kinds that pass: `direct:production`, `direct:development`, `indirect`.                                                                                                  |
+| `min_compatibility`     | `70`                                  | Lowest Dependabot compatibility score (the badge in the pull request body), 0 to 100. `0` turns the score off.                                                           |
+| `unknown_compatibility` | `human`                               | What happens when no score exists: `human` or `pass`.                                                                                                                    |
+| `unknown_update_type`   | `derive`                              | When the metadata has no update type, `derive` it from the two versions, or send the dependency to a `human`. Indirect dependencies and some security updates have none. |
+| `zero_minor_is_major`   | `true`                                | Count a minor bump below version 1.0 as a major bump.                                                                                                                    |
+| `allow_prerelease`      | `false`                               | Pass a prerelease version such as `1.0.0-rc.1`.                                                                                                                          |
 
 The gate builds the score lookup from the dependency name, ecosystem and the two versions, so grouped updates get a score too. It asks `dependabot-badges.githubapp.com` for at most 30 dependencies per pull request and only when a setting needs the score. A failed or missing answer counts as no score. A runner that can't reach that host sends every dependency to a person unless `min_compatibility` is `0`.
 

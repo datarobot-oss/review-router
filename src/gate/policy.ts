@@ -15,6 +15,8 @@ const DEFAULT_MAX_CHANGED_FILES = 10;
 
 /** The risk dials of one dependency update. A rule can change any of them. */
 export interface DependencySettings {
+  /** Dependabot ecosystems that pass, by the name in its branch: `npm_and_yarn`, `pip`, `uv`. */
+  ecosystems: string[];
   updateTypes: UpdateType[];
   dependencyTypes: DependencyType[];
   /** Lowest Dependabot compatibility score, 0 to 100. 0 turns the score off. */
@@ -27,6 +29,7 @@ export interface DependencySettings {
 }
 
 export const DEFAULT_SETTINGS: DependencySettings = {
+  ecosystems: ["npm_and_yarn", "pip", "uv", "go_modules"],
   updateTypes: ["patch", "minor"],
   dependencyTypes: [...DEPENDENCY_TYPES],
   minCompatibility: 70,
@@ -93,6 +96,7 @@ function enumValue<T extends string>(where: string, value: unknown, allowed: rea
 }
 
 const SETTING_KEYS = [
+  "ecosystems",
   "update_types",
   "dependency_types",
   "min_compatibility",
@@ -105,6 +109,17 @@ const SETTING_KEYS = [
 /** Reads the setting keys of a record. Only the keys present end up in the result. */
 function parseSettings(where: string, raw: Record<string, unknown>): Partial<DependencySettings> {
   const settings: Partial<DependencySettings> = {};
+  if (raw.ecosystems !== undefined) {
+    const list = raw.ecosystems;
+    if (
+      !Array.isArray(list) ||
+      list.length === 0 ||
+      !list.every((e) => typeof e === "string" && e)
+    ) {
+      throw new Error(`${where}.ecosystems must be a list of ecosystem names`);
+    }
+    settings.ecosystems = list;
+  }
   if (raw.update_types !== undefined) {
     settings.updateTypes = enumList(`${where}.update_types`, raw.update_types, UPDATE_TYPES);
   }

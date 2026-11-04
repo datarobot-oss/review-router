@@ -248,6 +248,36 @@ describe("evaluateDependencies with the defaults", () => {
   });
 });
 
+describe("evaluateDependencies by ecosystem", () => {
+  it.each(["npm_and_yarn", "pip", "uv", "go_modules"])("passes %s by default", (ecosystem) => {
+    expect(verdict([dep({ ecosystem })]).ok).toBe(true);
+  });
+
+  it.each(["docker", "github_actions", "cargo", ""])(
+    "sends %s to a person by default, since its score is not verified",
+    (ecosystem) => {
+      const result = verdict([dep({ ecosystem })]);
+      expect(result.ok).toBe(false);
+      expect(failed(result)).toContain("ecosystem");
+    }
+  );
+
+  it("passes another ecosystem when a repository lists it", () => {
+    expect(
+      verdict([dep({ ecosystem: "docker" })], "  defaults:\n    ecosystems: [docker]").ok
+    ).toBe(true);
+    expect(verdict([dep({ ecosystem: "pip" })], "  defaults:\n    ecosystems: [docker]").ok).toBe(
+      false
+    );
+  });
+
+  it("lets a rule allow an ecosystem for one dependency only", () => {
+    const body = "  rules:\n    - match: { dependency: 'node' }\n      ecosystems: [docker]";
+    expect(verdict([dep({ name: "node", ecosystem: "docker" })], body).ok).toBe(true);
+    expect(verdict([dep({ name: "redis", ecosystem: "docker" })], body).ok).toBe(false);
+  });
+});
+
 describe("evaluateDependencies with settings", () => {
   it("lets the update types be widened", () => {
     expect(

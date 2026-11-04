@@ -173,6 +173,9 @@ function evaluateOne(dep: DependencyFacts, policy: DependabotPolicy): Dependency
   const settings = { ...policy.defaults, ...first?.rule.settings };
   const fail = (reason: string): DependencyResult => ({ reason: `${reason}${via}`, note: "" });
 
+  if (!settings.ecosystems.includes(dep.ecosystem)) {
+    return fail(`the ecosystem ${dep.ecosystem || "(none)"} is not allowed`);
+  }
   if (!settings.dependencyTypes.includes(dep.dependencyType as never)) {
     return fail(`the dependency type ${dep.dependencyType || "(none)"} is not allowed`);
   }

@@ -6,8 +6,6 @@ const TIMEOUT_MS = 10_000;
 const MAX_LOOKUPS = 30;
 const BATCH_SIZE = 8;
 const SCORE = /aria-label="compatibility: (\d{1,3})%"/;
-// The badge service names ecosystems as Dependabot does, except that it has no uv.
-const BADGE_MANAGER: Record<string, string> = { uv: "pip" };
 
 type FetchFn = (
   url: string,
@@ -22,7 +20,7 @@ export function badgeUrl(dep: DependencyFacts): string | undefined {
   if (!dep.previous || !dep.version) return undefined;
   const query = new URLSearchParams({
     "dependency-name": dep.name,
-    "package-manager": BADGE_MANAGER[dep.ecosystem] ?? dep.ecosystem,
+    "package-manager": dep.ecosystem,
     "previous-version": dep.previous,
     "new-version": dep.version,
   });

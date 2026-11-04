@@ -38,9 +38,12 @@ describe("badgeUrl", () => {
     expect(url.searchParams.get("dependency-name")).toBe("@aws-sdk/client-s3");
   });
 
-  it("asks for uv packages as pip, since the badge service has no uv", () => {
-    const url = new URL(badgeUrl(dep({ ecosystem: "uv" })) as string);
-    expect(url.searchParams.get("package-manager")).toBe("pip");
+  it("asks the badge service for uv and Go packages under their own names", () => {
+    const manager = (ecosystem: string) =>
+      new URL(badgeUrl(dep({ ecosystem })) as string).searchParams.get("package-manager");
+    expect(manager("uv")).toBe("uv");
+    expect(manager("go_modules")).toBe("go_modules");
+    expect(manager("npm_and_yarn")).toBe("npm_and_yarn");
   });
 
   it("can't encode a name into another host or parameter", () => {

@@ -81562,6 +81562,791 @@ function getSlackChannel(config, teamSlug) {
 
 /***/ }),
 
+/***/ 9215:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GATE_CHECK_NAME = void 0;
+exports.postGateCheck = postGateCheck;
+exports.hasGateCheck = hasGateCheck;
+exports.GATE_CHECK_NAME = "Review Router gate";
+const EXTERNAL_ID_PREFIX = "rr-gate:";
+/** The decision as the check run records it. The external id carries the reason for dedupe. */
+function stateOf(decision) {
+    return {
+        conclusion: decision.conclusion,
+        externalId: `${EXTERNAL_ID_PREFIX}${decision.reason}`,
+    };
+}
+/**
+ * Posts the decision as a new completed check run on a commit, unless the latest run of that
+ * name already shows the same state. A new run per change keeps the history readable, and a
+ * required check follows the latest run. Returns whether a run was posted.
+ */
+async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
+    const { conclusion, externalId } = stateOf(decision);
+    const { data } = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: headSha,
+        check_name: exports.GATE_CHECK_NAME,
+        filter: "latest",
+    });
+    const [latest] = data.check_runs;
+    if (latest?.status === "completed" && latest.conclusion === conclusion) {
+        if (latest.external_id === externalId)
+            return false;
+    }
+    await octokit.rest.checks.create({
+        owner,
+        repo,
+        name: exports.GATE_CHECK_NAME,
+        head_sha: headSha,
+        status: "completed",
+        conclusion: conclusion,
+        external_id: externalId,
+        ...(runUrl ? { details_url: runUrl } : {}),
+        output: { title: decision.title, summary: decision.summary },
+    });
+    return true;
+}
+/** True when the commit already has a gate result, which a failure must then replace. */
+async function hasGateCheck(octokit, owner, repo, headSha) {
+    const { data } = await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: headSha,
+        check_name: exports.GATE_CHECK_NAME,
+        filter: "latest",
+    });
+    return data.check_runs.length > 0;
+}
+
+
+/***/ }),
+
+/***/ 5243:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEPENDABOT_LOGIN = void 0;
+exports.decideGate = decideGate;
+const policy_1 = __nccwpck_require__(4982);
+exports.DEPENDABOT_LOGIN = "dependabot[bot]";
+const GITHUB_WEB_COMMITTER = "web-flow";
+const DEPENDABOT_BRANCH_PREFIX = "dependabot/";
+const WORKFLOW_DIRECTORY = ".github/";
+const UPDATE_TYPE_PATTERN = /update-type:\s*version-update:semver-(patch|minor|major)/g;
+function commitUsers(facts) {
+    const users = new Set();
+    for (const commit of facts.commits) {
+        if (commit.authorLogin)
+            users.add(commit.authorLogin);
+        if (commit.committerLogin)
+            users.add(commit.committerLogin);
+    }
+    // Commit emails can name anyone or nobody, so the push history is what proves who pushed.
+    facts.pushers.forEach((pusher) => users.add(pusher));
+    return users;
+}
+/** A person other than the author or a committer, with write access, approved the current head. */
+function findApprover(facts) {
+    const involved = commitUsers(facts);
+    return facts.reviews.find((review) => review.state === "APPROVED" &&
+        review.userType === "User" &&
+        review.canWrite &&
+        review.commitId === facts.headSha &&
+        review.user !== facts.author &&
+        !involved.has(review.user))?.user;
+}
+function findChangeRequest(facts) {
+    return facts.reviews.find((review) => review.state === "CHANGES_REQUESTED" && review.userType === "User" && review.canWrite)?.user;
+}
+function updateTypesOf(message) {
+    return [...message.matchAll(UPDATE_TYPE_PATTERN)].map((match) => match[1]);
+}
+function evaluateDependabot(facts, policy) {
+    if (facts.author !== exports.DEPENDABOT_LOGIN || facts.authorType !== "Bot") {
+        return { ok: false, why: "The author is not Dependabot." };
+    }
+    if (!policy) {
+        return { ok: false, why: "The repository does not enable the Dependabot family." };
+    }
+    if (facts.isFork || !facts.headRef.startsWith(DEPENDABOT_BRANCH_PREFIX)) {
+        return { ok: false, why: "The branch is not a Dependabot branch of this repository." };
+    }
+    if (facts.commits.length === 0) {
+        return { ok: false, why: "The pull request has no commits." };
+    }
+    // The commit fields below can be set by any token that may write to the branch.
+    if (facts.pushers.length === 0 || facts.pushers.some((pusher) => pusher !== exports.DEPENDABOT_LOGIN)) {
+        return { ok: false, why: "An account other than Dependabot pushed to the branch." };
+    }
+    for (const commit of facts.commits) {
+        if (commit.authorLogin !== exports.DEPENDABOT_LOGIN ||
+            commit.committerLogin !== GITHUB_WEB_COMMITTER ||
+            !commit.verified) {
+            return {
+                ok: false,
+                why: "A commit is not a verified Dependabot commit (author, committer and signature).",
+            };
+        }
+    }
+    if (facts.files.length === 0) {
+        return { ok: false, why: "The pull request changes no file." };
+    }
+    if (facts.changedFileCount > policy.maxChangedFiles) {
+        return { ok: false, why: `It changes more than ${policy.maxChangedFiles} files.` };
+    }
+    const workflow = facts.files.find((file) => file.startsWith(WORKFLOW_DIRECTORY));
+    if (workflow)
+        return { ok: false, why: `It changes \`${workflow}\`.` };
+    const outside = facts.files.find((file) => !(0, policy_1.matchesAny)(file, policy.allowedPaths));
+    if (outside)
+        return { ok: false, why: `\`${outside}\` is outside the allowed paths.` };
+    const types = new Set();
+    for (const commit of facts.commits) {
+        const found = updateTypesOf(commit.message);
+        if (found.length === 0)
+            return { ok: false, why: "A commit states no update type." };
+        found.forEach((type) => types.add(type));
+    }
+    const refused = [...types].find((type) => !policy.updateTypes.includes(type));
+    if (refused)
+        return { ok: false, why: `The update type \`${refused}\` needs a person.` };
+    return {
+        ok: true,
+        summary: `A verified Dependabot ${[...types].sort().join(" and ")} update inside the allowed paths.`,
+    };
+}
+/**
+ * Decides the "Review Router gate" state of one pull request from plain facts.
+ * Order: a writer's change request blocks, a person's approval passes, a policy family
+ * passes, everything else waits for a person.
+ */
+function decideGate(facts, policy) {
+    const changeRequester = findChangeRequest(facts);
+    if (changeRequester) {
+        return {
+            conclusion: "action_required",
+            reason: "changes-requested",
+            title: "Changes requested",
+            summary: `@${changeRequester} requested changes. The pull request needs a new review from them or a dismissal.`,
+        };
+    }
+    const approver = findApprover(facts);
+    if (approver) {
+        return {
+            conclusion: "success",
+            reason: "approved",
+            title: "Approved",
+            summary: `@${approver} approved the current commit.`,
+        };
+    }
+    const family = evaluateDependabot(facts, policy.dependabot);
+    if (family.ok) {
+        return {
+            conclusion: "success",
+            reason: "dependabot",
+            title: "Dependabot update",
+            summary: family.summary,
+        };
+    }
+    const why = facts.author === exports.DEPENDABOT_LOGIN ? ` ${family.why}` : "";
+    return {
+        conclusion: "action_required",
+        reason: "needs-approval",
+        title: "Waiting for an approval",
+        summary: `A person with write access, other than the author and committers, must approve the latest commit.${why}`,
+    };
+}
+
+
+/***/ }),
+
+/***/ 119:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.loadEnrollment = loadEnrollment;
+const core = __importStar(__nccwpck_require__(7484));
+const check_1 = __nccwpck_require__(9215);
+const policy_1 = __nccwpck_require__(4982);
+function isNotFound(error) {
+    return error.status === 404;
+}
+/** The policy file's text on the default branch, or undefined when the file does not exist. */
+async function readPolicyFile(octokit, owner, repo, defaultBranch) {
+    try {
+        const { data } = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: policy_1.POLICY_PATH,
+            ref: defaultBranch,
+        });
+        if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
+            throw new Error(`${policy_1.POLICY_PATH} is not a file.`);
+        }
+        return Buffer.from(data.content, "base64").toString("utf8");
+    }
+    catch (error) {
+        if (isNotFound(error))
+            return undefined;
+        throw error;
+    }
+}
+/**
+ * True when a rule on the default branch requires the gate check. Throws when the rules can't be
+ * read: a repository enrolled only through its ruleset must not drop out on a transient error.
+ */
+async function gateIsRequired(octokit, owner, repo, defaultBranch) {
+    const rules = await octokit.paginate(octokit.rest.repos.getBranchRules, {
+        owner,
+        repo,
+        branch: defaultBranch,
+        per_page: 100,
+    });
+    return rules.some((rule) => rule.type === "required_status_checks" &&
+        "parameters" in rule &&
+        rule.parameters?.required_status_checks.some((check) => check.context === check_1.GATE_CHECK_NAME));
+}
+/**
+ * Decides whether the repository uses the gate, and under which policy. A repository is
+ * enrolled when its default branch requires the gate check or holds a policy file. The policy
+ * comes from the default branch only, so a pull request can't change the rules it is judged by.
+ * Returns null for a repository that is not enrolled.
+ */
+async function loadEnrollment(octokit, owner, repo, defaultBranch) {
+    const text = await readPolicyFile(octokit, owner, repo, defaultBranch);
+    if (text === undefined) {
+        return (await gateIsRequired(octokit, owner, repo, defaultBranch)) ? { policy: {} } : null;
+    }
+    try {
+        return { policy: (0, policy_1.parsePolicy)(text) };
+    }
+    catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        core.warning(`${policy_1.POLICY_PATH} is invalid: ${reason}`);
+        return { policy: {}, policyError: reason };
+    }
+}
+
+
+/***/ }),
+
+/***/ 6324:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.standingReviews = standingReviews;
+exports.collectFacts = collectFacts;
+exports.currentHead = currentHead;
+// The pull request commits and files endpoints stop listing at these counts.
+const MAX_COMMITS = 250;
+const MAX_FILES = 3000;
+const PAGE_SIZE = 100;
+// Anything that put commits on the branch counts, merges included. Only a deletion adds none.
+const NON_PUSH_ACTIVITIES = new Set(["branch_deletion"]);
+/**
+ * Resolves the reviews in order to one standing review per person: an approval or a change
+ * request replaces the earlier one, a dismissal removes it, a plain comment changes nothing.
+ */
+function standingReviews(reviews) {
+    const standing = new Map();
+    for (const review of reviews) {
+        if (!review.user)
+            continue;
+        const state = review.state.toUpperCase();
+        if (state === "APPROVED" || state === "CHANGES_REQUESTED") {
+            standing.set(review.user.login, review);
+        }
+        else if (state === "DISMISSED") {
+            standing.delete(review.user.login);
+        }
+    }
+    return standing;
+}
+async function canWrite(octokit, owner, repo, username, cache) {
+    const known = cache.get(username);
+    if (known !== undefined)
+        return known;
+    try {
+        const { data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+            owner,
+            repo,
+            username,
+        });
+        const allowed = data.permission === "admin" || data.permission === "write";
+        cache.set(username, allowed);
+        return allowed;
+    }
+    catch (error) {
+        // Anyone can review a public repository, and a stranger has no permission to look up.
+        // Any other failure must fail the gate closed, not read as "no access".
+        if (error.status !== 404)
+            throw error;
+        cache.set(username, false);
+        return false;
+    }
+}
+/**
+ * Lists everyone who created or pushed to the branch, from the repository's activity feed of
+ * the head repository. A full page may hide older pushes, so it fails instead of guessing.
+ */
+async function readPushers(octokit, owner, repo, branch) {
+    let data;
+    try {
+        ({ data } = await octokit.rest.repos.listActivities({
+            owner,
+            repo,
+            ref: `refs/heads/${branch}`,
+            per_page: PAGE_SIZE,
+        }));
+    }
+    catch (error) {
+        // An App token can't read a private fork, and without the history nobody can be cleared.
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Can't read the push history of ${owner}/${repo}: ${reason}`, { cause: error });
+    }
+    if (data.length >= PAGE_SIZE) {
+        throw new Error(`The branch has ${PAGE_SIZE} or more pushes on record.`);
+    }
+    const pushers = data
+        .filter((activity) => !NON_PUSH_ACTIVITIES.has(activity.activity_type))
+        .map((activity) => activity.actor?.login ?? "(unknown)");
+    return [...new Set(pushers)];
+}
+/** Reads everything the decision needs. Throws when a list is cut short or a call fails. */
+async function collectFacts(octokit, owner, repo, prNumber) {
+    const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    if (pr.commits > MAX_COMMITS) {
+        throw new Error(`The pull request has more than ${MAX_COMMITS} commits.`);
+    }
+    if (pr.changed_files > MAX_FILES) {
+        throw new Error(`The pull request changes more than ${MAX_FILES} files.`);
+    }
+    if (!pr.head.repo)
+        throw new Error("The head repository of the pull request is gone.");
+    const params = { owner, repo, pull_number: prNumber, per_page: PAGE_SIZE };
+    const [rawFiles, rawCommits, pushers] = await Promise.all([
+        octokit.paginate(octokit.rest.pulls.listFiles, params),
+        octokit.paginate(octokit.rest.pulls.listCommits, params),
+        readPushers(octokit, pr.head.repo.owner.login, pr.head.repo.name, pr.head.ref),
+    ]);
+    // Last, so the reviews are as fresh as the write that follows.
+    const rawReviews = await octokit.paginate(octokit.rest.pulls.listReviews, params);
+    if (rawCommits.length < pr.commits || rawFiles.length < pr.changed_files) {
+        throw new Error("GitHub returned fewer commits or files than the pull request has.");
+    }
+    const files = rawFiles.flatMap((file) => file.previous_filename ? [file.filename, file.previous_filename] : [file.filename]);
+    const commits = rawCommits.map((commit) => ({
+        authorLogin: commit.author?.login ?? null,
+        committerLogin: commit.committer?.login ?? null,
+        verified: commit.commit.verification?.verified === true,
+        message: commit.commit.message,
+    }));
+    const cache = new Map();
+    const reviews = [];
+    for (const review of standingReviews(rawReviews).values()) {
+        reviews.push({
+            user: review.user.login,
+            userType: review.user.type,
+            state: review.state.toUpperCase(),
+            commitId: review.commit_id ?? "",
+            canWrite: await canWrite(octokit, owner, repo, review.user.login, cache),
+        });
+    }
+    return {
+        baseRef: pr.base.ref,
+        state: pr.state,
+        facts: {
+            author: pr.user?.login ?? "",
+            authorType: pr.user?.type ?? "",
+            isFork: pr.head.repo?.full_name !== pr.base.repo.full_name,
+            headRef: pr.head.ref,
+            headSha: pr.head.sha,
+            files,
+            changedFileCount: rawFiles.length,
+            pushers,
+            commits,
+            reviews,
+        },
+    };
+}
+/** The current head commit of a pull request. */
+async function currentHead(octokit, owner, repo, prNumber) {
+    const { data } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    return data.head.sha;
+}
+
+
+/***/ }),
+
+/***/ 4982:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.POLICY_PATH = void 0;
+exports.parsePolicy = parsePolicy;
+exports.matchesAny = matchesAny;
+const yaml = __importStar(__nccwpck_require__(4484));
+exports.POLICY_PATH = ".github/review-router.yml";
+const UPDATE_TYPES = ["patch", "minor", "major"];
+const DEFAULT_UPDATE_TYPES = ["patch", "minor"];
+const DEFAULT_MAX_CHANGED_FILES = 10;
+function isRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function parseDependabot(raw) {
+    if (!isRecord(raw))
+        throw new Error("dependabot must be a mapping");
+    const paths = raw.allowed_paths ?? [];
+    if (!Array.isArray(paths) || !paths.every((p) => typeof p === "string" && p.length > 0)) {
+        throw new Error("dependabot.allowed_paths must be a list of non-empty strings");
+    }
+    const limit = raw.max_changed_files ?? DEFAULT_MAX_CHANGED_FILES;
+    if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) {
+        throw new Error("dependabot.max_changed_files must be a positive integer");
+    }
+    const types = raw.update_types ?? DEFAULT_UPDATE_TYPES;
+    if (!Array.isArray(types) ||
+        types.length === 0 ||
+        !types.every((t) => UPDATE_TYPES.includes(t))) {
+        throw new Error("dependabot.update_types must list patch, minor or major");
+    }
+    // No allowed path means no file can qualify, so the family stays off.
+    if (paths.length === 0)
+        return undefined;
+    return { allowedPaths: paths, maxChangedFiles: limit, updateTypes: types };
+}
+/**
+ * Parses the contents of .github/review-router.yml. Unknown keys are ignored so a newer
+ * file still parses. Throws on malformed input: the caller fails closed.
+ */
+function parsePolicy(text) {
+    // js-yaml throws on a document with no content, and a stub that only holds comments is valid.
+    if (text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"))) {
+        return {};
+    }
+    const doc = yaml.load(text);
+    if (doc === undefined || doc === null)
+        return {};
+    if (!isRecord(doc))
+        throw new Error("the policy file must be a mapping");
+    const policy = {};
+    if (doc.dependabot !== undefined) {
+        const dependabot = parseDependabot(doc.dependabot);
+        if (dependabot)
+            policy.dependabot = dependabot;
+    }
+    return policy;
+}
+function globToRegExp(pattern) {
+    let source = "";
+    for (let i = 0; i < pattern.length; i++) {
+        const char = pattern[i];
+        if (char === "*" && pattern[i + 1] === "*") {
+            // "**/" spans zero or more directories, a trailing "**" spans everything below.
+            if (pattern[i + 2] === "/") {
+                source += "(?:.*/)?";
+                i += 2;
+            }
+            else {
+                source += ".*";
+                i += 1;
+            }
+        }
+        else if (char === "*") {
+            source += "[^/]*";
+        }
+        else if (char === "?") {
+            source += "[^/]";
+        }
+        else {
+            source += char.replace(/[\\^$.|+(){}[\]]/g, "\\$&");
+        }
+    }
+    return new RegExp(`^${source}$`);
+}
+/** True when the whole path matches one pattern. Paths with "." or ".." segments never match. */
+function matchesAny(path, patterns) {
+    if (path.split("/").some((segment) => segment === "." || segment === ".."))
+        return false;
+    return patterns.some((pattern) => globToRegExp(pattern).test(path));
+}
+
+
+/***/ }),
+
+/***/ 3654:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.gateTarget = gateTarget;
+exports.runGate = runGate;
+const core = __importStar(__nccwpck_require__(7484));
+const check_1 = __nccwpck_require__(9215);
+const decide_1 = __nccwpck_require__(5243);
+const enroll_1 = __nccwpck_require__(119);
+const facts_1 = __nccwpck_require__(6324);
+const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review", "edited"]);
+const REVIEW_ACTIONS = new Set(["submitted", "dismissed", "edited"]);
+const QUEUE_REF = /^refs\/heads\/gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]+$/;
+/** Maps a workflow event to what the gate has to evaluate, or null for an event it ignores. */
+function gateTarget(event) {
+    const { eventName, action, payload } = event;
+    const pr = payload.pull_request;
+    if (eventName === "schedule")
+        return { kind: "sweep" };
+    if (eventName === "merge_group" && action === "checks_requested" && payload.merge_group) {
+        const match = QUEUE_REF.exec(payload.merge_group.head_ref);
+        return {
+            kind: "queue",
+            number: match ? Number(match[1]) : undefined,
+            sha: payload.merge_group.head_sha,
+        };
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        pr &&
+        action &&
+        PULL_ACTIONS.has(action)) {
+        return { kind: "pull", number: pr.number, headSha: pr.head?.sha };
+    }
+    if (eventName === "pull_request_review" && pr && action && REVIEW_ACTIONS.has(action)) {
+        return { kind: "pull", number: pr.number, headSha: pr.head?.sha };
+    }
+    return null;
+}
+function errorDecision(error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return {
+        conclusion: "action_required",
+        reason: "needs-approval",
+        title: "The gate could not decide",
+        summary: `The gate failed closed: ${reason}`,
+    };
+}
+function withPolicyNote(decision, enrollment) {
+    if (!enrollment.policyError || decision.conclusion === "success")
+        return decision;
+    return {
+        ...decision,
+        summary: `${decision.summary} The policy file is invalid, so no family applies: ${enrollment.policyError}`,
+    };
+}
+/**
+ * Evaluates one pull request and posts the result. For a queue entry the result goes on the
+ * queue's commit instead of the pull request head. An error posts a blocking result on the
+ * best known commit: the queue's, the pull request's as of the event, or the one just read.
+ */
+async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSha, eventSha) {
+    const { owner, repo, runUrl } = ref;
+    let sha = queueSha ?? eventSha;
+    try {
+        if (number === undefined)
+            throw new Error("The merge queue entry names no pull request.");
+        const found = await (0, facts_1.collectFacts)(octokit, owner, repo, number);
+        sha = queueSha ?? found.facts.headSha;
+        if (found.baseRef !== defaultBranch || found.state !== "open") {
+            core.info(`Skipping #${number}: not an open pull request for ${defaultBranch}.`);
+            return;
+        }
+        const decision = withPolicyNote((0, decide_1.decideGate)(found.facts, enrollment.policy), enrollment);
+        // A push during the evaluation makes the result stale. The push triggers its own run.
+        if (!queueSha && (await (0, facts_1.currentHead)(octokit, owner, repo, number)) !== found.facts.headSha) {
+            core.info(`Skipping #${number}: the head moved during the evaluation.`);
+            return;
+        }
+        const posted = await (0, check_1.postGateCheck)(octokit, owner, repo, sha, decision, runUrl);
+        core.info(`#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`);
+    }
+    catch (error) {
+        core.warning(`The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${error instanceof Error ? error.message : String(error)}`);
+        if (sha) {
+            await (0, check_1.postGateCheck)(octokit, owner, repo, sha, errorDecision(error), runUrl).catch((e) => core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`));
+        }
+    }
+}
+/**
+ * A failure before the pull request is evaluated leaves an earlier result standing, and an
+ * earlier success would let the pull request merge. Replace it with a blocking result. A commit
+ * with no result needs nothing: the missing required check already blocks, and a repository
+ * that never used the gate gets no stray check.
+ */
+async function failClosed(octokit, ref, target, error) {
+    const sha = target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
+    if (!sha)
+        return false;
+    try {
+        if (!(await (0, check_1.hasGateCheck)(octokit, ref.owner, ref.repo, sha)))
+            return false;
+        await (0, check_1.postGateCheck)(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+        return true;
+    }
+    catch (e) {
+        core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
+        return false;
+    }
+}
+/**
+ * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
+ * so the Review Router's other work is not blocked by it.
+ */
+async function runGate(octokit, event, ref) {
+    const target = gateTarget(event);
+    if (!target)
+        return;
+    try {
+        const { owner, repo } = ref;
+        const defaultBranch = event.payload.repository?.default_branch ??
+            (await octokit.rest.repos.get({ owner, repo })).data.default_branch;
+        const enrollment = await (0, enroll_1.loadEnrollment)(octokit, owner, repo, defaultBranch);
+        if (!enrollment) {
+            core.debug("The gate is not enabled for this repository.");
+            return;
+        }
+        if (target.kind === "sweep") {
+            const pulls = await octokit.paginate(octokit.rest.pulls.list, {
+                owner,
+                repo,
+                state: "open",
+                base: defaultBranch,
+                per_page: 100,
+            });
+            for (const pull of pulls) {
+                await gatePull(octokit, ref, enrollment, defaultBranch, pull.number, undefined, pull.head.sha);
+            }
+        }
+        else if (target.kind === "queue") {
+            await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
+        }
+        else {
+            await gatePull(octokit, ref, enrollment, defaultBranch, target.number, undefined, target.headSha);
+        }
+    }
+    catch (error) {
+        // A warning only where a result stood and was replaced, so a repository that never used
+        // the gate sees no new annotation on a transient API error.
+        const replaced = await failClosed(octokit, ref, target, error);
+        const log = replaced ? core.warning : core.info;
+        log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+
+/***/ }),
+
 /***/ 9407:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -81611,6 +82396,7 @@ const auth_1 = __nccwpck_require__(9081);
 const config_1 = __nccwpck_require__(2973);
 const ai_review_1 = __nccwpck_require__(1869);
 const trigger_1 = __nccwpck_require__(5789);
+const run_1 = __nccwpck_require__(3654);
 async function run() {
     const githubToken = core.getInput("github-token");
     if (!githubToken) {
@@ -81636,6 +82422,10 @@ async function run() {
     const octokit = github.getOctokit(inputs.githubToken);
     const eventName = context.eventName;
     const action = context.payload.action;
+    // First and on its own: the gate must not wait for, or fail with, the team config.
+    await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl });
+    if (eventName === "merge_group")
+        return;
     if (eventName === "issue_comment" && action === "created") {
         const comment = context.payload.comment;
         const issue = context.payload.issue;

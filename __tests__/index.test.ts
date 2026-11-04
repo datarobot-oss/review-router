@@ -11,6 +11,7 @@ jest.mock("../src/auth");
 jest.mock("../src/reminders");
 jest.mock("../src/reconcile");
 jest.mock("../src/ai-review");
+jest.mock("../src/gate/run");
 
 const mockContext = {
   eventName: "pull_request_target",
@@ -77,6 +78,36 @@ describe("pull request events that change the head commit", () => {
 
   it("does nothing without a token, as on a fork PR run with no secrets", async () => {
     const router = await runAction("synchronize", { token: "" });
+    expect(router.syncReviewCheck).not.toHaveBeenCalled();
+  });
+});
+
+describe("the gate", () => {
+  async function runEvent(eventName: string, action: string) {
+    mockContext.eventName = eventName;
+    try {
+      const router = await runAction(action);
+      const gate =
+        jest.requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run");
+      return { router, gate };
+    } finally {
+      mockContext.eventName = "pull_request_target";
+    }
+  }
+
+  it("runs on a pull request event, before the Review Router handles it", async () => {
+    const { router, gate } = await runEvent("pull_request_target", "synchronize");
+    expect(gate.runGate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ eventName: "pull_request_target", action: "synchronize" }),
+      expect.objectContaining({ owner: "acme", repo: "api" })
+    );
+    expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("is the only work for a merge queue event", async () => {
+    const { router, gate } = await runEvent("merge_group", "checks_requested");
+    expect(gate.runGate).toHaveBeenCalledTimes(1);
     expect(router.syncReviewCheck).not.toHaveBeenCalled();
   });
 });

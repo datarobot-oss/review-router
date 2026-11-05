@@ -81564,7 +81564,6 @@ function getSlackChannel(config, teamSlug) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GATE_DOCS_URL = exports.GATE_CHECK_NAME = void 0;
 exports.postGateCheck = postGateCheck;
-exports.postPendingGateCheck = postPendingGateCheck;
 exports.hasGateCheck = hasGateCheck;
 const checks_1 = __nccwpck_require__(2122);
 exports.GATE_CHECK_NAME = "Bouncer";
@@ -81613,37 +81612,7 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
     });
     return true;
 }
-/**
- * Posts an in_progress run on a commit that has no run yet, so the check shows a link to the
- * docs while it waits, not a bare "Expected". A commit with a run keeps it: a pending run on top
- * of a passing result would block the pull request until the next run. Returns whether a run
- * was posted.
- */
-async function postPendingGateCheck(octokit, owner, repo, headSha, runUrl) {
-    const { data } = await octokit.rest.checks.listForRef({
-        owner,
-        repo,
-        ref: headSha,
-        check_name: exports.GATE_CHECK_NAME,
-        filter: "latest",
-    });
-    if (data.check_runs.length > 0)
-        return false;
-    await octokit.rest.checks.create({
-        owner,
-        repo,
-        name: exports.GATE_CHECK_NAME,
-        head_sha: headSha,
-        status: "in_progress",
-        details_url: exports.GATE_DOCS_URL,
-        output: {
-            title: "Checking this pull request",
-            summary: `${(0, checks_1.withRunLink)("Bouncer is reading the reviews and the push history.", runUrl)}\n\n[How the Bouncer works](${exports.GATE_DOCS_URL})`,
-        },
-    });
-    return true;
-}
-/** True when the commit already has a completed gate result, which a failure must then replace. */
+/** True when the commit already has a gate result, which a failure must then replace. */
 async function hasGateCheck(octokit, owner, repo, headSha) {
     const { data } = await octokit.rest.checks.listForRef({
         owner,
@@ -81652,7 +81621,7 @@ async function hasGateCheck(octokit, owner, repo, headSha) {
         check_name: exports.GATE_CHECK_NAME,
         filter: "latest",
     });
-    return data.check_runs.some((run) => run.status === "completed");
+    return data.check_runs.length > 0;
 }
 
 
@@ -82981,10 +82950,6 @@ async function runGate(octokit, event, ref) {
             await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
         }
         else {
-            if (target.headSha) {
-                // Only a courtesy: the gate evaluates the pull request whether or not this lands.
-                await (0, check_1.postPendingGateCheck)(octokit, ref.owner, ref.repo, target.headSha, ref.runUrl).catch((e) => core.debug(`Could not post the pending check: ${e instanceof Error ? e.message : e}`));
-            }
             await gatePull(octokit, ref, enrollment, defaultBranch, target.number, undefined, target.headSha);
         }
     }

@@ -59,44 +59,7 @@ export async function postGateCheck(
   return true;
 }
 
-/**
- * Posts an in_progress run on a commit that has no run yet, so the check shows a link to the
- * docs while it waits, not a bare "Expected". A commit with a run keeps it: a pending run on top
- * of a passing result would block the pull request until the next run. Returns whether a run
- * was posted.
- */
-export async function postPendingGateCheck(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-  headSha: string,
-  runUrl?: string
-): Promise<boolean> {
-  const { data } = await octokit.rest.checks.listForRef({
-    owner,
-    repo,
-    ref: headSha,
-    check_name: GATE_CHECK_NAME,
-    filter: "latest",
-  });
-  if (data.check_runs.length > 0) return false;
-
-  await octokit.rest.checks.create({
-    owner,
-    repo,
-    name: GATE_CHECK_NAME,
-    head_sha: headSha,
-    status: "in_progress",
-    details_url: GATE_DOCS_URL,
-    output: {
-      title: "Checking this pull request",
-      summary: `${withRunLink("Bouncer is reading the reviews and the push history.", runUrl)}\n\n[How the Bouncer works](${GATE_DOCS_URL})`,
-    },
-  });
-  return true;
-}
-
-/** True when the commit already has a completed gate result, which a failure must then replace. */
+/** True when the commit already has a gate result, which a failure must then replace. */
 export async function hasGateCheck(
   octokit: Octokit,
   owner: string,
@@ -110,5 +73,5 @@ export async function hasGateCheck(
     check_name: GATE_CHECK_NAME,
     filter: "latest",
   });
-  return data.check_runs.some((run) => run.status === "completed");
+  return data.check_runs.length > 0;
 }

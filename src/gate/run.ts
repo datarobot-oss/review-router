@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import { quotaLow, readQuota } from "../rate-limit";
 import { Octokit } from "../types";
-import { hasGateCheck, postGateCheck, postPendingGateCheck } from "./check";
+import { hasGateCheck, postGateCheck } from "./check";
 import { decideGate, GateDecision } from "./decide";
 import { Enrollment, loadEnrollment } from "./enroll";
 import { collectFacts, currentHead } from "./facts";
@@ -220,13 +220,6 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
     } else if (target.kind === "queue") {
       await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
     } else {
-      if (target.headSha) {
-        // Only a courtesy: the gate evaluates the pull request whether or not this lands.
-        await postPendingGateCheck(octokit, ref.owner, ref.repo, target.headSha, ref.runUrl).catch(
-          (e) =>
-            core.debug(`Could not post the pending check: ${e instanceof Error ? e.message : e}`)
-        );
-      }
       await gatePull(
         octokit,
         ref,

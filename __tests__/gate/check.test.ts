@@ -1,10 +1,4 @@
-import {
-  GATE_CHECK_NAME,
-  GATE_DOCS_URL,
-  hasGateCheck,
-  postGateCheck,
-  postPendingGateCheck,
-} from "../../src/gate/check";
+import { GATE_CHECK_NAME, GATE_DOCS_URL, hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { GateDecision } from "../../src/gate/decide";
 import { Octokit } from "../../src/types";
 
@@ -121,46 +115,10 @@ describe("postGateCheck", () => {
   });
 });
 
-describe("postPendingGateCheck", () => {
-  it("posts an in_progress run that links the docs on a commit with no run", async () => {
-    const { octokit, create } = fakeOctokit();
-    expect(await postPendingGateCheck(octokit, "o", "r", "sha1", "https://run")).toBe(true);
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: GATE_CHECK_NAME,
-        head_sha: "sha1",
-        status: "in_progress",
-        details_url: GATE_DOCS_URL,
-        output: expect.objectContaining({
-          summary: expect.stringContaining(`[How the Bouncer works](${GATE_DOCS_URL})`),
-        }),
-      })
-    );
-    expect(create.mock.calls[0][0]).not.toHaveProperty("conclusion");
-  });
-
-  it("posts nothing when the commit already has a result, so it never reopens a passing check", async () => {
-    const { octokit, create } = fakeOctokit([run("success", "approved")]);
-    expect(await postPendingGateCheck(octokit, "o", "r", "sha1")).toBe(false);
-    expect(create).not.toHaveBeenCalled();
-  });
-
-  it("posts nothing when a pending run already exists", async () => {
-    const { octokit, create } = fakeOctokit([{ status: "in_progress", external_id: "" }]);
-    expect(await postPendingGateCheck(octokit, "o", "r", "sha1")).toBe(false);
-    expect(create).not.toHaveBeenCalled();
-  });
-});
-
 describe("hasGateCheck", () => {
   it("is true when a gate result exists on the commit", async () => {
     const { octokit } = fakeOctokit([run("success", "approved")]);
     expect(await hasGateCheck(octokit, "o", "r", "sha1")).toBe(true);
-  });
-
-  it("is false when the only run is still pending, because no result stands", async () => {
-    const { octokit } = fakeOctokit([{ status: "in_progress", external_id: "" }]);
-    expect(await hasGateCheck(octokit, "o", "r", "sha1")).toBe(false);
   });
 
   it("is false when the commit has no gate result", async () => {

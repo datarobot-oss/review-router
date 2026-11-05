@@ -30,6 +30,7 @@ import {
 import { getLabelForTeam, getSlackChannel, isDmEnabled } from "./config";
 import { upsertReviewCheck } from "./checks";
 import { isRepoMaintainer } from "./auth";
+import { GateDecision } from "./gate/decide";
 import {
   ActionInputs,
   Capabilities,
@@ -585,11 +586,70 @@ export interface OpenedContext {
   author: string;
   isFork: boolean;
   isDraft: boolean;
+  /** The gate's decision for this pull request, or null when the repository has no gate. */
+  gateDecision?: GateDecision | null;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
 }
 
 export const EXTERNAL_CONTRIBUTION_LABEL = "external-contribution";
+
+const DEPENDABOT_LOGIN = "dependabot[bot]";
+
+/** A pull request that the gate passes has no one to wait for, so nobody has to review it. */
+function gatePasses(decision: GateDecision | null | undefined): boolean {
+  return decision?.conclusion === "success";
+}
+
+async function addDependabotReadyLabel(
+  octokit: Octokit,
+  ctx: { owner: string; repo: string; prNumber: number; inputs: ActionInputs }
+): Promise<void> {
+  core.info(
+    `Dependabot PR #${ctx.prNumber} needs a person, adding "${ctx.inputs.readyLabel}" label`
+  );
+  try {
+    await octokit.rest.issues.addLabels({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      issue_number: ctx.prNumber,
+      labels: [ctx.inputs.readyLabel],
+    });
+  } catch (error) {
+    core.warning(
+      `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+export interface DependabotPushContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  author: string;
+  /** The names of the labels on the pull request. */
+  labels: string[];
+  gateDecision: GateDecision | null;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+/**
+ * Routes a Dependabot pull request for review once the gate stops passing it, for example after a
+ * person pushes to its branch. At open, a pull request that the gate passes is left unrouted.
+ */
+export async function handleDependabotPush(
+  octokit: Octokit,
+  ctx: DependabotPushContext
+): Promise<void> {
+  if (!ctx.teamsConfig.dependabot?.auto_label || ctx.author !== DEPENDABOT_LOGIN) return;
+  if (!ctx.gateDecision || gatePasses(ctx.gateDecision)) return;
+  const alreadyRouted = ctx.labels.some((name) =>
+    isReadyLabel(name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases)
+  );
+  if (alreadyRouted) return;
+  await addDependabotReadyLabel(octokit, ctx);
+}
 
 export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promise<void> {
   await postJiraComment(
@@ -602,20 +662,12 @@ export async function handleOpened(octokit: Octokit, ctx: OpenedContext): Promis
     ctx.inputs.jiraToken
   );
 
-  if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === "dependabot[bot]") {
-    core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
-    try {
-      await octokit.rest.issues.addLabels({
-        owner: ctx.owner,
-        repo: ctx.repo,
-        issue_number: ctx.prNumber,
-        labels: [ctx.inputs.readyLabel],
-      });
-    } catch (error) {
-      core.warning(
-        `Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
-      );
+  if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === DEPENDABOT_LOGIN) {
+    if (gatePasses(ctx.gateDecision)) {
+      core.info(`Dependabot PR #${ctx.prNumber} passes the gate, so it is not routed for review`);
+      return;
     }
+    await addDependabotReadyLabel(octokit, ctx);
     return;
   }
 

@@ -26,7 +26,7 @@ const teamsConfig = { teams: {} };
 /** Loads the action entry point, which runs on import, and waits for it to finish. */
 async function runAction(
   action: string,
-  options: { token?: string } = {}
+  options: { token?: string; pullRequest?: object; gateDecision?: object | null } = {}
 ): Promise<jest.Mocked<typeof import("../src/router")>> {
   jest.resetModules();
   const coreMock = jest.requireMock<jest.Mocked<typeof core>>("@actions/core");
@@ -35,8 +35,16 @@ async function runAction(
   );
   mockContext.payload = {
     action,
-    pull_request: { number: 7, head: { sha: "newhead" }, base: { ref: "main" } },
+    pull_request: {
+      number: 7,
+      head: { sha: "newhead" },
+      base: { ref: "main" },
+      ...options.pullRequest,
+    },
   };
+  jest
+    .requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run")
+    .runGate.mockResolvedValue((options.gateDecision ?? null) as never);
   const router = jest.requireMock<jest.Mocked<typeof import("../src/router")>>("../src/router");
   jest
     .requireMock<jest.Mocked<typeof import("../src/config")>>("../src/config")
@@ -206,5 +214,53 @@ describe("scheduled runs", () => {
       .mockResolvedValueOnce({ data: { resources: { core: { remaining: 3970, limit: 5000 } } } });
     const { core: coreMock } = await runSchedule(octokit);
     expect(coreMock.info).toHaveBeenCalledWith(expect.stringContaining("about 30 API calls"));
+  });
+});
+
+describe("the gate's decision reaches the routing of a Dependabot pull request", () => {
+  const decision = { conclusion: "success", reason: "dependabot", title: "t", summary: "s" };
+  const dependabot = {
+    user: { login: "dependabot[bot]" },
+    labels: [{ name: "dependencies" }],
+  };
+
+  it("hands the decision to the opened handler", async () => {
+    const router = await runAction("opened", { pullRequest: dependabot, gateDecision: decision });
+    expect(router.handleOpened).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ author: "dependabot[bot]", gateDecision: decision })
+    );
+  });
+
+  it.each(["synchronize", "reopened"])(
+    "hands the decision and the label names to the push handler after %s",
+    async (action) => {
+      const router = await runAction(action, { pullRequest: dependabot, gateDecision: decision });
+      expect(router.handleDependabotPush).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          prNumber: 7,
+          author: "dependabot[bot]",
+          labels: ["dependencies"],
+          gateDecision: decision,
+        })
+      );
+    }
+  );
+
+  it("passes no decision when the repository has no gate", async () => {
+    const router = await runAction("synchronize", { pullRequest: dependabot });
+    expect(router.handleDependabotPush).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ gateDecision: null })
+    );
+  });
+
+  it("copes with a payload that has no labels", async () => {
+    const router = await runAction("synchronize");
+    expect(router.handleDependabotPush).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ labels: [] })
+    );
   });
 });

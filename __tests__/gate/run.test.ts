@@ -264,14 +264,14 @@ describe("runGate", () => {
     jest.mocked(postGateCheck).mockRejectedValue(new Error("403"));
     await expect(
       runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF)
-    ).resolves.toBeUndefined();
+    ).resolves.toBeNull();
   });
 
   it("never throws when the enrollment can't be read", async () => {
     jest.mocked(loadEnrollment).mockRejectedValue(new Error("server"));
     await expect(
       runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF)
-    ).resolves.toBeUndefined();
+    ).resolves.toBeNull();
     expect(postGateCheck).not.toHaveBeenCalled();
   });
 
@@ -540,5 +540,74 @@ describe("runGate", () => {
       }),
       "https://run"
     );
+  });
+});
+
+describe("the decision runGate returns", () => {
+  const approval = {
+    user: "bob",
+    userType: "User",
+    state: "APPROVED",
+    commitId: "h1",
+    canWrite: true,
+  };
+  const octokit = () => fakeOctokit() as unknown as Octokit;
+
+  it("returns the success of a pull request an independent writer approved", async () => {
+    jest
+      .mocked(collectFacts)
+      .mockResolvedValue(found({ facts: { ...humanFacts, reviews: [approval] } }));
+    const decision = await runGate(octokit(), pullEvent(), REF);
+    expect(decision).toEqual(
+      expect.objectContaining({ conclusion: "success", reason: "approved" })
+    );
+  });
+
+  it("returns the pending wait of a pull request nobody approved", async () => {
+    const decision = await runGate(octokit(), pullEvent(), REF);
+    expect(decision).toEqual(
+      expect.objectContaining({
+        conclusion: "action_required",
+        reason: "needs-approval",
+        pending: true,
+      })
+    );
+  });
+
+  it("returns nothing for a repository that is not enrolled", async () => {
+    jest.mocked(loadEnrollment).mockResolvedValue(null);
+    expect(await runGate(octokit(), pullEvent(), REF)).toBeNull();
+  });
+
+  it("returns nothing for an event it ignores", async () => {
+    const event = { eventName: "issue_comment", action: "created", payload: {} };
+    expect(await runGate(octokit(), event, REF)).toBeNull();
+  });
+
+  it("returns nothing when reading the pull request fails, so the caller keeps its default", async () => {
+    jest.mocked(collectFacts).mockRejectedValue(new Error("rate limited"));
+    expect(await runGate(octokit(), pullEvent(), REF)).toBeNull();
+  });
+
+  it("returns nothing when the head moved during the evaluation", async () => {
+    jest.mocked(currentHead).mockResolvedValue("newer");
+    expect(await runGate(octokit(), pullEvent(), REF)).toBeNull();
+  });
+
+  it("returns nothing for a pull request that is no longer open", async () => {
+    jest.mocked(collectFacts).mockResolvedValue(found({ state: "closed" }));
+    expect(await runGate(octokit(), pullEvent(), REF)).toBeNull();
+  });
+
+  it("returns nothing for a merge queue entry, which no event handler uses", async () => {
+    const event = {
+      eventName: "merge_group",
+      action: "checks_requested",
+      payload: {
+        repository,
+        merge_group: { head_sha: "q1", head_ref: "refs/heads/gh-readonly-queue/main/pr-44-abc" },
+      },
+    };
+    expect(await runGate(octokit(), event, REF)).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { GATE_CHECK_NAME, hasGateCheck, postGateCheck } from "../../src/gate/check";
+import { GATE_CHECK_NAME, GATE_DOCS_URL, hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { GateDecision } from "../../src/gate/decide";
 import { Octokit } from "../../src/types";
 
@@ -39,10 +39,21 @@ describe("postGateCheck", () => {
         status: "completed",
         conclusion: "success",
         external_id: "rr-gate:dependabot",
-        details_url: "https://run",
-        output: { title: "Dependabot update", summary: "ok" },
+        details_url: GATE_DOCS_URL,
+        output: {
+          title: "Dependabot update",
+          summary: `[View the workflow run](https://run)\n\nok\n\n[How the Bouncer works](${GATE_DOCS_URL})`,
+        },
       })
     );
+  });
+
+  it("links the docs even when there is no workflow run to link", async () => {
+    const { octokit, create } = fakeOctokit();
+    await postGateCheck(octokit, "o", "r", "sha1", block);
+    const args = create.mock.calls[0][0];
+    expect(args.details_url).toBe(GATE_DOCS_URL);
+    expect(args.output.summary).toBe(`needs a person\n\n[How the Bouncer works](${GATE_DOCS_URL})`);
   });
 
   it("posts action_required for a decision that waits for a person", async () => {

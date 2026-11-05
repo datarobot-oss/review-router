@@ -81576,15 +81576,18 @@ function getSlackChannel(config, teamSlug) {
 /***/ }),
 
 /***/ 9215:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.GATE_CHECK_NAME = void 0;
+exports.GATE_DOCS_URL = exports.GATE_CHECK_NAME = void 0;
 exports.postGateCheck = postGateCheck;
 exports.hasGateCheck = hasGateCheck;
+const checks_1 = __nccwpck_require__(2122);
 exports.GATE_CHECK_NAME = "Bouncer";
+/** Where a person lands from the check row, to learn why the check is there. */
+exports.GATE_DOCS_URL = "https://github.com/datarobot-oss/review-router/blob/main/docs/setup/gate.md#how-the-gate-decides";
 const EXTERNAL_ID_PREFIX = "rr-gate:";
 /** The decision as the check run records it. The external id carries the reason for dedupe. */
 function stateOf(decision) {
@@ -81620,8 +81623,11 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
         status: "completed",
         conclusion: conclusion,
         external_id: externalId,
-        ...(runUrl ? { details_url: runUrl } : {}),
-        output: { title: decision.title, summary: decision.summary },
+        details_url: exports.GATE_DOCS_URL,
+        output: {
+            title: decision.title,
+            summary: `${(0, checks_1.withRunLink)(decision.summary, runUrl)}\n\n[How the Bouncer works](${exports.GATE_DOCS_URL})`,
+        },
     });
     return true;
 }

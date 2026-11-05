@@ -1,7 +1,11 @@
+import { withRunLink } from "../checks";
 import { Octokit } from "../types";
 import { GateDecision } from "./decide";
 
 export const GATE_CHECK_NAME = "Bouncer";
+/** Where a person lands from the check row, to learn why the check is there. */
+export const GATE_DOCS_URL =
+  "https://github.com/datarobot-oss/review-router/blob/main/docs/setup/gate.md#how-the-gate-decides";
 const EXTERNAL_ID_PREFIX = "rr-gate:";
 
 /** The decision as the check run records it. The external id carries the reason for dedupe. */
@@ -46,8 +50,11 @@ export async function postGateCheck(
     status: "completed",
     conclusion: conclusion as "success" | "action_required",
     external_id: externalId,
-    ...(runUrl ? { details_url: runUrl } : {}),
-    output: { title: decision.title, summary: decision.summary },
+    details_url: GATE_DOCS_URL,
+    output: {
+      title: decision.title,
+      summary: `${withRunLink(decision.summary, runUrl)}\n\n[How the Bouncer works](${GATE_DOCS_URL})`,
+    },
   });
   return true;
 }

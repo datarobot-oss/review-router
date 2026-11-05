@@ -27,7 +27,7 @@ function fakeOctokit(opts: { policy?: string | Error; rules?: object[] | Error }
 
 const gateRule = {
   type: "required_status_checks",
-  parameters: { required_status_checks: [{ context: "Review Router gate" }] },
+  parameters: { required_status_checks: [{ context: "Bouncer" }] },
 };
 
 describe("loadEnrollment", () => {

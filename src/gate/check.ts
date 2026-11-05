@@ -1,7 +1,7 @@
 import { Octokit } from "../types";
 import { GateDecision } from "./decide";
 
-export const GATE_CHECK_NAME = "Review Router gate";
+export const GATE_CHECK_NAME = "Bouncer";
 const EXTERNAL_ID_PREFIX = "rr-gate:";
 
 /** The decision as the check run records it. The external id carries the reason for dedupe. */

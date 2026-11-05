@@ -130,7 +130,7 @@ function evaluateDependabot(facts: GateFacts, policy: DependabotPolicy | undefin
 }
 
 /**
- * Decides the "Review Router gate" state of one pull request from plain facts.
+ * Decides the "Bouncer" state of one pull request from plain facts.
  * Order: a writer's change request blocks, a person's approval passes, a policy family
  * passes, everything else waits for a person.
  */

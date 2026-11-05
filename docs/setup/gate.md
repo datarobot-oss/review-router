@@ -104,9 +104,9 @@ The gate runs inside the Review Router workflow. Add these triggers to the calle
 ```yaml
 on:
   pull_request_target:
-    types: [labeled, opened, closed, ready_for_review, synchronize, reopened, edited]
+    types: [labeled, opened, closed, ready_for_review, synchronize, reopened]
   pull_request_review:
-    types: [submitted, dismissed, edited]
+    types: [submitted, dismissed]
   merge_group:
     types: [checks_requested]
   schedule:
@@ -115,7 +115,7 @@ on:
 
 The gate reads the repository activity feed, so the Review Router App needs the **Contents: read** permission.
 
-`synchronize` posts the result on a new head commit. `merge_group` posts the result on the commit of a merge queue entry. `schedule` re-evaluates every open pull request and fixes a result that no event updated.
+`synchronize` posts the result on a new head commit. `merge_group` posts the result on the commit of a merge queue entry. `schedule` re-evaluates every open pull request and fixes a result that no event updated. Editing a title, a description or a review starts no run, because none of them changes what the gate reads.
 
 Add a concurrency group to the job so runs for one pull request finish in order. Without it, a slow run for an earlier event can post its result after a newer run blocked the pull request.
 

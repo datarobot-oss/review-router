@@ -16,7 +16,7 @@ const repository = { default_branch: "main" };
 const pr = (number = 7) => ({ number, head: { sha: "evt-sha" } });
 
 describe("gateTarget", () => {
-  it.each(["opened", "reopened", "synchronize", "ready_for_review", "edited"])(
+  it.each(["opened", "reopened", "synchronize", "ready_for_review"])(
     "evaluates the pull request on %s",
     (action) => {
       const event = { eventName: "pull_request_target", action, payload: { pull_request: pr() } };
@@ -24,18 +24,24 @@ describe("gateTarget", () => {
     }
   );
 
-  it.each(["labeled", "closed", "assigned"])("ignores a pull request %s", (action) => {
+  it.each(["labeled", "closed", "assigned", "edited"])("ignores a pull request %s", (action) => {
     const event = { eventName: "pull_request", action, payload: { pull_request: pr() } };
     expect(gateTarget(event)).toBeNull();
   });
 
-  it.each(["submitted", "dismissed", "edited"])(
-    "evaluates the pull request on review %s",
-    (action) => {
-      const event = { eventName: "pull_request_review", action, payload: { pull_request: pr() } };
-      expect(gateTarget(event)?.kind).toBe("pull");
-    }
-  );
+  it.each(["submitted", "dismissed"])("evaluates the pull request on review %s", (action) => {
+    const event = { eventName: "pull_request_review", action, payload: { pull_request: pr() } };
+    expect(gateTarget(event)?.kind).toBe("pull");
+  });
+
+  it("ignores an edited review, which never changes an approval or a change request", () => {
+    const event = {
+      eventName: "pull_request_review",
+      action: "edited",
+      payload: { pull_request: pr() },
+    };
+    expect(gateTarget(event)).toBeNull();
+  });
 
   it("sweeps every open pull request on a schedule", () => {
     expect(gateTarget({ eventName: "schedule", payload: {} })).toEqual({ kind: "sweep" });

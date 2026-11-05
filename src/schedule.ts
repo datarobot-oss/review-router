@@ -4,16 +4,13 @@ import { isBlankDocument, POLICY_PATH } from "./gate/policy";
 import { Octokit, RemindersConfig } from "./types";
 
 const DEFAULT_STALE_HOURS = 24;
-const DEFAULT_TICK_MINUTES = 60;
 const HOUR_MS = 60 * 60 * 1000;
-const MINUTE_MS = 60 * 1000;
-const NUMBER_KEYS = ["stale_hours", "interval_hours", "tick_minutes"] as const;
+const NUMBER_KEYS = ["stale_hours", "interval_hours"] as const;
 
 export interface ReminderSettings {
   enabled: boolean;
   staleHours: number;
   intervalHours: number | undefined;
-  tickMinutes: number;
 }
 
 /** The repo layer wins over the org layer, key by key. */
@@ -26,22 +23,21 @@ export function resolveReminders(
     enabled: merged.enabled ?? false,
     staleHours: merged.stale_hours ?? DEFAULT_STALE_HOURS,
     intervalHours: merged.interval_hours,
-    tickMinutes: merged.tick_minutes ?? DEFAULT_TICK_MINUTES,
   };
 }
 
 /**
- * True when a scheduled run falls in the window in which a reminder is due. Reminders repeat
- * every interval after the PR turned stale, and the window is one tick long, so a run that
- * comes once per tick lands in it once. Without an interval every run sends one.
+ * The number of the reminder a stale PR is on: 0 in the first interval after it turned stale, 1
+ * in the next, and so on. A run sends a reminder when its number is above the one recorded for
+ * the PR, so a delayed or skipped run only moves the reminder later. Undefined without an
+ * interval, when every run sends one.
  */
-export function reminderDue(
+export function reminderNumber(
   sinceStaleMs: number,
-  intervalHours: number | undefined,
-  tickMinutes: number
-): boolean {
-  if (intervalHours === undefined) return true;
-  return sinceStaleMs % (intervalHours * HOUR_MS) < tickMinutes * MINUTE_MS;
+  intervalHours: number | undefined
+): number | undefined {
+  if (intervalHours === undefined) return undefined;
+  return Math.floor(sinceStaleMs / (intervalHours * HOUR_MS));
 }
 
 /**

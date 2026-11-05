@@ -137,6 +137,27 @@ export function embedDmCursor(body: string, iso: string): string {
   return `${body}\n${marker}`;
 }
 
+const REMINDER_PATTERN =
+  /<!-- rr:reminder:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z):(\d+) -->/;
+
+export interface ReminderMarker {
+  /** When the PR was marked ready, which tells one review cycle from the next. */
+  readyAt: string;
+  /** The number of the last reminder sent in that cycle. */
+  number: number;
+}
+
+export function extractReminderMarker(body: string): ReminderMarker | null {
+  const match = body.match(REMINDER_PATTERN);
+  return match ? { readyAt: match[1], number: Number(match[2]) } : null;
+}
+
+export function embedReminderMarker(body: string, readyAt: string, number: number): string {
+  const marker = `<!-- rr:reminder:${readyAt}:${number} -->`;
+  if (REMINDER_PATTERN.test(body)) return body.replace(REMINDER_PATTERN, marker);
+  return `${body}\n${marker}`;
+}
+
 export async function findExistingComment(
   octokit: Octokit,
   owner: string,

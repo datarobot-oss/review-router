@@ -10,8 +10,6 @@ export interface RemindersConfig {
   stale_hours?: number;
   /** Hours between reminders for one PR. Unset sends one on every scheduled run. */
   interval_hours?: number;
-  /** Minutes between scheduled runs. Sets how long a reminder stays due. Default 60. */
-  tick_minutes?: number;
 }
 
 export interface DmConfig {

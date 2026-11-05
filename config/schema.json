@@ -88,11 +88,6 @@
           "type": "integer",
           "minimum": 1,
           "description": "Hours between two reminders for one PR, counted from when it turned stale. Unset sends a reminder on every scheduled run."
-        },
-        "tick_minutes": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Minutes between scheduled runs. A reminder stays due for this long. Default: 60."
         }
       }
     },

@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import {
   parseRepoReminders,
   readRepoReminders,
-  reminderDue,
+  reminderNumber,
   resolveReminders,
 } from "../src/schedule";
 
@@ -11,27 +11,20 @@ jest.mock("@actions/core");
 const HOUR = 60 * 60 * 1000;
 const MINUTE = 60 * 1000;
 
-describe("reminderDue", () => {
-  it("is always due when no interval is set", () => {
-    expect(reminderDue(0, undefined, 60)).toBe(true);
-    expect(reminderDue(7 * HOUR + 13 * MINUTE, undefined, 60)).toBe(true);
+describe("reminderNumber", () => {
+  it("has no number when no interval is set", () => {
+    expect(reminderNumber(0, undefined)).toBeUndefined();
+    expect(reminderNumber(7 * HOUR + 13 * MINUTE, undefined)).toBeUndefined();
   });
 
   it.each([
-    ["at the moment the PR turns stale", 0, true],
-    ["just inside the first window", 59 * MINUTE, true],
-    ["at the end of the window, which is excluded", 60 * MINUTE, false],
-    ["in the middle of the interval", 3 * HOUR, false],
-    ["at the next interval", 6 * HOUR, true],
-    ["inside the next interval's window", 6 * HOUR + 30 * MINUTE, true],
-    ["past the next interval's window", 6 * HOUR + 90 * MINUTE, false],
-    ["inside a later interval's window", 12 * HOUR + 10 * MINUTE, true],
-  ])("with a 6 hour interval and a 60 minute tick, %s", (_name, sinceStale, expected) => {
-    expect(reminderDue(sinceStale, 6, 60)).toBe(expected);
-  });
-
-  it("is due on every run when the tick covers the whole interval", () => {
-    expect(reminderDue(5 * HOUR, 6, 360)).toBe(true);
+    ["at the moment the PR turns stale", 0, 0],
+    ["just before the first interval ends", 6 * HOUR - MINUTE, 0],
+    ["at the first interval", 6 * HOUR, 1],
+    ["well after the first interval, as after a delayed run", 8 * HOUR, 1],
+    ["in the third interval", 13 * HOUR, 2],
+  ])("with a 6 hour interval, %s", (_name, sinceStale, expected) => {
+    expect(reminderNumber(sinceStale, 6)).toBe(expected);
   });
 });
 
@@ -41,17 +34,15 @@ describe("resolveReminders", () => {
       enabled: true,
       staleHours: 24,
       intervalHours: undefined,
-      tickMinutes: 60,
     });
   });
 
   it("lets the repo override single keys of the org block", () => {
     const org = { enabled: true, stale_hours: 48, interval_hours: 12 };
-    expect(resolveReminders(org, { interval_hours: 6, tick_minutes: 30 })).toEqual({
+    expect(resolveReminders(org, { interval_hours: 6 })).toEqual({
       enabled: true,
       staleHours: 48,
       intervalHours: 6,
-      tickMinutes: 30,
     });
   });
 
@@ -91,20 +82,18 @@ describe("parseRepoReminders", () => {
       "  enabled: true",
       "  stale_hours: 12",
       "  interval_hours: 6",
-      "  tick_minutes: 60",
     ].join("\n");
     expect(parseRepoReminders(text)).toEqual({
       enabled: true,
       stale_hours: 12,
       interval_hours: 6,
-      tick_minutes: 60,
     });
   });
 
   it.each([
     ["an unknown key", "reminders:\n  every: 3\n", /every/],
     ["a zero interval", "reminders:\n  interval_hours: 0\n", /interval_hours/],
-    ["a fractional tick", "reminders:\n  tick_minutes: 1.5\n", /tick_minutes/],
+    ["the removed tick_minutes key", "reminders:\n  tick_minutes: 60\n", /tick_minutes/],
     ["a string number", 'reminders:\n  stale_hours: "24"\n', /stale_hours/],
     ["a non-boolean enabled", "reminders:\n  enabled: yes please\n", /enabled/],
     ["a block that is not a mapping", "reminders: [1, 2]\n", /reminders/],

@@ -8,11 +8,13 @@ import {
   extractDmCursor,
   embedDmCursor,
   extractReminderMarker,
+  isRouterComment,
   embedReminderMarker,
   postExternalComment,
   COMMENT_MARKER,
   EXTERNAL_COMMENT_MARKER,
 } from "../src/comment";
+import { JIRA_COMMENT_MARKER, WELCOME_MARKER } from "../src/welcome";
 
 jest.mock("@actions/core");
 
@@ -291,6 +293,26 @@ describe("DM cursor marker", () => {
     const result = embedDmCursor(body, iso);
     expect(extractSlackRefsFromDescription(result)).toEqual([{ channel: "C1", ts: "1.2" }]);
     expect(extractDmCursor(result)).toBe(iso);
+  });
+});
+
+describe("isRouterComment", () => {
+  it.each([
+    ["the ownership comment", COMMENT_MARKER],
+    ["the welcome comment", WELCOME_MARKER],
+    ["a legacy Jira comment", JIRA_COMMENT_MARKER],
+    ["a legacy external comment", EXTERNAL_COMMENT_MARKER],
+  ])("is true for %s", (_name, marker) => {
+    expect(isRouterComment(`${marker}\nbody`)).toBe(true);
+  });
+
+  it.each([
+    ["a person's comment", "looks good to me"],
+    ["an empty body", ""],
+    ["no body", null],
+    ["a missing body", undefined],
+  ])("is false for %s", (_name, body) => {
+    expect(isRouterComment(body)).toBe(false);
   });
 });
 

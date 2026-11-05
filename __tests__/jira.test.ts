@@ -2,10 +2,10 @@ import {
   extractTicketIds,
   resolveCloudId,
   fetchTicket,
-  buildJiraComment,
-  JIRA_COMMENT_MARKER,
+  buildJiraSection,
   postJiraComment,
 } from "../src/jira";
+import { WELCOME_MARKER } from "../src/welcome";
 import * as core from "@actions/core";
 
 jest.mock("@actions/core");
@@ -172,9 +172,9 @@ describe("fetchTicket", () => {
   });
 });
 
-describe("buildJiraComment", () => {
+describe("buildJiraSection", () => {
   it("renders a ticket as a card: link and type, quoted summary, and parent", () => {
-    const body = buildJiraComment("https://acme.atlassian.net", [
+    const body = buildJiraSection("https://acme.atlassian.net", [
       {
         id: "PROJ-6235",
         summary: "Fix the login redirect bug",
@@ -184,7 +184,6 @@ describe("buildJiraComment", () => {
     ]);
     expect(body).toBe(
       [
-        JIRA_COMMENT_MARKER,
         "🎫 **[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)** · Bug",
         "> Fix the login redirect bug",
         "",
@@ -194,20 +193,16 @@ describe("buildJiraComment", () => {
   });
 
   it("leaves out the type and the parent line when the ticket has neither", () => {
-    const body = buildJiraComment("https://acme.atlassian.net", [
+    const body = buildJiraSection("https://acme.atlassian.net", [
       { id: "PROJ-1", summary: "First" },
     ]);
     expect(body).toBe(
-      [
-        JIRA_COMMENT_MARKER,
-        "🎫 **[PROJ-1](https://acme.atlassian.net/browse/PROJ-1)**",
-        "> First",
-      ].join("\n")
+      ["🎫 **[PROJ-1](https://acme.atlassian.net/browse/PROJ-1)**", "> First"].join("\n")
     );
   });
 
   it("renders a ticket without a title as a link and adds the footer note", () => {
-    const body = buildJiraComment("https://acme.atlassian.net", [
+    const body = buildJiraSection("https://acme.atlassian.net", [
       { id: "PROJ-6235", summary: null },
     ]);
     expect(body).toContain("🎫 **[PROJ-6235](https://acme.atlassian.net/browse/PROJ-6235)**");
@@ -216,7 +211,7 @@ describe("buildJiraComment", () => {
   });
 
   it("renders one card per ticket, separated by a blank line", () => {
-    const body = buildJiraComment("https://acme.atlassian.net", [
+    const body = buildJiraSection("https://acme.atlassian.net", [
       { id: "PROJ-100", summary: "First", type: "Story" },
       { id: "PROJ-200", summary: "Second", type: "Task" },
     ]);
@@ -226,7 +221,7 @@ describe("buildJiraComment", () => {
   });
 
   it("adds the footer note only once when multiple tickets are missing titles", () => {
-    const body = buildJiraComment("https://acme.atlassian.net", [
+    const body = buildJiraSection("https://acme.atlassian.net", [
       { id: "PROJ-100", summary: null },
       { id: "PROJ-200", summary: null },
     ]);
@@ -234,7 +229,7 @@ describe("buildJiraComment", () => {
   });
 
   it("strips a trailing slash from base_url in links", () => {
-    const body = buildJiraComment("https://acme.atlassian.net/", [{ id: "PROJ-1", summary: null }]);
+    const body = buildJiraSection("https://acme.atlassian.net/", [{ id: "PROJ-1", summary: null }]);
     expect(body).toContain("(https://acme.atlassian.net/browse/PROJ-1)");
   });
 });
@@ -246,6 +241,7 @@ describe("postJiraComment", () => {
         listComments: jest.fn(),
         createComment: jest.fn(),
         updateComment: jest.fn(),
+        deleteComment: jest.fn(),
       },
     },
     // One page: the listComments mock's data.
@@ -296,7 +292,7 @@ describe("postJiraComment", () => {
     expect(mockOctokit.rest.issues.listComments).not.toHaveBeenCalled();
   });
 
-  it("creates a comment with ID-only link when no token is set", async () => {
+  it("creates a welcome comment with an ID-only link when no token is set", async () => {
     mockOctokit.rest.issues.listComments.mockResolvedValue({ data: [] });
     await postJiraComment(
       mockOctokit as any,
@@ -370,9 +366,14 @@ describe("postJiraComment", () => {
     expect(body).toContain("Add a `jira-token` input for ticket titles here.");
   });
 
-  it("updates the existing Jira comment instead of creating a new one", async () => {
+  it("updates the Jira section of the welcome comment instead of posting a second comment", async () => {
     mockOctokit.rest.issues.listComments.mockResolvedValue({
-      data: [{ id: 55, body: `<!-- review-router-jira -->\nold` }],
+      data: [
+        {
+          id: 55,
+          body: `${WELCOME_MARKER}\n\n<!-- rr:section:jira -->\nold\n<!-- /rr:section:jira -->`,
+        },
+      ],
     });
     await postJiraComment(
       mockOctokit as any,
@@ -389,7 +390,7 @@ describe("postJiraComment", () => {
     expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
-  it("finds the existing comment past the first page of comments", async () => {
+  it("moves a legacy Jira comment from past the first page into the welcome comment", async () => {
     const firstPage = Array.from({ length: 30 }, (_, i) => ({ id: i, body: "chatter" }));
     mockOctokit.rest.issues.listComments.mockResolvedValue({ data: firstPage });
     mockOctokit.paginate.mockResolvedValueOnce([
@@ -411,10 +412,12 @@ describe("postJiraComment", () => {
       issue_number: 1,
       per_page: 100,
     });
-    expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
-      expect.objectContaining({ comment_id: 55 })
-    );
-    expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    expect(mockOctokit.rest.issues.deleteComment).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      comment_id: 55,
+    });
   });
 
   it("warns and does not throw when the GitHub API call fails", async () => {

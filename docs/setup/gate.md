@@ -163,4 +163,5 @@ To roll back, restore the required approvals and remove the check from the rules
 - A review on a pull request from a fork starts no run with secrets. A change request or a dismissal on such a pull request takes effect at the next scheduled run, and a merge queue re-evaluates it when the pull request enters the queue.
 - A pull request from a fork whose push history the App can't read, such as a private fork, stays blocked. Merge it through a branch of the repository instead.
 - Dependabot lists no update type for indirect dependencies and some security updates. The gate derives it from the two versions, which needs a version number that starts with digits. Date-based versions count as comparable numbers.
+- A `Co-authored-by` trailer doesn't count as authorship, because anyone can write one. A person with write access who appears only in a trailer can approve the pull request.
 - A pull request with more than 250 commits, 3000 changed files, or 100 pushes to its branch fails closed.

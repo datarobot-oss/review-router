@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import { COMMENT_MARKER, EXTERNAL_COMMENT_MARKER, embedDmCursor, extractDmCursor } from "./comment";
+import { embedDmCursor, extractDmCursor, isRouterComment } from "./comment";
 import { isAiReviewCommand } from "./ai-review/trigger";
 import { handleComment, handleReviewSubmitted, syncReviewCheck } from "./router";
 import { ActionInputs, Capabilities, CommentContext, OrgConfig, Octokit } from "./types";
@@ -45,10 +45,6 @@ function isNewer(at: string | null | undefined, cursor: string): boolean {
 
 function isRealPerson(user: Actor | null | undefined, author: string): user is Actor {
   return !!user && user.type !== "Bot" && user.login !== author;
-}
-
-function isRouterComment(body: string | null | undefined): boolean {
-  return !!body && (body.includes(COMMENT_MARKER) || body.includes(EXTERNAL_COMMENT_MARKER));
 }
 
 /** The live issue_comment path handles these as commands and never notifies on them. */

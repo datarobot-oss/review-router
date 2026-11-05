@@ -81176,6 +81176,7 @@ exports.embedSlackRefsInDescription = embedSlackRefsInDescription;
 exports.extractSlackRefsFromDescription = extractSlackRefsFromDescription;
 exports.extractDmCursor = extractDmCursor;
 exports.embedDmCursor = embedDmCursor;
+exports.removeDmCursor = removeDmCursor;
 exports.extractReminderMarker = extractReminderMarker;
 exports.embedReminderMarker = embedReminderMarker;
 exports.findExistingComment = findExistingComment;
@@ -81303,6 +81304,10 @@ function embedDmCursor(body, iso) {
         return `${prefix}\n${marker}\n${body.slice(cursorIdx)}`;
     }
     return `${body}\n${marker}`;
+}
+/** Drops the cursor from a body, such as one an older version wrote into a description. */
+function removeDmCursor(body) {
+    return body.replace(new RegExp(`\\n?${DM_CURSOR_PATTERN.source}`), "");
 }
 const REMINDER_PATTERN = /<!-- rr:reminder:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z):(\d+) -->/;
 function extractReminderMarker(body) {
@@ -83749,14 +83754,41 @@ function isRealPerson(user, author) {
 function isSlashCommand(body) {
     return (0, trigger_1.isAiReviewCommand)(body ?? undefined) || (body ?? "").trim() === "/review";
 }
-async function writeCursor(octokit, owner, repo, prNumber, iso) {
-    const { data: fresh } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
-    await octokit.rest.pulls.update({
+/**
+ * Stores the cursor in the ownership comment, and moves out of the description one an older
+ * version left there. A PR with no ownership comment yet keeps the cursor in its description.
+ */
+async function writeCursor(octokit, owner, repo, prNumber, iso, home) {
+    if (!home.comment) {
+        const { data: fresh } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+        await octokit.rest.pulls.update({
+            owner,
+            repo,
+            pull_number: prNumber,
+            body: (0, comment_1.embedDmCursor)(fresh.body ?? "", iso),
+        });
+        return;
+    }
+    const { data: freshComment } = await octokit.rest.issues.getComment({
         owner,
         repo,
-        pull_number: prNumber,
-        body: (0, comment_1.embedDmCursor)(fresh.body ?? "", iso),
+        comment_id: home.comment.id,
     });
+    await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: home.comment.id,
+        body: (0, comment_1.embedDmCursor)(freshComment.body ?? "", iso),
+    });
+    if (home.descriptionHasCursor) {
+        const { data: freshPr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+        await octokit.rest.pulls.update({
+            owner,
+            repo,
+            pull_number: prNumber,
+            body: (0, comment_1.removeDmCursor)(freshPr.body ?? ""),
+        });
+    }
 }
 /** The events that get a DM: the first per commenter and kind, so a burst of inline comments does not flood the author. */
 function firstOfEachBurst(events) {
@@ -83868,9 +83900,14 @@ async function reconcilePull(octokit, ctx, pr) {
     const canMessage = watchers.some((login) => ctx.teamsConfig.users?.[login]);
     if (!ctx.inputs.slackToken || !canMessage)
         return;
-    const cursor = (0, comment_1.extractDmCursor)(body);
+    const comment = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, pr.number);
+    const home = {
+        comment: comment ? { id: comment.id } : null,
+        descriptionHasCursor: (0, comment_1.extractDmCursor)(body) !== null,
+    };
+    const cursor = (comment && (0, comment_1.extractDmCursor)(comment.body)) ?? (0, comment_1.extractDmCursor)(body);
     if (!cursor) {
-        await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString());
+        await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString(), home);
         core.info(`Set the DM cursor on fork PR #${pr.number}; earlier events are not replayed`);
         return;
     }
@@ -83900,8 +83937,9 @@ async function reconcilePull(octokit, ctx, pr) {
     }
     finally {
         // Keep what was delivered even when a later event throws, so the next run does not re-send it.
-        if (lastHandled)
-            await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, lastHandled);
+        if (lastHandled) {
+            await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, lastHandled, home);
+        }
     }
 }
 async function refreshCheck(octokit, ctx, pr) {
@@ -84300,6 +84338,20 @@ async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) 
     }
     return legacyRefs;
 }
+/**
+ * Keeps the markers that the reminders and the DM replay store in the ownership comment when the
+ * router writes a new body for it.
+ */
+function keepStoredMarkers(body, existing) {
+    if (!existing)
+        return body;
+    const reminder = (0, comment_1.extractReminderMarker)(existing.body);
+    const withReminder = reminder
+        ? (0, comment_1.embedReminderMarker)(body, reminder.readyAt, reminder.number)
+        : body;
+    const dmCursor = (0, comment_1.extractDmCursor)(existing.body);
+    return dmCursor ? (0, comment_1.embedDmCursor)(withReminder, dmCursor) : withReminder;
+}
 async function handleLabeled(octokit, ctx) {
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: ctx.owner,
@@ -84318,8 +84370,9 @@ async function handleLabeled(octokit, ctx) {
     core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
     const codeownersContent = await (0, codeowners_1.fetchCodeownersContent)(octokit, ctx.owner, ctx.repo, ctx.baseBranch);
     if (codeownersContent === null) {
-        const warningBody = `${comment_1.COMMENT_MARKER}\n⚠️ No \`.github/CODEOWNERS\` file found on the \`${ctx.baseBranch}\` branch. Review routing skipped.\n\nPlease add a CODEOWNERS file to enable automatic review routing.`;
-        await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, warningBody);
+        const existingComment = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+        const warningBody = keepStoredMarkers(`${comment_1.COMMENT_MARKER}\n⚠️ No \`.github/CODEOWNERS\` file found on the \`${ctx.baseBranch}\` branch. Review routing skipped.\n\nPlease add a CODEOWNERS file to enable automatic review routing.`, existingComment);
+        await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, warningBody, existingComment);
         core.warning("No CODEOWNERS file found, skipping review routing");
         return;
     }
@@ -84453,9 +84506,7 @@ async function handleLabeled(octokit, ctx) {
     const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
-    const reminder = existing ? (0, comment_1.extractReminderMarker)(existing.body) : null;
-    if (reminder)
-        commentBody = (0, comment_1.embedReminderMarker)(commentBody, reminder.readyAt, reminder.number);
+    commentBody = keepStoredMarkers(commentBody, existing);
     await withRetry(() => (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing));
     if (mergedRefs.length > 0) {
         try {

@@ -51,6 +51,8 @@ function octokitFor(opts: {
   reviewComments?: object[];
   issueComments?: object[];
   freshBody?: string;
+  /** The ownership comment as GitHub returns it when the cursor is written, which can be newer than the list. */
+  freshComment?: string;
 }) {
   const list = jest.fn();
   const listReviews = jest.fn();
@@ -65,10 +67,12 @@ function octokitFor(opts: {
   });
   const get = jest.fn().mockResolvedValue({ data: { body: opts.freshBody ?? "" } });
   const update = jest.fn().mockResolvedValue({});
+  const getComment = jest.fn().mockResolvedValue({ data: { body: opts.freshComment ?? "" } });
+  const updateComment = jest.fn().mockResolvedValue({});
   return {
     rest: {
       pulls: { list, listReviews, listReviewComments, get, update },
-      issues: { listComments },
+      issues: { listComments, getComment, updateComment },
     },
     paginate,
   };
@@ -657,5 +661,148 @@ describe("reconcileOpenPulls", () => {
 
       expect(syncReviewCheck).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe("the DM cursor in the ownership comment", () => {
+  const ownership = (extra = "") => ({
+    id: 77,
+    body: `${COMMENT_MARKER}\n## Code Ownership\n<!-- rr:slack:C1:1.2 -->\n<!-- rr:reminder:2026-10-23T09:00:00Z:2 -->${extra}`,
+    user: { login: "datarobot-pr-review-router", type: "Bot" },
+    created_at: "2026-10-20T00:00:00Z",
+  });
+  const withCursor = `\n<!-- rr:dm-cursor:${CURSOR} -->`;
+  const bobComment = (created_at: string) => ({
+    user: human("bob"),
+    body: "please rename this",
+    created_at,
+    html_url: "https://github.com/org/repo/pull/1#issuecomment-1",
+  });
+
+  it("sends the events after the cursor that the ownership comment holds", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, "body")],
+      issueComments: [ownership(withCursor), bobComment("2026-10-23T10:05:00Z")],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).toHaveBeenCalledTimes(1);
+    expect(handleComment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ commenter: "bob", kind: "comment" })
+    );
+  });
+
+  it("trusts the ownership comment over an older cursor in the description", async () => {
+    const staleDescription = "body\n<!-- rr:dm-cursor:2026-10-01T00:00:00Z -->";
+    const octokit = octokitFor({
+      pulls: [forkPr(1, staleDescription)],
+      issueComments: [ownership(withCursor), bobComment("2026-10-10T00:00:00Z")],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).not.toHaveBeenCalled();
+  });
+
+  it("writes the first cursor into the ownership comment and leaves the description alone", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, "body")],
+      issueComments: [ownership()],
+      freshComment: ownership().body,
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comment_id: 77,
+        body: expect.stringMatching(/<!-- rr:dm-cursor:\d{4}-\d{2}-\d{2}T[\d:.]+Z -->/),
+      })
+    );
+    expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+    expect(handleComment).not.toHaveBeenCalled();
+  });
+
+  it("builds the stored comment from its fresh text, so a marker written meanwhile survives", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, "body")],
+      issueComments: [ownership()],
+      freshComment: ownership().body.replace(":2 -->", ":3 -->"),
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    const { body } = octokit.rest.issues.updateComment.mock.calls[0][0];
+    expect(body).toContain("rr:reminder:2026-10-23T09:00:00Z:3");
+    expect(body).not.toContain("rr:reminder:2026-10-23T09:00:00Z:2");
+    expect(body).toContain("rr:slack:C1:1.2");
+  });
+
+  it("moves the cursor to the newest handled event in the ownership comment", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, "body")],
+      issueComments: [ownership(withCursor), bobComment("2026-10-23T10:05:00Z")],
+      freshComment: ownership(withCursor).body,
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    const { body } = octokit.rest.issues.updateComment.mock.calls[0][0];
+    expect(body).toContain("<!-- rr:dm-cursor:2026-10-23T10:05:00Z -->");
+    expect(body.match(/rr:dm-cursor/g)).toHaveLength(1);
+    expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+  });
+
+  it("moves a cursor an older version left in the description into the comment", async () => {
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: `${bodyWithCursor}\nmore text`,
+      issueComments: [ownership(), bobComment("2026-10-23T10:05:00Z")],
+      freshComment: ownership().body,
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comment_id: 77,
+        body: expect.stringContaining("rr:dm-cursor:2026-10-23T10:05:00Z"),
+      })
+    );
+    expect(octokit.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({ pull_number: 1, body: "body\nmore text" })
+    );
+  });
+
+  it("keeps the cursor in the description while the PR has no ownership comment", async () => {
+    const octokit = octokitFor({ pulls: [forkPr(1, "body")], freshBody: "body" });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(octokit.rest.pulls.update).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.stringContaining("rr:dm-cursor:") })
+    );
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  it("does not look for the ownership comment when nobody on the PR can be messaged", async () => {
+    const octokit = octokitFor({ pulls: [forkPr(1, "body")] });
+
+    await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: { teams: {}, users: {} } });
+
+    expect(octokit.paginate).not.toHaveBeenCalledWith(
+      octokit.rest.issues.listComments,
+      expect.anything()
+    );
+  });
+
+  it("does not throw when the ownership comment can't be read for the write", async () => {
+    const octokit = octokitFor({ pulls: [forkPr(1, "body")], issueComments: [ownership()] });
+    octokit.rest.issues.getComment.mockRejectedValue(new Error("404"));
+
+    await expect(reconcileOpenPulls(octokit as any, ctx)).resolves.toBeUndefined();
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
   });
 });

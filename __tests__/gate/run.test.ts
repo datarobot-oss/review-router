@@ -400,6 +400,20 @@ describe("runGate", () => {
     );
   });
 
+  it("logs how many open pull requests a sweep covers", async () => {
+    const octokit = fakeOctokit([
+      { number: 1, head: { sha: "s1" } },
+      { number: 2, head: { sha: "s2" } },
+      { number: 3, head: { sha: "s3" } },
+    ]);
+    await runGate(
+      octokit as unknown as Octokit,
+      { eventName: "schedule", payload: { repository } },
+      REF
+    );
+    expect(core.info).toHaveBeenCalledWith("Gate sweep: 3 open pull requests.");
+  });
+
   it("explains an invalid policy file on a blocking result", async () => {
     jest.mocked(loadEnrollment).mockResolvedValue({ policy: {}, policyError: "bad yaml" });
     await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);

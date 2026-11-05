@@ -201,6 +201,91 @@ describe("handleSchedule", () => {
     );
   });
 
+  describe("with a reminder interval", () => {
+    const HOUR = 60 * 60 * 1000;
+    const MINUTE = 60 * 1000;
+    const intervalConfig = {
+      reminders: { enabled: true, stale_hours: 24, interval_hours: 6, tick_minutes: 60 },
+      teams: teamsConfig.teams,
+    };
+
+    /** One PR that turned ready `sinceStale` after the 24 hour stale mark. */
+    function stalePr(sinceStale: number): void {
+      const readyAt = new Date(Date.now() - 24 * HOUR - sinceStale).toISOString();
+      mockOctokit.paginate
+        .mockResolvedValueOnce([
+          {
+            number: 30,
+            pull_request: {},
+            labels: [{ name: "Ready for Review" }, { name: "Needs Review: Frontend" }],
+            html_url: "https://github.com/org/repo/pull/30",
+            title: "Stale PR",
+            created_at: readyAt,
+          },
+        ])
+        .mockResolvedValueOnce([
+          { event: "labeled", label: { name: "Ready for Review" }, created_at: readyAt },
+        ]);
+      (slack.sendSlackReminder as jest.Mock).mockResolvedValue(undefined);
+    }
+
+    it("sends when the run is in the window after an interval", async () => {
+      stalePr(6 * HOUR + 30 * MINUTE);
+      await handleSchedule(mockOctokit as any, {
+        owner: "org",
+        repo: "repo",
+        inputs: baseInputs,
+        teamsConfig: intervalConfig,
+      });
+      expect(slack.sendSlackReminder).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends nothing between two intervals", async () => {
+      stalePr(3 * HOUR);
+      await handleSchedule(mockOctokit as any, {
+        owner: "org",
+        repo: "repo",
+        inputs: baseInputs,
+        teamsConfig: intervalConfig,
+      });
+      expect(slack.sendSlackReminder).not.toHaveBeenCalled();
+    });
+
+    it("uses the repo interval over the org interval", async () => {
+      stalePr(6 * HOUR + 30 * MINUTE);
+      await handleSchedule(mockOctokit as any, {
+        owner: "org",
+        repo: "repo",
+        inputs: baseInputs,
+        teamsConfig: intervalConfig,
+        repoReminders: { interval_hours: 12 },
+      });
+      expect(slack.sendSlackReminder).not.toHaveBeenCalled();
+    });
+
+    it("lets the repo turn reminders off without listing any PR", async () => {
+      await handleSchedule(mockOctokit as any, {
+        owner: "org",
+        repo: "repo",
+        inputs: baseInputs,
+        teamsConfig: intervalConfig,
+        repoReminders: { enabled: false },
+      });
+      expect(mockOctokit.paginate).not.toHaveBeenCalled();
+    });
+
+    it("sends on every run when no interval is set", async () => {
+      stalePr(3 * HOUR);
+      await handleSchedule(mockOctokit as any, {
+        owner: "org",
+        repo: "repo",
+        inputs: baseInputs,
+        teamsConfig,
+      });
+      expect(slack.sendSlackReminder).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("uses most recent Ready for Review event when label was re-added", async () => {
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();

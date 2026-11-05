@@ -124,6 +124,10 @@ describe("parsePolicy", () => {
     expect(parsePolicy("future: true\n")).toEqual({});
   });
 
+  it("ignores the reminders block, even an invalid one, so it can't break the gate", () => {
+    expect(parsePolicy("reminders:\n  interval_hours: 6\n  bogus: 1\n")).toEqual({});
+  });
+
   it("rejects an unknown key inside the Dependabot block, since a typo could loosen a limit", () => {
     expect(() => dependabot("  allowed_paths: [a]\n  min_compatability: 90")).toThrow(
       /min_compatability/

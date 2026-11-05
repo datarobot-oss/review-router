@@ -224,6 +224,43 @@ orgs:
     ).toThrow("Config validation failed");
   });
 
+  it("accepts reminder interval and tick settings", () => {
+    const config = parseTeamsConfig(`
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      interval_hours: 6
+      tick_minutes: 60
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`);
+    expect(config.orgs["my-org"].reminders?.interval_hours).toBe(6);
+    expect(config.orgs["my-org"].reminders?.tick_minutes).toBe(60);
+  });
+
+  it.each([
+    ["a zero interval_hours", "interval_hours: 0"],
+    ["a fractional interval_hours", "interval_hours: 1.5"],
+    ["a zero tick_minutes", "tick_minutes: 0"],
+  ])("rejects %s", (_name, setting) => {
+    expect(() =>
+      parseTeamsConfig(`
+orgs:
+  my-org:
+    reminders:
+      enabled: true
+      ${setting}
+    teams:
+      foo:
+        label: "L"
+        slack_channel: "#foo"
+`)
+    ).toThrow("Config validation failed");
+  });
+
   it("rejects unknown fields in reminders", () => {
     expect(() =>
       parseTeamsConfig(`

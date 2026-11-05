@@ -1,19 +1,22 @@
 import * as core from "@actions/core";
 import { getSlackChannel, humanizeSlug } from "./config";
 import { EXTERNAL_CONTRIBUTION_LABEL, resolveTeamSlugFromLabel, isReadyLabel } from "./router";
+import { reminderDue, resolveReminders } from "./schedule";
 import { sendSlackReminder } from "./slack";
-import { ActionInputs, OrgConfig, Octokit } from "./types";
+import { ActionInputs, OrgConfig, Octokit, RemindersConfig } from "./types";
 
 export interface ReminderContext {
   owner: string;
   repo: string;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
+  /** The reminders block of the repo's policy file. It overrides the org settings key by key. */
+  repoReminders?: Partial<RemindersConfig>;
 }
 
 export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Promise<void> {
-  const remindersConfig = ctx.teamsConfig.reminders;
-  if (!remindersConfig?.enabled) {
+  const settings = resolveReminders(ctx.teamsConfig.reminders, ctx.repoReminders);
+  if (!settings.enabled) {
     core.info("Reminders are disabled or not configured, skipping");
     return;
   }
@@ -25,8 +28,8 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
     return;
   }
 
-  const staleHours = remindersConfig.stale_hours ?? 24;
-  const staleThreshold = new Date(Date.now() - staleHours * 60 * 60 * 1000);
+  const staleMs = settings.staleHours * 60 * 60 * 1000;
+  const staleThreshold = new Date(Date.now() - staleMs);
 
   let openIssues;
   try {
@@ -86,6 +89,10 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
     }
 
     const ageMs = Date.now() - readyAt.getTime();
+    if (!reminderDue(ageMs - staleMs, settings.intervalHours, settings.tickMinutes)) {
+      core.debug(`PR #${issue.number}: Not in a reminder window, skipping`);
+      continue;
+    }
     const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
     const ageHours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const ageDisplay =

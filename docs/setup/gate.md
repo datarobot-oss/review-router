@@ -127,6 +127,26 @@ concurrency:
   cancel-in-progress: false
 ```
 
+### API budget
+
+Every run of the Review Router App draws on the API budget of its installation. Each organization has its own budget, and GitHub sets it by plan. See the GitHub [rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) for the current values.
+
+| Organization                                           | API calls per hour                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------ |
+| 20 or fewer repositories and users                     | 5,000                                                        |
+| More than 20 repositories or users, without Enterprise | 5,000, plus 50 per repository or user above 20, up to 12,500 |
+| GitHub Enterprise Cloud                                | 15,000                                                       |
+
+A scheduled run uses about 10 calls plus 10 per open pull request, and stops when less than 20% of the budget remains. Event-driven runs share the budget. The table shows how many open pull requests one hourly schedule handles. The estimates come from the code, not from measurements.
+
+| Budget | Scheduled sweep alone | Leaving half of the budget for event-driven runs |
+| ------ | --------------------- | ------------------------------------------------ |
+| 5,000  | about 400             | about 250                                        |
+| 12,500 | about 1,000           | about 600                                        |
+| 15,000 | about 1,200           | about 750                                        |
+
+If an organization outgrows its budget, lengthen the schedule and set `tick_minutes` to match. A second token doesn't add budget, because the installation owns it. Each scheduled run logs the calls it used.
+
 ## Require the gate
 
 Report first. With the policy file in place and no ruleset change, the gate posts results and blocks nothing. Check the results on a few pull requests, then edit the ruleset of the default branch in one change:

@@ -137,7 +137,7 @@ Every run of the Review Router App draws on the API budget of its installation. 
 | More than 20 repositories or users, without Enterprise | 5,000, plus 50 per repository or user above 20, up to 12,500 |
 | GitHub Enterprise Cloud                                | 15,000                                                       |
 
-A scheduled run uses about 10 calls plus 10 per open pull request, and stops when less than 20% of the budget remains. Event-driven runs share the budget. The table shows how many open pull requests one hourly schedule handles. The estimates come from the code, not from measurements.
+A scheduled run uses about 10 calls plus 10 per open pull request, and doesn't start when less than 20% of the budget remains. The gate sweep checks the budget again after every 25 pull requests and stops at the same threshold. It starts one batch further along each hour, so a pull request it skipped comes up within a few runs. Event-driven runs share the budget. The table shows how many open pull requests one hourly schedule handles. The estimates come from the code, not from measurements.
 
 | Budget | Scheduled sweep alone | Leaving half of the budget for event-driven runs |
 | ------ | --------------------- | ------------------------------------------------ |

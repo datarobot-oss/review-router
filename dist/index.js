@@ -82789,6 +82789,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.gateTarget = gateTarget;
 exports.runGate = runGate;
 const core = __importStar(__nccwpck_require__(7484));
+const rate_limit_1 = __nccwpck_require__(9419);
 const check_1 = __nccwpck_require__(9215);
 const decide_1 = __nccwpck_require__(5243);
 const enroll_1 = __nccwpck_require__(119);
@@ -82796,6 +82797,18 @@ const facts_1 = __nccwpck_require__(6324);
 const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
 const REVIEW_ACTIONS = new Set(["submitted", "dismissed"]);
 const QUEUE_REF = /^refs\/heads\/gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]+$/;
+const HOUR_MS = 60 * 60 * 1000;
+/** A sweep checks the API budget after each batch of this many pull requests. */
+const SWEEP_BATCH_SIZE = 25;
+/**
+ * Starts the list one batch further along for each hour. A sweep that stops early on a low
+ * budget then leaves a different tail each hour, so no pull request waits for good.
+ */
+function rotateByBatch(items, hour) {
+    const batches = Math.ceil(items.length / SWEEP_BATCH_SIZE);
+    const start = batches > 0 ? (hour % batches) * SWEEP_BATCH_SIZE : 0;
+    return [...items.slice(start), ...items.slice(0, start)];
+}
 /** Maps a workflow event to what the gate has to evaluate, or null for an event it ignores. */
 function gateTarget(event) {
     const { eventName, action, payload } = event;
@@ -82920,7 +82933,16 @@ async function runGate(octokit, event, ref) {
                 per_page: 100,
             });
             core.info(`Gate sweep: ${pulls.length} open pull requests.`);
-            for (const pull of pulls) {
+            const hourOfSweep = Math.floor(Date.now() / HOUR_MS);
+            for (const [index, pull] of rotateByBatch(pulls, hourOfSweep).entries()) {
+                if (index > 0 && index % SWEEP_BATCH_SIZE === 0) {
+                    const quota = await (0, rate_limit_1.readQuota)(octokit);
+                    if (quota && (0, rate_limit_1.quotaLow)(quota)) {
+                        core.warning(`The gate sweep stopped after ${index} of ${pulls.length} open pull requests: ` +
+                            `${quota.remaining} of ${quota.limit} calls of the API budget remain.`);
+                        break;
+                    }
+                }
                 await gatePull(octokit, ref, enrollment, defaultBranch, pull.number, undefined, pull.head.sha);
             }
         }

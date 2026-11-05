@@ -82433,6 +82433,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_SETTINGS = exports.POLICY_PATH = void 0;
+exports.isBlankDocument = isBlankDocument;
 exports.parsePolicy = parsePolicy;
 exports.matchesAny = matchesAny;
 exports.matchesName = matchesName;
@@ -82664,14 +82665,19 @@ function parseDependabot(raw) {
     return { allowedPaths: paths, maxChangedFiles: limit, defaults, rules, usesCompatibility };
 }
 /**
+ * True when the text holds only blank lines and comments. js-yaml throws on a document with no
+ * content, and a stub like that is a valid policy file.
+ */
+function isBlankDocument(text) {
+    return text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"));
+}
+/**
  * Parses the contents of .github/review-router.yml. Unknown top-level keys are ignored so a newer
  * file still parses. Throws on malformed input: the caller fails closed.
  */
 function parsePolicy(text) {
-    // js-yaml throws on a document with no content, and a stub that only holds comments is valid.
-    if (text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"))) {
+    if (isBlankDocument(text))
         return {};
-    }
     const doc = yaml.load(text);
     if (doc === undefined || doc === null)
         return {};
@@ -84867,6 +84873,8 @@ function reminderDue(sinceStaleMs, intervalHours, tickMinutes) {
  * Throws when the block is not a mapping of known keys with the right types.
  */
 function parseRepoReminders(text) {
+    if ((0, policy_1.isBlankDocument)(text))
+        return undefined;
     const parsed = yaml.load(text);
     const block = parsed?.reminders;
     if (block === undefined)

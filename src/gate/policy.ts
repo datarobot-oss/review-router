@@ -305,14 +305,19 @@ function parseDependabot(raw: unknown): DependabotPolicy | undefined {
 }
 
 /**
+ * True when the text holds only blank lines and comments. js-yaml throws on a document with no
+ * content, and a stub like that is a valid policy file.
+ */
+export function isBlankDocument(text: string): boolean {
+  return text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"));
+}
+
+/**
  * Parses the contents of .github/review-router.yml. Unknown top-level keys are ignored so a newer
  * file still parses. Throws on malformed input: the caller fails closed.
  */
 export function parsePolicy(text: string): GatePolicy {
-  // js-yaml throws on a document with no content, and a stub that only holds comments is valid.
-  if (text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"))) {
-    return {};
-  }
+  if (isBlankDocument(text)) return {};
   const doc = yaml.load(text);
   if (doc === undefined || doc === null) return {};
   if (!isRecord(doc)) throw new Error("the policy file must be a mapping");

@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as yaml from "js-yaml";
-import { POLICY_PATH } from "./gate/policy";
+import { isBlankDocument, POLICY_PATH } from "./gate/policy";
 import { Octokit, RemindersConfig } from "./types";
 
 const DEFAULT_STALE_HOURS = 24;
@@ -49,6 +49,7 @@ export function reminderDue(
  * Throws when the block is not a mapping of known keys with the right types.
  */
 export function parseRepoReminders(text: string): Partial<RemindersConfig> | undefined {
+  if (isBlankDocument(text)) return undefined;
   const parsed = yaml.load(text);
   const block = (parsed as { reminders?: unknown } | null | undefined)?.reminders;
   if (block === undefined) return undefined;

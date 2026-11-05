@@ -74,6 +74,15 @@ describe("parseRepoReminders", () => {
     expect(parseRepoReminders("dependabot:\n  allowed_paths: [a.txt]\n")).toBeUndefined();
   });
 
+  it.each([
+    ["an empty file", ""],
+    ["a file of blank lines", "\n\n"],
+    ["a comment-only stub", "# Review Router policy\n\n# dependabot:\n"],
+    ["a document that is only null", "---\n"],
+  ])("returns undefined for %s", (_name, text) => {
+    expect(parseRepoReminders(text)).toBeUndefined();
+  });
+
   it("reads every supported key and ignores the other blocks", () => {
     const text = [
       "dependabot:",
@@ -143,6 +152,12 @@ describe("readRepoReminders", () => {
 
   it("returns undefined without a warning when the repo has no policy file", async () => {
     const octokit = octokitReturning({ error: { status: 404 } });
+    await expect(readRepoReminders(octokit, "o", "r", "main")).resolves.toBeUndefined();
+    expect(core.warning).not.toHaveBeenCalled();
+  });
+
+  it("returns undefined without a warning for a comment-only policy stub", async () => {
+    const octokit = octokitReturning({ content: "# Review Router policy\n" });
     await expect(readRepoReminders(octokit, "o", "r", "main")).resolves.toBeUndefined();
     expect(core.warning).not.toHaveBeenCalled();
   });

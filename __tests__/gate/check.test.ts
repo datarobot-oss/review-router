@@ -22,7 +22,7 @@ function fakeOctokit(latest: object[] = []) {
   return { octokit, create, listForRef };
 }
 
-const run = (conclusion: string, reason: string, status = "completed") => ({
+const run = (conclusion: string | null, reason: string, status = "completed") => ({
   status,
   conclusion,
   external_id: `rr-gate:${reason}`,
@@ -112,6 +112,59 @@ describe("postGateCheck", () => {
     const { octokit, create } = fakeOctokit();
     create.mockRejectedValue(new Error("403"));
     await expect(postGateCheck(octokit, "o", "r", "sha1", pass)).rejects.toThrow("403");
+  });
+});
+
+describe("postGateCheck with a decision that only waits for a person", () => {
+  const waiting: GateDecision = { ...block, pending: true };
+
+  it("posts a pending run that has no conclusion, so the pull request shows a yellow dot", async () => {
+    const { octokit, create } = fakeOctokit();
+    expect(await postGateCheck(octokit, "o", "r", "sha1", waiting, "https://run")).toBe(true);
+    const args = create.mock.calls[0][0];
+    expect(args).toEqual(
+      expect.objectContaining({
+        name: GATE_CHECK_NAME,
+        head_sha: "sha1",
+        status: "in_progress",
+        external_id: "rr-gate:needs-approval",
+        details_url: GATE_DOCS_URL,
+        output: expect.objectContaining({ title: "Waiting for an approval" }),
+      })
+    );
+    expect(args).not.toHaveProperty("conclusion");
+  });
+
+  it("posts nothing when the latest run is the same pending run", async () => {
+    const { octokit, create } = fakeOctokit([run(null, "needs-approval", "in_progress")]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", waiting)).toBe(false);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("replaces an earlier action_required of the same reason with the pending run", async () => {
+    const { octokit, create } = fakeOctokit([run("action_required", "needs-approval")]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", waiting)).toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces a pending run of another reason", async () => {
+    const { octokit, create } = fakeOctokit([run(null, "error", "in_progress")]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", waiting)).toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces a pending run with the result once a person approves", async () => {
+    const { octokit, create } = fakeOctokit([run(null, "needs-approval", "in_progress")]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", pass)).toBe(true);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ status: "completed" }));
+  });
+
+  it("keeps a decision that is not marked pending as a completed action_required", async () => {
+    const { octokit, create } = fakeOctokit();
+    await postGateCheck(octokit, "o", "r", "sha1", { ...block, reason: "changes-requested" });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "completed", conclusion: "action_required" })
+    );
   });
 });
 

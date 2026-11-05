@@ -153,6 +153,43 @@ describe("runGate", () => {
     );
   });
 
+  it("posts a pull request that waits for an approval as pending", async () => {
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(postGateCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "o",
+      "r",
+      "h1",
+      expect.objectContaining({ reason: "needs-approval", pending: true }),
+      "https://run"
+    );
+  });
+
+  it("posts the same wait on a queue entry as action_required, so the queue fails it at once", async () => {
+    const event = {
+      eventName: "merge_group",
+      action: "checks_requested",
+      payload: {
+        repository,
+        merge_group: { head_sha: "q1", head_ref: "refs/heads/gh-readonly-queue/main/pr-44-abc" },
+      },
+    };
+    await runGate(fakeOctokit() as unknown as Octokit, event, REF);
+    const decision = jest.mocked(postGateCheck).mock.calls[0][4];
+    expect(decision).toEqual(expect.objectContaining({ conclusion: "action_required" }));
+    expect(decision).not.toHaveProperty("pending");
+  });
+
+  it("does not mark a failure to read the pull request as pending", async () => {
+    jest.mocked(collectFacts).mockRejectedValue(new Error("rate limited"));
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    const decision = jest.mocked(postGateCheck).mock.calls[0][4];
+    expect(decision).toEqual(
+      expect.objectContaining({ conclusion: "action_required", reason: "error" })
+    );
+    expect(decision).not.toHaveProperty("pending");
+  });
+
   it("does nothing for a repository that is not enrolled", async () => {
     jest.mocked(loadEnrollment).mockResolvedValue(null);
     await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);

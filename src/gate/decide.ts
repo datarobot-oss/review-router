@@ -40,13 +40,19 @@ export interface GateFacts {
   reviews: ReviewFacts[];
 }
 
-export type GateReason = "approved" | "dependabot" | "changes-requested" | "needs-approval";
+export type GateReason =
+  "approved" | "dependabot" | "changes-requested" | "needs-approval" | "error";
 
 export interface GateDecision {
   conclusion: "success" | "action_required";
   reason: GateReason;
   title: string;
   summary: string;
+  /**
+   * Set by the caller for a pull request that only waits for a person. The check is then posted
+   * as a pending run, which blocks the merge like a failing one without the red cross.
+   */
+  pending?: true;
 }
 
 type FamilyResult = { ok: true; summary: string } | { ok: false; why: string };

@@ -414,6 +414,58 @@ describe("runGate", () => {
     expect(core.info).toHaveBeenCalledWith("Gate sweep: 3 open pull requests.");
   });
 
+  describe("sweep budget", () => {
+    const HOUR_MS = 60 * 60 * 1000;
+    const manyPulls = (count: number) =>
+      Array.from({ length: count }, (_unused, index) => ({
+        number: index + 1,
+        head: { sha: `s${index + 1}` },
+      }));
+    const sweepEvent = { eventName: "schedule", payload: { repository } };
+    const withQuota = (pulls: object[], get: jest.Mock) => {
+      const base = fakeOctokit(pulls);
+      return {
+        ...base,
+        rest: { ...base.rest, rateLimit: { get } },
+      } as unknown as Octokit;
+    };
+    const quota = (remaining: number) =>
+      jest.fn().mockResolvedValue({ data: { resources: { core: { remaining, limit: 1000 } } } });
+    const evaluated = () =>
+      jest.mocked(collectFacts).mock.calls.map((call) => call[3] as unknown as number);
+
+    afterEach(() => jest.useRealTimers());
+
+    it("stops after a batch when the budget runs low and says how far it got", async () => {
+      const get = quota(100);
+      await runGate(withQuota(manyPulls(60), get), sweepEvent, REF);
+      expect(collectFacts).toHaveBeenCalledTimes(25);
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining("stopped after 25 of 60 open pull requests")
+      );
+    });
+
+    it("sweeps every pull request while the budget holds", async () => {
+      await runGate(withQuota(manyPulls(60), quota(900)), sweepEvent, REF);
+      expect(collectFacts).toHaveBeenCalledTimes(60);
+      expect(core.warning).not.toHaveBeenCalled();
+    });
+
+    it("sweeps on when the budget can't be read", async () => {
+      const get = jest.fn().mockRejectedValue(new Error("403"));
+      await runGate(withQuota(manyPulls(60), get), sweepEvent, REF);
+      expect(collectFacts).toHaveBeenCalledTimes(60);
+    });
+
+    it("starts each hour one batch further along, so a stopped sweep does not starve the tail", async () => {
+      jest.useFakeTimers({ now: HOUR_MS });
+      await runGate(withQuota(manyPulls(60), quota(900)), sweepEvent, REF);
+      expect(evaluated().slice(0, 3)).toEqual([26, 27, 28]);
+      expect(evaluated()).toHaveLength(60);
+      expect(new Set(evaluated()).size).toBe(60);
+    });
+  });
+
   it("explains an invalid policy file on a blocking result", async () => {
     jest.mocked(loadEnrollment).mockResolvedValue({ policy: {}, policyError: "bad yaml" });
     await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);

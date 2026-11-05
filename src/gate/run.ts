@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { quotaLow, readQuota } from "../rate-limit";
 import { Octokit } from "../types";
 import { hasGateCheck, postGateCheck } from "./check";
 import { decideGate, GateDecision } from "./decide";
@@ -8,6 +9,20 @@ import { collectFacts, currentHead } from "./facts";
 const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
 const REVIEW_ACTIONS = new Set(["submitted", "dismissed"]);
 const QUEUE_REF = /^refs\/heads\/gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]+$/;
+
+const HOUR_MS = 60 * 60 * 1000;
+/** A sweep checks the API budget after each batch of this many pull requests. */
+const SWEEP_BATCH_SIZE = 25;
+
+/**
+ * Starts the list one batch further along for each hour. A sweep that stops early on a low
+ * budget then leaves a different tail each hour, so no pull request waits for good.
+ */
+function rotateByBatch<T>(items: T[], hour: number): T[] {
+  const batches = Math.ceil(items.length / SWEEP_BATCH_SIZE);
+  const start = batches > 0 ? (hour % batches) * SWEEP_BATCH_SIZE : 0;
+  return [...items.slice(start), ...items.slice(0, start)];
+}
 
 export type GateTarget =
   | { kind: "pull"; number: number; headSha?: string }
@@ -180,7 +195,18 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
         per_page: 100,
       });
       core.info(`Gate sweep: ${pulls.length} open pull requests.`);
-      for (const pull of pulls) {
+      const hourOfSweep = Math.floor(Date.now() / HOUR_MS);
+      for (const [index, pull] of rotateByBatch(pulls, hourOfSweep).entries()) {
+        if (index > 0 && index % SWEEP_BATCH_SIZE === 0) {
+          const quota = await readQuota(octokit);
+          if (quota && quotaLow(quota)) {
+            core.warning(
+              `The gate sweep stopped after ${index} of ${pulls.length} open pull requests: ` +
+                `${quota.remaining} of ${quota.limit} calls of the API budget remain.`
+            );
+            break;
+          }
+        }
         await gatePull(
           octokit,
           ref,

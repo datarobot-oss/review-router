@@ -451,6 +451,51 @@ describe("runGate", () => {
     expect(core.info).toHaveBeenCalledWith("Gate sweep: 3 open pull requests.");
   });
 
+  describe("reporting what a sweep decided", () => {
+    const sweepEvent = { eventName: "schedule", payload: { repository } };
+    const dependabotPull = {
+      number: 1,
+      head: { sha: "s1" },
+      user: { login: "dependabot[bot]" },
+      labels: [{ name: "dependencies" }],
+    };
+
+    it("hands each decision to the caller with the pull request's author and labels", async () => {
+      const seen: unknown[] = [];
+      await runGate(fakeOctokit([dependabotPull]) as unknown as Octokit, sweepEvent, REF, (swept) =>
+        seen.push(swept)
+      );
+      expect(seen).toEqual([
+        {
+          number: 1,
+          author: "dependabot[bot]",
+          labels: ["dependencies"],
+          decision: expect.objectContaining({ reason: "needs-approval" }),
+        },
+      ]);
+    });
+
+    it("hands over nothing for a pull request the gate could not decide", async () => {
+      jest.mocked(collectFacts).mockRejectedValueOnce(new Error("boom"));
+      const seen: unknown[] = [];
+      await runGate(fakeOctokit([dependabotPull]) as unknown as Octokit, sweepEvent, REF, (swept) =>
+        seen.push(swept)
+      );
+      expect(seen).toEqual([]);
+    });
+
+    it("reports an empty author for a pull request whose account is gone", async () => {
+      const seen: Array<{ author: string }> = [];
+      await runGate(
+        fakeOctokit([{ ...dependabotPull, user: null }]) as unknown as Octokit,
+        sweepEvent,
+        REF,
+        (swept) => seen.push(swept)
+      );
+      expect(seen[0].author).toBe("");
+    });
+  });
+
   describe("sweep budget", () => {
     const HOUR_MS = 60 * 60 * 1000;
     const manyPulls = (count: number) =>

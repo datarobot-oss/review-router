@@ -649,13 +649,19 @@ export interface DependabotPushContext {
   /** The names of the labels on the pull request. */
   labels: string[];
   gateDecision: GateDecision | null;
+  /**
+   * Route only a pull request that was never routed: no review label and no ownership comment.
+   * The sweep sets it so that a label a person removed on purpose stays removed.
+   */
+  unroutedOnly?: boolean;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
 }
 
 /**
  * Routes a Dependabot pull request for review once the gate stops passing it, for example after a
- * person pushes to its branch. At open, a pull request that the gate passes is left unrouted.
+ * person pushes to its branch or the scheduled sweep finds it blocked. At open, a pull request
+ * that the gate passes is left unrouted.
  */
 export async function handleDependabotPush(
   octokit: Octokit,
@@ -667,6 +673,11 @@ export async function handleDependabotPush(
     isReadyLabel(name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases)
   );
   if (alreadyRouted) return;
+  if (ctx.unroutedOnly) {
+    const inReview = ctx.labels.some((name) => name.startsWith(`${ctx.inputs.needsReviewPrefix}:`));
+    if (inReview) return;
+    if (await findExistingComment(octokit, ctx.owner, ctx.repo, ctx.prNumber)) return;
+  }
   await addDependabotReadyLabel(octokit, ctx);
 }
 

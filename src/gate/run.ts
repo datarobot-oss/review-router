@@ -67,6 +67,14 @@ export function gateTarget(event: GateEvent): GateTarget | null {
   return null;
 }
 
+/** What a sweep decided for one pull request, with the facts a caller needs to route it. */
+export interface SweptDecision {
+  number: number;
+  author: string;
+  labels: string[];
+  decision: GateDecision;
+}
+
 interface RepoRef {
   owner: string;
   repo: string;
@@ -177,12 +185,14 @@ async function failClosed(
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
  * so the Review Router's other work is not blocked by it. For an event about one pull request
  * it returns the decision, or null when the repository is not enrolled, the event is for a queue
- * entry or a sweep, or nothing was decided.
+ * entry or a sweep, or nothing was decided. A sweep hands each decision it makes to
+ * onSweepDecision instead.
  */
 export async function runGate(
   octokit: Octokit,
   event: GateEvent,
-  ref: RepoRef
+  ref: RepoRef,
+  onSweepDecision?: (swept: SweptDecision) => void
 ): Promise<GateDecision | null> {
   const target = gateTarget(event);
   if (!target) return null;
@@ -219,7 +229,7 @@ export async function runGate(
             break;
           }
         }
-        await gatePull(
+        const decision = await gatePull(
           octokit,
           ref,
           enrollment,
@@ -228,6 +238,14 @@ export async function runGate(
           undefined,
           pull.head.sha
         );
+        if (decision) {
+          onSweepDecision?.({
+            number: pull.number,
+            author: pull.user?.login ?? "",
+            labels: (pull.labels ?? []).map((label) => label.name),
+            decision,
+          });
+        }
       }
     } else if (target.kind === "queue") {
       await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);

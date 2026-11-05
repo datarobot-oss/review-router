@@ -108,7 +108,8 @@ describe("the gate", () => {
     expect(gate.runGate).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ eventName: "pull_request_target", action: "synchronize" }),
-      expect.objectContaining({ owner: "acme", repo: "api" })
+      expect.objectContaining({ owner: "acme", repo: "api" }),
+      expect.any(Function)
     );
     expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
   });
@@ -137,15 +138,30 @@ describe("scheduled runs", () => {
     };
   }
 
-  async function runSchedule(octokit: ReturnType<typeof octokitWith>) {
+  async function runSchedule(
+    octokit: ReturnType<typeof octokitWith>,
+    swept: object[] = [],
+    firstRouteFails = false
+  ) {
     mockContext.eventName = "schedule";
     try {
       jest.resetModules();
+      if (firstRouteFails) {
+        jest
+          .requireMock<jest.Mocked<typeof import("../src/router")>>("../src/router")
+          .handleDependabotPush.mockRejectedValueOnce(new Error("403"));
+      }
       const coreMock = jest.requireMock<jest.Mocked<typeof core>>("@actions/core");
       coreMock.getInput.mockImplementation((name: string) =>
         name === "github-token" ? "tok" : ""
       );
       mockContext.payload = { repository: { default_branch: "trunk" } };
+      jest
+        .requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run")
+        .runGate.mockImplementation(async (_octokit, _event, _ref, onSweepDecision) => {
+          swept.forEach((decided) => onSweepDecision?.(decided as never));
+          return null;
+        });
       jest
         .requireMock<jest.Mocked<typeof import("../src/config")>>("../src/config")
         .loadTeamsConfigForOrg.mockResolvedValue(teamsConfig as never);
@@ -161,11 +177,56 @@ describe("scheduled runs", () => {
           jest.requireMock<jest.Mocked<typeof import("../src/reconcile")>>("../src/reconcile"),
         reminders:
           jest.requireMock<jest.Mocked<typeof import("../src/reminders")>>("../src/reminders"),
+        router: jest.requireMock<jest.Mocked<typeof import("../src/router")>>("../src/router"),
       };
     } finally {
       mockContext.eventName = "pull_request_target";
     }
   }
+
+  describe("routing a Dependabot pull request the sweep finds blocked", () => {
+    const quota = { remaining: 4000, limit: 5000 };
+    const decision = { conclusion: "action_required", reason: "needs-approval" };
+    const swept = (number: number) => ({
+      number,
+      author: "dependabot[bot]",
+      labels: ["dependencies"],
+      decision,
+    });
+
+    it("hands each swept decision to the push handler, for pull requests never routed", async () => {
+      const { router } = await runSchedule(octokitWith(quota), [swept(5)]);
+      expect(router.handleDependabotPush).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          owner: "acme",
+          repo: "api",
+          prNumber: 5,
+          author: "dependabot[bot]",
+          labels: ["dependencies"],
+          gateDecision: decision,
+          unroutedOnly: true,
+          teamsConfig,
+        })
+      );
+    });
+
+    it("routes nothing when the sweep decided nothing", async () => {
+      const { router } = await runSchedule(octokitWith(quota));
+      expect(router.handleDependabotPush).not.toHaveBeenCalled();
+    });
+
+    it("routes the other pull requests and still runs the reminders when one fails", async () => {
+      const {
+        router,
+        core: coreMock,
+        reminders,
+      } = await runSchedule(octokitWith(quota), [swept(5), swept(6)], true);
+      expect(router.handleDependabotPush).toHaveBeenCalledTimes(2);
+      expect(coreMock.warning).toHaveBeenCalledWith(expect.stringContaining("#5"));
+      expect(reminders.handleSchedule).toHaveBeenCalledTimes(1);
+    });
+  });
 
   it("does no work when less than 20 percent of the API budget remains", async () => {
     const {

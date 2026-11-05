@@ -129,7 +129,7 @@ orgs:
 When `dependabot.auto_label` is `true`, PRs opened by `dependabot[bot]` automatically
 get the "Ready for Review" label, triggering the normal routing flow.
 
-In a repository the [gate](docs/setup/gate.md) covers, the label goes on only when a person has to act. A PR the gate passes gets no label, ownership comment, Slack message or reminder. When a push, such as a person committing to the branch, makes the gate stop passing it, the PR gets the label then.
+In a repository the [gate](docs/setup/gate.md) covers, the label goes on only when a person has to act. A PR the gate passes gets no label, ownership comment, Slack message or reminder. When a push, such as a person committing to the branch, or the scheduled run finds that the gate no longer passes it, the PR gets the label then.
 
 Add `opened` to the trigger types in your workflow:
 

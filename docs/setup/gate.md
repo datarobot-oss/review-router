@@ -1,6 +1,6 @@
 # Review Router gate
 
-The gate is a required status check named `Review Router gate`. It replaces GitHub's required approvals on a branch ruleset, so a repository can merge trusted automation, such as Dependabot, without a person and still require one approval for everything else.
+The gate is a required status check named `Bouncer`, posted by the Review Router GitHub App. It replaces GitHub's required approvals on a branch ruleset, so a repository can merge trusted automation, such as Dependabot, without a person and still require one approval for everything else.
 
 ## How the gate decides
 
@@ -34,7 +34,7 @@ An account that pushes to the Dependabot branch moves the pull request to the ap
 
 ## Enable the gate
 
-A repository joins the gate when its default branch holds `.github/review-router.yml`, or when a ruleset on the default branch requires `Review Router gate`. The gate reads the policy from the default branch only, so a pull request can't change the rules it is judged by.
+A repository joins the gate when its default branch holds `.github/review-router.yml`, or when a ruleset on the default branch requires `Bouncer`. The gate reads the policy from the default branch only, so a pull request can't change the rules it is judged by.
 
 Create `.github/review-router.yml` on the default branch:
 
@@ -132,7 +132,7 @@ concurrency:
 Report first. With the policy file in place and no ruleset change, the gate posts results and blocks nothing. Check the results on a few pull requests, then edit the ruleset of the default branch in one change:
 
 1. Set required approvals to `0` and turn off code owner review.
-2. Add `Review Router gate` to the required status checks, pinned to the Review Router GitHub App.
+2. Add `Bouncer` to the required status checks, pinned to the Review Router GitHub App.
 
 To roll back, restore the required approvals and remove the check from the ruleset. The gate keeps posting and blocks nothing.
 

@@ -81571,7 +81571,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GATE_CHECK_NAME = void 0;
 exports.postGateCheck = postGateCheck;
 exports.hasGateCheck = hasGateCheck;
-exports.GATE_CHECK_NAME = "Review Router gate";
+exports.GATE_CHECK_NAME = "Bouncer";
 const EXTERNAL_ID_PREFIX = "rr-gate:";
 /** The decision as the check run records it. The external id carries the reason for dedupe. */
 function stateOf(decision) {
@@ -81824,7 +81824,7 @@ function evaluateDependabot(facts, policy) {
     return { ok: true, summary: dependencies.summary };
 }
 /**
- * Decides the "Review Router gate" state of one pull request from plain facts.
+ * Decides the "Bouncer" state of one pull request from plain facts.
  * Order: a writer's change request blocks, a person's approval passes, a policy family
  * passes, everything else waits for a person.
  */

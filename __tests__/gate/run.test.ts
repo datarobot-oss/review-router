@@ -1,5 +1,5 @@
 import { gateTarget, runGate } from "../../src/gate/run";
-import { hasGateCheck, postGateCheck } from "../../src/gate/check";
+import { hasGateCheck, postGateCheck, postPendingGateCheck } from "../../src/gate/check";
 import { collectFacts, currentHead } from "../../src/gate/facts";
 import { loadEnrollment } from "../../src/gate/enroll";
 import { GateFacts } from "../../src/gate/decide";
@@ -132,6 +132,7 @@ beforeEach(() => {
   jest.mocked(collectFacts).mockResolvedValue(found());
   jest.mocked(currentHead).mockResolvedValue("h1");
   jest.mocked(postGateCheck).mockResolvedValue(true);
+  jest.mocked(postPendingGateCheck).mockResolvedValue(true);
 });
 
 const pullEvent = (action = "opened") => ({
@@ -151,6 +152,42 @@ describe("runGate", () => {
       expect.objectContaining({ conclusion: "action_required" }),
       "https://run"
     );
+  });
+
+  it("posts the pending check on the new head before it evaluates the pull request", async () => {
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(postPendingGateCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "o",
+      "r",
+      "evt-sha",
+      "https://run"
+    );
+    expect(jest.mocked(postPendingGateCheck).mock.invocationCallOrder[0]).toBeLessThan(
+      jest.mocked(collectFacts).mock.invocationCallOrder[0]
+    );
+  });
+
+  it("still evaluates the pull request when the pending check can't be posted", async () => {
+    jest.mocked(postPendingGateCheck).mockRejectedValue(new Error("403"));
+    await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
+    expect(postGateCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      "o",
+      "r",
+      "h1",
+      expect.objectContaining({ conclusion: "action_required" }),
+      "https://run"
+    );
+  });
+
+  it("posts no pending check for a sweep", async () => {
+    await runGate(
+      fakeOctokit([{ number: 1, head: { sha: "s1" } }]) as unknown as Octokit,
+      { eventName: "schedule", payload: { repository } },
+      REF
+    );
+    expect(postPendingGateCheck).not.toHaveBeenCalled();
   });
 
   it("does nothing for a repository that is not enrolled", async () => {

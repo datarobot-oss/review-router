@@ -82787,8 +82787,8 @@ const check_1 = __nccwpck_require__(9215);
 const decide_1 = __nccwpck_require__(5243);
 const enroll_1 = __nccwpck_require__(119);
 const facts_1 = __nccwpck_require__(6324);
-const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review", "edited"]);
-const REVIEW_ACTIONS = new Set(["submitted", "dismissed", "edited"]);
+const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
+const REVIEW_ACTIONS = new Set(["submitted", "dismissed"]);
 const QUEUE_REF = /^refs\/heads\/gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]+$/;
 /** Maps a workflow event to what the gate has to evaluate, or null for an event it ignores. */
 function gateTarget(event) {

@@ -5,8 +5,8 @@ import { decideGate, GateDecision } from "./decide";
 import { Enrollment, loadEnrollment } from "./enroll";
 import { collectFacts, currentHead } from "./facts";
 
-const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review", "edited"]);
-const REVIEW_ACTIONS = new Set(["submitted", "dismissed", "edited"]);
+const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
+const REVIEW_ACTIONS = new Set(["submitted", "dismissed"]);
 const QUEUE_REF = /^refs\/heads\/gh-readonly-queue\/.+\/pr-(\d+)-[0-9a-f]+$/;
 
 export type GateTarget =

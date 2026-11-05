@@ -7,6 +7,7 @@ import {
   extractSlackRefsFromDescription,
   extractDmCursor,
   embedDmCursor,
+  removeDmCursor,
   extractReminderMarker,
   isRouterComment,
   embedReminderMarker,
@@ -280,6 +281,23 @@ describe("DM cursor marker", () => {
     expect(result).toContain(marker);
     expect(result).not.toContain(old);
     expect(result.match(/rr:dm-cursor/g)).toHaveLength(1);
+  });
+
+  it("removeDmCursor drops the marker and the line break before it", () => {
+    expect(removeDmCursor(`body\n${marker}`)).toBe("body");
+  });
+
+  it("removeDmCursor leaves the Slack refs block and the Cursor summary in place", () => {
+    const body = embedSlackRefsInDescription("text", [{ channel: "C1", ts: "1.2" }]);
+    const withCursor = embedDmCursor(`${body}\n<!-- CURSOR_SUMMARY -->\nsummary`, iso);
+    const result = removeDmCursor(withCursor);
+    expect(extractDmCursor(result)).toBeNull();
+    expect(extractSlackRefsFromDescription(result)).toEqual([{ channel: "C1", ts: "1.2" }]);
+    expect(result).toContain("<!-- CURSOR_SUMMARY -->\nsummary");
+  });
+
+  it("removeDmCursor returns a body without a marker unchanged", () => {
+    expect(removeDmCursor("body\nmore")).toBe("body\nmore");
   });
 
   it("embedDmCursor inserts before the Cursor summary block", () => {

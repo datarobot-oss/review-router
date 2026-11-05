@@ -153,6 +153,11 @@ export function embedDmCursor(body: string, iso: string): string {
   return `${body}\n${marker}`;
 }
 
+/** Drops the cursor from a body, such as one an older version wrote into a description. */
+export function removeDmCursor(body: string): string {
+  return body.replace(new RegExp(`\\n?${DM_CURSOR_PATTERN.source}`), "");
+}
+
 const REMINDER_PATTERN =
   /<!-- rr:reminder:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z):(\d+) -->/;
 

@@ -1,5 +1,11 @@
 import * as core from "@actions/core";
-import { embedDmCursor, extractDmCursor, isRouterComment } from "./comment";
+import {
+  embedDmCursor,
+  extractDmCursor,
+  findExistingComment,
+  isRouterComment,
+  removeDmCursor,
+} from "./comment";
 import { isAiReviewCommand } from "./ai-review/trigger";
 import { handleComment, handleReviewSubmitted, syncReviewCheck } from "./router";
 import { ActionInputs, Capabilities, CommentContext, OrgConfig, Octokit } from "./types";
@@ -52,20 +58,56 @@ function isSlashCommand(body: string | null | undefined): boolean {
   return isAiReviewCommand(body ?? undefined) || (body ?? "").trim() === "/review";
 }
 
+interface CursorHome {
+  /** The ownership comment, which holds the cursor once the PR is routed. */
+  comment: { id: number } | null;
+  /** True when an older version left the cursor in the description. */
+  descriptionHasCursor: boolean;
+}
+
+/**
+ * Stores the cursor in the ownership comment, and moves out of the description one an older
+ * version left there. A PR with no ownership comment yet keeps the cursor in its description.
+ */
 async function writeCursor(
   octokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
-  iso: string
+  iso: string,
+  home: CursorHome
 ): Promise<void> {
-  const { data: fresh } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
-  await octokit.rest.pulls.update({
+  if (!home.comment) {
+    const { data: fresh } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    await octokit.rest.pulls.update({
+      owner,
+      repo,
+      pull_number: prNumber,
+      body: embedDmCursor(fresh.body ?? "", iso),
+    });
+    return;
+  }
+
+  const { data: freshComment } = await octokit.rest.issues.getComment({
     owner,
     repo,
-    pull_number: prNumber,
-    body: embedDmCursor(fresh.body ?? "", iso),
+    comment_id: home.comment.id,
   });
+  await octokit.rest.issues.updateComment({
+    owner,
+    repo,
+    comment_id: home.comment.id,
+    body: embedDmCursor(freshComment.body ?? "", iso),
+  });
+  if (home.descriptionHasCursor) {
+    const { data: freshPr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    await octokit.rest.pulls.update({
+      owner,
+      repo,
+      pull_number: prNumber,
+      body: removeDmCursor(freshPr.body ?? ""),
+    });
+  }
 }
 
 /** The events that get a DM: the first per commenter and kind, so a burst of inline comments does not flood the author. */
@@ -194,9 +236,14 @@ async function reconcilePull(
   const canMessage = watchers.some((login) => ctx.teamsConfig.users?.[login]);
   if (!ctx.inputs.slackToken || !canMessage) return;
 
-  const cursor = extractDmCursor(body);
+  const comment = await findExistingComment(octokit, ctx.owner, ctx.repo, pr.number);
+  const home: CursorHome = {
+    comment: comment ? { id: comment.id } : null,
+    descriptionHasCursor: extractDmCursor(body) !== null,
+  };
+  const cursor = (comment && extractDmCursor(comment.body)) ?? extractDmCursor(body);
   if (!cursor) {
-    await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString());
+    await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString(), home);
     core.info(`Set the DM cursor on fork PR #${pr.number}; earlier events are not replayed`);
     return;
   }
@@ -226,7 +273,9 @@ async function reconcilePull(
     }
   } finally {
     // Keep what was delivered even when a later event throws, so the next run does not re-send it.
-    if (lastHandled) await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, lastHandled);
+    if (lastHandled) {
+      await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, lastHandled, home);
+    }
   }
 }
 

@@ -204,6 +204,40 @@ describe("handleLabeled", () => {
       await handleLabeled(mockOctokit as any, ctx);
       expect(comment.embedReminderMarker).not.toHaveBeenCalled();
     });
+
+    it("keeps the DM cursor when the router rewrites the comment", async () => {
+      const cursor = "2026-11-05T10:00:00.000Z";
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 7, body: "old" });
+      (comment.extractReminderMarker as jest.Mock).mockReturnValue(null);
+      (comment.extractDmCursor as jest.Mock).mockReturnValue(cursor);
+      (comment.embedDmCursor as jest.Mock).mockImplementation(
+        (body: string, iso: string) => `${body}|cursor|${iso}`
+      );
+      await handleLabeled(mockOctokit as any, ctx);
+      expect(comment.upsertComment).toHaveBeenCalledWith(
+        expect.anything(),
+        "datarobot-community",
+        "test-repo",
+        1,
+        `BODY|cursor|${cursor}`,
+        { id: 7, body: "old" }
+      );
+    });
+
+    it("adds no cursor to a comment that never had one", async () => {
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 7, body: "old" });
+      (comment.extractReminderMarker as jest.Mock).mockReturnValue(null);
+      (comment.extractDmCursor as jest.Mock).mockReturnValue(null);
+      await handleLabeled(mockOctokit as any, ctx);
+      expect(comment.embedDmCursor).not.toHaveBeenCalled();
+    });
+
+    it("adds no cursor when the PR has no ownership comment yet", async () => {
+      (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+      await handleLabeled(mockOctokit as any, ctx);
+      expect(comment.extractDmCursor).not.toHaveBeenCalled();
+      expect(comment.embedDmCursor).not.toHaveBeenCalled();
+    });
   });
 
   it("requests team review when hasOrgAccess is true", async () => {

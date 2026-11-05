@@ -6,9 +6,11 @@ import {
   buildOwnershipComment,
   upsertComment,
   COMMENT_MARKER,
+  embedDmCursor,
   embedReminderMarker,
   embedSlackRefs,
   embedSlackRefsInDescription,
+  extractDmCursor,
   extractReminderMarker,
   extractSlackRefsFromDescription,
   mergeSlackRefs,
@@ -382,6 +384,8 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
   commentBody = embedSlackRefs(commentBody, mergedRefs);
   const reminder = existing ? extractReminderMarker(existing.body) : null;
   if (reminder) commentBody = embedReminderMarker(commentBody, reminder.readyAt, reminder.number);
+  const dmCursor = existing ? extractDmCursor(existing.body) : null;
+  if (dmCursor) commentBody = embedDmCursor(commentBody, dmCursor);
   await withRetry(() =>
     upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing)
   );

@@ -2,9 +2,10 @@ import * as core from "@actions/core";
 import { OwnershipMap, Octokit } from "./types";
 import { humanizeSlug } from "./config";
 import { SlackMessageRef } from "./slack";
+import { upsertWelcomeSection } from "./welcome";
 
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
-export const EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
+export { EXTERNAL_COMMENT_MARKER } from "./welcome";
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 // Matches the Slack message's file list cutoff.
 const COLLAPSE_AFTER_FILES = 10;
@@ -206,6 +207,7 @@ export async function upsertComment(
   }
 }
 
+/** Adds the org's message for external contributors to the welcome comment, once. */
 export async function postExternalComment(
   octokit: Octokit,
   owner: string,
@@ -213,29 +215,5 @@ export async function postExternalComment(
   prNumber: number,
   message: string
 ): Promise<void> {
-  const body = `${EXTERNAL_COMMENT_MARKER}\n${message}`;
-  try {
-    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-      owner,
-      repo,
-      issue_number: prNumber,
-      per_page: 100,
-    });
-    if (comments.some((c) => c.body?.includes(EXTERNAL_COMMENT_MARKER))) {
-      core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);
-      return;
-    }
-
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: prNumber,
-      body,
-    });
-    core.info(`Posted external contributor comment on PR #${prNumber}`);
-  } catch (error) {
-    core.warning(
-      `Failed to post external contributor comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+  await upsertWelcomeSection(octokit, owner, repo, prNumber, "external", message);
 }

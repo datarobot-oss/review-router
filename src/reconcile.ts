@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import { COMMENT_MARKER, EXTERNAL_COMMENT_MARKER, embedDmCursor, extractDmCursor } from "./comment";
+import { JIRA_COMMENT_MARKER, WELCOME_MARKER } from "./welcome";
 import { isAiReviewCommand } from "./ai-review/trigger";
 import { handleComment, handleReviewSubmitted, syncReviewCheck } from "./router";
 import { ActionInputs, Capabilities, CommentContext, OrgConfig, Octokit } from "./types";
@@ -48,7 +49,12 @@ function isRealPerson(user: Actor | null | undefined, author: string): user is A
 }
 
 function isRouterComment(body: string | null | undefined): boolean {
-  return !!body && (body.includes(COMMENT_MARKER) || body.includes(EXTERNAL_COMMENT_MARKER));
+  return (
+    !!body &&
+    [COMMENT_MARKER, EXTERNAL_COMMENT_MARKER, JIRA_COMMENT_MARKER, WELCOME_MARKER].some((marker) =>
+      body.includes(marker)
+    )
+  );
 }
 
 /** The live issue_comment path handles these as commands and never notifies on them. */

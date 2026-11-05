@@ -81182,8 +81182,10 @@ exports.upsertComment = upsertComment;
 exports.postExternalComment = postExternalComment;
 const core = __importStar(__nccwpck_require__(7484));
 const config_1 = __nccwpck_require__(2973);
+const welcome_1 = __nccwpck_require__(6607);
 exports.COMMENT_MARKER = "<!-- review-router-ownership -->";
-exports.EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
+var welcome_2 = __nccwpck_require__(6607);
+Object.defineProperty(exports, "EXTERNAL_COMMENT_MARKER", ({ enumerable: true, get: function () { return welcome_2.EXTERNAL_COMMENT_MARKER; } }));
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 // Matches the Slack message's file list cutoff.
 const COLLAPSE_AFTER_FILES = 10;
@@ -81341,30 +81343,9 @@ async function upsertComment(octokit, owner, repo, prNumber, body, existingComme
         core.info(`Posted ownership comment on PR #${prNumber}`);
     }
 }
+/** Adds the org's message for external contributors to the welcome comment, once. */
 async function postExternalComment(octokit, owner, repo, prNumber, message) {
-    const body = `${exports.EXTERNAL_COMMENT_MARKER}\n${message}`;
-    try {
-        const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-            owner,
-            repo,
-            issue_number: prNumber,
-            per_page: 100,
-        });
-        if (comments.some((c) => c.body?.includes(exports.EXTERNAL_COMMENT_MARKER))) {
-            core.info(`External contributor comment already exists on PR #${prNumber}, skipping`);
-            return;
-        }
-        await octokit.rest.issues.createComment({
-            owner,
-            repo,
-            issue_number: prNumber,
-            body,
-        });
-        core.info(`Posted external contributor comment on PR #${prNumber}`);
-    }
-    catch (error) {
-        core.warning(`Failed to post external contributor comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    await (0, welcome_1.upsertWelcomeSection)(octokit, owner, repo, prNumber, "external", message);
 }
 
 
@@ -83449,13 +83430,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.JIRA_COMMENT_MARKER = void 0;
 exports.extractTicketIds = extractTicketIds;
 exports.resolveCloudId = resolveCloudId;
 exports.fetchTicket = fetchTicket;
-exports.buildJiraComment = buildJiraComment;
+exports.buildJiraSection = buildJiraSection;
 exports.postJiraComment = postJiraComment;
 const core = __importStar(__nccwpck_require__(7484));
+const welcome_1 = __nccwpck_require__(6607);
 function extractTicketIds(title) {
     const ids = [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
     return [...new Set(ids)];
@@ -83516,7 +83497,6 @@ async function fetchTicket(ticketId, cloudId, token) {
         return null;
     }
 }
-exports.JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
 function renderTicket(baseUrl, ticket) {
     const link = (id) => `[${id}](${baseUrl}/browse/${id})`;
     const heading = `🎫 **${link(ticket.id)}**${ticket.summary && ticket.type ? ` · ${ticket.type}` : ""}`;
@@ -83528,13 +83508,13 @@ function renderTicket(baseUrl, ticket) {
     }
     return lines.join("\n");
 }
-function buildJiraComment(baseUrl, tickets) {
+/** The Jira section of the welcome comment: one card per ticket. */
+function buildJiraSection(baseUrl, tickets) {
     const trimmedBase = baseUrl.replace(/\/$/, "");
     const cards = tickets.map((t) => renderTicket(trimmedBase, t)).join("\n\n");
-    const body = `${exports.JIRA_COMMENT_MARKER}\n${cards}`;
     return tickets.some((t) => !t.summary)
-        ? `${body}\n\n_Add a \`jira-token\` input for ticket titles here._`
-        : body;
+        ? `${cards}\n\n_Add a \`jira-token\` input for ticket titles here._`
+        : cards;
 }
 async function postJiraComment(octokit, owner, repo, prNumber, prTitle, jiraConfig, jiraToken) {
     if (!jiraConfig?.enabled)
@@ -83552,27 +83532,7 @@ async function postJiraComment(octokit, owner, repo, prNumber, prTitle, jiraConf
         const details = cloudId ? await fetchTicket(id, cloudId, jiraToken) : null;
         return { id, ...(details ?? { summary: null }) };
     }));
-    const body = buildJiraComment(baseUrl, tickets);
-    try {
-        const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-            owner,
-            repo,
-            issue_number: prNumber,
-            per_page: 100,
-        });
-        const existing = comments.find((c) => c.body?.includes(exports.JIRA_COMMENT_MARKER));
-        if (existing) {
-            await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            core.info(`Updated Jira comment on PR #${prNumber}`);
-        }
-        else {
-            await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
-            core.info(`Posted Jira comment on PR #${prNumber}`);
-        }
-    }
-    catch (error) {
-        core.warning(`Failed to post Jira comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    await (0, welcome_1.upsertWelcomeSection)(octokit, owner, repo, prNumber, "jira", buildJiraSection(baseUrl, tickets));
 }
 
 
@@ -83742,6 +83702,7 @@ exports.latestApprovers = latestApprovers;
 exports.reconcileOpenPulls = reconcileOpenPulls;
 const core = __importStar(__nccwpck_require__(7484));
 const comment_1 = __nccwpck_require__(2246);
+const welcome_1 = __nccwpck_require__(6607);
 const trigger_1 = __nccwpck_require__(5789);
 const router_1 = __nccwpck_require__(8954);
 /** Logins whose latest non-COMMENTED review is an approval. Reviews must be in chronological order. */
@@ -83761,7 +83722,8 @@ function isRealPerson(user, author) {
     return !!user && user.type !== "Bot" && user.login !== author;
 }
 function isRouterComment(body) {
-    return !!body && (body.includes(comment_1.COMMENT_MARKER) || body.includes(comment_1.EXTERNAL_COMMENT_MARKER));
+    return (!!body &&
+        [comment_1.COMMENT_MARKER, comment_1.EXTERNAL_COMMENT_MARKER, welcome_1.JIRA_COMMENT_MARKER, welcome_1.WELCOME_MARKER].some((marker) => body.includes(marker)));
 }
 /** The live issue_comment path handles these as commands and never notifies on them. */
 function isSlashCommand(body) {
@@ -85287,6 +85249,124 @@ async function addSlackReactions(token, ref, emojis) {
                 core.warning(`Failed to add reaction :${emoji}: to ${ref.channel}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
+    }
+}
+
+
+/***/ }),
+
+/***/ 6607:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WELCOME_DOCS_URL = exports.EXTERNAL_COMMENT_MARKER = exports.JIRA_COMMENT_MARKER = exports.WELCOME_MARKER = void 0;
+exports.setWelcomeSection = setWelcomeSection;
+exports.upsertWelcomeSection = upsertWelcomeSection;
+const core = __importStar(__nccwpck_require__(7484));
+exports.WELCOME_MARKER = "<!-- review-router-welcome -->";
+/** The markers of the separate Jira and external contributor comments this comment replaces. */
+exports.JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
+exports.EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
+exports.WELCOME_DOCS_URL = "https://github.com/datarobot-oss/review-router#readme";
+/** The order of the sections in the comment. */
+const SECTION_ORDER = ["jira", "external"];
+/** A Jira card follows the PR title, so it is replaced. An external message is posted once. */
+const REPLACES_EXISTING = { jira: true, external: false };
+const LEGACY_MARKER = {
+    jira: exports.JIRA_COMMENT_MARKER,
+    external: exports.EXTERNAL_COMMENT_MARKER,
+};
+const FOOTER = `<sub>[How Review Router works](${exports.WELCOME_DOCS_URL})</sub>`;
+const SECTION_PATTERN = /<!-- rr:section:(jira|external) -->\n([\s\S]*?)\n<!-- \/rr:section:\1 -->/g;
+function readSections(body) {
+    const sections = new Map();
+    for (const match of body.matchAll(SECTION_PATTERN)) {
+        sections.set(match[1], match[2]);
+    }
+    return sections;
+}
+/** The welcome comment with one section set. The other sections stay as they were. */
+function setWelcomeSection(body, name, content) {
+    const sections = readSections(body);
+    sections.set(name, content);
+    const blocks = SECTION_ORDER.filter((section) => sections.has(section)).map((section) => `<!-- rr:section:${section} -->\n${sections.get(section)}\n<!-- /rr:section:${section} -->`);
+    return [exports.WELCOME_MARKER, ...blocks, FOOTER].join("\n\n");
+}
+/**
+ * Writes one section of the welcome comment, which the Router posts only when a section has
+ * something to say. Moves a legacy Jira comment into it. Never throws: a failure is a warning.
+ */
+async function upsertWelcomeSection(octokit, owner, repo, prNumber, name, content) {
+    try {
+        const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+            owner,
+            repo,
+            issue_number: prNumber,
+            per_page: 100,
+        });
+        const welcome = comments.find((c) => c.body?.includes(exports.WELCOME_MARKER));
+        const legacy = comments.find((c) => c.body?.includes(LEGACY_MARKER[name]));
+        if (legacy && !REPLACES_EXISTING[name]) {
+            core.info(`The ${name} comment already exists on PR #${prNumber}, skipping`);
+            return;
+        }
+        const current = welcome?.body ?? "";
+        const existing = readSections(current).get(name);
+        if (existing !== undefined && (!REPLACES_EXISTING[name] || existing === content)) {
+            core.debug(`PR #${prNumber}: the ${name} section is up to date`);
+        }
+        else {
+            const body = setWelcomeSection(current, name, content);
+            if (welcome) {
+                await octokit.rest.issues.updateComment({ owner, repo, comment_id: welcome.id, body });
+                core.info(`Updated the ${name} section of the welcome comment on PR #${prNumber}`);
+            }
+            else {
+                await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+                core.info(`Posted the welcome comment on PR #${prNumber}`);
+            }
+        }
+        if (legacy) {
+            await octokit.rest.issues.deleteComment({ owner, repo, comment_id: legacy.id });
+        }
+    }
+    catch (error) {
+        core.warning(`Failed to write the ${name} section on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

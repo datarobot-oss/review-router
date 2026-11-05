@@ -150,14 +150,22 @@ on:
     types: [labeled, opened, closed, ready_for_review]
 ```
 
-Set `external_contributors.message` to post a welcome comment on those PRs.
+Set `external_contributors.message` to show a message for those PRs in the welcome comment.
+
+### Welcome comment
+
+When a PR opens, review-router posts one welcome comment that holds the sections
+that apply to the PR: the Jira ticket links and the external contributor
+message. A PR with nothing to show gets no comment. The comment ends with a link
+to how review-router works. It never lists changed files, because that list
+changes on every push. The code ownership comment is separate.
 
 ### Jira Ticket Links
 
 When `jira.enabled` is `true` and a PR title contains a bracketed ticket ID
-(e.g. `[PROJ-6000] Add proxy route`), review-router posts a PR comment linking
-to `{base_url}/browse/{TICKET-ID}`. Multiple bracketed IDs in one title each
-get their own line.
+(e.g. `[PROJ-6000] Add proxy route`), the welcome comment links to
+`{base_url}/browse/{TICKET-ID}`. Multiple bracketed IDs in one title each get
+their own line.
 
 Set the `jira-token` input to also show ticket titles instead of bare IDs.
 Use a scoped API token created at id.atlassian.com with a read scope

@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import { JiraConfig, Octokit } from "./types";
+import { upsertWelcomeSection } from "./welcome";
 
 export function extractTicketIds(title: string): string[] {
   const ids = [...title.matchAll(/\[([A-Z][A-Z0-9]*-\d+)\]/g)].map((m) => m[1]);
@@ -89,8 +90,6 @@ export async function fetchTicket(
   }
 }
 
-export const JIRA_COMMENT_MARKER = "<!-- review-router-jira -->";
-
 function renderTicket(baseUrl: string, ticket: JiraTicket): string {
   const link = (id: string) => `[${id}](${baseUrl}/browse/${id})`;
   const heading = `🎫 **${link(ticket.id)}**${ticket.summary && ticket.type ? ` · ${ticket.type}` : ""}`;
@@ -102,13 +101,13 @@ function renderTicket(baseUrl: string, ticket: JiraTicket): string {
   return lines.join("\n");
 }
 
-export function buildJiraComment(baseUrl: string, tickets: JiraTicket[]): string {
+/** The Jira section of the welcome comment: one card per ticket. */
+export function buildJiraSection(baseUrl: string, tickets: JiraTicket[]): string {
   const trimmedBase = baseUrl.replace(/\/$/, "");
   const cards = tickets.map((t) => renderTicket(trimmedBase, t)).join("\n\n");
-  const body = `${JIRA_COMMENT_MARKER}\n${cards}`;
   return tickets.some((t) => !t.summary)
-    ? `${body}\n\n_Add a \`jira-token\` input for ticket titles here._`
-    : body;
+    ? `${cards}\n\n_Add a \`jira-token\` input for ticket titles here._`
+    : cards;
 }
 
 export async function postJiraComment(
@@ -140,26 +139,12 @@ export async function postJiraComment(
     })
   );
 
-  const body = buildJiraComment(baseUrl, tickets);
-
-  try {
-    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-      owner,
-      repo,
-      issue_number: prNumber,
-      per_page: 100,
-    });
-    const existing = comments.find((c) => c.body?.includes(JIRA_COMMENT_MARKER));
-    if (existing) {
-      await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-      core.info(`Updated Jira comment on PR #${prNumber}`);
-    } else {
-      await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
-      core.info(`Posted Jira comment on PR #${prNumber}`);
-    }
-  } catch (error) {
-    core.warning(
-      `Failed to post Jira comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+  await upsertWelcomeSection(
+    octokit,
+    owner,
+    repo,
+    prNumber,
+    "jira",
+    buildJiraSection(baseUrl, tickets)
+  );
 }

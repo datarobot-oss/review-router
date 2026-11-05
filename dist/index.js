@@ -82861,6 +82861,7 @@ function withPolicyNote(decision, enrollment) {
  * Evaluates one pull request and posts the result. For a queue entry the result goes on the
  * queue's commit instead of the pull request head. An error posts a blocking result on the
  * best known commit: the queue's, the pull request's as of the event, or the one just read.
+ * Returns the decision that was posted, or null when nothing was decided.
  */
 async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSha, eventSha) {
     const { owner, repo, runUrl } = ref;
@@ -82874,7 +82875,7 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
         sha = queueSha ?? found.facts.headSha;
         if (found.baseRef !== defaultBranch || found.state !== "open") {
             core.info(`Skipping #${number}: not an open pull request for ${defaultBranch}.`);
-            return;
+            return null;
         }
         const decided = withPolicyNote((0, decide_1.decideGate)(found.facts, enrollment.policy), enrollment);
         // A merge queue entry fails at once: a pending check would hold the queue until its timeout.
@@ -82882,16 +82883,18 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
         // A push during the evaluation makes the result stale. The push triggers its own run.
         if (!queueSha && (await (0, facts_1.currentHead)(octokit, owner, repo, number)) !== found.facts.headSha) {
             core.info(`Skipping #${number}: the head moved during the evaluation.`);
-            return;
+            return null;
         }
         const posted = await (0, check_1.postGateCheck)(octokit, owner, repo, sha, decision, runUrl);
         core.info(`#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`);
+        return decision;
     }
     catch (error) {
         core.warning(`The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${error instanceof Error ? error.message : String(error)}`);
         if (sha) {
             await (0, check_1.postGateCheck)(octokit, owner, repo, sha, errorDecision(error), runUrl).catch((e) => core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`));
         }
+        return null;
     }
 }
 /**
@@ -82917,12 +82920,14 @@ async function failClosed(octokit, ref, target, error) {
 }
 /**
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
- * so the Review Router's other work is not blocked by it.
+ * so the Review Router's other work is not blocked by it. For an event about one pull request
+ * it returns the decision, or null when the repository is not enrolled, the event is for a queue
+ * entry or a sweep, or nothing was decided.
  */
 async function runGate(octokit, event, ref) {
     const target = gateTarget(event);
     if (!target)
-        return;
+        return null;
     try {
         const { owner, repo } = ref;
         const defaultBranch = event.payload.repository?.default_branch ??
@@ -82930,7 +82935,7 @@ async function runGate(octokit, event, ref) {
         const enrollment = await (0, enroll_1.loadEnrollment)(octokit, owner, repo, defaultBranch);
         if (!enrollment) {
             core.debug("The gate is not enabled for this repository.");
-            return;
+            return null;
         }
         if (target.kind === "sweep") {
             const pulls = await octokit.paginate(octokit.rest.pulls.list, {
@@ -82958,7 +82963,7 @@ async function runGate(octokit, event, ref) {
             await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
         }
         else {
-            await gatePull(octokit, ref, enrollment, defaultBranch, target.number, undefined, target.headSha);
+            return await gatePull(octokit, ref, enrollment, defaultBranch, target.number, undefined, target.headSha);
         }
     }
     catch (error) {
@@ -82968,6 +82973,7 @@ async function runGate(octokit, event, ref) {
         const log = replaced ? core.warning : core.info;
         log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
     }
+    return null;
 }
 
 
@@ -83057,7 +83063,7 @@ async function run() {
         return;
     }
     // First and on its own: the gate must not wait for, or fail with, the team config.
-    await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl });
+    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl });
     if (eventName === "merge_group")
         return;
     if (eventName === "issue_comment" && action === "created") {
@@ -83177,6 +83183,7 @@ async function run() {
             author: pr.user?.login ?? "",
             isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
             isDraft: pr.draft === true,
+            gateDecision,
             inputs,
             teamsConfig,
         });
@@ -83207,6 +83214,16 @@ async function run() {
             core.setFailed("No pull_request in payload");
             return;
         }
+        await (0, router_1.handleDependabotPush)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            author: pr.user?.login ?? "",
+            labels: (pr.labels ?? []).map((label) => label.name),
+            gateDecision,
+            inputs,
+            teamsConfig,
+        });
         // Checks belong to a commit, so a push leaves the new head without the Review Router check.
         await (0, router_1.syncReviewCheck)(octokit, {
             owner,
@@ -84180,6 +84197,7 @@ exports.handleLabeled = handleLabeled;
 exports.handleReviewSubmitted = handleReviewSubmitted;
 exports.syncReviewCheck = syncReviewCheck;
 exports.resolveTeamSlugFromLabel = resolveTeamSlugFromLabel;
+exports.handleDependabotPush = handleDependabotPush;
 exports.handleOpened = handleOpened;
 exports.handleReadyForReview = handleReadyForReview;
 exports.handleClosed = handleClosed;
@@ -84561,21 +84579,47 @@ function resolveTeamSlugFromLabel(labelName, teamsConfig, prefix) {
     return suffix.toLowerCase().replace(/\s+/g, "-");
 }
 exports.EXTERNAL_CONTRIBUTION_LABEL = "external-contribution";
+const DEPENDABOT_LOGIN = "dependabot[bot]";
+/** A pull request that the gate passes has no one to wait for, so nobody has to review it. */
+function gatePasses(decision) {
+    return decision?.conclusion === "success";
+}
+async function addDependabotReadyLabel(octokit, ctx) {
+    core.info(`Dependabot PR #${ctx.prNumber} needs a person, adding "${ctx.inputs.readyLabel}" label`);
+    try {
+        await octokit.rest.issues.addLabels({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            issue_number: ctx.prNumber,
+            labels: [ctx.inputs.readyLabel],
+        });
+    }
+    catch (error) {
+        core.warning(`Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+/**
+ * Routes a Dependabot pull request for review once the gate stops passing it, for example after a
+ * person pushes to its branch. At open, a pull request that the gate passes is left unrouted.
+ */
+async function handleDependabotPush(octokit, ctx) {
+    if (!ctx.teamsConfig.dependabot?.auto_label || ctx.author !== DEPENDABOT_LOGIN)
+        return;
+    if (!ctx.gateDecision || gatePasses(ctx.gateDecision))
+        return;
+    const alreadyRouted = ctx.labels.some((name) => isReadyLabel(name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases));
+    if (alreadyRouted)
+        return;
+    await addDependabotReadyLabel(octokit, ctx);
+}
 async function handleOpened(octokit, ctx) {
     await (0, jira_1.postJiraComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, ctx.prTitle, ctx.teamsConfig.jira, ctx.inputs.jiraToken);
-    if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === "dependabot[bot]") {
-        core.info(`Dependabot PR #${ctx.prNumber} detected, adding "${ctx.inputs.readyLabel}" label`);
-        try {
-            await octokit.rest.issues.addLabels({
-                owner: ctx.owner,
-                repo: ctx.repo,
-                issue_number: ctx.prNumber,
-                labels: [ctx.inputs.readyLabel],
-            });
+    if (ctx.teamsConfig.dependabot?.auto_label && ctx.author === DEPENDABOT_LOGIN) {
+        if (gatePasses(ctx.gateDecision)) {
+            core.info(`Dependabot PR #${ctx.prNumber} passes the gate, so it is not routed for review`);
+            return;
         }
-        catch (error) {
-            core.warning(`Failed to add label to dependabot PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        await addDependabotReadyLabel(octokit, ctx);
         return;
     }
     if (!ctx.teamsConfig.external_contributors?.auto_label) {

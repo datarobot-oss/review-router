@@ -2,6 +2,7 @@ import {
   handleLabeled,
   handleReviewSubmitted,
   handleOpened,
+  handleDependabotPush,
   handleReadyForReview,
   handleClosed,
   syncReviewCheck,
@@ -2414,5 +2415,138 @@ describe("getFileTypeEmojis", () => {
 
   it("returns empty for unknown extensions", () => {
     expect(getFileTypeEmojis(["file.xyz", "data.bin"], config)).toEqual([]);
+  });
+});
+
+describe("routing a Dependabot pull request by the gate's decision", () => {
+  const inputs = {
+    githubToken: "token",
+    slackToken: "",
+    configRepo: "",
+    configToken: "",
+    configPath: "config.yml",
+    configS3: "",
+    readyLabel: "Ready for Review",
+    needsReviewPrefix: "Needs Review",
+    needsReviewLabelColor: "fbca04",
+    jiraToken: "",
+    aiToken: "",
+  };
+  const config: OrgConfig = { ...teamsConfig, dependabot: { auto_label: true } };
+  const passes = {
+    conclusion: "success",
+    reason: "dependabot",
+    title: "t",
+    summary: "s",
+  } as const;
+  const waits = {
+    conclusion: "action_required",
+    reason: "needs-approval",
+    title: "t",
+    summary: "s",
+    pending: true,
+  } as const;
+  const opened = (author: string, gateDecision?: typeof passes | typeof waits | null) =>
+    handleOpened(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 42,
+      prTitle: "Bump x",
+      author,
+      isFork: false,
+      isDraft: false,
+      gateDecision,
+      inputs,
+      teamsConfig: config,
+    });
+  const pushed = (over: object = {}) =>
+    handleDependabotPush(mockOctokit as any, {
+      owner: "org",
+      repo: "repo",
+      prNumber: 42,
+      author: "dependabot[bot]",
+      labels: ["dependencies"],
+      gateDecision: waits,
+      inputs,
+      teamsConfig: config,
+      ...over,
+    });
+  const readyLabelAdded = {
+    owner: "org",
+    repo: "repo",
+    issue_number: 42,
+    labels: ["Ready for Review"],
+  };
+
+  beforeEach(() => mockOctokit.rest.issues.addLabels.mockResolvedValue({}));
+
+  describe("when the pull request opens", () => {
+    it("adds no label when the gate passes it", async () => {
+      await opened("dependabot[bot]", passes);
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds the ready label when the gate waits for a person", async () => {
+      await opened("dependabot[bot]", waits);
+      expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith(readyLabelAdded);
+    });
+
+    it("adds the ready label when the repository has no gate", async () => {
+      await opened("dependabot[bot]", null);
+      expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith(readyLabelAdded);
+    });
+
+    it("adds the ready label when the gate was not consulted", async () => {
+      await opened("dependabot[bot]");
+      expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith(readyLabelAdded);
+    });
+
+    it("leaves a pull request from a person to the existing rules", async () => {
+      await opened("alice", passes);
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when a push changes the gate's decision", () => {
+    it("adds the ready label once the gate waits for a person", async () => {
+      await pushed();
+      expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith(readyLabelAdded);
+    });
+
+    it("adds nothing while the gate passes it", async () => {
+      await pushed({ gateDecision: passes });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing when the gate decided nothing", async () => {
+      await pushed({ gateDecision: null });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing when the pull request already carries the ready label", async () => {
+      await pushed({ labels: ["dependencies", "Ready for Review"] });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("counts an alias of the ready label as already routed", async () => {
+      const aliased = { ...config, ready_label_aliases: ["00 - Ready for Review"] };
+      await pushed({ labels: ["00 - Ready for Review"], teamsConfig: aliased });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing for a pull request from a person", async () => {
+      await pushed({ author: "alice" });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing when auto_label is off", async () => {
+      await pushed({ teamsConfig: { ...config, dependabot: { auto_label: false } } });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("warns instead of throwing when the label can't be added", async () => {
+      mockOctokit.rest.issues.addLabels.mockRejectedValue(new Error("403"));
+      await expect(pushed()).resolves.toBeUndefined();
+    });
   });
 });

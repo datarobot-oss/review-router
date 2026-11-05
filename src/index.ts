@@ -4,6 +4,7 @@ import {
   handleLabeled,
   handleReviewSubmitted,
   handleOpened,
+  handleDependabotPush,
   handleReadyForReview,
   handleClosed,
   handleComment,
@@ -64,7 +65,7 @@ async function run(): Promise<void> {
   }
 
   // First and on its own: the gate must not wait for, or fail with, the team config.
-  await runGate(
+  const gateDecision = await runGate(
     octokit,
     { eventName, action, payload: context.payload as GateEvent["payload"] },
     { owner, repo, runUrl }
@@ -225,6 +226,7 @@ async function run(): Promise<void> {
       author: pr.user?.login ?? "",
       isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
       isDraft: pr.draft === true,
+      gateDecision,
       inputs,
       teamsConfig,
     });
@@ -262,6 +264,17 @@ async function run(): Promise<void> {
       core.setFailed("No pull_request in payload");
       return;
     }
+
+    await handleDependabotPush(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      author: pr.user?.login ?? "",
+      labels: (pr.labels ?? []).map((label: { name: string }) => label.name),
+      gateDecision,
+      inputs,
+      teamsConfig,
+    });
 
     // Checks belong to a commit, so a push leaves the new head without the Review Router check.
     await syncReviewCheck(octokit, {

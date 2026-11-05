@@ -95,6 +95,7 @@ function withPolicyNote(decision: GateDecision, enrollment: Enrollment): GateDec
  * Evaluates one pull request and posts the result. For a queue entry the result goes on the
  * queue's commit instead of the pull request head. An error posts a blocking result on the
  * best known commit: the queue's, the pull request's as of the event, or the one just read.
+ * Returns the decision that was posted, or null when nothing was decided.
  */
 async function gatePull(
   octokit: Octokit,
@@ -104,7 +105,7 @@ async function gatePull(
   number: number | undefined,
   queueSha?: string,
   eventSha?: string
-): Promise<void> {
+): Promise<GateDecision | null> {
   const { owner, repo, runUrl } = ref;
   let sha = queueSha ?? eventSha;
   try {
@@ -115,7 +116,7 @@ async function gatePull(
     sha = queueSha ?? found.facts.headSha;
     if (found.baseRef !== defaultBranch || found.state !== "open") {
       core.info(`Skipping #${number}: not an open pull request for ${defaultBranch}.`);
-      return;
+      return null;
     }
     const decided = withPolicyNote(decideGate(found.facts, enrollment.policy), enrollment);
     // A merge queue entry fails at once: a pending check would hold the queue until its timeout.
@@ -125,12 +126,13 @@ async function gatePull(
     // A push during the evaluation makes the result stale. The push triggers its own run.
     if (!queueSha && (await currentHead(octokit, owner, repo, number)) !== found.facts.headSha) {
       core.info(`Skipping #${number}: the head moved during the evaluation.`);
-      return;
+      return null;
     }
     const posted = await postGateCheck(octokit, owner, repo, sha, decision, runUrl);
     core.info(
       `#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`
     );
+    return decision;
   } catch (error) {
     core.warning(
       `The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${
@@ -142,6 +144,7 @@ async function gatePull(
         core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`)
       );
     }
+    return null;
   }
 }
 
@@ -172,11 +175,17 @@ async function failClosed(
 
 /**
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
- * so the Review Router's other work is not blocked by it.
+ * so the Review Router's other work is not blocked by it. For an event about one pull request
+ * it returns the decision, or null when the repository is not enrolled, the event is for a queue
+ * entry or a sweep, or nothing was decided.
  */
-export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef): Promise<void> {
+export async function runGate(
+  octokit: Octokit,
+  event: GateEvent,
+  ref: RepoRef
+): Promise<GateDecision | null> {
   const target = gateTarget(event);
-  if (!target) return;
+  if (!target) return null;
 
   try {
     const { owner, repo } = ref;
@@ -186,7 +195,7 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
     const enrollment = await loadEnrollment(octokit, owner, repo, defaultBranch);
     if (!enrollment) {
       core.debug("The gate is not enabled for this repository.");
-      return;
+      return null;
     }
 
     if (target.kind === "sweep") {
@@ -223,7 +232,7 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
     } else if (target.kind === "queue") {
       await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
     } else {
-      await gatePull(
+      return await gatePull(
         octokit,
         ref,
         enrollment,
@@ -240,4 +249,5 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
     const log = replaced ? core.warning : core.info;
     log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
   }
+  return null;
 }

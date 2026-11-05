@@ -5,7 +5,7 @@ Dependabot PRs merge automatically once a person approves them and the required 
 ## How it works with review-router
 
 1. Dependabot opens a PR.
-2. Review-router labels it "Ready for Review" and routes it to the owning team (`dependabot.auto_label: true` in the org config).
+2. Review-router labels it "Ready for Review" and routes it to the owning team (`dependabot.auto_label: true` in the org config). In a repository with the [gate](gate.md), it does so only when the gate waits for a person.
 3. The auto-merge workflow queues auto-merge on the PR.
 4. A team member approves.
 5. GitHub merges once every required check passes.

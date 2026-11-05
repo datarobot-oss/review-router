@@ -34,6 +34,8 @@ The family passes a pull request when all of these hold:
 
 An account that pushes to the Dependabot branch moves the pull request to the approval rule. That includes a person, a merge commit from the **Update branch** button, and an automation that commits to the branch, such as a CI job that rebuilds generated files.
 
+A pull request the family passes needs no reviewer, so the Review Router doesn't route it: no `Ready for Review` label, ownership comment, Slack message or reminder, even with `dependabot.auto_label` on. When a pull request opens or gets a push and the gate waits for a person, the Review Router adds the label and routes it as usual.
+
 ## Enable the gate
 
 A repository joins the gate when its default branch holds `.github/review-router.yml`, or when a ruleset on the default branch requires `Bouncer`. The gate reads the policy from the default branch only, so a pull request can't change the rules it is judged by.
@@ -163,6 +165,7 @@ To roll back, restore the required approvals and remove the check from the rules
 - The gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. Treat write access as the trust boundary until the gate runs under its own GitHub App.
 - The gate posts nothing between a push and the first run, so a new commit shows the required check as expected, with no link, until the run posts.
 - A pending run stays until a person approves or the next push.
+- The Review Router reads the gate's decision for a Dependabot pull request when it opens and when it gets a push. A decision that changes at another time, such as a policy change on the default branch, doesn't route the pull request. Add the `Ready for Review` label by hand.
 - A review on a pull request from a fork starts no run with secrets. A change request or a dismissal on such a pull request takes effect at the next scheduled run, and a merge queue re-evaluates it when the pull request enters the queue.
 - A pull request from a fork whose push history the App can't read, such as a private fork, stays blocked. Merge it through a branch of the repository instead.
 - Dependabot lists no update type for indirect dependencies and some security updates. The gate derives it from the two versions, which needs a version number that starts with digits. Date-based versions count as comparable numbers.

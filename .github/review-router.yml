@@ -1,0 +1,13 @@
+# Policy of the Review Router gate: what may pass without a person's approval.
+# Reference: docs/setup/gate.md
+dependabot:
+  allowed_paths:
+    - package.json
+    - package-lock.json
+  max_changed_files: 3
+  defaults:
+    update_types: [patch, minor]
+    min_compatibility: 70
+    # A runtime or indirect update changes the bundle, and CI pushes the rebuilt dist/.
+    # That push takes the pull request out of the family, so a person reviews it anyway.
+    dependency_types: [direct:development]

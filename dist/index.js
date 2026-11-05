@@ -81175,6 +81175,8 @@ exports.embedSlackRefsInDescription = embedSlackRefsInDescription;
 exports.extractSlackRefsFromDescription = extractSlackRefsFromDescription;
 exports.extractDmCursor = extractDmCursor;
 exports.embedDmCursor = embedDmCursor;
+exports.extractReminderMarker = extractReminderMarker;
+exports.embedReminderMarker = embedReminderMarker;
 exports.findExistingComment = findExistingComment;
 exports.upsertComment = upsertComment;
 exports.postExternalComment = postExternalComment;
@@ -81293,6 +81295,17 @@ function embedDmCursor(body, iso) {
         const prefix = body.slice(0, cursorIdx).replace(/\n$/, "");
         return `${prefix}\n${marker}\n${body.slice(cursorIdx)}`;
     }
+    return `${body}\n${marker}`;
+}
+const REMINDER_PATTERN = /<!-- rr:reminder:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z):(\d+) -->/;
+function extractReminderMarker(body) {
+    const match = body.match(REMINDER_PATTERN);
+    return match ? { readyAt: match[1], number: Number(match[2]) } : null;
+}
+function embedReminderMarker(body, readyAt, number) {
+    const marker = `<!-- rr:reminder:${readyAt}:${number} -->`;
+    if (REMINDER_PATTERN.test(body))
+        return body.replace(REMINDER_PATTERN, marker);
     return `${body}\n${marker}`;
 }
 async function findExistingComment(octokit, owner, repo, prNumber) {
@@ -83995,6 +84008,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.handleSchedule = handleSchedule;
 const core = __importStar(__nccwpck_require__(7484));
+const comment_1 = __nccwpck_require__(2246);
 const config_1 = __nccwpck_require__(2973);
 const router_1 = __nccwpck_require__(8954);
 const schedule_1 = __nccwpck_require__(6318);
@@ -84053,8 +84067,9 @@ async function handleSchedule(octokit, ctx) {
             continue;
         }
         const ageMs = Date.now() - readyAt.getTime();
-        if (!(0, schedule_1.reminderDue)(ageMs - staleMs, settings.intervalHours, settings.tickMinutes)) {
-            core.debug(`PR #${issue.number}: Not in a reminder window, skipping`);
+        const number = (0, schedule_1.reminderNumber)(ageMs - staleMs, settings.intervalHours);
+        if (number !== undefined &&
+            !(await claimReminder(octokit, ctx, issue.number, readyAt, number))) {
             continue;
         }
         const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
@@ -84085,6 +84100,37 @@ async function handleSchedule(octokit, ctx) {
         }
     }
     core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
+}
+/**
+ * Records the reminder number in the ownership comment of the PR and returns true when that
+ * reminder is due. The number is written before the Slack message goes out: a failed write
+ * skips the reminder, where the other order would repeat it on every run.
+ */
+async function claimReminder(octokit, ctx, prNumber, readyAt, number) {
+    try {
+        const comment = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, prNumber);
+        if (!comment) {
+            core.info(`PR #${prNumber}: No ownership comment to record the reminder in, skipping`);
+            return false;
+        }
+        const readyAtIso = readyAt.toISOString();
+        const recorded = (0, comment_1.extractReminderMarker)(comment.body);
+        if (recorded?.readyAt === readyAtIso && recorded.number >= number) {
+            core.debug(`PR #${prNumber}: Reminder ${number} already sent, skipping`);
+            return false;
+        }
+        await octokit.rest.issues.updateComment({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            comment_id: comment.id,
+            body: (0, comment_1.embedReminderMarker)(comment.body, readyAtIso, number),
+        });
+        return true;
+    }
+    catch (error) {
+        core.warning(`Failed to record the reminder for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+    }
 }
 async function getReadyForReviewTime(octokit, owner, repo, issueNumber, readyLabels) {
     try {
@@ -84418,6 +84464,9 @@ async function handleLabeled(octokit, ctx) {
     const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
+    const reminder = existing ? (0, comment_1.extractReminderMarker)(existing.body) : null;
+    if (reminder)
+        commentBody = (0, comment_1.embedReminderMarker)(commentBody, reminder.readyAt, reminder.number);
     await withRetry(() => (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing));
     if (mergedRefs.length > 0) {
         try {
@@ -84859,17 +84908,15 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveReminders = resolveReminders;
-exports.reminderDue = reminderDue;
+exports.reminderNumber = reminderNumber;
 exports.parseRepoReminders = parseRepoReminders;
 exports.readRepoReminders = readRepoReminders;
 const core = __importStar(__nccwpck_require__(7484));
 const yaml = __importStar(__nccwpck_require__(4484));
 const policy_1 = __nccwpck_require__(4982);
 const DEFAULT_STALE_HOURS = 24;
-const DEFAULT_TICK_MINUTES = 60;
 const HOUR_MS = 60 * 60 * 1000;
-const MINUTE_MS = 60 * 1000;
-const NUMBER_KEYS = ["stale_hours", "interval_hours", "tick_minutes"];
+const NUMBER_KEYS = ["stale_hours", "interval_hours"];
 /** The repo layer wins over the org layer, key by key. */
 function resolveReminders(org, repo) {
     const merged = { ...org, ...repo };
@@ -84877,18 +84924,18 @@ function resolveReminders(org, repo) {
         enabled: merged.enabled ?? false,
         staleHours: merged.stale_hours ?? DEFAULT_STALE_HOURS,
         intervalHours: merged.interval_hours,
-        tickMinutes: merged.tick_minutes ?? DEFAULT_TICK_MINUTES,
     };
 }
 /**
- * True when a scheduled run falls in the window in which a reminder is due. Reminders repeat
- * every interval after the PR turned stale, and the window is one tick long, so a run that
- * comes once per tick lands in it once. Without an interval every run sends one.
+ * The number of the reminder a stale PR is on: 0 in the first interval after it turned stale, 1
+ * in the next, and so on. A run sends a reminder when its number is above the one recorded for
+ * the PR, so a delayed or skipped run only moves the reminder later. Undefined without an
+ * interval, when every run sends one.
  */
-function reminderDue(sinceStaleMs, intervalHours, tickMinutes) {
+function reminderNumber(sinceStaleMs, intervalHours) {
     if (intervalHours === undefined)
-        return true;
-    return sinceStaleMs % (intervalHours * HOUR_MS) < tickMinutes * MINUTE_MS;
+        return undefined;
+    return Math.floor(sinceStaleMs / (intervalHours * HOUR_MS));
 }
 /**
  * Reads the `reminders` block of the policy text. Returns undefined when there is none.

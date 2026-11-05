@@ -135,6 +135,76 @@ describe("handleLabeled", () => {
     expect(comment.upsertComment).toHaveBeenCalled();
   });
 
+  describe("the reminder marker of the ownership comment", () => {
+    const ctx = {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        configRepo: "",
+        configToken: "",
+        configPath: "config.yml",
+        configS3: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+        jiraToken: "",
+        aiToken: "",
+      },
+      capabilities: { hasOrgAccess: false },
+      teamsConfig,
+    };
+
+    beforeEach(() => {
+      mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+      jest
+        .spyOn(codeowners, "fetchCodeownersContent")
+        .mockResolvedValue("* @datarobot-community/customer-engineering\n");
+      (labels.ensureLabel as jest.Mock).mockResolvedValue(undefined);
+      (labels.applyLabels as jest.Mock).mockResolvedValue(undefined);
+      (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+      (comment.mergeSlackRefs as jest.Mock).mockReturnValue([]);
+      (comment.extractSlackRefs as jest.Mock).mockReturnValue([]);
+      (comment.buildOwnershipComment as jest.Mock).mockReturnValue("BODY");
+      (comment.embedSlackRefs as jest.Mock).mockImplementation((body: string) => body);
+      (comment.embedReminderMarker as jest.Mock).mockImplementation(
+        (body: string, readyAt: string, number: number) => `${body}|${readyAt}|${number}`
+      );
+    });
+
+    it("keeps the stored marker when the router rewrites the comment", async () => {
+      const readyAt = "2026-11-05T10:00:00.000Z";
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 7, body: "old" });
+      (comment.extractReminderMarker as jest.Mock).mockReturnValue({ readyAt, number: 2 });
+      await handleLabeled(mockOctokit as any, ctx);
+      expect(comment.upsertComment).toHaveBeenCalledWith(
+        expect.anything(),
+        "datarobot-community",
+        "test-repo",
+        1,
+        `BODY|${readyAt}|2`,
+        { id: 7, body: "old" }
+      );
+    });
+
+    it("adds no marker to a comment that never had one", async () => {
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 7, body: "old" });
+      (comment.extractReminderMarker as jest.Mock).mockReturnValue(null);
+      await handleLabeled(mockOctokit as any, ctx);
+      expect(comment.embedReminderMarker).not.toHaveBeenCalled();
+    });
+  });
+
   it("requests team review when hasOrgAccess is true", async () => {
     mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
     jest

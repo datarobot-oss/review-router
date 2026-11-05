@@ -112,7 +112,6 @@ orgs:
       enabled: true
       stale_hours: 24 # optional, default 24
       interval_hours: 6 # optional, unset sends a reminder on every scheduled run
-      tick_minutes: 60 # optional, minutes between scheduled runs, default 60
     notifications:
       dm:
         enabled: true # optional, default true
@@ -186,9 +185,9 @@ on:
   # ...
 ```
 
-A scheduled run also reconciles fork PRs and, in a repository that uses the gate, re-evaluates every open PR, so an hourly schedule is a good fit. Reminders repeat at their own pace. With `interval_hours` set, a PR is reminded when it turns stale and again every `interval_hours` after that. Without it, every scheduled run sends a reminder. Set `tick_minutes` to the time between your scheduled runs, so each reminder is sent once.
+A scheduled run also reconciles fork PRs and, in a repository that uses the gate, re-evaluates every open PR, so an hourly schedule is a good fit. Reminders repeat at their own pace. With `interval_hours` set, a PR is reminded when it turns stale and again every `interval_hours` after that. Without it, every scheduled run sends a reminder. The Router records the number of the last reminder in its code ownership comment, so a delayed or skipped run sends a reminder later and never twice.
 
-A repository can override `enabled`, `stale_hours`, `interval_hours` and `tick_minutes` for itself in a `reminders` block of `.github/review-router.yml`, read from the default branch. Each key set there replaces the org value. An invalid block is ignored and logged.
+A repository can override `enabled`, `stale_hours` and `interval_hours` for itself in a `reminders` block of `.github/review-router.yml`, read from the default branch. Each key set there replaces the org value. An invalid block is ignored and logged.
 
 A scheduled run costs about 10 API calls plus 10 per open PR. It stops when less than 20% of the hourly API budget remains, and logs the calls it used.
 

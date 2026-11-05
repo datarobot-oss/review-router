@@ -1,7 +1,8 @@
 import * as core from "@actions/core";
+import { embedReminderMarker, extractReminderMarker, findExistingComment } from "./comment";
 import { getSlackChannel, humanizeSlug } from "./config";
 import { EXTERNAL_CONTRIBUTION_LABEL, resolveTeamSlugFromLabel, isReadyLabel } from "./router";
-import { reminderDue, resolveReminders } from "./schedule";
+import { reminderNumber, resolveReminders } from "./schedule";
 import { sendSlackReminder } from "./slack";
 import { ActionInputs, OrgConfig, Octokit, RemindersConfig } from "./types";
 
@@ -89,8 +90,11 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
     }
 
     const ageMs = Date.now() - readyAt.getTime();
-    if (!reminderDue(ageMs - staleMs, settings.intervalHours, settings.tickMinutes)) {
-      core.debug(`PR #${issue.number}: Not in a reminder window, skipping`);
+    const number = reminderNumber(ageMs - staleMs, settings.intervalHours);
+    if (
+      number !== undefined &&
+      !(await claimReminder(octokit, ctx, issue.number, readyAt, number))
+    ) {
       continue;
     }
     const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
@@ -128,6 +132,45 @@ export async function handleSchedule(octokit: Octokit, ctx: ReminderContext): Pr
   }
 
   core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
+}
+
+/**
+ * Records the reminder number in the ownership comment of the PR and returns true when that
+ * reminder is due. The number is written before the Slack message goes out: a failed write
+ * skips the reminder, where the other order would repeat it on every run.
+ */
+async function claimReminder(
+  octokit: Octokit,
+  ctx: ReminderContext,
+  prNumber: number,
+  readyAt: Date,
+  number: number
+): Promise<boolean> {
+  try {
+    const comment = await findExistingComment(octokit, ctx.owner, ctx.repo, prNumber);
+    if (!comment) {
+      core.info(`PR #${prNumber}: No ownership comment to record the reminder in, skipping`);
+      return false;
+    }
+    const readyAtIso = readyAt.toISOString();
+    const recorded = extractReminderMarker(comment.body);
+    if (recorded?.readyAt === readyAtIso && recorded.number >= number) {
+      core.debug(`PR #${prNumber}: Reminder ${number} already sent, skipping`);
+      return false;
+    }
+    await octokit.rest.issues.updateComment({
+      owner: ctx.owner,
+      repo: ctx.repo,
+      comment_id: comment.id,
+      body: embedReminderMarker(comment.body, readyAtIso, number),
+    });
+    return true;
+  } catch (error) {
+    core.warning(
+      `Failed to record the reminder for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return false;
+  }
 }
 
 async function getReadyForReviewTime(

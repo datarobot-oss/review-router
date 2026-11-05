@@ -2666,5 +2666,48 @@ describe("routing a Dependabot pull request by the gate's decision", () => {
       mockOctokit.rest.issues.addLabels.mockRejectedValue(new Error("403"));
       await expect(pushed()).resolves.toBeUndefined();
     });
+
+    it("does not look for an ownership comment, so a stale approval is routed again", async () => {
+      await pushed();
+      expect(comment.findExistingComment).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when the sweep finds that the gate no longer passes it", () => {
+    const swept = (over: object = {}) => pushed({ unroutedOnly: true, ...over });
+
+    beforeEach(() => (comment.findExistingComment as jest.Mock).mockResolvedValue(null));
+
+    it("adds the ready label to a pull request that was never routed", async () => {
+      await swept();
+      expect(mockOctokit.rest.issues.addLabels).toHaveBeenCalledWith(readyLabelAdded);
+    });
+
+    it("adds nothing once an ownership comment shows it was routed, so a removed label stays removed", async () => {
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 1, body: "x" });
+      await swept();
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing while a team's review label is on it", async () => {
+      await swept({ labels: ["dependencies", "Needs Review: Platform"] });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing while the pull request carries the ready label", async () => {
+      await swept({ labels: ["Ready for Review"] });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing while the gate passes it, and reads no comments", async () => {
+      await swept({ gateDecision: passes });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+      expect(comment.findExistingComment).not.toHaveBeenCalled();
+    });
+
+    it("adds nothing for a pull request from a person", async () => {
+      await swept({ author: "alice" });
+      expect(mockOctokit.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
   });
 });

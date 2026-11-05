@@ -22,7 +22,7 @@ import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 import { runAiReviewSafely } from "./ai-review";
 import { isAiReviewCommand } from "./ai-review/trigger";
-import { GateEvent, runGate } from "./gate/run";
+import { GateEvent, runGate, SweptDecision } from "./gate/run";
 
 async function run(): Promise<void> {
   const githubToken = core.getInput("github-token");
@@ -65,10 +65,12 @@ async function run(): Promise<void> {
   }
 
   // First and on its own: the gate must not wait for, or fail with, the team config.
+  const swept: SweptDecision[] = [];
   const gateDecision = await runGate(
     octokit,
     { eventName, action, payload: context.payload as GateEvent["payload"] },
-    { owner, repo, runUrl }
+    { owner, repo, runUrl },
+    (decided) => swept.push(decided)
   );
   if (eventName === "merge_group") return;
 
@@ -190,6 +192,26 @@ async function run(): Promise<void> {
 
   if (eventName === "schedule") {
     await reconcileOpenPulls(octokit, { owner, repo, inputs, capabilities, teamsConfig });
+    // The gate can stop passing a Dependabot pull request without a push, so no event routes it.
+    for (const { number, author, labels, decision } of swept) {
+      try {
+        await handleDependabotPush(octokit, {
+          owner,
+          repo,
+          prNumber: number,
+          author,
+          labels,
+          gateDecision: decision,
+          unroutedOnly: true,
+          inputs,
+          teamsConfig,
+        });
+      } catch (error) {
+        core.warning(
+          `Failed to route Dependabot PR #${number}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
     const defaultBranch = context.payload.repository?.default_branch;
     const repoReminders = defaultBranch
       ? await readRepoReminders(octokit, owner, repo, defaultBranch)

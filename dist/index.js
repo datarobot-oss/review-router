@@ -82927,9 +82927,10 @@ async function failClosed(octokit, ref, target, error) {
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
  * so the Review Router's other work is not blocked by it. For an event about one pull request
  * it returns the decision, or null when the repository is not enrolled, the event is for a queue
- * entry or a sweep, or nothing was decided.
+ * entry or a sweep, or nothing was decided. A sweep hands each decision it makes to
+ * onSweepDecision instead.
  */
-async function runGate(octokit, event, ref) {
+async function runGate(octokit, event, ref, onSweepDecision) {
     const target = gateTarget(event);
     if (!target)
         return null;
@@ -82961,7 +82962,15 @@ async function runGate(octokit, event, ref) {
                         break;
                     }
                 }
-                await gatePull(octokit, ref, enrollment, defaultBranch, pull.number, undefined, pull.head.sha);
+                const decision = await gatePull(octokit, ref, enrollment, defaultBranch, pull.number, undefined, pull.head.sha);
+                if (decision) {
+                    onSweepDecision?.({
+                        number: pull.number,
+                        author: pull.user?.login ?? "",
+                        labels: (pull.labels ?? []).map((label) => label.name),
+                        decision,
+                    });
+                }
             }
         }
         else if (target.kind === "queue") {
@@ -83068,7 +83077,8 @@ async function run() {
         return;
     }
     // First and on its own: the gate must not wait for, or fail with, the team config.
-    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl });
+    const swept = [];
+    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl }, (decided) => swept.push(decided));
     if (eventName === "merge_group")
         return;
     if (eventName === "issue_comment" && action === "created") {
@@ -83156,6 +83166,25 @@ async function run() {
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     if (eventName === "schedule") {
         await (0, reconcile_1.reconcileOpenPulls)(octokit, { owner, repo, inputs, capabilities, teamsConfig });
+        // The gate can stop passing a Dependabot pull request without a push, so no event routes it.
+        for (const { number, author, labels, decision } of swept) {
+            try {
+                await (0, router_1.handleDependabotPush)(octokit, {
+                    owner,
+                    repo,
+                    prNumber: number,
+                    author,
+                    labels,
+                    gateDecision: decision,
+                    unroutedOnly: true,
+                    inputs,
+                    teamsConfig,
+                });
+            }
+            catch (error) {
+                core.warning(`Failed to route Dependabot PR #${number}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
         const defaultBranch = context.payload.repository?.default_branch;
         const repoReminders = defaultBranch
             ? await (0, schedule_1.readRepoReminders)(octokit, owner, repo, defaultBranch)
@@ -84651,7 +84680,8 @@ async function addDependabotReadyLabel(octokit, ctx) {
 }
 /**
  * Routes a Dependabot pull request for review once the gate stops passing it, for example after a
- * person pushes to its branch. At open, a pull request that the gate passes is left unrouted.
+ * person pushes to its branch or the scheduled sweep finds it blocked. At open, a pull request
+ * that the gate passes is left unrouted.
  */
 async function handleDependabotPush(octokit, ctx) {
     if (!ctx.teamsConfig.dependabot?.auto_label || ctx.author !== DEPENDABOT_LOGIN)
@@ -84661,6 +84691,13 @@ async function handleDependabotPush(octokit, ctx) {
     const alreadyRouted = ctx.labels.some((name) => isReadyLabel(name, ctx.inputs.readyLabel, ctx.teamsConfig.ready_label_aliases));
     if (alreadyRouted)
         return;
+    if (ctx.unroutedOnly) {
+        const inReview = ctx.labels.some((name) => name.startsWith(`${ctx.inputs.needsReviewPrefix}:`));
+        if (inReview)
+            return;
+        if (await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber))
+            return;
+    }
     await addDependabotReadyLabel(octokit, ctx);
 }
 async function handleOpened(octokit, ctx) {

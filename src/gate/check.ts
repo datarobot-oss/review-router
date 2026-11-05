@@ -9,17 +9,22 @@ export const GATE_DOCS_URL =
 const EXTERNAL_ID_PREFIX = "rr-gate:";
 
 /** The decision as the check run records it. The external id carries the reason for dedupe. */
-function stateOf(decision: GateDecision): { conclusion: string; externalId: string } {
-  return {
-    conclusion: decision.conclusion,
-    externalId: `${EXTERNAL_ID_PREFIX}${decision.reason}`,
-  };
+function stateOf(decision: GateDecision): {
+  status: "in_progress" | "completed";
+  conclusion?: string;
+  externalId: string;
+} {
+  const externalId = `${EXTERNAL_ID_PREFIX}${decision.reason}`;
+  return decision.pending
+    ? { status: "in_progress", externalId }
+    : { status: "completed", conclusion: decision.conclusion, externalId };
 }
 
 /**
- * Posts the decision as a new completed check run on a commit, unless the latest run of that
- * name already shows the same state. A new run per change keeps the history readable, and a
- * required check follows the latest run. Returns whether a run was posted.
+ * Posts the decision as a new check run on a commit, unless the latest run of that name already
+ * shows the same state. A pending decision is an in_progress run, any other a completed one. A
+ * new run per change keeps the history readable, and a required check follows the latest run.
+ * Returns whether a run was posted.
  */
 export async function postGateCheck(
   octokit: Octokit,
@@ -29,7 +34,7 @@ export async function postGateCheck(
   decision: GateDecision,
   runUrl?: string
 ): Promise<boolean> {
-  const { conclusion, externalId } = stateOf(decision);
+  const { status, conclusion, externalId } = stateOf(decision);
   const { data } = await octokit.rest.checks.listForRef({
     owner,
     repo,
@@ -38,7 +43,7 @@ export async function postGateCheck(
     filter: "latest",
   });
   const [latest] = data.check_runs;
-  if (latest?.status === "completed" && latest.conclusion === conclusion) {
+  if (latest?.status === status && latest.conclusion === (conclusion ?? null)) {
     if (latest.external_id === externalId) return false;
   }
 
@@ -47,8 +52,8 @@ export async function postGateCheck(
     repo,
     name: GATE_CHECK_NAME,
     head_sha: headSha,
-    status: "completed",
-    conclusion: conclusion as "success" | "action_required",
+    status,
+    ...(conclusion ? { conclusion: conclusion as "success" | "action_required" } : {}),
     external_id: externalId,
     details_url: GATE_DOCS_URL,
     output: {

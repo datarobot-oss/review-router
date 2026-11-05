@@ -4,7 +4,9 @@ The gate is a required status check named `Bouncer`, posted by the Review Router
 
 ## How the gate decides
 
-The gate posts one result per pull request head commit. The result is `success` or `action_required`. Both `neutral` and `skipped` satisfy a required check, so the gate never posts them.
+The gate posts one result per pull request head commit. The result is `success`, `action_required`, or a pending run. Both `neutral` and `skipped` satisfy a required check, so the gate never posts them.
+
+A pull request that waits for an approval shows a pending `Bouncer` run, which blocks the merge like any pending required check and shows a yellow dot, not a red cross. `action_required` stays for a change request and for an error. A merge queue entry that lacks an approval gets `action_required`, so the queue fails it at once instead of holding the queue until its timeout.
 
 The gate checks these rules in order:
 
@@ -159,7 +161,8 @@ To roll back, restore the required approvals and remove the check from the rules
 ## Limits
 
 - The gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. Treat write access as the trust boundary until the gate runs under its own GitHub App.
-- The gate does not post `in_progress`. A pull request shows no result between a push and the next run.
+- The gate posts nothing between a push and the first run, so a new commit shows the required check as expected, with no link, until the run posts.
+- A pending run stays until a person approves or the next push.
 - A review on a pull request from a fork starts no run with secrets. A change request or a dismissal on such a pull request takes effect at the next scheduled run, and a merge queue re-evaluates it when the pull request enters the queue.
 - A pull request from a fork whose push history the App can't read, such as a private fork, stays blocked. Merge it through a branch of the repository instead.
 - Dependabot lists no update type for indirect dependencies and some security updates. The gate derives it from the two versions, which needs a version number that starts with digits. Date-based versions count as comparable numbers.

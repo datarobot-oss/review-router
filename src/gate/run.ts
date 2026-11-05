@@ -77,7 +77,7 @@ function errorDecision(error: unknown): GateDecision {
   const reason = error instanceof Error ? error.message : String(error);
   return {
     conclusion: "action_required",
-    reason: "needs-approval",
+    reason: "error",
     title: "The gate could not decide",
     summary: `The gate failed closed: ${reason}`,
   };
@@ -117,7 +117,10 @@ async function gatePull(
       core.info(`Skipping #${number}: not an open pull request for ${defaultBranch}.`);
       return;
     }
-    const decision = withPolicyNote(decideGate(found.facts, enrollment.policy), enrollment);
+    const decided = withPolicyNote(decideGate(found.facts, enrollment.policy), enrollment);
+    // A merge queue entry fails at once: a pending check would hold the queue until its timeout.
+    const decision: GateDecision =
+      !queueSha && decided.reason === "needs-approval" ? { ...decided, pending: true } : decided;
 
     // A push during the evaluation makes the result stale. The push triggers its own run.
     if (!queueSha && (await currentHead(octokit, owner, repo, number)) !== found.facts.headSha) {

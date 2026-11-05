@@ -11,7 +11,7 @@ export type WelcomeSection = "jira" | "external";
 
 /** The order of the sections in the comment. */
 const SECTION_ORDER: WelcomeSection[] = ["jira", "external"];
-/** A Jira card follows the PR title, so it is replaced. An external message is posted once. */
+/** The Jira card is rewritten when its text differs. An external message is posted once. */
 const REPLACES_EXISTING: Record<WelcomeSection, boolean> = { jira: true, external: false };
 const LEGACY_MARKER: Record<WelcomeSection, string> = {
   jira: JIRA_COMMENT_MARKER,
@@ -23,7 +23,8 @@ const SECTION_PATTERN =
 
 function readSections(body: string): Map<WelcomeSection, string> {
   const sections = new Map<WelcomeSection, string>();
-  for (const match of body.matchAll(SECTION_PATTERN)) {
+  // GitHub returns CRLF line endings for a comment that was edited in the web UI.
+  for (const match of body.replace(/\r\n/g, "\n").matchAll(SECTION_PATTERN)) {
     sections.set(match[1] as WelcomeSection, match[2]);
   }
   return sections;
@@ -83,7 +84,13 @@ export async function upsertWelcomeSection(
     }
 
     if (legacy) {
-      await octokit.rest.issues.deleteComment({ owner, repo, comment_id: legacy.id });
+      await octokit.rest.issues
+        .deleteComment({ owner, repo, comment_id: legacy.id })
+        .catch((error) =>
+          core.warning(
+            `Failed to delete the legacy ${name} comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`
+          )
+        );
     }
   } catch (error) {
     core.warning(

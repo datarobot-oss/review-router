@@ -81167,6 +81167,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EXTERNAL_COMMENT_MARKER = exports.COMMENT_MARKER = void 0;
+exports.isRouterComment = isRouterComment;
 exports.buildOwnershipComment = buildOwnershipComment;
 exports.embedSlackRefs = embedSlackRefs;
 exports.mergeSlackRefs = mergeSlackRefs;
@@ -81183,12 +81184,16 @@ exports.postExternalComment = postExternalComment;
 const core = __importStar(__nccwpck_require__(7484));
 const config_1 = __nccwpck_require__(2973);
 const welcome_1 = __nccwpck_require__(6607);
+Object.defineProperty(exports, "EXTERNAL_COMMENT_MARKER", ({ enumerable: true, get: function () { return welcome_1.EXTERNAL_COMMENT_MARKER; } }));
 exports.COMMENT_MARKER = "<!-- review-router-ownership -->";
-var welcome_2 = __nccwpck_require__(6607);
-Object.defineProperty(exports, "EXTERNAL_COMMENT_MARKER", ({ enumerable: true, get: function () { return welcome_2.EXTERNAL_COMMENT_MARKER; } }));
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 // Matches the Slack message's file list cutoff.
 const COLLAPSE_AFTER_FILES = 10;
+/** True for a comment the Router wrote: the ownership, welcome, or a legacy Jira or external comment. */
+function isRouterComment(body) {
+    return (!!body &&
+        [exports.COMMENT_MARKER, welcome_1.WELCOME_MARKER, welcome_1.JIRA_COMMENT_MARKER, welcome_1.EXTERNAL_COMMENT_MARKER].some((marker) => body.includes(marker)));
+}
 function buildOwnershipComment(ownership, hasOrgAccess) {
     const lines = [exports.COMMENT_MARKER, "## Code Ownership", ""];
     for (const [team, files] of ownership.teamFiles) {
@@ -83096,7 +83101,7 @@ async function run() {
             return;
         }
         // Thread notification for general comments
-        if (comment.body?.includes(comment_1.COMMENT_MARKER)) {
+        if ((0, comment_1.isRouterComment)(comment.body)) {
             core.info("Ignoring review-router's own comment");
             return;
         }
@@ -83330,7 +83335,7 @@ async function run() {
             const reviewer = review.user?.login ?? "";
             if (reviewer !== prAuthor &&
                 context.payload.sender?.type !== "Bot" &&
-                !(review.body ?? "").includes(comment_1.COMMENT_MARKER) &&
+                !(0, comment_1.isRouterComment)(review.body) &&
                 (review.body ?? "").trim().length > 0) {
                 await (0, router_1.handleComment)(octokit, {
                     owner,
@@ -83702,7 +83707,6 @@ exports.latestApprovers = latestApprovers;
 exports.reconcileOpenPulls = reconcileOpenPulls;
 const core = __importStar(__nccwpck_require__(7484));
 const comment_1 = __nccwpck_require__(2246);
-const welcome_1 = __nccwpck_require__(6607);
 const trigger_1 = __nccwpck_require__(5789);
 const router_1 = __nccwpck_require__(8954);
 /** Logins whose latest non-COMMENTED review is an approval. Reviews must be in chronological order. */
@@ -83720,10 +83724,6 @@ function isNewer(at, cursor) {
 }
 function isRealPerson(user, author) {
     return !!user && user.type !== "Bot" && user.login !== author;
-}
-function isRouterComment(body) {
-    return (!!body &&
-        [comment_1.COMMENT_MARKER, comment_1.EXTERNAL_COMMENT_MARKER, welcome_1.JIRA_COMMENT_MARKER, welcome_1.WELCOME_MARKER].some((marker) => body.includes(marker)));
 }
 /** The live issue_comment path handles these as commands and never notifies on them. */
 function isSlashCommand(body) {
@@ -83770,7 +83770,7 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
         }
         else if (review.state === "COMMENTED" &&
             (review.body ?? "").trim().length > 0 &&
-            !isRouterComment(review.body)) {
+            !(0, comment_1.isRouterComment)(review.body)) {
             events.push({
                 kind: "review",
                 commenter: review.user.login,
@@ -83809,7 +83809,7 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
     for (const c of issueComments) {
         if (!isNewer(c.created_at, cursor) || !isRealPerson(c.user, author))
             continue;
-        if (isRouterComment(c.body) || isSlashCommand(c.body))
+        if ((0, comment_1.isRouterComment)(c.body) || isSlashCommand(c.body))
             continue;
         events.push({
             kind: "comment",
@@ -85305,7 +85305,7 @@ exports.EXTERNAL_COMMENT_MARKER = "<!-- review-router-external -->";
 exports.WELCOME_DOCS_URL = "https://github.com/datarobot-oss/review-router#readme";
 /** The order of the sections in the comment. */
 const SECTION_ORDER = ["jira", "external"];
-/** A Jira card follows the PR title, so it is replaced. An external message is posted once. */
+/** The Jira card is rewritten when its text differs. An external message is posted once. */
 const REPLACES_EXISTING = { jira: true, external: false };
 const LEGACY_MARKER = {
     jira: exports.JIRA_COMMENT_MARKER,
@@ -85315,7 +85315,8 @@ const FOOTER = `<sub>[How Review Router works](${exports.WELCOME_DOCS_URL})</sub
 const SECTION_PATTERN = /<!-- rr:section:(jira|external) -->\n([\s\S]*?)\n<!-- \/rr:section:\1 -->/g;
 function readSections(body) {
     const sections = new Map();
-    for (const match of body.matchAll(SECTION_PATTERN)) {
+    // GitHub returns CRLF line endings for a comment that was edited in the web UI.
+    for (const match of body.replace(/\r\n/g, "\n").matchAll(SECTION_PATTERN)) {
         sections.set(match[1], match[2]);
     }
     return sections;
@@ -85362,7 +85363,9 @@ async function upsertWelcomeSection(octokit, owner, repo, prNumber, name, conten
             }
         }
         if (legacy) {
-            await octokit.rest.issues.deleteComment({ owner, repo, comment_id: legacy.id });
+            await octokit.rest.issues
+                .deleteComment({ owner, repo, comment_id: legacy.id })
+                .catch((error) => core.warning(`Failed to delete the legacy ${name} comment on PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`));
         }
     }
     catch (error) {

@@ -1,6 +1,7 @@
 import { latestApprovers, reconcileOpenPulls } from "../src/reconcile";
 import { handleReviewSubmitted, handleComment, syncReviewCheck } from "../src/router";
 import { COMMENT_MARKER } from "../src/comment";
+import { JIRA_COMMENT_MARKER, WELCOME_MARKER } from "../src/welcome";
 import { OrgConfig } from "../src/types";
 
 jest.mock("@actions/core");
@@ -474,6 +475,32 @@ describe("reconcileOpenPulls", () => {
       expect.anything(),
       expect.objectContaining({ commenter: "carol", kind: "comment" })
     );
+  });
+
+  it("ignores the welcome comment and a legacy Jira comment even from a user account", async () => {
+    const created = "2026-10-23T10:05:00Z";
+    const octokit = octokitFor({
+      pulls: [forkPr(1, bodyWithCursor)],
+      freshBody: bodyWithCursor,
+      issueComments: [
+        {
+          user: human("bob"),
+          body: `${WELCOME_MARKER}\nwelcome`,
+          created_at: created,
+          html_url: "a",
+        },
+        {
+          user: human("bob"),
+          body: `${JIRA_COMMENT_MARKER}\ncard`,
+          created_at: created,
+          html_url: "b",
+        },
+      ],
+    });
+
+    await reconcileOpenPulls(octokit as any, ctx);
+
+    expect(handleComment).not.toHaveBeenCalled();
   });
 
   it("ignores /review and /ai-review slash commands, as the live comment path does", async () => {

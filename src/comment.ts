@@ -2,13 +2,28 @@ import * as core from "@actions/core";
 import { OwnershipMap, Octokit } from "./types";
 import { humanizeSlug } from "./config";
 import { SlackMessageRef } from "./slack";
-import { upsertWelcomeSection } from "./welcome";
+import {
+  EXTERNAL_COMMENT_MARKER,
+  JIRA_COMMENT_MARKER,
+  upsertWelcomeSection,
+  WELCOME_MARKER,
+} from "./welcome";
 
 export const COMMENT_MARKER = "<!-- review-router-ownership -->";
-export { EXTERNAL_COMMENT_MARKER } from "./welcome";
+export { EXTERNAL_COMMENT_MARKER };
 const SLACK_REF_PATTERN = /<!-- rr:slack:([^:]+):([^ ]+) -->/;
 // Matches the Slack message's file list cutoff.
 const COLLAPSE_AFTER_FILES = 10;
+
+/** True for a comment the Router wrote: the ownership, welcome, or a legacy Jira or external comment. */
+export function isRouterComment(body: string | null | undefined): boolean {
+  return (
+    !!body &&
+    [COMMENT_MARKER, WELCOME_MARKER, JIRA_COMMENT_MARKER, EXTERNAL_COMMENT_MARKER].some((marker) =>
+      body.includes(marker)
+    )
+  );
+}
 
 export function buildOwnershipComment(ownership: OwnershipMap, hasOrgAccess: boolean): string {
   const lines: string[] = [COMMENT_MARKER, "## Code Ownership", ""];

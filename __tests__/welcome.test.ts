@@ -41,6 +41,14 @@ describe("setWelcomeSection", () => {
     expect(updated).toContain("keep me");
   });
 
+  it("keeps the other section when the comment came back with CRLF line endings", () => {
+    const both = setWelcomeSection(setWelcomeSection("", "jira", "old"), "external", "keep me");
+    const edited = both.replace(/\n/g, "\r\n");
+    const updated = setWelcomeSection(edited, "jira", "new");
+    expect(updated).toContain("keep me");
+    expect(updated).toContain("new");
+  });
+
   it("starts over when the body holds no sections", () => {
     const body = setWelcomeSection("some text someone typed", "jira", "J");
     expect(body).not.toContain("some text someone typed");
@@ -105,6 +113,47 @@ describe("upsertWelcomeSection", () => {
       repo: "r",
       comment_id: 3,
     });
+  });
+
+  it("writes the Jira card into the welcome comment, not the legacy one", async () => {
+    const octokit = fakeOctokit([{ id: 3, body: `${JIRA_COMMENT_MARKER}\n🎫 old card` }]);
+    await call(octokit, "jira", "new card");
+    const { body } = octokit.rest.issues.createComment.mock.calls[0][0];
+    expect(body).toContain("new card");
+    expect(body).not.toContain("old card");
+  });
+
+  it("still deletes a legacy Jira comment when the welcome section is already up to date", async () => {
+    const existing = setWelcomeSection("", "jira", "J");
+    const octokit = fakeOctokit([
+      { id: 9, body: existing },
+      { id: 3, body: `${JIRA_COMMENT_MARKER}\nold` },
+    ]);
+    await call(octokit, "jira", "J");
+    expect(octokit.rest.issues.deleteComment).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      comment_id: 3,
+    });
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+    expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("warns about the delete, not the write, when only the delete fails", async () => {
+    const octokit = fakeOctokit([{ id: 3, body: `${JIRA_COMMENT_MARKER}\nold` }]);
+    octokit.rest.issues.deleteComment.mockRejectedValue(new Error("403"));
+    await expect(call(octokit, "jira", "J")).resolves.toBeUndefined();
+    expect(core.warning).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to delete the legacy jira comment")
+    );
+    expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("write the jira"));
+  });
+
+  it("writes the Jira section and leaves a legacy external comment alone", async () => {
+    const octokit = fakeOctokit([{ id: 4, body: `${EXTERNAL_COMMENT_MARKER}\nhi` }]);
+    await call(octokit, "jira", "J");
+    expect(octokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
+    expect(octokit.rest.issues.deleteComment).not.toHaveBeenCalled();
   });
 
   it("keeps a legacy Jira comment when the welcome comment could not be written", async () => {

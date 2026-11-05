@@ -11,7 +11,7 @@ import {
   classifyLabel,
   shouldSkipDuplicateRouting,
 } from "./router";
-import { COMMENT_MARKER } from "./comment";
+import { isRouterComment } from "./comment";
 import { handleSchedule } from "./reminders";
 import { reconcileOpenPulls } from "./reconcile";
 import { detectCapabilities } from "./auth";
@@ -126,7 +126,7 @@ async function run(): Promise<void> {
     }
 
     // Thread notification for general comments
-    if (comment.body?.includes(COMMENT_MARKER)) {
+    if (isRouterComment(comment.body)) {
       core.info("Ignoring review-router's own comment");
       return;
     }
@@ -420,7 +420,7 @@ async function run(): Promise<void> {
       if (
         reviewer !== prAuthor &&
         context.payload.sender?.type !== "Bot" &&
-        !(review.body ?? "").includes(COMMENT_MARKER) &&
+        !isRouterComment(review.body) &&
         (review.body ?? "").trim().length > 0
       ) {
         await handleComment(octokit, {

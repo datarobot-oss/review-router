@@ -84338,6 +84338,20 @@ async function getSlackRefsWithFallback(octokit, owner, repo, prNumber, prBody) 
     }
     return legacyRefs;
 }
+/**
+ * Keeps the markers that the reminders and the DM replay store in the ownership comment when the
+ * router writes a new body for it.
+ */
+function keepStoredMarkers(body, existing) {
+    if (!existing)
+        return body;
+    const reminder = (0, comment_1.extractReminderMarker)(existing.body);
+    const withReminder = reminder
+        ? (0, comment_1.embedReminderMarker)(body, reminder.readyAt, reminder.number)
+        : body;
+    const dmCursor = (0, comment_1.extractDmCursor)(existing.body);
+    return dmCursor ? (0, comment_1.embedDmCursor)(withReminder, dmCursor) : withReminder;
+}
 async function handleLabeled(octokit, ctx) {
     const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: ctx.owner,
@@ -84356,8 +84370,9 @@ async function handleLabeled(octokit, ctx) {
     core.info(`PR #${ctx.prNumber} has ${filenames.length} changed files`);
     const codeownersContent = await (0, codeowners_1.fetchCodeownersContent)(octokit, ctx.owner, ctx.repo, ctx.baseBranch);
     if (codeownersContent === null) {
-        const warningBody = `${comment_1.COMMENT_MARKER}\n⚠️ No \`.github/CODEOWNERS\` file found on the \`${ctx.baseBranch}\` branch. Review routing skipped.\n\nPlease add a CODEOWNERS file to enable automatic review routing.`;
-        await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, warningBody);
+        const existingComment = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber);
+        const warningBody = keepStoredMarkers(`${comment_1.COMMENT_MARKER}\n⚠️ No \`.github/CODEOWNERS\` file found on the \`${ctx.baseBranch}\` branch. Review routing skipped.\n\nPlease add a CODEOWNERS file to enable automatic review routing.`, existingComment);
+        await (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, warningBody, existingComment);
         core.warning("No CODEOWNERS file found, skipping review routing");
         return;
     }
@@ -84491,12 +84506,7 @@ async function handleLabeled(octokit, ctx) {
     const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
-    const reminder = existing ? (0, comment_1.extractReminderMarker)(existing.body) : null;
-    if (reminder)
-        commentBody = (0, comment_1.embedReminderMarker)(commentBody, reminder.readyAt, reminder.number);
-    const dmCursor = existing ? (0, comment_1.extractDmCursor)(existing.body) : null;
-    if (dmCursor)
-        commentBody = (0, comment_1.embedDmCursor)(commentBody, dmCursor);
+    commentBody = keepStoredMarkers(commentBody, existing);
     await withRetry(() => (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing));
     if (mergedRefs.length > 0) {
         try {

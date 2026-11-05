@@ -452,6 +452,7 @@ describe("handleLabeled", () => {
     mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
     jest.spyOn(codeowners, "fetchCodeownersContent").mockResolvedValue(null);
     (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+    (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
 
     await handleLabeled(mockOctokit as any, {
       owner: "datarobot-community",
@@ -488,8 +489,91 @@ describe("handleLabeled", () => {
       "datarobot-community",
       "test-repo",
       1,
-      expect.stringContaining("CODEOWNERS")
+      expect.stringContaining("CODEOWNERS"),
+      null
     );
+  });
+
+  describe("when CODEOWNERS is missing and the PR has an ownership comment", () => {
+    const warningCtx = {
+      owner: "datarobot-community",
+      repo: "test-repo",
+      prNumber: 1,
+      baseBranch: "main",
+      prUrl: "https://github.com/datarobot-community/test-repo/pull/1",
+      prTitle: "Test PR",
+      author: "alice",
+      additions: 10,
+      deletions: 5,
+      commits: 1,
+      labels: [],
+      inputs: {
+        githubToken: "token",
+        slackToken: "",
+        configRepo: "",
+        configPath: "config.yml",
+        configToken: "",
+        configS3: "",
+        readyLabel: "Ready for Review",
+        needsReviewPrefix: "Needs Review",
+        needsReviewLabelColor: "fbca04",
+        jiraToken: "",
+        aiToken: "",
+      },
+      capabilities: { hasOrgAccess: false },
+      teamsConfig,
+    };
+
+    beforeEach(() => {
+      mockOctokit.paginate.mockResolvedValue([{ filename: "src/app.py" }]);
+      jest.spyOn(codeowners, "fetchCodeownersContent").mockResolvedValue(null);
+      (comment.upsertComment as jest.Mock).mockResolvedValue(undefined);
+      (comment.embedReminderMarker as jest.Mock).mockImplementation(
+        (body: string, readyAt: string, number: number) => `${body}|reminder|${readyAt}|${number}`
+      );
+      (comment.embedDmCursor as jest.Mock).mockImplementation(
+        (body: string, iso: string) => `${body}|cursor|${iso}`
+      );
+    });
+
+    it("keeps the DM cursor and the reminder marker in the warning", async () => {
+      const readyAt = "2026-11-05T10:00:00.000Z";
+      const cursor = "2026-11-05T11:00:00.000Z";
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 7, body: "old" });
+      (comment.extractReminderMarker as jest.Mock).mockReturnValue({ readyAt, number: 2 });
+      (comment.extractDmCursor as jest.Mock).mockReturnValue(cursor);
+
+      await handleLabeled(mockOctokit as any, warningCtx);
+
+      const [, , , , body, existing] = (comment.upsertComment as jest.Mock).mock.calls[0];
+      expect(body).toContain("CODEOWNERS");
+      expect(body).toContain(`|reminder|${readyAt}|2`);
+      expect(body).toContain(`|cursor|${cursor}`);
+      expect(existing).toEqual({ id: 7, body: "old" });
+    });
+
+    it("adds no markers to a warning for a PR that had none", async () => {
+      (comment.findExistingComment as jest.Mock).mockResolvedValue({ id: 7, body: "old" });
+      (comment.extractReminderMarker as jest.Mock).mockReturnValue(null);
+      (comment.extractDmCursor as jest.Mock).mockReturnValue(null);
+
+      await handleLabeled(mockOctokit as any, warningCtx);
+
+      expect(comment.embedReminderMarker).not.toHaveBeenCalled();
+      expect(comment.embedDmCursor).not.toHaveBeenCalled();
+    });
+
+    it("creates the warning when the PR has no ownership comment yet", async () => {
+      (comment.findExistingComment as jest.Mock).mockResolvedValue(null);
+
+      await handleLabeled(mockOctokit as any, warningCtx);
+
+      const [, , , , body, existing] = (comment.upsertComment as jest.Mock).mock.calls[0];
+      expect(body).toContain("CODEOWNERS");
+      expect(existing).toBeNull();
+      expect(comment.embedReminderMarker).not.toHaveBeenCalled();
+      expect(comment.embedDmCursor).not.toHaveBeenCalled();
+    });
   });
 });
 

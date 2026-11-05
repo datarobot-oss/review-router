@@ -8,6 +8,8 @@ export interface TeamConfig {
 export interface RemindersConfig {
   enabled: boolean;
   stale_hours?: number;
+  /** Hours between reminders for one PR. Unset sends one on every scheduled run. */
+  interval_hours?: number;
 }
 
 export interface DmConfig {

@@ -110,14 +110,14 @@ on:
   merge_group:
     types: [checks_requested]
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "17 * * * *"
 ```
 
 The gate reads the repository activity feed, so the Review Router App needs the **Contents: read** permission.
 
 `synchronize` posts the result on a new head commit. `merge_group` posts the result on the commit of a merge queue entry. `schedule` re-evaluates every open pull request and fixes a result that no event updated. Editing a title, a description or a review starts no run, because none of them changes what the gate reads.
 
-Every scheduled run also sends the stale review reminders to Slack when they are enabled. A short interval repeats each reminder at that interval, so keep the interval you use for reminders.
+Every scheduled run also sends the stale review reminders to Slack when they are enabled. Set `interval_hours` in the `reminders` settings so a short schedule does not repeat each reminder. See [Stale PR Reminders](../../README.md#stale-pr-reminders). An hourly run costs about 10 API calls plus 10 per open pull request.
 
 Add a concurrency group to the job so runs for one pull request finish in order. Without it, a slow run for an earlier event can post its result after a newer run blocked the pull request.
 

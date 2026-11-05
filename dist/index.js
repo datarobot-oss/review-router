@@ -81175,6 +81175,8 @@ exports.embedSlackRefsInDescription = embedSlackRefsInDescription;
 exports.extractSlackRefsFromDescription = extractSlackRefsFromDescription;
 exports.extractDmCursor = extractDmCursor;
 exports.embedDmCursor = embedDmCursor;
+exports.extractReminderMarker = extractReminderMarker;
+exports.embedReminderMarker = embedReminderMarker;
 exports.findExistingComment = findExistingComment;
 exports.upsertComment = upsertComment;
 exports.postExternalComment = postExternalComment;
@@ -81293,6 +81295,17 @@ function embedDmCursor(body, iso) {
         const prefix = body.slice(0, cursorIdx).replace(/\n$/, "");
         return `${prefix}\n${marker}\n${body.slice(cursorIdx)}`;
     }
+    return `${body}\n${marker}`;
+}
+const REMINDER_PATTERN = /<!-- rr:reminder:(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z):(\d+) -->/;
+function extractReminderMarker(body) {
+    const match = body.match(REMINDER_PATTERN);
+    return match ? { readyAt: match[1], number: Number(match[2]) } : null;
+}
+function embedReminderMarker(body, readyAt, number) {
+    const marker = `<!-- rr:reminder:${readyAt}:${number} -->`;
+    if (REMINDER_PATTERN.test(body))
+        return body.replace(REMINDER_PATTERN, marker);
     return `${body}\n${marker}`;
 }
 async function findExistingComment(octokit, owner, repo, prNumber) {
@@ -82433,6 +82446,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_SETTINGS = exports.POLICY_PATH = void 0;
+exports.isBlankDocument = isBlankDocument;
 exports.parsePolicy = parsePolicy;
 exports.matchesAny = matchesAny;
 exports.matchesName = matchesName;
@@ -82664,14 +82678,19 @@ function parseDependabot(raw) {
     return { allowedPaths: paths, maxChangedFiles: limit, defaults, rules, usesCompatibility };
 }
 /**
+ * True when the text holds only blank lines and comments. js-yaml throws on a document with no
+ * content, and a stub like that is a valid policy file.
+ */
+function isBlankDocument(text) {
+    return text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"));
+}
+/**
  * Parses the contents of .github/review-router.yml. Unknown top-level keys are ignored so a newer
  * file still parses. Throws on malformed input: the caller fails closed.
  */
 function parsePolicy(text) {
-    // js-yaml throws on a document with no content, and a stub that only holds comments is valid.
-    if (text.split("\n").every((line) => line.trim() === "" || line.trim().startsWith("#"))) {
+    if (isBlankDocument(text))
         return {};
-    }
     const doc = yaml.load(text);
     if (doc === undefined || doc === null)
         return {};
@@ -82913,6 +82932,7 @@ async function runGate(octokit, event, ref) {
                 base: defaultBranch,
                 per_page: 100,
             });
+            core.info(`Gate sweep: ${pulls.length} open pull requests.`);
             for (const pull of pulls) {
                 await gatePull(octokit, ref, enrollment, defaultBranch, pull.number, undefined, pull.head.sha);
             }
@@ -82982,6 +83002,8 @@ const comment_1 = __nccwpck_require__(2246);
 const reminders_1 = __nccwpck_require__(9924);
 const reconcile_1 = __nccwpck_require__(1175);
 const auth_1 = __nccwpck_require__(9081);
+const rate_limit_1 = __nccwpck_require__(9419);
+const schedule_1 = __nccwpck_require__(6318);
 const config_1 = __nccwpck_require__(2973);
 const ai_review_1 = __nccwpck_require__(1869);
 const trigger_1 = __nccwpck_require__(5789);
@@ -83011,6 +83033,12 @@ async function run() {
     const octokit = github.getOctokit(inputs.githubToken);
     const eventName = context.eventName;
     const action = context.payload.action;
+    // A scheduled run touches every open PR, so it stops before it starves the events of the org.
+    const quota = eventName === "schedule" ? await (0, rate_limit_1.readQuota)(octokit) : undefined;
+    if (quota && (0, rate_limit_1.quotaLow)(quota)) {
+        core.warning(`Skipping the scheduled run: ${quota.remaining} of ${quota.limit} calls of the API budget remain.`);
+        return;
+    }
     // First and on its own: the gate must not wait for, or fail with, the team config.
     await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl });
     if (eventName === "merge_group")
@@ -83100,12 +83128,21 @@ async function run() {
     const capabilities = await (0, auth_1.detectCapabilities)(octokit, owner);
     if (eventName === "schedule") {
         await (0, reconcile_1.reconcileOpenPulls)(octokit, { owner, repo, inputs, capabilities, teamsConfig });
+        const defaultBranch = context.payload.repository?.default_branch;
+        const repoReminders = defaultBranch
+            ? await (0, schedule_1.readRepoReminders)(octokit, owner, repo, defaultBranch)
+            : undefined;
         await (0, reminders_1.handleSchedule)(octokit, {
             owner,
             repo,
             inputs,
             teamsConfig,
+            repoReminders,
         });
+        const after = quota && (await (0, rate_limit_1.readQuota)(octokit));
+        if (quota && after) {
+            core.info(`The scheduled run used about ${quota.remaining - after.remaining} API calls.`);
+        }
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
@@ -83606,6 +83643,34 @@ async function removeLabel(octokit, owner, repo, prNumber, labelName) {
 
 /***/ }),
 
+/***/ 9419:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.readQuota = readQuota;
+exports.quotaLow = quotaLow;
+/** A scheduled run stops when less than this share of the hourly API budget remains. */
+const MIN_REMAINING_SHARE = 0.2;
+/** The core API budget of the token. The endpoint costs no quota. Undefined when it can't be read. */
+async function readQuota(octokit) {
+    try {
+        const { data } = await octokit.rest.rateLimit.get();
+        const { remaining, limit } = data.resources.core;
+        return { remaining, limit };
+    }
+    catch {
+        return undefined;
+    }
+}
+function quotaLow(quota) {
+    return quota.remaining < quota.limit * MIN_REMAINING_SHARE;
+}
+
+
+/***/ }),
+
 /***/ 1175:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -83921,12 +83986,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.handleSchedule = handleSchedule;
 const core = __importStar(__nccwpck_require__(7484));
+const comment_1 = __nccwpck_require__(2246);
 const config_1 = __nccwpck_require__(2973);
 const router_1 = __nccwpck_require__(8954);
+const schedule_1 = __nccwpck_require__(6318);
 const slack_1 = __nccwpck_require__(6691);
 async function handleSchedule(octokit, ctx) {
-    const remindersConfig = ctx.teamsConfig.reminders;
-    if (!remindersConfig?.enabled) {
+    const settings = (0, schedule_1.resolveReminders)(ctx.teamsConfig.reminders, ctx.repoReminders);
+    if (!settings.enabled) {
         core.info("Reminders are disabled or not configured, skipping");
         return;
     }
@@ -83934,8 +84001,8 @@ async function handleSchedule(octokit, ctx) {
         core.warning("Reminders are enabled but no Slack token is configured -- no reminders will be sent");
         return;
     }
-    const staleHours = remindersConfig.stale_hours ?? 24;
-    const staleThreshold = new Date(Date.now() - staleHours * 60 * 60 * 1000);
+    const staleMs = settings.staleHours * 60 * 60 * 1000;
+    const staleThreshold = new Date(Date.now() - staleMs);
     let openIssues;
     try {
         openIssues = await octokit.paginate(octokit.rest.issues.listForRepo, {
@@ -83978,6 +84045,11 @@ async function handleSchedule(octokit, ctx) {
             continue;
         }
         const ageMs = Date.now() - readyAt.getTime();
+        const number = (0, schedule_1.reminderNumber)(ageMs - staleMs, settings.intervalHours);
+        if (number !== undefined &&
+            !(await claimReminder(octokit, ctx, issue.number, readyAt, number))) {
+            continue;
+        }
         const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
         const ageHours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const ageDisplay = ageDays > 0
@@ -84006,6 +84078,37 @@ async function handleSchedule(octokit, ctx) {
         }
     }
     core.info(`Sent ${remindedCount} reminder(s) for stale PRs`);
+}
+/**
+ * Records the reminder number in the ownership comment of the PR and returns true when that
+ * reminder is due. The number is written before the Slack message goes out: a failed write
+ * skips the reminder, where the other order would repeat it on every run.
+ */
+async function claimReminder(octokit, ctx, prNumber, readyAt, number) {
+    try {
+        const comment = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, prNumber);
+        if (!comment) {
+            core.info(`PR #${prNumber}: No ownership comment to record the reminder in, skipping`);
+            return false;
+        }
+        const readyAtIso = readyAt.toISOString();
+        const recorded = (0, comment_1.extractReminderMarker)(comment.body);
+        if (recorded?.readyAt === readyAtIso && recorded.number >= number) {
+            core.debug(`PR #${prNumber}: Reminder ${number} already sent, skipping`);
+            return false;
+        }
+        await octokit.rest.issues.updateComment({
+            owner: ctx.owner,
+            repo: ctx.repo,
+            comment_id: comment.id,
+            body: (0, comment_1.embedReminderMarker)(comment.body, readyAtIso, number),
+        });
+        return true;
+    }
+    catch (error) {
+        core.warning(`Failed to record the reminder for PR #${prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+    }
 }
 async function getReadyForReviewTime(octokit, owner, repo, issueNumber, readyLabels) {
     try {
@@ -84339,6 +84442,9 @@ async function handleLabeled(octokit, ctx) {
     const mergedRefs = (0, comment_1.mergeSlackRefs)((0, comment_1.mergeSlackRefs)(descriptionRefs, commentRefs), slackRefs);
     let commentBody = (0, comment_1.buildOwnershipComment)(ownership, ctx.capabilities.hasOrgAccess);
     commentBody = (0, comment_1.embedSlackRefs)(commentBody, mergedRefs);
+    const reminder = existing ? (0, comment_1.extractReminderMarker)(existing.body) : null;
+    if (reminder)
+        commentBody = (0, comment_1.embedReminderMarker)(commentBody, reminder.readyAt, reminder.number);
     await withRetry(() => (0, comment_1.upsertComment)(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing));
     if (mergedRefs.length > 0) {
         try {
@@ -84735,6 +84841,136 @@ function getStatusEmoji(name, config) {
         closed: "no_entry_sign",
     };
     return config[name] ?? defaults[name];
+}
+
+
+/***/ }),
+
+/***/ 6318:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveReminders = resolveReminders;
+exports.reminderNumber = reminderNumber;
+exports.parseRepoReminders = parseRepoReminders;
+exports.readRepoReminders = readRepoReminders;
+const core = __importStar(__nccwpck_require__(7484));
+const yaml = __importStar(__nccwpck_require__(4484));
+const policy_1 = __nccwpck_require__(4982);
+const DEFAULT_STALE_HOURS = 24;
+const HOUR_MS = 60 * 60 * 1000;
+const NUMBER_KEYS = ["stale_hours", "interval_hours"];
+/** The repo layer wins over the org layer, key by key. */
+function resolveReminders(org, repo) {
+    const merged = { ...org, ...repo };
+    return {
+        enabled: merged.enabled ?? false,
+        staleHours: merged.stale_hours ?? DEFAULT_STALE_HOURS,
+        intervalHours: merged.interval_hours,
+    };
+}
+/**
+ * The number of the reminder a stale PR is on: 0 in the first interval after it turned stale, 1
+ * in the next, and so on. A run sends a reminder when its number is above the one recorded for
+ * the PR, so a delayed or skipped run only moves the reminder later. Undefined without an
+ * interval, when every run sends one.
+ */
+function reminderNumber(sinceStaleMs, intervalHours) {
+    if (intervalHours === undefined)
+        return undefined;
+    return Math.floor(sinceStaleMs / (intervalHours * HOUR_MS));
+}
+/**
+ * Reads the `reminders` block of the policy text. Returns undefined when there is none.
+ * Throws when the block is not a mapping of known keys with the right types.
+ */
+function parseRepoReminders(text) {
+    if ((0, policy_1.isBlankDocument)(text))
+        return undefined;
+    const parsed = yaml.load(text);
+    const block = parsed?.reminders;
+    if (block === undefined)
+        return undefined;
+    if (typeof block !== "object" || block === null || Array.isArray(block)) {
+        throw new Error("reminders must be a mapping.");
+    }
+    const result = {};
+    for (const [key, value] of Object.entries(block)) {
+        if (key === "enabled") {
+            if (typeof value !== "boolean")
+                throw new Error("reminders.enabled must be true or false.");
+            result.enabled = value;
+        }
+        else if (NUMBER_KEYS.includes(key)) {
+            if (!Number.isInteger(value) || value < 1) {
+                throw new Error(`reminders.${key} must be a whole number of 1 or more.`);
+            }
+            result[key] = value;
+        }
+        else {
+            throw new Error(`reminders.${key} is not a known setting.`);
+        }
+    }
+    return result;
+}
+/**
+ * The repo layer of the reminder settings, from the policy file on the default branch. Never
+ * throws: a missing file or an invalid block leaves the org settings in force.
+ */
+async function readRepoReminders(octokit, owner, repo, defaultBranch) {
+    try {
+        const { data } = await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path: policy_1.POLICY_PATH,
+            ref: defaultBranch,
+        });
+        if (Array.isArray(data) || data.type !== "file" || !("content" in data))
+            return undefined;
+        return parseRepoReminders(Buffer.from(data.content, "base64").toString("utf8"));
+    }
+    catch (error) {
+        if (error.status === 404)
+            return undefined;
+        const reason = error instanceof Error ? error.message : String(error);
+        core.warning(`Ignoring the reminders block of ${policy_1.POLICY_PATH}: ${reason}`);
+        return undefined;
+    }
 }
 
 

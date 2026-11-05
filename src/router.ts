@@ -6,8 +6,10 @@ import {
   buildOwnershipComment,
   upsertComment,
   COMMENT_MARKER,
+  embedReminderMarker,
   embedSlackRefs,
   embedSlackRefsInDescription,
+  extractReminderMarker,
   extractSlackRefsFromDescription,
   mergeSlackRefs,
   findExistingComment,
@@ -377,6 +379,8 @@ export async function handleLabeled(octokit: Octokit, ctx: LabeledContext): Prom
 
   let commentBody = buildOwnershipComment(ownership, ctx.capabilities.hasOrgAccess);
   commentBody = embedSlackRefs(commentBody, mergedRefs);
+  const reminder = existing ? extractReminderMarker(existing.body) : null;
+  if (reminder) commentBody = embedReminderMarker(commentBody, reminder.readyAt, reminder.number);
   await withRetry(() =>
     upsertComment(octokit, ctx.owner, ctx.repo, ctx.prNumber, commentBody, existing)
   );

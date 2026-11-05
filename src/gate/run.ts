@@ -179,6 +179,7 @@ export async function runGate(octokit: Octokit, event: GateEvent, ref: RepoRef):
         base: defaultBranch,
         per_page: 100,
       });
+      core.info(`Gate sweep: ${pulls.length} open pull requests.`);
       for (const pull of pulls) {
         await gatePull(
           octokit,

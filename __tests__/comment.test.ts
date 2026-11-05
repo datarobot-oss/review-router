@@ -7,6 +7,8 @@ import {
   extractSlackRefsFromDescription,
   extractDmCursor,
   embedDmCursor,
+  extractReminderMarker,
+  embedReminderMarker,
   postExternalComment,
   COMMENT_MARKER,
   EXTERNAL_COMMENT_MARKER,
@@ -289,6 +291,40 @@ describe("DM cursor marker", () => {
     const result = embedDmCursor(body, iso);
     expect(extractSlackRefsFromDescription(result)).toEqual([{ channel: "C1", ts: "1.2" }]);
     expect(extractDmCursor(result)).toBe(iso);
+  });
+});
+
+describe("reminder marker", () => {
+  const readyAt = "2026-11-05T10:00:00.000Z";
+
+  it("reads back the ready time and number it embeds", () => {
+    const body = embedReminderMarker("## Code Ownership", readyAt, 3);
+    expect(extractReminderMarker(body)).toEqual({ readyAt, number: 3 });
+  });
+
+  it("replaces the stored marker instead of adding a second one", () => {
+    const first = embedReminderMarker("body", readyAt, 1);
+    const second = embedReminderMarker(first, readyAt, 2);
+    expect(second.match(/rr:reminder/g)).toHaveLength(1);
+    expect(extractReminderMarker(second)).toEqual({ readyAt, number: 2 });
+  });
+
+  it("keeps the Slack refs next to the marker", () => {
+    const body = embedReminderMarker(
+      embedSlackRefs("body", [{ channel: "C1", ts: "1.2" }]),
+      readyAt,
+      0
+    );
+    expect(extractSlackRefs(body)).toEqual([{ channel: "C1", ts: "1.2" }]);
+  });
+
+  it.each([
+    ["a body with no marker", "## Code Ownership"],
+    ["an empty body", ""],
+    ["a marker with no number", "<!-- rr:reminder:2026-11-05T10:00:00.000Z -->"],
+    ["a marker with a bad time", "<!-- rr:reminder:yesterday:2 -->"],
+  ])("returns null for %s", (_name, body) => {
+    expect(extractReminderMarker(body)).toBeNull();
   });
 });
 

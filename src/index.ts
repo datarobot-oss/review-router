@@ -15,6 +15,8 @@ import { COMMENT_MARKER } from "./comment";
 import { handleSchedule } from "./reminders";
 import { reconcileOpenPulls } from "./reconcile";
 import { detectCapabilities } from "./auth";
+import { quotaLow, readQuota } from "./rate-limit";
+import { readRepoReminders } from "./schedule";
 import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 import { runAiReviewSafely } from "./ai-review";
@@ -51,6 +53,15 @@ async function run(): Promise<void> {
 
   const eventName = context.eventName;
   const action = context.payload.action;
+
+  // A scheduled run touches every open PR, so it stops before it starves the events of the org.
+  const quota = eventName === "schedule" ? await readQuota(octokit) : undefined;
+  if (quota && quotaLow(quota)) {
+    core.warning(
+      `Skipping the scheduled run: ${quota.remaining} of ${quota.limit} calls of the API budget remain.`
+    );
+    return;
+  }
 
   // First and on its own: the gate must not wait for, or fail with, the team config.
   await runGate(
@@ -178,12 +189,21 @@ async function run(): Promise<void> {
 
   if (eventName === "schedule") {
     await reconcileOpenPulls(octokit, { owner, repo, inputs, capabilities, teamsConfig });
+    const defaultBranch = context.payload.repository?.default_branch;
+    const repoReminders = defaultBranch
+      ? await readRepoReminders(octokit, owner, repo, defaultBranch)
+      : undefined;
     await handleSchedule(octokit, {
       owner,
       repo,
       inputs,
       teamsConfig,
+      repoReminders,
     });
+    const after = quota && (await readQuota(octokit));
+    if (quota && after) {
+      core.info(`The scheduled run used about ${quota.remaining - after.remaining} API calls.`);
+    }
     return;
   }
 

@@ -145,7 +145,7 @@ A scheduled run uses about 10 calls plus 10 per open pull request, and doesn't s
 | 12,500 | about 1,000           | about 600                                        |
 | 15,000 | about 1,200           | about 750                                        |
 
-If an organization outgrows its budget, lengthen the schedule and set `tick_minutes` to match. A second token doesn't add budget, because the installation owns it. Each scheduled run logs the calls it used.
+If an organization outgrows its budget, lengthen the schedule. A second token doesn't add budget, because the installation owns it. Each scheduled run logs the calls it used.
 
 ## Require the gate
 

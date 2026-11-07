@@ -81581,9 +81581,16 @@ exports.GATE_CHECK_NAME = "Bouncer";
 /** Where a person lands from the check row, to learn why the check is there. */
 exports.GATE_DOCS_URL = "https://github.com/datarobot-oss/review-router/blob/main/docs/setup/gate.md#how-the-gate-decides";
 const EXTERNAL_ID_PREFIX = "rr-gate:";
+/**
+ * The gate's own App marks its runs differently. A Router that posts the same check without
+ * naming an App then never takes the gate App's latest run for its own, which would skip a post
+ * the pinned ruleset still waits for.
+ */
+const APP_EXTERNAL_ID_PREFIX = "rr-gate-app:";
 /** The decision as the check run records it. The external id carries the reason for dedupe. */
-function stateOf(decision) {
-    const externalId = `${EXTERNAL_ID_PREFIX}${decision.reason}`;
+function stateOf(decision, appId) {
+    const prefix = appId === undefined ? EXTERNAL_ID_PREFIX : APP_EXTERNAL_ID_PREFIX;
+    const externalId = `${prefix}${decision.reason}`;
     return decision.pending
         ? { status: "in_progress", externalId }
         : { status: "completed", conclusion: decision.conclusion, externalId };
@@ -81598,7 +81605,7 @@ function stateOf(decision) {
  * whether a run was posted.
  */
 async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl, appId) {
-    const { status, conclusion, externalId } = stateOf(decision);
+    const { status, conclusion, externalId } = stateOf(decision, appId);
     const { data } = await octokit.rest.checks.listForRef({
         owner,
         repo,

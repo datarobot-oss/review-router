@@ -23,10 +23,15 @@ function fakeOctokit(latest: object[] = []) {
   return { octokit, create, listForRef };
 }
 
-const run = (conclusion: string | null, reason: string, status = "completed") => ({
+const run = (
+  conclusion: string | null,
+  reason: string,
+  status = "completed",
+  prefix = "rr-gate:"
+) => ({
   status,
   conclusion,
-  external_id: `rr-gate:${reason}`,
+  external_id: `${prefix}${reason}`,
 });
 
 describe("postGateCheck", () => {
@@ -193,9 +198,29 @@ describe("when the gate runs under its own App", () => {
   });
 
   it("still skips a repeat of its own result", async () => {
-    const { octokit, create } = fakeOctokit([run("success", "dependabot")]);
+    const { octokit, create } = fakeOctokit([
+      run("success", "dependabot", "completed", "rr-gate-app:"),
+    ]);
     expect(await postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242)).toBe(false);
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("marks its runs as the gate App's, so a Router that names no App doesn't mistake them for its own", async () => {
+    const { octokit, create } = fakeOctokit();
+    await postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ external_id: "rr-gate-app:dependabot" })
+    );
+  });
+
+  it("posts its own result when the latest run is the gate App's with the same state", async () => {
+    const { octokit, create } = fakeOctokit([
+      run("success", "dependabot", "completed", "rr-gate-app:"),
+    ]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", pass)).toBe(true);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ external_id: "rr-gate:dependabot" })
+    );
   });
 
   it("names no App when none is given, so the latest run of any App counts", async () => {

@@ -22,6 +22,7 @@ import { loadTeamsConfigForOrg } from "./config";
 import { ActionInputs } from "./types";
 import { runAiReviewSafely } from "./ai-review";
 import { isAiReviewCommand } from "./ai-review/trigger";
+import { DEPENDABOT_LOGIN } from "./gate/decide";
 import { GateEvent, runGate, SweptDecision } from "./gate/run";
 
 async function run(): Promise<void> {
@@ -34,8 +35,8 @@ async function run(): Promise<void> {
   }
 
   const mode = core.getInput("mode") || "all";
-  if (mode !== "all" && mode !== "gate") {
-    core.setFailed(`Unknown mode "${mode}". Use "all" or "gate".`);
+  if (mode !== "all" && mode !== "gate" && mode !== "router") {
+    core.setFailed(`Unknown mode "${mode}". Use "all", "gate" or "router".`);
     return;
   }
   // Under its own App the gate must read only that App's earlier results, so the ID is required.
@@ -83,7 +84,14 @@ async function run(): Promise<void> {
   const gateDecision = await runGate(
     octokit,
     { eventName, action, payload: context.payload as GateEvent["payload"] },
-    { owner, repo, runUrl, appId: gateAppId },
+    {
+      owner,
+      repo,
+      runUrl,
+      appId: gateAppId,
+      // The Router routes a Dependabot PR by the gate's decision, which another job posts.
+      dryRun: mode === "router" ? { onlyAuthor: DEPENDABOT_LOGIN } : undefined,
+    },
     (decided) => swept.push(decided)
   );
   if (mode === "gate" || eventName === "merge_group") return;

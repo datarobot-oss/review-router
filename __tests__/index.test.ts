@@ -187,6 +187,38 @@ describe("the gate mode", () => {
   });
 });
 
+describe("the router mode", () => {
+  const gateModule = () =>
+    jest.requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run");
+  const coreModule = () => jest.requireMock<jest.Mocked<typeof core>>("@actions/core");
+
+  it("keeps routing, and evaluates the gate only for Dependabot without posting it", async () => {
+    const router = await runAction("synchronize", { inputs: { mode: "router" } });
+    expect(gateModule().runGate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ dryRun: { onlyAuthor: "dependabot[bot]" } }),
+      expect.any(Function)
+    );
+    expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("needs no gate-app-id, since it posts nothing", async () => {
+    await runAction("synchronize", { inputs: { mode: "router" } });
+    expect(coreModule().setFailed).not.toHaveBeenCalled();
+  });
+
+  it("passes no App and no dry run to the gate in the default mode", async () => {
+    await runAction("synchronize");
+    expect(gateModule().runGate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.not.objectContaining({ dryRun: expect.anything() }),
+      expect.any(Function)
+    );
+  });
+});
+
 describe("scheduled runs", () => {
   function octokitWith(quota?: { remaining: number; limit: number }, policy?: string) {
     return {

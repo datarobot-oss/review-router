@@ -26,7 +26,7 @@ function rotateByBatch<T>(items: T[], hour: number): T[] {
 }
 
 export type GateTarget =
-  | { kind: "pull"; number: number; headSha?: string }
+  | { kind: "pull"; number: number; headSha?: string; author?: string }
   | { kind: "queue"; number: number | undefined; sha: string }
   | { kind: "commit"; sha: string }
   | { kind: "sweep" };
@@ -35,7 +35,7 @@ export interface GateEvent {
   eventName: string;
   action?: string;
   payload: {
-    pull_request?: { number: number; head?: { sha: string } };
+    pull_request?: { number: number; head?: { sha: string }; user?: { login: string } };
     merge_group?: { head_sha: string; head_ref: string };
     workflow_run?: { event: string; head_sha: string; head_branch?: string | null };
     repository?: { default_branch?: string };
@@ -74,10 +74,10 @@ export function gateTarget(event: GateEvent): GateTarget | null {
     action &&
     PULL_ACTIONS.has(action)
   ) {
-    return { kind: "pull", number: pr.number, headSha: pr.head?.sha };
+    return { kind: "pull", number: pr.number, headSha: pr.head?.sha, author: pr.user?.login };
   }
   if (eventName === "pull_request_review" && pr && action && REVIEW_ACTIONS.has(action)) {
-    return { kind: "pull", number: pr.number, headSha: pr.head?.sha };
+    return { kind: "pull", number: pr.number, headSha: pr.head?.sha, author: pr.user?.login };
   }
   return null;
 }
@@ -96,6 +96,11 @@ interface RepoRef {
   runUrl: string;
   /** The App that posts the result. Set, the gate looks only at that App's earlier results. */
   appId?: number;
+  /**
+   * Set for a Router that doesn't own the gate result. The gate then evaluates only pull requests
+   * of that author and posts nothing, not even a failure.
+   */
+  dryRun?: { onlyAuthor: string };
 }
 
 function errorDecision(error: unknown): GateDecision {
@@ -153,6 +158,10 @@ async function gatePull(
       core.info(`Skipping #${number}: the head moved during the evaluation.`);
       return null;
     }
+    if (ref.dryRun) {
+      core.info(`#${number}: ${decision.conclusion} (${decision.reason}), not posted`);
+      return decision;
+    }
     const posted = await postGateCheck(octokit, owner, repo, sha, decision, runUrl, ref.appId);
     core.info(
       `#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`
@@ -169,7 +178,7 @@ async function gatePull(
         error instanceof Error ? error.message : String(error)
       }`
     );
-    if (sha) {
+    if (sha && !ref.dryRun) {
       await postGateCheck(octokit, owner, repo, sha, errorDecision(error), runUrl, ref.appId).catch(
         (e) =>
           core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`)
@@ -269,6 +278,7 @@ export async function runGate(
 ): Promise<GateDecision | null> {
   const target = gateTarget(event);
   if (!target) return null;
+  if (ref.dryRun && target.kind === "pull" && target.author !== ref.dryRun.onlyAuthor) return null;
 
   try {
     const { owner, repo } = ref;
@@ -282,13 +292,16 @@ export async function runGate(
     }
 
     if (target.kind === "sweep") {
-      const pulls = await octokit.paginate(octokit.rest.pulls.list, {
+      const listed = await octokit.paginate(octokit.rest.pulls.list, {
         owner,
         repo,
         state: "open",
         base: defaultBranch,
         per_page: 100,
       });
+      const pulls = ref.dryRun
+        ? listed.filter((pull) => pull.user?.login === ref.dryRun?.onlyAuthor)
+        : listed;
       core.info(`Gate sweep: ${pulls.length} open pull requests.`);
       const hourOfSweep = Math.floor(Date.now() / HOUR_MS);
       for (const [index, pull] of rotateByBatch(pulls, hourOfSweep).entries()) {
@@ -340,7 +353,7 @@ export async function runGate(
   } catch (error) {
     // A warning only where a result stood and was replaced, so a repository that never used
     // the gate sees no new annotation on a transient API error.
-    const replaced = await failClosed(octokit, ref, target, error);
+    const replaced = !ref.dryRun && (await failClosed(octokit, ref, target, error));
     const log = replaced ? core.warning : core.info;
     log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
   }

@@ -40,7 +40,8 @@ inputs:
   mode:
     description: >
       What this run does. "all" (default) routes reviews and runs the gate. "gate" runs only the
-      gate, which posts the Bouncer check with the token in github-token.
+      gate, which posts the Bouncer check with the token in github-token. "router" routes reviews
+      and never posts Bouncer, for a repository where a separate job runs the gate.
     required: false
     default: "all"
   gate-app-id:

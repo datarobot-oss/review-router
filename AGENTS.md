@@ -51,6 +51,7 @@ npm run all           # lint + test + build
 - The `v1` floating tag is updated automatically on push to main via `release.yml`
 - Version is read from `package.json`
 - No manual retagging needed
+- `release.yml` pushes the tag over SSH with a deploy key from the `release` environment, which allows only `main`. A tag ruleset on `v*` (`.github/rulesets/release-tags.json`) lets only that key and an admin change a tag, so a workflow on a branch can't move `v1`
 
 ## Architecture
 

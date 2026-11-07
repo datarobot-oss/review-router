@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,11 +17,14 @@ jobs:
   retag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: write
+    # The deploy key is a secret of this environment, limited to main. The tag ruleset lets only
+    # that key move a v* tag, so a workflow on another branch can't.
+    environment: release
     steps:
-      # The credentials stay in .git/config because the last step pushes the tag.
+      # The key stays configured because the last step pushes the tag.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
+        with:
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: Read major version from package.json
         id: version

@@ -81591,9 +81591,10 @@ function stateOf(decision) {
  * Posts the decision as a new check run on a commit, unless the latest run of that name already
  * shows the same state. A pending decision is an in_progress run, any other a completed one. A
  * new run per change keeps the history readable, and a required check follows the latest run.
- * Returns whether a run was posted.
+ * With an appId, only the runs of that App count as the latest, so another App's result can't
+ * stand in for this one's. Returns whether a run was posted.
  */
-async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
+async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl, appId) {
     const { status, conclusion, externalId } = stateOf(decision);
     const { data } = await octokit.rest.checks.listForRef({
         owner,
@@ -81601,6 +81602,7 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
         ref: headSha,
         check_name: exports.GATE_CHECK_NAME,
         filter: "latest",
+        ...(appId === undefined ? {} : { app_id: appId }),
     });
     const [latest] = data.check_runs;
     if (latest?.status === status && latest.conclusion === (conclusion ?? null)) {
@@ -81623,14 +81625,18 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl) {
     });
     return true;
 }
-/** True when the commit already has a gate result, which a failure must then replace. */
-async function hasGateCheck(octokit, owner, repo, headSha) {
+/**
+ * True when the commit already has a gate result, which a failure must then replace. With an
+ * appId, only a result of that App counts.
+ */
+async function hasGateCheck(octokit, owner, repo, headSha, appId) {
     const { data } = await octokit.rest.checks.listForRef({
         owner,
         repo,
         ref: headSha,
         check_name: exports.GATE_CHECK_NAME,
         filter: "latest",
+        ...(appId === undefined ? {} : { app_id: appId }),
     });
     return data.check_runs.length > 0;
 }
@@ -82826,6 +82832,19 @@ function gateTarget(event) {
     const pr = payload.pull_request;
     if (eventName === "schedule")
         return { kind: "sweep" };
+    // The trigger workflow runs without secrets, on the events whose workflow file a writer can
+    // change. Only a review or a queue entry counts: a writer can start a run of the same name
+    // with any other event, and a branch name says nothing for a review.
+    if (eventName === "workflow_run" && action === "completed" && payload.workflow_run) {
+        const run = payload.workflow_run;
+        if (run.event === "merge_group") {
+            const match = QUEUE_REF.exec(`refs/heads/${run.head_branch ?? ""}`);
+            return { kind: "queue", number: match ? Number(match[1]) : undefined, sha: run.head_sha };
+        }
+        if (run.event === "pull_request_review")
+            return { kind: "commit", sha: run.head_sha };
+        return null;
+    }
     if (eventName === "merge_group" && action === "checks_requested" && payload.merge_group) {
         const match = QUEUE_REF.exec(payload.merge_group.head_ref);
         return {
@@ -82890,14 +82909,14 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
             core.info(`Skipping #${number}: the head moved during the evaluation.`);
             return null;
         }
-        const posted = await (0, check_1.postGateCheck)(octokit, owner, repo, sha, decision, runUrl);
+        const posted = await (0, check_1.postGateCheck)(octokit, owner, repo, sha, decision, runUrl, ref.appId);
         core.info(`#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`);
         return decision;
     }
     catch (error) {
         core.warning(`The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${error instanceof Error ? error.message : String(error)}`);
         if (sha) {
-            await (0, check_1.postGateCheck)(octokit, owner, repo, sha, errorDecision(error), runUrl).catch((e) => core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`));
+            await (0, check_1.postGateCheck)(octokit, owner, repo, sha, errorDecision(error), runUrl, ref.appId).catch((e) => core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`));
         }
         return null;
     }
@@ -82909,19 +82928,49 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
  * that never used the gate gets no stray check.
  */
 async function failClosed(octokit, ref, target, error) {
-    const sha = target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
+    const sha = target.kind === "queue" || target.kind === "commit"
+        ? target.sha
+        : target.kind === "pull"
+            ? target.headSha
+            : undefined;
     if (!sha)
         return false;
     try {
-        if (!(await (0, check_1.hasGateCheck)(octokit, ref.owner, ref.repo, sha)))
+        if (!(await (0, check_1.hasGateCheck)(octokit, ref.owner, ref.repo, sha, ref.appId)))
             return false;
-        await (0, check_1.postGateCheck)(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+        await (0, check_1.postGateCheck)(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl, ref.appId);
         return true;
     }
     catch (e) {
         core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
         return false;
     }
+}
+/**
+ * The numbers of the open pull requests of the default branch whose head is the commit. A fork's
+ * head may not be associated with the commit, so an empty answer falls back to scanning the open
+ * pull requests.
+ */
+async function pullsAtCommit(octokit, ref, defaultBranch, sha) {
+    const { owner, repo } = ref;
+    const matching = (pulls) => pulls
+        .filter((p) => p.state === "open" && p.base.ref === defaultBranch && p.head.sha === sha)
+        .map((p) => p.number);
+    const associated = matching(await octokit.paginate(octokit.rest.repos.listPullRequestsAssociatedWithCommit, {
+        owner,
+        repo,
+        commit_sha: sha,
+        per_page: 100,
+    }));
+    if (associated.length > 0)
+        return associated;
+    return matching(await octokit.paginate(octokit.rest.pulls.list, {
+        owner,
+        repo,
+        state: "open",
+        base: defaultBranch,
+        per_page: 100,
+    }));
 }
 /**
  * Entry point of the gate. Does nothing in a repository that is not enrolled. Never throws,
@@ -82975,6 +83024,11 @@ async function runGate(octokit, event, ref, onSweepDecision) {
         }
         else if (target.kind === "queue") {
             await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
+        }
+        else if (target.kind === "commit") {
+            for (const number of await pullsAtCommit(octokit, ref, defaultBranch, target.sha)) {
+                await gatePull(octokit, ref, enrollment, defaultBranch, number, undefined, target.sha);
+            }
         }
         else {
             return await gatePull(octokit, ref, enrollment, defaultBranch, target.number, undefined, target.headSha);
@@ -83051,6 +83105,17 @@ async function run() {
         core.notice("No github-token provided — skipping. This is expected for fork PR events where secrets are unavailable.");
         return;
     }
+    const mode = core.getInput("mode") || "all";
+    if (mode !== "all" && mode !== "gate") {
+        core.setFailed(`Unknown mode "${mode}". Use "all" or "gate".`);
+        return;
+    }
+    // Under its own App the gate must read only that App's earlier results, so the ID is required.
+    const gateAppId = mode === "gate" ? Number(core.getInput("gate-app-id")) : undefined;
+    if (mode === "gate" && !(Number.isInteger(gateAppId) && (gateAppId ?? 0) > 0)) {
+        core.setFailed('Mode "gate" needs gate-app-id, the numeric ID of the App that posts the result.');
+        return;
+    }
     const inputs = {
         githubToken,
         slackToken: core.getInput("slack-token"),
@@ -83078,8 +83143,8 @@ async function run() {
     }
     // First and on its own: the gate must not wait for, or fail with, the team config.
     const swept = [];
-    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl }, (decided) => swept.push(decided));
-    if (eventName === "merge_group")
+    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl, appId: gateAppId }, (decided) => swept.push(decided));
+    if (mode === "gate" || eventName === "merge_group")
         return;
     if (eventName === "issue_comment" && action === "created") {
         const comment = context.payload.comment;

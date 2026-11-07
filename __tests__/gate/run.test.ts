@@ -1,4 +1,4 @@
-import { gateTarget, runGate } from "../../src/gate/run";
+import { GateEvent, gateTarget, runGate } from "../../src/gate/run";
 import { hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { collectFacts, currentHead } from "../../src/gate/facts";
 import { loadEnrollment } from "../../src/gate/enroll";
@@ -41,6 +41,59 @@ describe("gateTarget", () => {
       payload: { pull_request: pr() },
     };
     expect(gateTarget(event)).toBeNull();
+  });
+
+  describe("a workflow_run of the trigger workflow", () => {
+    const workflowRun = (
+      run: NonNullable<GateEvent["payload"]["workflow_run"]>,
+      action = "completed"
+    ) => ({
+      eventName: "workflow_run",
+      action,
+      payload: { workflow_run: run },
+    });
+
+    it("evaluates the merge queue commit and reads the pull request from the queue branch", () => {
+      const event = workflowRun({
+        event: "merge_group",
+        head_sha: "q1",
+        head_branch: "gh-readonly-queue/main/pr-44-abc123",
+      });
+      expect(gateTarget(event)).toEqual({ kind: "queue", number: 44, sha: "q1" });
+    });
+
+    it("reads no number from a queue branch it can't parse, so the entry fails closed", () => {
+      const event = workflowRun({ event: "merge_group", head_sha: "q1", head_branch: "feature" });
+      expect(gateTarget(event)).toEqual({ kind: "queue", number: undefined, sha: "q1" });
+    });
+
+    it("evaluates the pull requests at the head commit after a review, and ignores the branch name", () => {
+      const event = workflowRun({
+        event: "pull_request_review",
+        head_sha: "s1",
+        head_branch: "gh-readonly-queue/main/pr-1-abc",
+      });
+      expect(gateTarget(event)).toEqual({ kind: "commit", sha: "s1" });
+    });
+
+    it.each(["push", "pull_request", "workflow_dispatch"])(
+      "ignores a run started by %s, which a writer can make on a branch",
+      (runEvent) => {
+        const event = workflowRun({ event: runEvent, head_sha: "s1", head_branch: "x" });
+        expect(gateTarget(event)).toBeNull();
+      }
+    );
+
+    it("ignores a run that hasn't completed", () => {
+      const event = workflowRun({ event: "pull_request_review", head_sha: "s1" }, "requested");
+      expect(gateTarget(event)).toBeNull();
+    });
+
+    it("ignores an event with no run in the payload", () => {
+      expect(
+        gateTarget({ eventName: "workflow_run", action: "completed", payload: {} })
+      ).toBeNull();
+    });
   });
 
   it("sweeps every open pull request on a schedule", () => {
@@ -149,7 +202,8 @@ describe("runGate", () => {
       "r",
       "h1",
       expect.objectContaining({ conclusion: "action_required" }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -161,7 +215,8 @@ describe("runGate", () => {
       "r",
       "h1",
       expect.objectContaining({ reason: "needs-approval", pending: true }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -255,7 +310,8 @@ describe("runGate", () => {
         conclusion: "action_required",
         summary: expect.stringContaining("rate limited"),
       }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -279,7 +335,7 @@ describe("runGate", () => {
     jest.mocked(loadEnrollment).mockRejectedValue(new Error("502"));
     jest.mocked(hasGateCheck).mockResolvedValue(true);
     await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), REF);
-    expect(hasGateCheck).toHaveBeenCalledWith(expect.anything(), "o", "r", "evt-sha");
+    expect(hasGateCheck).toHaveBeenCalledWith(expect.anything(), "o", "r", "evt-sha", undefined);
     expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("502"));
     expect(postGateCheck).toHaveBeenCalledWith(
       expect.anything(),
@@ -290,7 +346,8 @@ describe("runGate", () => {
         conclusion: "action_required",
         summary: expect.stringContaining("502"),
       }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -316,7 +373,8 @@ describe("runGate", () => {
       "r",
       "evt-sha",
       expect.objectContaining({ conclusion: "action_required" }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -338,7 +396,8 @@ describe("runGate", () => {
       "r",
       "q1",
       expect.objectContaining({ conclusion: "action_required" }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -381,7 +440,8 @@ describe("runGate", () => {
       "r",
       "q1",
       expect.anything(),
-      "https://run"
+      "https://run",
+      undefined
     );
     expect(currentHead).not.toHaveBeenCalled();
   });
@@ -400,7 +460,8 @@ describe("runGate", () => {
       "r",
       "q1",
       expect.objectContaining({ conclusion: "action_required" }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -425,7 +486,8 @@ describe("runGate", () => {
       "r",
       "s1",
       expect.objectContaining({ title: "The gate could not decide" }),
-      "https://run"
+      "https://run",
+      undefined
     );
     expect(postGateCheck).toHaveBeenCalledWith(
       expect.anything(),
@@ -433,7 +495,8 @@ describe("runGate", () => {
       "r",
       "h1",
       expect.objectContaining({ conclusion: "action_required" }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -493,6 +556,124 @@ describe("runGate", () => {
         (swept) => seen.push(swept)
       );
       expect(seen[0].author).toBe("");
+    });
+  });
+
+  describe("after a review reaches the gate through workflow_run", () => {
+    const reviewRun = {
+      eventName: "workflow_run",
+      action: "completed",
+      payload: {
+        repository,
+        workflow_run: { event: "pull_request_review", head_sha: "s1", head_branch: "feature" },
+      },
+    };
+    const open = (number: number, over: object = {}) => ({
+      number,
+      state: "open",
+      base: { ref: "main" },
+      head: { sha: "s1" },
+      ...over,
+    });
+    const octokitFinding = (associated: object[], scanned: object[] = []) => {
+      const octokit = fakeOctokit();
+      octokit.rest.pulls.list = Symbol("pulls.list") as never;
+      (octokit.rest as Record<string, unknown>).repos = {
+        ...octokit.rest.repos,
+        listPullRequestsAssociatedWithCommit: Symbol("associated"),
+      };
+      octokit.paginate.mockResolvedValueOnce(associated).mockResolvedValueOnce(scanned);
+      return octokit;
+    };
+    const evaluated = () => jest.mocked(collectFacts).mock.calls.map((call) => call[3]);
+
+    it("evaluates an open pull request whose head is the reviewed commit", async () => {
+      await runGate(octokitFinding([open(7)]) as unknown as Octokit, reviewRun, REF);
+      expect(evaluated()).toEqual([7]);
+      expect(postGateCheck).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips a pull request that is closed, targets another branch, or whose head moved", async () => {
+      const associated = [
+        open(7),
+        open(8, { state: "closed" }),
+        open(9, { base: { ref: "release" } }),
+        open(10, { head: { sha: "newer" } }),
+      ];
+      await runGate(octokitFinding(associated) as unknown as Octokit, reviewRun, REF);
+      expect(evaluated()).toEqual([7]);
+    });
+
+    it("evaluates each pull request that shares the commit", async () => {
+      await runGate(octokitFinding([open(7), open(11)]) as unknown as Octokit, reviewRun, REF);
+      expect(evaluated()).toEqual([7, 11]);
+    });
+
+    it("scans the open pull requests when the commit has no association, as for a fork", async () => {
+      await runGate(octokitFinding([], [open(12)]) as unknown as Octokit, reviewRun, REF);
+      expect(evaluated()).toEqual([12]);
+    });
+
+    it("evaluates nothing when no open pull request has that head", async () => {
+      await runGate(
+        octokitFinding([], [open(13, { head: { sha: "other" } })]) as unknown as Octokit,
+        reviewRun,
+        REF
+      );
+      expect(collectFacts).not.toHaveBeenCalled();
+      expect(postGateCheck).not.toHaveBeenCalled();
+    });
+
+    it("replaces an earlier result with a blocking one when the pull requests can't be listed", async () => {
+      const octokit = octokitFinding([]);
+      octokit.paginate.mockReset().mockRejectedValue(new Error("502"));
+      jest.mocked(hasGateCheck).mockResolvedValue(true);
+      await runGate(octokit as unknown as Octokit, reviewRun, REF);
+      expect(postGateCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        "o",
+        "r",
+        "s1",
+        expect.objectContaining({
+          conclusion: "action_required",
+          summary: expect.stringContaining("502"),
+        }),
+        "https://run",
+        undefined
+      );
+    });
+  });
+
+  describe("under the gate's own App", () => {
+    const ownRef = { ...REF, appId: 4242 };
+
+    it("posts only against that App's earlier results", async () => {
+      await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), ownRef);
+      expect(postGateCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        "o",
+        "r",
+        "h1",
+        expect.anything(),
+        "https://run",
+        4242
+      );
+    });
+
+    it("looks for an earlier result of that App only, when it fails closed", async () => {
+      jest.mocked(loadEnrollment).mockRejectedValue(new Error("502"));
+      jest.mocked(hasGateCheck).mockResolvedValue(true);
+      await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), ownRef);
+      expect(hasGateCheck).toHaveBeenCalledWith(expect.anything(), "o", "r", "evt-sha", 4242);
+      expect(postGateCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        "o",
+        "r",
+        "evt-sha",
+        expect.objectContaining({ conclusion: "action_required" }),
+        "https://run",
+        4242
+      );
     });
   });
 
@@ -557,7 +738,8 @@ describe("runGate", () => {
       "r",
       "h1",
       expect.objectContaining({ summary: expect.stringContaining("bad yaml") }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 
@@ -583,7 +765,8 @@ describe("runGate", () => {
         conclusion: "success",
         summary: "@bob approved the current commit.",
       }),
-      "https://run"
+      "https://run",
+      undefined
     );
   });
 });

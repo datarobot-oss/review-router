@@ -27,6 +27,7 @@ function rotateByBatch<T>(items: T[], hour: number): T[] {
 export type GateTarget =
   | { kind: "pull"; number: number; headSha?: string }
   | { kind: "queue"; number: number | undefined; sha: string }
+  | { kind: "commit"; sha: string }
   | { kind: "sweep" };
 
 export interface GateEvent {
@@ -35,6 +36,7 @@ export interface GateEvent {
   payload: {
     pull_request?: { number: number; head?: { sha: string } };
     merge_group?: { head_sha: string; head_ref: string };
+    workflow_run?: { event: string; head_sha: string; head_branch?: string | null };
     repository?: { default_branch?: string };
   };
 }
@@ -45,6 +47,18 @@ export function gateTarget(event: GateEvent): GateTarget | null {
   const pr = payload.pull_request;
 
   if (eventName === "schedule") return { kind: "sweep" };
+  // The trigger workflow runs without secrets, on the events whose workflow file a writer can
+  // change. Only a review or a queue entry counts: a writer can start a run of the same name
+  // with any other event, and a branch name says nothing for a review.
+  if (eventName === "workflow_run" && action === "completed" && payload.workflow_run) {
+    const run = payload.workflow_run;
+    if (run.event === "merge_group") {
+      const match = QUEUE_REF.exec(`refs/heads/${run.head_branch ?? ""}`);
+      return { kind: "queue", number: match ? Number(match[1]) : undefined, sha: run.head_sha };
+    }
+    if (run.event === "pull_request_review") return { kind: "commit", sha: run.head_sha };
+    return null;
+  }
   if (eventName === "merge_group" && action === "checks_requested" && payload.merge_group) {
     const match = QUEUE_REF.exec(payload.merge_group.head_ref);
     return {
@@ -79,6 +93,8 @@ interface RepoRef {
   owner: string;
   repo: string;
   runUrl: string;
+  /** The App that posts the result. Set, the gate looks only at that App's earlier results. */
+  appId?: number;
 }
 
 function errorDecision(error: unknown): GateDecision {
@@ -136,7 +152,7 @@ async function gatePull(
       core.info(`Skipping #${number}: the head moved during the evaluation.`);
       return null;
     }
-    const posted = await postGateCheck(octokit, owner, repo, sha, decision, runUrl);
+    const posted = await postGateCheck(octokit, owner, repo, sha, decision, runUrl, ref.appId);
     core.info(
       `#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`
     );
@@ -148,8 +164,9 @@ async function gatePull(
       }`
     );
     if (sha) {
-      await postGateCheck(octokit, owner, repo, sha, errorDecision(error), runUrl).catch((e) =>
-        core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`)
+      await postGateCheck(octokit, owner, repo, sha, errorDecision(error), runUrl, ref.appId).catch(
+        (e) =>
+          core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`)
       );
     }
     return null;
@@ -169,16 +186,66 @@ async function failClosed(
   error: unknown
 ): Promise<boolean> {
   const sha =
-    target.kind === "queue" ? target.sha : target.kind === "pull" ? target.headSha : undefined;
+    target.kind === "queue" || target.kind === "commit"
+      ? target.sha
+      : target.kind === "pull"
+        ? target.headSha
+        : undefined;
   if (!sha) return false;
   try {
-    if (!(await hasGateCheck(octokit, ref.owner, ref.repo, sha))) return false;
-    await postGateCheck(octokit, ref.owner, ref.repo, sha, errorDecision(error), ref.runUrl);
+    if (!(await hasGateCheck(octokit, ref.owner, ref.repo, sha, ref.appId))) return false;
+    await postGateCheck(
+      octokit,
+      ref.owner,
+      ref.repo,
+      sha,
+      errorDecision(error),
+      ref.runUrl,
+      ref.appId
+    );
     return true;
   } catch (e) {
     core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`);
     return false;
   }
+}
+
+/**
+ * The numbers of the open pull requests of the default branch whose head is the commit. A fork's
+ * head may not be associated with the commit, so an empty answer falls back to scanning the open
+ * pull requests.
+ */
+async function pullsAtCommit(
+  octokit: Octokit,
+  ref: RepoRef,
+  defaultBranch: string,
+  sha: string
+): Promise<number[]> {
+  const { owner, repo } = ref;
+  const matching = (
+    pulls: Array<{ number: number; state: string; base: { ref: string }; head: { sha: string } }>
+  ) =>
+    pulls
+      .filter((p) => p.state === "open" && p.base.ref === defaultBranch && p.head.sha === sha)
+      .map((p) => p.number);
+  const associated = matching(
+    await octokit.paginate(octokit.rest.repos.listPullRequestsAssociatedWithCommit, {
+      owner,
+      repo,
+      commit_sha: sha,
+      per_page: 100,
+    })
+  );
+  if (associated.length > 0) return associated;
+  return matching(
+    await octokit.paginate(octokit.rest.pulls.list, {
+      owner,
+      repo,
+      state: "open",
+      base: defaultBranch,
+      per_page: 100,
+    })
+  );
 }
 
 /**
@@ -249,6 +316,10 @@ export async function runGate(
       }
     } else if (target.kind === "queue") {
       await gatePull(octokit, ref, enrollment, defaultBranch, target.number, target.sha);
+    } else if (target.kind === "commit") {
+      for (const number of await pullsAtCommit(octokit, ref, defaultBranch, target.sha)) {
+        await gatePull(octokit, ref, enrollment, defaultBranch, number, undefined, target.sha);
+      }
     } else {
       return await gatePull(
         octokit,

@@ -24,7 +24,8 @@ function stateOf(decision: GateDecision): {
  * Posts the decision as a new check run on a commit, unless the latest run of that name already
  * shows the same state. A pending decision is an in_progress run, any other a completed one. A
  * new run per change keeps the history readable, and a required check follows the latest run.
- * Returns whether a run was posted.
+ * With an appId, only the runs of that App count as the latest, so another App's result can't
+ * stand in for this one's. Returns whether a run was posted.
  */
 export async function postGateCheck(
   octokit: Octokit,
@@ -32,7 +33,8 @@ export async function postGateCheck(
   repo: string,
   headSha: string,
   decision: GateDecision,
-  runUrl?: string
+  runUrl?: string,
+  appId?: number
 ): Promise<boolean> {
   const { status, conclusion, externalId } = stateOf(decision);
   const { data } = await octokit.rest.checks.listForRef({
@@ -41,6 +43,7 @@ export async function postGateCheck(
     ref: headSha,
     check_name: GATE_CHECK_NAME,
     filter: "latest",
+    ...(appId === undefined ? {} : { app_id: appId }),
   });
   const [latest] = data.check_runs;
   if (latest?.status === status && latest.conclusion === (conclusion ?? null)) {
@@ -64,12 +67,16 @@ export async function postGateCheck(
   return true;
 }
 
-/** True when the commit already has a gate result, which a failure must then replace. */
+/**
+ * True when the commit already has a gate result, which a failure must then replace. With an
+ * appId, only a result of that App counts.
+ */
 export async function hasGateCheck(
   octokit: Octokit,
   owner: string,
   repo: string,
-  headSha: string
+  headSha: string,
+  appId?: number
 ): Promise<boolean> {
   const { data } = await octokit.rest.checks.listForRef({
     owner,
@@ -77,6 +84,7 @@ export async function hasGateCheck(
     ref: headSha,
     check_name: GATE_CHECK_NAME,
     filter: "latest",
+    ...(appId === undefined ? {} : { app_id: appId }),
   });
   return data.check_runs.length > 0;
 }

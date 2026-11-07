@@ -81576,6 +81576,7 @@ exports.GATE_DOCS_URL = exports.GATE_CHECK_NAME = void 0;
 exports.postGateCheck = postGateCheck;
 exports.hasGateCheck = hasGateCheck;
 const checks_1 = __nccwpck_require__(2122);
+const errors_1 = __nccwpck_require__(4688);
 exports.GATE_CHECK_NAME = "Bouncer";
 /** Where a person lands from the check row, to learn why the check is there. */
 exports.GATE_DOCS_URL = "https://github.com/datarobot-oss/review-router/blob/main/docs/setup/gate.md#how-the-gate-decides";
@@ -81592,7 +81593,9 @@ function stateOf(decision) {
  * shows the same state. A pending decision is an in_progress run, any other a completed one. A
  * new run per change keeps the history readable, and a required check follows the latest run.
  * With an appId, only the runs of that App count as the latest, so another App's result can't
- * stand in for this one's. Returns whether a run was posted.
+ * stand in for this one's. Throws a GateAppMismatchError when the new run was created by another
+ * App than the one named, since the dedupe would then never see the gate's own runs. Returns
+ * whether a run was posted.
  */
 async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl, appId) {
     const { status, conclusion, externalId } = stateOf(decision);
@@ -81609,7 +81612,7 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl, ap
         if (latest.external_id === externalId)
             return false;
     }
-    await octokit.rest.checks.create({
+    const created = await octokit.rest.checks.create({
         owner,
         repo,
         name: exports.GATE_CHECK_NAME,
@@ -81623,6 +81626,9 @@ async function postGateCheck(octokit, owner, repo, headSha, decision, runUrl, ap
             summary: `${(0, checks_1.withRunLink)(decision.summary, runUrl)}\n\n[How the Bouncer works](${exports.GATE_DOCS_URL})`,
         },
     });
+    if (appId !== undefined && created.data?.app?.id !== appId) {
+        throw new errors_1.GateAppMismatchError(appId, created.data?.app?.id);
+    }
     return true;
 }
 /**
@@ -82251,6 +82257,30 @@ async function loadEnrollment(octokit, owner, repo, defaultBranch) {
 
 /***/ }),
 
+/***/ 4688:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GateAppMismatchError = void 0;
+/** The App behind the gate's token is not the App that `gate-app-id` names. */
+class GateAppMismatchError extends Error {
+    expected;
+    actual;
+    constructor(expected, actual) {
+        super(`gate-app-id is ${expected}, but the check was created by App ${actual ?? "unknown"}. ` +
+            "Set gate-app-id to the App behind github-token.");
+        this.expected = expected;
+        this.actual = actual;
+        this.name = "GateAppMismatchError";
+    }
+}
+exports.GateAppMismatchError = GateAppMismatchError;
+
+
+/***/ }),
+
 /***/ 6324:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -82810,6 +82840,7 @@ const rate_limit_1 = __nccwpck_require__(9419);
 const check_1 = __nccwpck_require__(9215);
 const decide_1 = __nccwpck_require__(5243);
 const enroll_1 = __nccwpck_require__(119);
+const errors_1 = __nccwpck_require__(4688);
 const facts_1 = __nccwpck_require__(6324);
 const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
 const REVIEW_ACTIONS = new Set(["submitted", "dismissed"]);
@@ -82914,6 +82945,11 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
         return decision;
     }
     catch (error) {
+        // A wrong gate-app-id is a setup error. Fail the job and post nothing more under that ID.
+        if (error instanceof errors_1.GateAppMismatchError) {
+            core.setFailed(error.message);
+            return null;
+        }
         core.warning(`The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${error instanceof Error ? error.message : String(error)}`);
         if (sha) {
             await (0, check_1.postGateCheck)(octokit, owner, repo, sha, errorDecision(error), runUrl, ref.appId).catch((e) => core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`));

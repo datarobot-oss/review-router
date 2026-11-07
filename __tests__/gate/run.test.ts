@@ -1,4 +1,5 @@
 import { GateEvent, gateTarget, runGate } from "../../src/gate/run";
+import { GateAppMismatchError } from "../../src/gate/errors";
 import { hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { collectFacts, currentHead } from "../../src/gate/facts";
 import { loadEnrollment } from "../../src/gate/enroll";
@@ -658,6 +659,21 @@ describe("runGate", () => {
         "https://run",
         4242
       );
+    });
+
+    it("fails the job when the token's App is not the one named, and posts nothing more", async () => {
+      jest.mocked(postGateCheck).mockRejectedValue(new GateAppMismatchError(4242, 999));
+      await expect(
+        runGate(fakeOctokit() as unknown as Octokit, pullEvent(), ownRef)
+      ).resolves.toBeNull();
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("App 999"));
+      expect(postGateCheck).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the job green when the gate fails for another reason", async () => {
+      jest.mocked(collectFacts).mockRejectedValue(new Error("boom"));
+      await runGate(fakeOctokit() as unknown as Octokit, pullEvent(), ownRef);
+      expect(core.setFailed).not.toHaveBeenCalled();
     });
 
     it("looks for an earlier result of that App only, when it fails closed", async () => {

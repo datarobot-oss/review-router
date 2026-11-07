@@ -4,6 +4,7 @@ import { Octokit } from "../types";
 import { hasGateCheck, postGateCheck } from "./check";
 import { decideGate, GateDecision } from "./decide";
 import { Enrollment, loadEnrollment } from "./enroll";
+import { GateAppMismatchError } from "./errors";
 import { collectFacts, currentHead } from "./facts";
 
 const PULL_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
@@ -158,6 +159,11 @@ async function gatePull(
     );
     return decision;
   } catch (error) {
+    // A wrong gate-app-id is a setup error. Fail the job and post nothing more under that ID.
+    if (error instanceof GateAppMismatchError) {
+      core.setFailed(error.message);
+      return null;
+    }
     core.warning(
       `The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${
         error instanceof Error ? error.message : String(error)

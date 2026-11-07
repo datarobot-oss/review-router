@@ -1,6 +1,7 @@
 import { withRunLink } from "../checks";
 import { Octokit } from "../types";
 import { GateDecision } from "./decide";
+import { GateAppMismatchError } from "./errors";
 
 export const GATE_CHECK_NAME = "Bouncer";
 /** Where a person lands from the check row, to learn why the check is there. */
@@ -25,7 +26,9 @@ function stateOf(decision: GateDecision): {
  * shows the same state. A pending decision is an in_progress run, any other a completed one. A
  * new run per change keeps the history readable, and a required check follows the latest run.
  * With an appId, only the runs of that App count as the latest, so another App's result can't
- * stand in for this one's. Returns whether a run was posted.
+ * stand in for this one's. Throws a GateAppMismatchError when the new run was created by another
+ * App than the one named, since the dedupe would then never see the gate's own runs. Returns
+ * whether a run was posted.
  */
 export async function postGateCheck(
   octokit: Octokit,
@@ -50,7 +53,7 @@ export async function postGateCheck(
     if (latest.external_id === externalId) return false;
   }
 
-  await octokit.rest.checks.create({
+  const created = await octokit.rest.checks.create({
     owner,
     repo,
     name: GATE_CHECK_NAME,
@@ -64,6 +67,9 @@ export async function postGateCheck(
       summary: `${withRunLink(decision.summary, runUrl)}\n\n[How the Bouncer works](${GATE_DOCS_URL})`,
     },
   });
+  if (appId !== undefined && created.data?.app?.id !== appId) {
+    throw new GateAppMismatchError(appId, created.data?.app?.id);
+  }
   return true;
 }
 

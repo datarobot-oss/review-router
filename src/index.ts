@@ -33,6 +33,20 @@ async function run(): Promise<void> {
     return;
   }
 
+  const mode = core.getInput("mode") || "all";
+  if (mode !== "all" && mode !== "gate") {
+    core.setFailed(`Unknown mode "${mode}". Use "all" or "gate".`);
+    return;
+  }
+  // Under its own App the gate must read only that App's earlier results, so the ID is required.
+  const gateAppId = mode === "gate" ? Number(core.getInput("gate-app-id")) : undefined;
+  if (mode === "gate" && !(Number.isInteger(gateAppId) && (gateAppId ?? 0) > 0)) {
+    core.setFailed(
+      'Mode "gate" needs gate-app-id, the numeric ID of the App that posts the result.'
+    );
+    return;
+  }
+
   const inputs: ActionInputs = {
     githubToken,
     slackToken: core.getInput("slack-token"),
@@ -69,10 +83,10 @@ async function run(): Promise<void> {
   const gateDecision = await runGate(
     octokit,
     { eventName, action, payload: context.payload as GateEvent["payload"] },
-    { owner, repo, runUrl },
+    { owner, repo, runUrl, appId: gateAppId },
     (decided) => swept.push(decided)
   );
-  if (eventName === "merge_group") return;
+  if (mode === "gate" || eventName === "merge_group") return;
 
   if (eventName === "issue_comment" && action === "created") {
     const comment = context.payload.comment;

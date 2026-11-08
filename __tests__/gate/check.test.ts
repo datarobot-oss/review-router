@@ -1,5 +1,6 @@
 import { GATE_CHECK_NAME, GATE_DOCS_URL, hasGateCheck, postGateCheck } from "../../src/gate/check";
 import { GateDecision } from "../../src/gate/decide";
+import { GateAppMismatchError } from "../../src/gate/errors";
 import { Octokit } from "../../src/types";
 
 const pass: GateDecision = {
@@ -16,16 +17,21 @@ const block: GateDecision = {
 };
 
 function fakeOctokit(latest: object[] = []) {
-  const create = jest.fn().mockResolvedValue({});
+  const create = jest.fn().mockResolvedValue({ data: { app: { id: 4242 } } });
   const listForRef = jest.fn().mockResolvedValue({ data: { check_runs: latest } });
   const octokit = { rest: { checks: { listForRef, create } } } as unknown as Octokit;
   return { octokit, create, listForRef };
 }
 
-const run = (conclusion: string | null, reason: string, status = "completed") => ({
+const run = (
+  conclusion: string | null,
+  reason: string,
+  status = "completed",
+  prefix = "rr-gate:"
+) => ({
   status,
   conclusion,
-  external_id: `rr-gate:${reason}`,
+  external_id: `${prefix}${reason}`,
 });
 
 describe("postGateCheck", () => {
@@ -165,6 +171,97 @@ describe("postGateCheck with a decision that only waits for a person", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ status: "completed", conclusion: "action_required" })
     );
+  });
+});
+
+describe("when the gate runs under its own App", () => {
+  /** A fake that, like GitHub, hides runs of other Apps once the call names an app_id. */
+  function octokitWithOtherAppRun(otherAppRun: object) {
+    const create = jest.fn().mockResolvedValue({ data: { app: { id: 4242 } } });
+    const listForRef = jest.fn(async (params: { app_id?: number }) => ({
+      data: { check_runs: params.app_id === undefined ? [otherAppRun] : [] },
+    }));
+    const octokit = { rest: { checks: { listForRef, create } } } as unknown as Octokit;
+    return { octokit, create, listForRef };
+  }
+
+  it("reads only runs of that App when it posts", async () => {
+    const { octokit, listForRef } = fakeOctokit();
+    await postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242);
+    expect(listForRef).toHaveBeenCalledWith(expect.objectContaining({ app_id: 4242 }));
+  });
+
+  it("posts when another App already shows the same result, which must not count as its own", async () => {
+    const { octokit, create } = octokitWithOtherAppRun(run("success", "dependabot"));
+    expect(await postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242)).toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("still skips a repeat of its own result", async () => {
+    const { octokit, create } = fakeOctokit([
+      run("success", "dependabot", "completed", "rr-gate-app:"),
+    ]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242)).toBe(false);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("marks its runs as the gate App's, so a Router that names no App doesn't mistake them for its own", async () => {
+    const { octokit, create } = fakeOctokit();
+    await postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ external_id: "rr-gate-app:dependabot" })
+    );
+  });
+
+  it("posts its own result when the latest run is the gate App's with the same state", async () => {
+    const { octokit, create } = fakeOctokit([
+      run("success", "dependabot", "completed", "rr-gate-app:"),
+    ]);
+    expect(await postGateCheck(octokit, "o", "r", "sha1", pass)).toBe(true);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ external_id: "rr-gate:dependabot" })
+    );
+  });
+
+  it("names no App when none is given, so the latest run of any App counts", async () => {
+    const { octokit, listForRef } = octokitWithOtherAppRun(run("success", "dependabot"));
+    expect(await postGateCheck(octokit, "o", "r", "sha1", pass)).toBe(false);
+    expect(listForRef.mock.calls[0][0]).not.toHaveProperty("app_id");
+  });
+
+  it("throws when the check was created by another App than the one named", async () => {
+    const { octokit, create } = fakeOctokit();
+    create.mockResolvedValue({ data: { app: { id: 999 } } });
+    await expect(postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242)).rejects.toThrow(
+      /gate-app-id is 4242.*App 999/
+    );
+  });
+
+  it("throws when the created check names no App, which can't be shown to match", async () => {
+    const { octokit, create } = fakeOctokit();
+    create.mockResolvedValue({ data: {} });
+    await expect(postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242)).rejects.toThrow(
+      GateAppMismatchError
+    );
+  });
+
+  it("accepts a check created by the App named", async () => {
+    const { octokit } = fakeOctokit();
+    await expect(postGateCheck(octokit, "o", "r", "sha1", pass, undefined, 4242)).resolves.toBe(
+      true
+    );
+  });
+
+  it("compares nothing when no App is named", async () => {
+    const { octokit, create } = fakeOctokit();
+    create.mockResolvedValue({ data: { app: { id: 999 } } });
+    await expect(postGateCheck(octokit, "o", "r", "sha1", pass)).resolves.toBe(true);
+  });
+
+  it("finds a result on a commit only among runs of that App", async () => {
+    const { octokit } = octokitWithOtherAppRun(run("success", "approved"));
+    expect(await hasGateCheck(octokit, "o", "r", "sha1", 4242)).toBe(false);
+    expect(await hasGateCheck(octokit, "o", "r", "sha1")).toBe(true);
   });
 });
 

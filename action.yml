@@ -37,6 +37,17 @@ inputs:
   config-s3:
     description: "Fetch teams config from S3 (e.g. 's3://bucket-name/path/to/config.yml'). Requires AWS credentials in the environment."
     required: false
+  mode:
+    description: >
+      What this run does. "all" (default) routes reviews and runs the gate. "gate" runs only the
+      gate, which posts the Bouncer check with the token in github-token.
+    required: false
+    default: "all"
+  gate-app-id:
+    description: >
+      The numeric ID of the GitHub App that posts the Bouncer check. Required when mode is "gate".
+      The gate then treats only that App's earlier results as its own.
+    required: false
   ready-label:
     description: "Label name that triggers review routing"
     required: false

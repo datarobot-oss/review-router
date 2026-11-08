@@ -26,12 +26,17 @@ const teamsConfig = { teams: {} };
 /** Loads the action entry point, which runs on import, and waits for it to finish. */
 async function runAction(
   action: string,
-  options: { token?: string; pullRequest?: object; gateDecision?: object | null } = {}
+  options: {
+    token?: string;
+    pullRequest?: object;
+    gateDecision?: object | null;
+    inputs?: Record<string, string>;
+  } = {}
 ): Promise<jest.Mocked<typeof import("../src/router")>> {
   jest.resetModules();
   const coreMock = jest.requireMock<jest.Mocked<typeof core>>("@actions/core");
   coreMock.getInput.mockImplementation((name: string) =>
-    name === "github-token" ? (options.token ?? "tok") : ""
+    name === "github-token" ? (options.token ?? "tok") : (options.inputs?.[name] ?? "")
   );
   mockContext.payload = {
     action,
@@ -118,6 +123,67 @@ describe("the gate", () => {
     const { router, gate } = await runEvent("merge_group", "checks_requested");
     expect(gate.runGate).toHaveBeenCalledTimes(1);
     expect(router.syncReviewCheck).not.toHaveBeenCalled();
+  });
+});
+
+describe("the gate mode", () => {
+  const gateInputs = { mode: "gate", "gate-app-id": "4242" };
+  const gateModule = () =>
+    jest.requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run");
+  const coreModule = () => jest.requireMock<jest.Mocked<typeof core>>("@actions/core");
+
+  it("runs only the gate, under the App named by gate-app-id", async () => {
+    const router = await runAction("synchronize", { inputs: gateInputs });
+    expect(gateModule().runGate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ eventName: "pull_request_target", action: "synchronize" }),
+      expect.objectContaining({ owner: "acme", repo: "api", appId: 4242 }),
+      expect.any(Function)
+    );
+    expect(router.syncReviewCheck).not.toHaveBeenCalled();
+    expect(router.handleDependabotPush).not.toHaveBeenCalled();
+  });
+
+  it("does not load the team config, which the gate never reads", async () => {
+    await runAction("opened", { inputs: gateInputs });
+    const config = jest.requireMock<jest.Mocked<typeof import("../src/config")>>("../src/config");
+    expect(config.loadTeamsConfigForOrg).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "0", "-5", "4242.5", "abc"])(
+    "fails without running anything when gate-app-id is %j",
+    async (id) => {
+      const router = await runAction("synchronize", {
+        inputs: { mode: "gate", "gate-app-id": id },
+      });
+      expect(coreModule().setFailed).toHaveBeenCalledWith(expect.stringContaining("gate-app-id"));
+      expect(gateModule().runGate).not.toHaveBeenCalled();
+      expect(router.syncReviewCheck).not.toHaveBeenCalled();
+    }
+  );
+
+  it("fails on a mode it doesn't know", async () => {
+    const router = await runAction("synchronize", { inputs: { mode: "gaet" } });
+    expect(coreModule().setFailed).toHaveBeenCalledWith(expect.stringContaining('"gaet"'));
+    expect(gateModule().runGate).not.toHaveBeenCalled();
+    expect(router.syncReviewCheck).not.toHaveBeenCalled();
+  });
+
+  it("still does nothing without a token, as for a fork run with no secrets", async () => {
+    await runAction("synchronize", { token: "", inputs: gateInputs });
+    expect(gateModule().runGate).not.toHaveBeenCalled();
+    expect(coreModule().setFailed).not.toHaveBeenCalled();
+  });
+
+  it("leaves the default mode as it was, with no App named and the Router running", async () => {
+    const router = await runAction("synchronize", { inputs: { "gate-app-id": "4242" } });
+    expect(gateModule().runGate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.not.objectContaining({ appId: expect.anything() }),
+      expect.any(Function)
+    );
+    expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
   });
 });
 

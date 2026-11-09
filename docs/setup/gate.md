@@ -1,6 +1,8 @@
 # Review Router gate
 
-The gate is a required status check named `Bouncer`, posted by the Review Router GitHub App. It replaces GitHub's required approvals on a branch ruleset, so a repository can merge trusted automation, such as Dependabot, without a person and still require one approval for everything else.
+The gate is a required status check named `Bouncer`, posted by a GitHub App. It replaces GitHub's required approvals on a branch ruleset, so a repository can merge trusted automation, such as Dependabot, without a person and still require one approval for everything else.
+
+The Review Router App posts the check by default. A separate Gate App can post the check that the ruleset requires, which keeps its key out of reach of a workflow on a branch. See [Run the gate under its own App](#run-the-gate-under-its-own-app).
 
 ## How the gate decides
 
@@ -149,20 +151,163 @@ A scheduled run uses about 10 calls plus 10 per open pull request, and doesn't s
 | 12,500 | about 1,000           | about 600                                        |
 | 15,000 | about 1,200           | about 750                                        |
 
-If an organization outgrows its budget, lengthen the schedule. A second token doesn't add budget, because the installation owns it. Each scheduled run logs the calls it used.
+If an organization outgrows its budget, lengthen the schedule. A second token doesn't add budget, because the installation owns it. A second App installation has its own budget, so the sweep of a Gate App doesn't draw on the Review Router's. Each scheduled run logs the calls it used.
+
+## Run the gate under its own App
+
+By default the Review Router App posts `Bouncer`. Its key is an organization secret that a workflow in an enrolled repository can read, so a person who can push a workflow can use it to post a passing result. A separate Gate App closes that gap. Its key is a secret of an environment that only the default branch can read, and the ruleset requires `Bouncer` from the Gate App only.
+
+The Gate App runs the same action with `mode: gate`. It adds no second copy of the logic, only another identity and another place for the key.
+
+> [!IMPORTANT]
+> An App's private key mints a token for every installation of that App. Create the Gate App in your own organization, and install it only on repositories whose administrators you trust with the key. Don't share one App, or one key, across organizations.
+
+### Create the Gate App
+
+Create a GitHub App in your organization with these settings:
+
+| Setting                | Value                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| Name                   | Any name, for example `Review Router Gate`.                                                   |
+| Webhook                | Inactive.                                                                                     |
+| Repository permissions | Checks: read and write. Pull requests: read-only. Contents: read-only. Metadata: read-only.  |
+| Where to install       | Only on this account.                                                                         |
+
+Generate a private key and store it in a password manager. Install the App on the repositories that use the gate. Note the **Client ID** and the **App ID** from the App's settings page.
+
+### Store the key in an environment
+
+An environment secret reaches only a job that declares the environment, and a deployment branch policy decides which branches may declare it. Create a `gate` environment in each repository, allow only the default branch, and store the App's identity in it. Run these commands as a repository administrator, with the Client ID, the App ID and the key file of your App:
+
+```bash
+REPO=OWNER/REPO
+gh api -X PUT "repos/$REPO/environments/gate" \
+  -F 'deployment_branch_policy[protected_branches]=false' \
+  -F 'deployment_branch_policy[custom_branch_policies]=true'
+gh api -X POST "repos/$REPO/environments/gate/deployment-branch-policies" -f name=main
+gh variable set GATE_APP_CLIENT_ID --env gate -R "$REPO" --body "Iv23liEXAMPLE"
+gh variable set GATE_APP_ID --env gate -R "$REPO" --body "123456"
+gh secret set GATE_APP_PRIVATE_KEY --env gate -R "$REPO" < private-key.pem
+```
+
+Replace `main` with the default branch. Don't add another branch to the environment, because every allowed branch can read the key.
+
+To rotate the key, generate a second key on the App's settings page, run the last command with the new file for each repository, then delete the old key. Both keys work in between.
+
+### Add the workflows
+
+Add two workflows on the default branch. The `pull_request_review` and `merge_group` events run the workflow file of the pull request or the queue entry, so a workflow that holds a secret can't listen to them. `Gate trigger` listens to those events with no secrets and no permissions, and starts `Gate` through `workflow_run`, which always runs the file on the default branch.
+
+Create `.github/workflows/gate-trigger.yml`. The `workflow_run` event names this workflow, so keep the name:
+
+```yaml
+name: Gate trigger
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+  merge_group:
+    types: [checks_requested]
+
+permissions: {}
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "event $GITHUB_EVENT_NAME"
+```
+
+Create `.github/workflows/gate.yml`. Replace `<COMMIT_SHA>` with the commit of a Review Router release:
+
+```yaml
+name: Gate
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_run:
+    workflows: [Gate trigger]
+    types: [completed]
+  schedule:
+    - cron: "17 3,9,15,21 * * 1-5"
+
+permissions: {}
+
+concurrency:
+  group: gate-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: gate
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.GATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GATE_APP_PRIVATE_KEY }}
+          permission-checks: write
+          permission-pull-requests: read
+          permission-contents: read
+
+      - uses: datarobot-oss/review-router@<COMMIT_SHA> # main
+        with:
+          mode: gate
+          github-token: ${{ steps.token.outputs.token }}
+          gate-app-id: ${{ vars.GATE_APP_ID }}
+```
+
+Keep these properties of `gate.yml`:
+
+- Every trigger runs the file on the default branch. Don't add a `pull_request` trigger, a checkout, or a shell step. The job calls the API and never runs pull request code.
+- `environment: gate` gives the job the key. A job on any other branch can't declare it.
+- The concurrency group serializes the runs for one commit, so a run that read the pull request before an approval was dismissed can't post its result over a later block.
+- The `schedule` trigger re-evaluates every open pull request and fixes a result that no event updated. Adjust the cron to your pull request volume.
+- `gate-app-id` must be the ID of the App behind the token. When it isn't, the action fails with `gate-app-id is N, but the check was created by App M`.
+
+Pin the action to a commit, not to `v1`. The job holds the key that lets a pull request merge, and a floating tag moves without a review. Read the commit of the current release, and move the pin in a pull request:
+
+```bash
+gh api repos/datarobot-oss/review-router/commits/v1 --jq .sha
+```
+
+Workflow linters such as zizmor flag `pull_request_target` and `workflow_run` in `gate.yml`. The warning targets workflows that run pull request code. This one doesn't, so ignore it for this file only.
+
+### Compare the results, then pin the Gate App
+
+Until the ruleset names the Gate App, both Apps post `Bouncer` and a pull request shows two rows. Only the result from the App that the ruleset names counts. Compare the two on a few pull requests, including one that waits for an approval, one with an approval, and one that goes through the merge queue:
+
+```bash
+gh api "repos/OWNER/REPO/commits/HEAD_SHA/check-runs?check_name=Bouncer&filter=all" \
+  --jq '.check_runs[] | {app: .app.slug, status, conclusion, title: .output.title}'
+```
+
+The two results match when each App reports the same status and the same title. Then follow [Require the gate](#require-the-gate) and pin `Bouncer` to the Gate App.
 
 ## Require the gate
 
 Report first. With the policy file in place and no ruleset change, the gate posts results and blocks nothing. Check the results on a few pull requests, then edit the ruleset of the default branch in one change:
 
 1. Set required approvals to `0` and turn off code owner review.
-2. Add `Bouncer` to the required status checks, pinned to the Review Router GitHub App.
+2. Add `Bouncer` to the required status checks, pinned to the App that posts it: the Gate App, or the Review Router App when the gate runs without its own App.
 
-To roll back, restore the required approvals and remove the check from the ruleset. The gate keeps posting and blocks nothing.
+In the ruleset editor, choose the App as the source of the check. In the API, set `integration_id` to the App ID. A check with no source accepts a result from any App.
+
+With a Gate App, make both changes together. A ruleset that requires `Bouncer` from the Review Router App and requires no approval accepts a result forged with the Review Router key.
+
+To roll back, restore the required approvals and remove the check from the ruleset. The gate keeps posting and blocks nothing. To return to the Review Router App, pin the check to it again.
 
 ## Limits
 
-- The gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. Treat write access as the trust boundary until the gate runs under its own GitHub App.
+- When the Review Router App posts the gate, the gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. [Run the gate under its own App](#run-the-gate-under-its-own-app) to close this gap.
+- With a Gate App, a workflow on a branch can't read the Gate key. It can still read the Review Router key and the other organization secrets, and post a `Bouncer` result with the Review Router key. The ruleset ignores that result, because the required check names the Gate App.
+- A Gate App doesn't stop an administrator, who can bypass the ruleset or change the `gate` environment, or two people with write access who approve each other's pull requests. Treat administrators and colluding writers as the remaining risk.
+- While the Review Router also posts `Bouncer`, a pending Review Router run can keep a pull request blocked until that App posts its next result, even when the Gate App's result passes.
 - The gate posts nothing between a push and the first run, so a new commit shows the required check as expected, with no link, until the run posts.
 - A pending run stays until a person approves or the next push.
 - The Review Router reads the gate's decision for a Dependabot pull request when it opens, when it gets a push, and on the scheduled run. The scheduled run routes only a pull request with no review label and no ownership comment, so a label someone removed stays removed. A pull request whose approval is dismissed after routing isn't routed again. Add the `Ready for Review` label by hand.

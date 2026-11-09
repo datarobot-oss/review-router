@@ -82895,10 +82895,10 @@ function gateTarget(event) {
         pr &&
         action &&
         PULL_ACTIONS.has(action)) {
-        return { kind: "pull", number: pr.number, headSha: pr.head?.sha };
+        return { kind: "pull", number: pr.number, headSha: pr.head?.sha, author: pr.user?.login };
     }
     if (eventName === "pull_request_review" && pr && action && REVIEW_ACTIONS.has(action)) {
-        return { kind: "pull", number: pr.number, headSha: pr.head?.sha };
+        return { kind: "pull", number: pr.number, headSha: pr.head?.sha, author: pr.user?.login };
     }
     return null;
 }
@@ -82947,6 +82947,10 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
             core.info(`Skipping #${number}: the head moved during the evaluation.`);
             return null;
         }
+        if (ref.dryRun) {
+            core.info(`#${number}: ${decision.conclusion} (${decision.reason}), not posted`);
+            return decision;
+        }
         const posted = await (0, check_1.postGateCheck)(octokit, owner, repo, sha, decision, runUrl, ref.appId);
         core.info(`#${number}: ${decision.conclusion} (${decision.reason})${posted ? "" : ", unchanged"}`);
         return decision;
@@ -82958,7 +82962,7 @@ async function gatePull(octokit, ref, enrollment, defaultBranch, number, queueSh
             return null;
         }
         core.warning(`The gate failed on ${number === undefined ? "a queue entry" : `#${number}`}: ${error instanceof Error ? error.message : String(error)}`);
-        if (sha) {
+        if (sha && !ref.dryRun) {
             await (0, check_1.postGateCheck)(octokit, owner, repo, sha, errorDecision(error), runUrl, ref.appId).catch((e) => core.warning(`Could not post the failure result: ${e instanceof Error ? e.message : e}`));
         }
         return null;
@@ -83026,6 +83030,8 @@ async function runGate(octokit, event, ref, onSweepDecision) {
     const target = gateTarget(event);
     if (!target)
         return null;
+    if (ref.dryRun && target.kind === "pull" && target.author !== ref.dryRun.onlyAuthor)
+        return null;
     try {
         const { owner, repo } = ref;
         const defaultBranch = event.payload.repository?.default_branch ??
@@ -83036,13 +83042,16 @@ async function runGate(octokit, event, ref, onSweepDecision) {
             return null;
         }
         if (target.kind === "sweep") {
-            const pulls = await octokit.paginate(octokit.rest.pulls.list, {
+            const listed = await octokit.paginate(octokit.rest.pulls.list, {
                 owner,
                 repo,
                 state: "open",
                 base: defaultBranch,
                 per_page: 100,
             });
+            const pulls = ref.dryRun
+                ? listed.filter((pull) => pull.user?.login === ref.dryRun?.onlyAuthor)
+                : listed;
             core.info(`Gate sweep: ${pulls.length} open pull requests.`);
             const hourOfSweep = Math.floor(Date.now() / HOUR_MS);
             for (const [index, pull] of rotateByBatch(pulls, hourOfSweep).entries()) {
@@ -83080,7 +83089,7 @@ async function runGate(octokit, event, ref, onSweepDecision) {
     catch (error) {
         // A warning only where a result stood and was replaced, so a repository that never used
         // the gate sees no new annotation on a transient API error.
-        const replaced = await failClosed(octokit, ref, target, error);
+        const replaced = !ref.dryRun && (await failClosed(octokit, ref, target, error));
         const log = replaced ? core.warning : core.info;
         log(`The gate stopped: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -83141,6 +83150,7 @@ const schedule_1 = __nccwpck_require__(6318);
 const config_1 = __nccwpck_require__(2973);
 const ai_review_1 = __nccwpck_require__(1869);
 const trigger_1 = __nccwpck_require__(5789);
+const decide_1 = __nccwpck_require__(5243);
 const run_1 = __nccwpck_require__(3654);
 async function run() {
     const githubToken = core.getInput("github-token");
@@ -83148,9 +83158,9 @@ async function run() {
         core.notice("No github-token provided — skipping. This is expected for fork PR events where secrets are unavailable.");
         return;
     }
-    const mode = core.getInput("mode") || "all";
-    if (mode !== "all" && mode !== "gate") {
-        core.setFailed(`Unknown mode "${mode}". Use "all" or "gate".`);
+    const mode = core.getInput("mode") || "router";
+    if (mode !== "router" && mode !== "gate") {
+        core.setFailed(`Unknown mode "${mode}". Use "router" or "gate".`);
         return;
     }
     // Under its own App the gate must read only that App's earlier results, so the ID is required.
@@ -83186,7 +83196,14 @@ async function run() {
     }
     // First and on its own: the gate must not wait for, or fail with, the team config.
     const swept = [];
-    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, { owner, repo, runUrl, appId: gateAppId }, (decided) => swept.push(decided));
+    const gateDecision = await (0, run_1.runGate)(octokit, { eventName, action, payload: context.payload }, {
+        owner,
+        repo,
+        runUrl,
+        appId: gateAppId,
+        // The Router routes a Dependabot PR by the gate's decision, which the Gate App job posts.
+        dryRun: mode === "router" ? { onlyAuthor: decide_1.DEPENDABOT_LOGIN } : undefined,
+    }, (decided) => swept.push(decided));
     if (mode === "gate" || eventName === "merge_group")
         return;
     if (eventName === "issue_comment" && action === "created") {

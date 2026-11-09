@@ -645,6 +645,79 @@ describe("runGate", () => {
     });
   });
 
+  describe("in a dry run, for a Router that doesn't own the gate result", () => {
+    const dryRef = { ...REF, dryRun: { onlyAuthor: "dependabot[bot]" } };
+    const pullBy = (login?: string) => ({
+      ...pullEvent(),
+      payload: {
+        pull_request: { ...pr(), ...(login ? { user: { login } } : {}) },
+        repository,
+      },
+    });
+
+    it("returns the decision for a pull request of that author and posts nothing", async () => {
+      const decision = await runGate(
+        fakeOctokit() as unknown as Octokit,
+        pullBy("dependabot[bot]"),
+        dryRef
+      );
+      expect(decision).toEqual(expect.objectContaining({ reason: "needs-approval" }));
+      expect(postGateCheck).not.toHaveBeenCalled();
+    });
+
+    it("evaluates nothing for a pull request of another author, before any API call", async () => {
+      const octokit = fakeOctokit();
+      await expect(
+        runGate(octokit as unknown as Octokit, pullBy("alice"), dryRef)
+      ).resolves.toBeNull();
+      expect(octokit.rest.repos.get).not.toHaveBeenCalled();
+      expect(collectFacts).not.toHaveBeenCalled();
+    });
+
+    it("evaluates nothing when the event names no author", async () => {
+      await expect(
+        runGate(fakeOctokit() as unknown as Octokit, pullBy(), dryRef)
+      ).resolves.toBeNull();
+      expect(collectFacts).not.toHaveBeenCalled();
+    });
+
+    it("posts no failure result when the evaluation fails, and leaves the job green", async () => {
+      jest.mocked(collectFacts).mockRejectedValue(new Error("boom"));
+      jest.mocked(hasGateCheck).mockResolvedValue(true);
+      await expect(
+        runGate(fakeOctokit() as unknown as Octokit, pullBy("dependabot[bot]"), dryRef)
+      ).resolves.toBeNull();
+      expect(postGateCheck).not.toHaveBeenCalled();
+      expect(core.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("posts no failure result when the enrollment can't be read", async () => {
+      jest.mocked(loadEnrollment).mockRejectedValue(new Error("502"));
+      jest.mocked(hasGateCheck).mockResolvedValue(true);
+      await runGate(fakeOctokit() as unknown as Octokit, pullBy("dependabot[bot]"), dryRef);
+      expect(hasGateCheck).not.toHaveBeenCalled();
+      expect(postGateCheck).not.toHaveBeenCalled();
+    });
+
+    it("sweeps only the pull requests of that author and posts nothing", async () => {
+      const octokit = fakeOctokit([
+        { number: 1, head: { sha: "s1" }, user: { login: "dependabot[bot]" }, labels: [] },
+        { number: 2, head: { sha: "s2" }, user: { login: "alice" }, labels: [] },
+        { number: 3, head: { sha: "s3" }, user: null, labels: [] },
+      ]);
+      const seen: number[] = [];
+      await runGate(
+        octokit as unknown as Octokit,
+        { eventName: "schedule", payload: { repository } },
+        dryRef,
+        (swept) => seen.push(swept.number)
+      );
+      expect(seen).toEqual([1]);
+      expect(postGateCheck).not.toHaveBeenCalled();
+      expect(core.info).toHaveBeenCalledWith("Gate sweep: 1 open pull requests.");
+    });
+  });
+
   describe("under the gate's own App", () => {
     const ownRef = { ...REF, appId: 4242 };
 

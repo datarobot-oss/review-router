@@ -34,9 +34,9 @@ async function run(): Promise<void> {
     return;
   }
 
-  const mode = core.getInput("mode") || "all";
-  if (mode !== "all" && mode !== "gate" && mode !== "router") {
-    core.setFailed(`Unknown mode "${mode}". Use "all", "gate" or "router".`);
+  const mode = core.getInput("mode") || "router";
+  if (mode !== "router" && mode !== "gate") {
+    core.setFailed(`Unknown mode "${mode}". Use "router" or "gate".`);
     return;
   }
   // Under its own App the gate must read only that App's earlier results, so the ID is required.
@@ -89,7 +89,7 @@ async function run(): Promise<void> {
       repo,
       runUrl,
       appId: gateAppId,
-      // The Router routes a Dependabot PR by the gate's decision, which another job posts.
+      // The Router routes a Dependabot PR by the gate's decision, which the Gate App job posts.
       dryRun: mode === "router" ? { onlyAuthor: DEPENDABOT_LOGIN } : undefined,
     },
     (decided) => swept.push(decided)

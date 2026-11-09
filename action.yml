@@ -39,11 +39,11 @@ inputs:
     required: false
   mode:
     description: >
-      What this run does. "all" (default) routes reviews and runs the gate. "gate" runs only the
-      gate, which posts the Bouncer check with the token in github-token. "router" routes reviews
-      and never posts Bouncer, for a repository where a separate job runs the gate.
+      What this run does. "router" (default) routes reviews and never posts Bouncer. It reads the
+      gate's decision for Dependabot pull requests only. "gate" runs only the gate, which posts the
+      Bouncer check with the token in github-token.
     required: false
-    default: "all"
+    default: "router"
   gate-app-id:
     description: >
       The numeric ID of the GitHub App that posts the Bouncer check. Required when mode is "gate".

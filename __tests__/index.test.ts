@@ -175,25 +175,31 @@ describe("the gate mode", () => {
     expect(coreModule().setFailed).not.toHaveBeenCalled();
   });
 
-  it("leaves the default mode as it was, with no App named and the Router running", async () => {
-    const router = await runAction("synchronize", { inputs: { "gate-app-id": "4242" } });
+  it("passes no dry run to the gate, since it posts the result", async () => {
+    await runAction("synchronize", { inputs: gateInputs });
     expect(gateModule().runGate).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.not.objectContaining({ appId: expect.anything() }),
+      expect.not.objectContaining({ dryRun: expect.anything() }),
       expect.any(Function)
     );
-    expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("no longer accepts the removed all mode", async () => {
+    const router = await runAction("synchronize", { inputs: { mode: "all" } });
+    expect(coreModule().setFailed).toHaveBeenCalledWith(expect.stringContaining('"all"'));
+    expect(gateModule().runGate).not.toHaveBeenCalled();
+    expect(router.syncReviewCheck).not.toHaveBeenCalled();
   });
 });
 
-describe("the router mode", () => {
+describe("the router mode, which is the default", () => {
   const gateModule = () =>
     jest.requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run");
   const coreModule = () => jest.requireMock<jest.Mocked<typeof core>>("@actions/core");
 
   it("keeps routing, and evaluates the gate only for Dependabot without posting it", async () => {
-    const router = await runAction("synchronize", { inputs: { mode: "router" } });
+    const router = await runAction("synchronize");
     expect(gateModule().runGate).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -203,17 +209,27 @@ describe("the router mode", () => {
     expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
   });
 
-  it("needs no gate-app-id, since it posts nothing", async () => {
+  it("behaves the same when mode names it", async () => {
     await runAction("synchronize", { inputs: { mode: "router" } });
-    expect(coreModule().setFailed).not.toHaveBeenCalled();
-  });
-
-  it("passes no App and no dry run to the gate in the default mode", async () => {
-    await runAction("synchronize");
     expect(gateModule().runGate).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.not.objectContaining({ dryRun: expect.anything() }),
+      expect.objectContaining({ dryRun: { onlyAuthor: "dependabot[bot]" } }),
+      expect.any(Function)
+    );
+  });
+
+  it("needs no gate-app-id, since it posts nothing", async () => {
+    await runAction("synchronize");
+    expect(coreModule().setFailed).not.toHaveBeenCalled();
+  });
+
+  it("ignores gate-app-id, so the Router never treats an App's results as its own", async () => {
+    await runAction("synchronize", { inputs: { "gate-app-id": "4242" } });
+    expect(gateModule().runGate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.not.objectContaining({ appId: expect.anything() }),
       expect.any(Function)
     );
   });

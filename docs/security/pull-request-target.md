@@ -53,19 +53,31 @@ code is ever checked out or executed. When the AI review is enabled, the action
 downloads the PR's files as a tarball to read them, see
 [The AI review reads PR files and never runs them](#the-ai-review-reads-pr-files-and-never-runs-them).
 
-### Workflow source is always the base branch
+### Which branch supplies the workflow file
 
-All three triggers read the workflow YAML from the base/default branch, never
-from the PR branch:
+`pull_request_target` and `issue_comment` read the workflow YAML from the
+base or default branch, never from the PR branch. The review events and the
+merge queue run the workflow file of the pull request or the queue entry
+itself, as `pull_request` does:
 
-| Trigger               | Workflow source |
-| --------------------- | --------------- |
-| `pull_request_target` | base branch     |
-| `pull_request_review` | default branch  |
-| `issue_comment`       | default branch  |
+| Trigger                       | Workflow source                  |
+| ----------------------------- | -------------------------------- |
+| `pull_request_target`         | base branch                      |
+| `issue_comment`               | default branch                   |
+| `pull_request_review`         | merge commit of the pull request |
+| `pull_request_review_comment` | merge commit of the pull request |
+| `merge_group`                 | merge queue commit               |
 
-An attacker who modifies `.github/workflows/review-router.yml` in their fork
-gains nothing -- that modified file is never executed.
+An attacker who modifies `.github/workflows/review-router.yml` in a fork gains
+nothing from the `pull_request_target` and `issue_comment` runs, because those
+read the file from the base or default branch.
+
+The review events and `merge_group` run the copy of the file in the pull
+request or the queue entry. A person with write access can change what runs on
+them from a branch of the repository, and that run has the repository's
+secrets. Keep secrets out of any workflow that listens to these events. See
+[Run the gate under its own App](../setup/gate.md#run-the-gate-under-its-own-app)
+for a pattern that does.
 
 ### Secrets availability is not the same as workflow source
 

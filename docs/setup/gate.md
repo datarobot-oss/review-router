@@ -246,7 +246,6 @@ concurrency:
 
 jobs:
   gate:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: gate
@@ -272,6 +271,7 @@ Keep these properties of `gate.yml`:
 - `workflow_run` and `schedule` run the file on the default branch, and `pull_request_target` runs the file of the pull request's base branch. The gate handles pull requests into the default branch only. A pull request into another branch fails the job at the environment check, because the environment allows only the default branch.
 - Don't add a `pull_request` trigger, a checkout, or a shell step. The job calls the API and never runs pull request code.
 - `environment: gate` gives the job the key. A job on any other branch can't declare it.
+- `Gate` runs after every completed run of `Gate trigger`, including a failed one, because a failed trigger must not skip the evaluation.
 - The concurrency group serializes the event runs for one commit, so a run that read the pull request before an approval was dismissed can't post its result over a later block.
 - The `schedule` trigger re-evaluates every open pull request into the default branch and fixes a result that no event updated. The sample cron runs four times a day on weekdays, so a result can stay out of date for up to three days after a policy change over a weekend. Use `17 * * * *` to sweep hourly, as the Review Router does, and see [API budget](#api-budget).
 - `gate-app-id` must be the ID of the App behind the token. When it isn't, the action fails with `gate-app-id is N, but the check was created by App M`.
@@ -303,6 +303,7 @@ Report first. With the policy file in place and no ruleset change, the gate post
 
 1. Set required approvals to `0` and turn off code owner review.
 2. Add `Bouncer` to the required status checks, pinned to the App that posts it: the Gate App, or the Review Router App when the gate runs without its own App.
+3. Require a merge queue. The queue evaluates the gate again for each entry, which covers the review events that a writer can suppress. See [Limits](#limits).
 
 In the ruleset editor, choose the App as the source of the check. In the rulesets API, set `integration_id` on the check in `required_status_checks` to the App ID. A check with no source accepts a result from any App.
 
@@ -314,6 +315,7 @@ To roll back, restore the required approvals and remove the check from the rules
 
 - When the Review Router App posts the gate, the gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. [Run the gate under its own App](#run-the-gate-under-its-own-app) to close this gap.
 - With a Gate App, a workflow on a branch can't read the Gate key. It can still read the Review Router key and the other organization secrets, and post a `Bouncer` result with the Review Router key. The ruleset doesn't count that result, because the required check names the Gate App.
+- A person with write access controls the copy of `Gate trigger` that runs on the review events of their own pull request. They can delete it or make it fail, so a dismissal or a change request starts no re-evaluation, and the last result stands until the next scheduled run. A merge queue closes the gap: each entry runs `merge_group`, which gives the queue commit a fresh result, and an entry with no result fails when the check timeout ends. Require a merge queue, and sweep hourly to shorten the window.
 - A Gate App doesn't stop an administrator, who can bypass the ruleset or change the `gate` environment, or two people with write access who approve each other's pull requests. Treat administrators and colluding writers as the remaining risk.
 - While the Review Router also posts `Bouncer`, a pending Review Router run can keep a pull request blocked until that App posts its next result, even when the Gate App's result passes.
 - The gate posts nothing between a push and the first run, so a new commit shows the required check as expected, with no link, until the run posts.

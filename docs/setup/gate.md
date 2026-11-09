@@ -2,7 +2,7 @@
 
 The gate is a required status check named `Bouncer`, posted by a GitHub App. It replaces GitHub's required approvals on a branch ruleset, so a repository can merge trusted automation, such as Dependabot, without a person and still require one approval for everything else.
 
-The Review Router App posts the check by default. A separate Gate App can post the check that the ruleset requires, which keeps the Gate App's key out of reach of a workflow on a branch. See [Run the gate under its own App](#run-the-gate-under-its-own-app).
+A separate Gate App posts the check, and the ruleset requires it from that App only. The Gate App's key is out of reach of a workflow on a branch. The Review Router App never posts `Bouncer`. See [Run the gate under its own App](#run-the-gate-under-its-own-app).
 
 ## How the gate decides
 
@@ -103,39 +103,15 @@ Rules change the risk settings only. They never change who may be the author, th
 
 A policy file with an error leaves the repository in the gate with no family. Approvals by a person still pass.
 
-### Update the caller workflow
+### Review Router workflow
 
-The gate runs inside the Review Router workflow. Add these triggers to the caller workflow of the repository:
+The Review Router posts no `Bouncer` result and needs no gate trigger. For a Dependabot pull request it reads the gate's decision, without posting it, to decide whether the pull request needs a reviewer. The gate reads the repository activity feed, so the Review Router App needs the **Contents: read** permission.
 
-```yaml
-on:
-  pull_request_target:
-    types: [labeled, opened, closed, ready_for_review, synchronize, reopened]
-  pull_request_review:
-    types: [submitted, dismissed]
-  merge_group:
-    types: [checks_requested]
-  schedule:
-    - cron: "17 * * * *"
-```
-
-The gate reads the repository activity feed, so the Review Router App needs the **Contents: read** permission.
-
-`synchronize` posts the result on a new head commit. `merge_group` posts the result on the commit of a merge queue entry. `schedule` re-evaluates every open pull request and fixes a result that no event updated. Editing a title, a description or a review starts no run, because none of them changes what the gate reads.
-
-Every scheduled run also sends the stale review reminders to Slack when they are enabled. Set `interval_hours` in the `reminders` settings so a short schedule does not repeat each reminder. See [Stale PR Reminders](../../README.md#stale-pr-reminders). An hourly run costs about 10 API calls plus 10 per open pull request.
-
-Add a concurrency group to the job so runs for one pull request finish in order. Without it, a slow run for an earlier event can post its result after a newer run blocked the pull request.
-
-```yaml
-concurrency:
-  group: review-router-${{ github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
-  cancel-in-progress: false
-```
+The Gate App workflows that post the result are in [Run the gate under its own App](#run-the-gate-under-its-own-app).
 
 ### API budget
 
-Every run of the Review Router App draws on the API budget of its installation. Each organization has its own budget, and GitHub sets it by plan. See the GitHub [rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) for the current values.
+Every run of the Review Router App and the Gate App draws on the API budget of its installation. Each organization has its own budget, and GitHub sets it by plan. See the GitHub [rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) for the current values.
 
 | Organization                                           | API calls per hour                                           |
 | ------------------------------------------------------ | ------------------------------------------------------------ |
@@ -151,13 +127,13 @@ A scheduled run uses about 10 calls plus 10 per open pull request, and doesn't s
 | 12,500 | about 1,000           | about 600                                        |
 | 15,000 | about 1,200           | about 750                                        |
 
-If an organization outgrows its budget, lengthen the schedule. A second token doesn't add budget, because the installation owns it. A second App installation has its own budget, so the sweep of a Gate App doesn't draw on the Review Router's. Each scheduled run logs the calls it used.
+If an organization outgrows its budget, lengthen the schedule. A second token doesn't add budget, because the installation owns it. The Gate App installation has its own budget, so the gate sweep doesn't draw on the Review Router's. Each scheduled run logs the calls it used.
 
 ## Run the gate under its own App
 
-By default the Review Router App posts `Bouncer`. Its key is an organization secret that a workflow in an enrolled repository can read, so a person who can push a workflow can use it to post a passing result. A separate Gate App closes that gap. Its key is a secret of an environment that only the default branch can read, and the ruleset requires `Bouncer` from the Gate App only.
+The Gate App posts `Bouncer`. Its key is a secret of an environment that only the default branch can read, and the ruleset requires `Bouncer` from the Gate App only. The Review Router key is an organization secret that a workflow in an enrolled repository can read, so the Review Router App never posts the check. A person who can push a workflow can't use that key to post a passing result.
 
-The Gate App runs the same action with `mode: gate`. It adds no second copy of the logic, only another identity and another place for the key.
+The Gate App runs this action with `mode: gate`, so the decision logic stays in one place.
 
 The Gate App posts results only for a repository that has joined the gate. [Enable the gate](#enable-the-gate) first: the default branch needs `.github/review-router.yml`, or a ruleset that requires `Bouncer`.
 
@@ -168,13 +144,13 @@ The Gate App posts results only for a repository that has joined the gate. [Enab
 
 Create a GitHub App in your organization with these settings:
 
-| Setting                | Value                                                                                         |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| Name                   | Any name, for example `Review Router Gate`.                                                   |
-| Homepage URL           | Any URL, for example the page of this guide.                                                  |
-| Webhook                | Inactive.                                                                                     |
-| Repository permissions | Checks: read and write. Pull requests: read-only. Contents: read-only. Metadata: read-only.  |
-| Where to install       | Only on this account.                                                                         |
+| Setting                | Value                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| Name                   | Any name, for example `Review Router Gate`.                                                 |
+| Homepage URL           | Any URL, for example the page of this guide.                                                |
+| Webhook                | Inactive.                                                                                   |
+| Repository permissions | Checks: read and write. Pull requests: read-only. Contents: read-only. Metadata: read-only. |
+| Where to install       | Only on this account.                                                                       |
 
 Generate a private key and keep it in a password manager. Delete the downloaded file after you upload the key to your repositories. Install the App on the repositories that use the gate. Note the **Client ID** and the **App ID** from the App's settings page.
 
@@ -273,7 +249,7 @@ Keep these properties of `gate.yml`:
 - `environment: gate` gives the job the key. A job on any other branch can't declare it.
 - `Gate` runs after every completed run of `Gate trigger`, including a failed one, because a failed trigger must not skip the evaluation.
 - The concurrency group serializes the event runs for one commit, so a run that read the pull request before an approval was dismissed can't post its result over a later block.
-- The `schedule` trigger re-evaluates every open pull request into the default branch and fixes a result that no event updated. The sample cron runs four times a day on weekdays, so a result can stay out of date for up to three days after a policy change over a weekend. Use `17 * * * *` to sweep hourly, as the Review Router does, and see [API budget](#api-budget).
+- The `schedule` trigger re-evaluates every open pull request into the default branch and fixes a result that no event updated. The sample cron runs four times a day on weekdays, so a result can stay out of date for up to three days after a policy change over a weekend. Use `17 * * * *` to sweep hourly, and see [API budget](#api-budget).
 - `gate-app-id` must be the ID of the App behind the token. When it isn't, the action fails with `gate-app-id is N, but the check was created by App M`.
 
 Pin the action to a commit, not to `v1`. The job holds the key that lets a pull request merge, and a floating tag moves without a review. Read the commit that `v1` points to, and move the pin in a pull request:
@@ -284,9 +260,9 @@ gh api repos/datarobot-oss/review-router/commits/v1 --jq .sha
 
 Workflow linters such as zizmor flag `pull_request_target` and `workflow_run` in `gate.yml`. The warning targets workflows that run pull request code. This one doesn't, so ignore it for this file only.
 
-### Compare the results, then pin the Gate App
+### Check the results
 
-Until the ruleset names the Gate App, both Apps post `Bouncer` and a pull request shows two rows. Once the ruleset names the Gate App, only the Gate App's success satisfies the check. Compare the two on a few pull requests, including one that waits for an approval, one with an approval, and one that goes through the merge queue. Set `HEAD_SHA` to the head commit of the pull request, or to the commit of the queue entry:
+Check the result on a few pull requests, including one that waits for an approval, one with an approval, and one that goes through the merge queue. Set `HEAD_SHA` to the head commit of the pull request, or to the commit of the queue entry:
 
 ```bash
 REPO=OWNER/REPO
@@ -295,33 +271,30 @@ gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?check_name=Bouncer&filter=lates
   --jq '.check_runs[] | {app: .app.slug, status, conclusion, title: .output.title}'
 ```
 
-The two results match when each App reports the same status and the same title. Then follow [Require the gate](#require-the-gate) and pin `Bouncer` to the Gate App.
+Each commit shows one `Bouncer` run, from the Gate App. Then follow [Require the gate](#require-the-gate) and pin `Bouncer` to the Gate App.
 
 ## Require the gate
 
 Report first. With the policy file in place and no ruleset change, the gate posts results and blocks nothing. Check the results on a few pull requests, then edit the ruleset of the default branch in one change:
 
 1. Set required approvals to `0` and turn off code owner review.
-2. Add `Bouncer` to the required status checks, pinned to the App that posts it: the Gate App, or the Review Router App when the gate runs without its own App.
+2. Add `Bouncer` to the required status checks, pinned to the Gate App.
 3. Require a merge queue. The queue evaluates the gate again for each entry, which covers the review events that a writer can suppress. See [Limits](#limits).
 
 In the ruleset editor, choose the App as the source of the check. In the rulesets API, set `integration_id` on the check in `required_status_checks` to the App ID. A check with no source accepts a result from any App.
 
-With a Gate App, pin the check in the same edit that sets the approvals to `0`. A ruleset that requires `Bouncer` from the Review Router App and requires no approval accepts a result forged with the Review Router key.
+Pin the check in the same edit that sets the approvals to `0`. A check with no source and no approval requirement accepts a result from any App that can post checks.
 
-To roll back, restore the required approvals and remove the check from the ruleset. The gate keeps posting and blocks nothing. To return to the Review Router App, pin the check to it again.
+To roll back, restore the required approvals and remove the check from the ruleset. The gate keeps posting and blocks nothing.
 
 ## Limits
 
-- When the Review Router App posts the gate, the gate is as strong as write access to the repository. The Review Router key is an organization secret that a workflow in the repository can read, so a person who can push a workflow can mint a token and post a passing result. [Run the gate under its own App](#run-the-gate-under-its-own-app) to close this gap.
-- With a Gate App, a workflow on a branch can't read the Gate key. It can still read the Review Router key and the other organization secrets, and post a `Bouncer` result with the Review Router key. The ruleset doesn't count that result, because the required check names the Gate App.
+- A workflow on a branch can't read the Gate key. It can read the Review Router key and the other organization secrets, and post a `Bouncer` result with the Review Router key. The ruleset doesn't count that result, because the required check names the Gate App.
 - A person with write access controls the copy of `Gate trigger` that runs on the review events of their own pull request. They can delete it or make it fail, so a dismissal or a change request starts no re-evaluation, and the last result stands until the next scheduled run. A merge queue closes the gap: each entry runs `merge_group`, which gives the queue commit a fresh result, and an entry with no result fails when the check timeout ends. Require a merge queue, and sweep hourly to shorten the window.
-- A Gate App doesn't stop an administrator, who can bypass the ruleset or change the `gate` environment, or two people with write access who approve each other's pull requests. Treat administrators and colluding writers as the remaining risk.
-- While the Review Router also posts `Bouncer`, a pending Review Router run can keep a pull request blocked until that App posts its next result, even when the Gate App's result passes.
+- The Gate App doesn't stop an administrator, who can bypass the ruleset or change the `gate` environment, or two people with write access who approve each other's pull requests. Treat administrators and colluding writers as the remaining risk.
 - The gate posts nothing between a push and the first run, so a new commit shows the required check as expected, with no link, until the run posts.
 - A pending run stays until a person approves or the next push.
 - The Review Router reads the gate's decision for a Dependabot pull request when it opens, when it gets a push, and on the scheduled run. The scheduled run routes only a pull request with no review label and no ownership comment, so a label someone removed stays removed. A pull request whose approval is dismissed after routing isn't routed again. Add the `Ready for Review` label by hand.
-- Without a Gate App, a review on a pull request from a fork starts no run with secrets. A change request or a dismissal on such a pull request takes effect at the next scheduled run, and a merge queue re-evaluates it when the pull request enters the queue.
 - A pull request from a fork whose push history the App can't read, such as a private fork, stays blocked. Merge it through a branch of the repository instead.
 - Dependabot lists no update type for indirect dependencies and some security updates. The gate derives it from the two versions, which needs a version number that starts with digits. Date-based versions count as comparable numbers.
 - A `Co-authored-by` trailer doesn't count as authorship, because anyone can write one. A person with write access who appears only in a trailer can approve the pull request.

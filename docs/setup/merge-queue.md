@@ -165,7 +165,7 @@ Keep these properties of `merge-queue.yml`:
 
 ## Require the merge queue
 
-Add a merge queue rule to the ruleset of the default branch, and keep the required checks and the review control next to it. See the GitHub documentation on [managing a merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges/configuring-pull-request-merges/managing-a-merge-queue) for the settings.
+Add a merge queue rule to the ruleset of the default branch, and keep the required checks and the review control next to it. See the GitHub documentation on [managing a merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue) for the settings.
 
 The queue runs the required checks again on a temporary merge commit, with the `merge_group` event. Every workflow that provides a required check needs the `merge_group` trigger, or the entry waits for the check timeout and the queue removes it.
 

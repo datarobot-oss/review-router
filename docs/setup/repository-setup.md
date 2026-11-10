@@ -75,7 +75,7 @@ Run the checks in order. Set `REPO` to the repository, as `OWNER/REPO`.
 
 3. Ask the second person to approve. The same command shows `completed` and `success` within about a minute.
 
-4. Wait for the merge. The pull request enters the queue when CI completes or on the next scheduled `merge-queue` run, and merges after the queue's checks. Confirm that the merge queue App merged it and that the queue ran the checks:
+4. Wait for the merge. The pull request enters the queue within about a minute of the approval, when the Gate finishes, and merges after the queue's checks. Confirm that the merge queue App merged it and that the queue ran the checks:
 
    ```bash
    gh pr view PR_NUMBER -R "$REPO" --json mergedBy --jq .mergedBy.login

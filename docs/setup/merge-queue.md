@@ -173,7 +173,8 @@ Add the `hold` label to a pull request to keep it out of the queue.
 
 ## Limits
 
-- A pull request that an approval makes `CLEAN` after its checks finished waits for the next scheduled run, which is up to 15 minutes. The `workflow_run` trigger covers a pull request that is ready when CI completes.
+- A pull request that an approval makes `CLEAN` after its checks finished waits for the next scheduled run. A `*/15` schedule runs about every 15 minutes, and GitHub can delay it. The `workflow_run` trigger covers a pull request that is ready when CI completes.
+- A pull request from a fork never enters the queue through this workflow. Someone with write access clicks **Merge when ready**, and the queue then runs as usual.
 - The scheduled run checks the 200 newest open pull requests. Raise `--limit` in the workflow for a repository with more.
 - A merge with `GITHUB_TOKEN` starts no push workflow, so Release jobs and deploys don't run after one. The queue merges as the App, whose events start workflows.
 - The App holds **Contents: write**, so its key is worth more than the Gate App key. Install the App on the repositories that use the queue and no others.

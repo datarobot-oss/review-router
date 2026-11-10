@@ -230,8 +230,8 @@ current approvals, adds the `approved` reaction, updates the Review Router
 check, and sends DMs for approvals and comments that arrived since the
 previous run. Fork PRs in a repo without a `schedule` trigger get none of
 this. For every open PR, the run also rewrites the check on the latest commit, because a
-push leaves the new commit without one and a removed label leaves a queued one. The first run on a PR sets a cursor. For a PR opened less than a day
-earlier, the cursor starts at the creation time, so a review that arrived before the first run still gets its DM.
+push leaves the new commit without one and a removed label leaves a queued one. The first run on a PR sets a cursor. For a PR opened less than a week
+earlier, the cursor starts at the creation time, so a review that arrived before the first run, over a weekend for example, still gets its DM.
 For an older PR, it starts now and earlier events aren't replayed. Routing, labels and the file-type/merged/closed
 reactions run on `pull_request_target` and work in real time. See
 [troubleshooting.md](docs/setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)

@@ -260,6 +260,18 @@ describe("reconcileOpenPulls", () => {
       expect(cursorWritten(octokit)).toContain(`rr:dm-cursor:${hoursAgo(1)}`);
     });
 
+    it("replays a review that arrived over a weekend, before the first Monday run of a weekday schedule", async () => {
+      const octokit = octokitFor({
+        pulls: [youngPr(54)],
+        freshBody: "body",
+        reviews: [{ user: human("bob"), state: "APPROVED", submitted_at: hoursAgo(40) }],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).toHaveBeenCalledTimes(1);
+    });
+
     it("starts the cursor at the PR creation time when nothing has happened yet", async () => {
       const octokit = octokitFor({ pulls: [youngPr(3)], freshBody: "body" });
 
@@ -269,12 +281,12 @@ describe("reconcileOpenPulls", () => {
       expect(cursorWritten(octokit)).toContain(`rr:dm-cursor:${hoursAgo(3)}`);
     });
 
-    it("replays a PR opened just under a day ago", async () => {
+    it("replays a PR opened just under a week ago", async () => {
       const octokit = octokitFor({
-        pulls: [youngPr(23)],
+        pulls: [youngPr(167)],
         freshBody: "body",
         issueComments: [
-          { user: human("bob"), body: "hi", created_at: hoursAgo(22), html_url: "u" },
+          { user: human("bob"), body: "hi", created_at: hoursAgo(166), html_url: "u" },
         ],
       });
 
@@ -283,7 +295,7 @@ describe("reconcileOpenPulls", () => {
       expect(handleComment).toHaveBeenCalledTimes(1);
     });
 
-    it.each([24, 25])(
+    it.each([168, 169])(
       "sends no DM for events on a PR opened %i hours ago, and starts the cursor now",
       async (hours) => {
         const octokit = octokitFor({

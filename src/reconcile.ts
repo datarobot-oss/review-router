@@ -58,8 +58,8 @@ function isSlashCommand(body: string | null | undefined): boolean {
   return isAiReviewCommand(body ?? undefined) || (body ?? "").trim() === "/review";
 }
 
-/** A PR younger than this gets its events replayed on first sight. */
-const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** A PR younger than this gets its events replayed on first sight. It outlasts the gap of a weekday-only schedule, which a long weekend stretches past three days. */
+const REPLAY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Where the DM cursor starts on a PR the reconciler has not seen. A young PR starts at its

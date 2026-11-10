@@ -14,19 +14,102 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  retag:
+  # Builds with no secrets, so a dependency's build script can't reach the deploy key.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      stale: ${{ steps.compare.outputs.stale }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+
+      - name: Compare dist/ with the commit
+        id: compare
+        run: |
+          if [ -z "$(git status --porcelain -- dist/)" ]; then
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+            echo "dist/ is current"
+          else
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            git status --short -- dist/
+          fi
+
+      - name: Upload the rebuilt dist/
+        if: steps.compare.outputs.stale == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # The deploy key is a secret of this environment, limited to main. The tag ruleset lets only
+  # that key move a v* tag, and the main ruleset lets it commit the rebuilt dist/, so a
+  # workflow on another branch can do neither.
+  publish:
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # The deploy key is a secret of this environment, limited to main. The tag ruleset lets only
-    # that key move a v* tag, so a workflow on another branch can't.
     environment: release
     steps:
-      # The key stays configured because the last step pushes the tag.
+      # The key stays configured because the later steps push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
         with:
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
+      # v1 moves only after a commit whose dist/ is current. A rebuild commit starts the
+      # next run of this workflow, which finds dist/ current and moves the tag.
+      - name: Download the rebuilt dist/
+        if: needs.build.outputs.stale == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist
+
+      - name: Push the rebuilt dist/
+        if: needs.build.outputs.stale == 'true'
+        env:
+          BUILT: ${{ runner.temp }}/dist
+        run: |
+          # A rebuild commit that is still stale means the bundle isn't reproducible.
+          # Pushing again would loop.
+          if [ "$(git log -1 --format='%an: %s')" = "github-actions[bot]: chore: rebuild dist" ]; then
+            echo "::error::dist/ differs from a fresh build right after a rebuild commit. The build isn't reproducible."
+            exit 1
+          fi
+
+          rm -rf dist
+          cp -R "$BUILT" dist
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add --all dist
+          git commit -m "chore: rebuild dist"
+
+          if git push origin HEAD:refs/heads/main; then
+            exit 0
+          fi
+
+          # A merge since this run started moved main. Its own run rebuilds dist/.
+          git fetch --quiet origin main
+          if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+            echo "::notice::main moved on. The run for the newer commit rebuilds dist/."
+            exit 0
+          fi
+          echo "::error::The push to main was rejected. Check that the deploy key bypasses the main ruleset."
+          exit 1
+
       - name: Read major version from package.json
+        if: needs.build.outputs.stale == 'false'
         id: version
         run: |
           FULL=$(jq -r .version package.json)
@@ -35,6 +118,7 @@ jobs:
           echo "Floating tag: $MAJOR (from $FULL)"
 
       - name: Force-update floating tag
+        if: needs.build.outputs.stale == 'false'
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |

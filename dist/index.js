@@ -84560,6 +84560,17 @@ function isRealPerson(user, author) {
 function isSlashCommand(body) {
     return (0, trigger_1.isAiReviewCommand)(body ?? undefined) || (body ?? "").trim() === "/review";
 }
+/** A PR younger than this gets its events replayed on first sight. It outlasts the gap of a weekday-only schedule, which a long weekend stretches past three days. */
+const REPLAY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Where the DM cursor starts on a PR the reconciler has not seen. A young PR starts at its
+ * creation time, so an event that arrived before the first run still gets its DM. An older PR
+ * starts now, so enabling the reconciler on a repository does not replay its backlog.
+ */
+function firstCursor(pr) {
+    const ageMs = Date.now() - Date.parse(pr.created_at);
+    return ageMs < REPLAY_WINDOW_MS ? pr.created_at : new Date().toISOString();
+}
 /**
  * Stores the cursor in the ownership comment, and moves out of the description one an older
  * version left there. A PR with no ownership comment yet keeps the cursor in its description.
@@ -84711,11 +84722,15 @@ async function reconcilePull(octokit, ctx, pr) {
         comment: comment ? { id: comment.id } : null,
         descriptionHasCursor: (0, comment_1.extractDmCursor)(body) !== null,
     };
-    const cursor = (comment && (0, comment_1.extractDmCursor)(comment.body)) ?? (0, comment_1.extractDmCursor)(body);
+    let cursor = (comment && (0, comment_1.extractDmCursor)(comment.body)) ?? (0, comment_1.extractDmCursor)(body);
     if (!cursor) {
-        await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString(), home);
-        core.info(`Set the DM cursor on fork PR #${pr.number}; earlier events are not replayed`);
-        return;
+        cursor = firstCursor(pr);
+        await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, cursor, home);
+        if (cursor !== pr.created_at) {
+            core.info(`Set the DM cursor on fork PR #${pr.number}; earlier events are not replayed`);
+            return;
+        }
+        core.info(`Set the DM cursor on fork PR #${pr.number} to its creation time`);
     }
     const events = await collectEvents(octokit, ctx, pr, reviews, cursor);
     const toSend = firstOfEachBurst(events);

@@ -24471,7 +24471,7 @@ class WebClient extends methods_1.Methods {
             const options = {
                 filename: upload.filename,
                 length: upload.length,
-                alt_text: upload.alt_text,
+                alt_txt: upload.alt_txt,
                 snippet_type: upload.snippet_type,
             };
             if ('token' in upload) {
@@ -25216,7 +25216,7 @@ async function getFileUploadJob(options, logger) {
     const fileDataBytesLength = getFileDataLength(fileData);
     const fileUploadJob = {
         // supplied by user
-        alt_text: options.alt_text,
+        alt_txt: options.alt_txt ?? options.alt_text,
         blocks: options.blocks,
         channel_id: options.channels ?? options.channel_id,
         filename: options.filename ?? fileName,
@@ -26489,6 +26489,16 @@ class Methods extends eventemitter3_1.EventEmitter {
         user: {
             connection: {
                 /**
+                 * @description Updates the connection status between an app and many users in one call, for backfilling an existing user base.
+                 * @see {@link https://docs.slack.dev/reference/methods/apps.user.connection.bulkUpdate `apps.user.connection.bulkUpdate` API reference}.
+                 */
+                bulkUpdate: bindApiCall(this, 'apps.user.connection.bulkUpdate'),
+                /**
+                 * @description Opens or updates a standardized authentication modal for the calling app.
+                 * @see {@link https://docs.slack.dev/reference/methods/apps.user.connection.requestAuth `apps.user.connection.requestAuth` API reference}.
+                 */
+                requestAuth: bindApiCall(this, 'apps.user.connection.requestAuth'),
+                /**
                  * @description Updates the connection status between a user and an app.
                  * @see {@link https://docs.slack.dev/reference/methods/apps.user.connection.update `apps.user.connection.update` API reference}.
                  */
@@ -26605,6 +26615,11 @@ class Methods extends eventemitter3_1.EventEmitter {
          * @see {@link https://docs.slack.dev/reference/methods/canvases.edit `canvases.edit` API reference}.
          */
         edit: bindApiCall(this, 'canvases.edit'),
+        /**
+         * @description Get the content of a canvas as markdown (default) or HTML.
+         * @see {@link https://docs.slack.dev/reference/methods/canvases.getContent `canvases.getContent` API reference}.
+         */
+        getContent: bindApiCall(this, 'canvases.getContent'),
         sections: {
             /**
              * @description Find sections matching the provided criteria.
@@ -26921,7 +26936,7 @@ class Methods extends eventemitter3_1.EventEmitter {
          * Supports a single file upload
          * Supply:
          * - (required) single file or content
-         * - (optional) channel, alt_text, snippet_type,
+         * - (optional) channel, alt_txt, snippet_type,
          * Supports multiple file uploads
          * Supply:
          * - multiple upload_files
@@ -89415,7 +89430,7 @@ module.exports = {
 /***/ ((module) => {
 
 "use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@slack/web-api","version":"8.2.0","description":"Official library for using the Slack Platform\'s Web API","author":"Slack Technologies, LLC","license":"MIT","keywords":["slack","web-api","bot","client","http","api","proxy","rate-limiting","pagination"],"main":"dist/index.js","types":"./dist/index.d.ts","files":["dist/**/*"],"engines":{"node":">= 20","npm":">=9.6.4"},"repository":{"type":"git","url":"git+https://github.com/slackapi/node-slack-sdk.git"},"homepage":"https://docs.slack.dev/tools/node-slack-sdk/web-api/","publishConfig":{"access":"public"},"bugs":{"url":"https://github.com/slackapi/node-slack-sdk/issues"},"scripts":{"build":"npm run build:clean && tsc","build:clean":"shx rm -rf ./dist","docs":"npx typedoc --plugin typedoc-plugin-markdown","prepack":"npm run build","test":"npm run build && bash -c \'node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts\'","test:coverage":"npm run build && node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts","test:integration":"npm run build && node test/integration/commonjs-project/index.js && node test/integration/esm-project/index.mjs && npm run test:integration:ts","test:integration:ts":"cd test/integration/ts-4.7-project && npm i && npm run build","test:types":"tsd","watch":"npx nodemon --watch \'src\' --ext \'ts\' --exec npm run build"},"dependencies":{"@slack/logger":"^5.0.0","@slack/types":"^3.2.0","@types/node":">=20","@types/retry":"0.12.5","eventemitter3":"^5.0.1","p-queue":"^6.6.2","p-retry":"^4.6.2","retry":"^0.13.1"},"devDependencies":{"@types/busboy":"^1.5.4","@types/sinon":"^22.0.0","busboy":"^1","nock":"^14.0.17","sinon":"^22.1.0","tsd":"^0.33.0"},"tsd":{"directory":"test/types"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@slack/web-api","version":"8.3.0","description":"Official library for using the Slack Platform\'s Web API","author":"Slack Technologies, LLC","license":"MIT","keywords":["slack","web-api","bot","client","http","api","proxy","rate-limiting","pagination"],"main":"dist/index.js","types":"./dist/index.d.ts","files":["dist/**/*"],"engines":{"node":">= 20","npm":">=9.6.4"},"repository":{"type":"git","url":"git+https://github.com/slackapi/node-slack-sdk.git"},"homepage":"https://docs.slack.dev/tools/node-slack-sdk/web-api/","publishConfig":{"access":"public"},"bugs":{"url":"https://github.com/slackapi/node-slack-sdk/issues"},"scripts":{"build":"npm run build:clean && tsc","build:clean":"shx rm -rf ./dist","docs":"npx typedoc --plugin typedoc-plugin-markdown","prepack":"npm run build","test":"npm run build && bash -c \'node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts\'","test:coverage":"npm run build && node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts","test:integration":"npm run build && node test/integration/commonjs-project/index.js && node test/integration/esm-project/index.mjs && npm run test:integration:ts","test:integration:ts":"cd test/integration/ts-4.7-project && npm i && npm run build","test:types":"tsd","watch":"npx nodemon --watch \'src\' --ext \'ts\' --exec npm run build"},"dependencies":{"@slack/logger":"^5.0.0","@slack/types":"^3.3.0","@types/node":">=20","@types/retry":"0.12.5","eventemitter3":"^5.0.1","p-queue":"^6.6.2","p-retry":"^4.6.2","retry":"^0.13.1"},"devDependencies":{"@types/busboy":"^1.5.5","@types/sinon":"^22.0.0","busboy":"^1","nock":"^14.0.17","sinon":"^22.1.0","tsd":"^0.33.0"},"tsd":{"directory":"test/types"}}');
 
 /***/ }),
 

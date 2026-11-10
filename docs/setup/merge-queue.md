@@ -73,14 +73,14 @@ The workflow calls two shell scripts. Copy them into `scripts/` on the default b
 - [`merge-queue-posture.sh`](https://github.com/datarobot-labs/datarobot-labs-hermes-agent/blob/main/scripts/merge-queue-posture.sh) checks the rules on the default branch.
 - [`merge-queue-enqueue.sh`](https://github.com/datarobot-labs/datarobot-labs-hermes-agent/blob/main/scripts/merge-queue-enqueue.sh) adds one pull request to the queue.
 
-Create `.github/workflows/merge-queue.yml`. Replace `CI` in `workflows` with the name of the workflow that runs your required checks:
+Create `.github/workflows/merge-queue.yml`. Replace `CI` in `workflows` with the name of the workflow that runs your required checks, and keep `Gate`, the name of the [gate workflow](gate.md#add-the-workflows):
 
 ```yaml
 name: merge-queue
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [CI, Gate]
     types: [completed]
   schedule:
     - cron: "*/15 * * * *"
@@ -90,11 +90,13 @@ permissions: {}
 
 jobs:
   posture:
-    # CI for a merge group is the queue's own check, nothing to enqueue.
+    # CI for a merge group is the queue's own check, nothing to enqueue. A Gate run that
+    # failed posted no result.
     if: >-
       github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.event == 'pull_request' &&
-       github.event.workflow_run.conclusion == 'success')
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.name == 'Gate' ||
+        github.event.workflow_run.event == 'pull_request'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -140,20 +142,24 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           REPO: ${{ github.repository }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          EVENT: ${{ github.event_name }}
+          TRIGGER: ${{ github.event.workflow_run.name }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -eu
-          if [ "$EVENT" = workflow_run ]; then
+          if [ "$TRIGGER" = CI ]; then
             # The merge state needs a moment to settle after the last check completes.
             WAIT_SECONDS=30 sh scripts/merge-queue-enqueue.sh "$PR_NUMBER" "$HEAD_SHA"
           else
+            # A Gate run posts Bouncer, and the merge state needs a moment to settle after that.
+            [ "$TRIGGER" != Gate ] || sleep 15
             for pr in $(gh pr list --state open --base "$DEFAULT_BRANCH" --limit 200 --json number --jq '.[].number'); do
               sh scripts/merge-queue-enqueue.sh "$pr" || echo "::warning::PR $pr could not be added to the queue."
             done
           fi
 ```
+
+The workflow runs after the CI run of a pull request, after every `Gate` run, and on a schedule. A CI run enqueues its own pull request. A `Gate` run or a scheduled run sweeps all open pull requests. An approval that arrives after CI finished ends with a `Gate` run, so the sweep enqueues the pull request within about a minute of the approval.
 
 Keep these properties of `merge-queue.yml`:
 
@@ -173,9 +179,9 @@ Add the `hold` label to a pull request to keep it out of the queue.
 
 ## Limits
 
-- A pull request that an approval makes `CLEAN` after its checks finished waits for the next scheduled run. A `*/15` schedule runs about every 15 minutes, and GitHub can delay it. The `workflow_run` trigger covers a pull request that is ready when CI completes.
+- A pull request that becomes `CLEAN` with no CI run or `Gate` run behind it, for example when someone removes the `hold` label, waits for the next scheduled run. A `*/15` schedule runs about every 15 minutes, and GitHub can delay it.
 - A pull request from a fork never enters the queue through this workflow. Someone with write access clicks **Merge when ready**, and the queue then runs as usual.
-- The scheduled run checks the 200 newest open pull requests. Raise `--limit` in the workflow for a repository with more.
+- A sweep checks the 200 newest open pull requests. Raise `--limit` in the workflow for a repository with more.
 - A merge with `GITHUB_TOKEN` starts no push workflow, so Release jobs and deploys don't run after one. The queue merges as the App, whose events start workflows.
 - The App holds **Contents: write**, so its key is worth more than the Gate App key. Install the App on the repositories that use the queue and no others.
 - A repository on a plan without merge queues can't use the App. Merge queues are available in public repositories owned by an organization, and in private repositories on GitHub Enterprise Cloud.

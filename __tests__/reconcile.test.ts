@@ -226,6 +226,101 @@ describe("reconcileOpenPulls", () => {
     expect(handleComment).not.toHaveBeenCalled();
   });
 
+  describe("first sight of a PR", () => {
+    const NOW = new Date("2026-10-23T12:00:00Z");
+    const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
+    const youngPr = (createdHoursAgo: number) => ({
+      ...forkPr(1, "body"),
+      created_at: hoursAgo(createdHoursAgo),
+    });
+    const cursorWritten = (octokit: ReturnType<typeof octokitFor>) =>
+      octokit.rest.pulls.update.mock.calls.at(-1)?.[0].body;
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(NOW);
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("sends the DM for an approval that arrived after a young PR was opened", async () => {
+      const octokit = octokitFor({
+        pulls: [youngPr(3)],
+        freshBody: "body",
+        reviews: [{ user: human("bob"), state: "APPROVED", submitted_at: hoursAgo(1) }],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).toHaveBeenCalledTimes(1);
+      expect((handleComment as jest.Mock).mock.calls[0][1]).toMatchObject({
+        kind: "review",
+        commenter: "bob",
+      });
+      expect(cursorWritten(octokit)).toContain(`rr:dm-cursor:${hoursAgo(1)}`);
+    });
+
+    it("starts the cursor at the PR creation time when nothing has happened yet", async () => {
+      const octokit = octokitFor({ pulls: [youngPr(3)], freshBody: "body" });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).not.toHaveBeenCalled();
+      expect(cursorWritten(octokit)).toContain(`rr:dm-cursor:${hoursAgo(3)}`);
+    });
+
+    it("replays a PR opened just under a day ago", async () => {
+      const octokit = octokitFor({
+        pulls: [youngPr(23)],
+        freshBody: "body",
+        issueComments: [
+          { user: human("bob"), body: "hi", created_at: hoursAgo(22), html_url: "u" },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([24, 25])(
+      "sends no DM for events on a PR opened %i hours ago, and starts the cursor now",
+      async (hours) => {
+        const octokit = octokitFor({
+          pulls: [youngPr(hours)],
+          freshBody: "body",
+          issueComments: [
+            { user: human("bob"), body: "hi", created_at: hoursAgo(1), html_url: "u" },
+          ],
+        });
+
+        await reconcileOpenPulls(octokit as any, ctx);
+
+        expect(handleComment).not.toHaveBeenCalled();
+        expect(cursorWritten(octokit)).toContain(`rr:dm-cursor:${NOW.toISOString()}`);
+      }
+    );
+
+    it("replays a PR whose creation time is a few seconds ahead of the runner clock", async () => {
+      const octokit = octokitFor({
+        pulls: [{ ...forkPr(1, "body"), created_at: new Date(NOW.getTime() + 5000).toISOString() }],
+        freshBody: "body",
+        issueComments: [
+          {
+            user: human("bob"),
+            body: "hi",
+            created_at: new Date(NOW.getTime() + 6000).toISOString(),
+            html_url: "u",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("sends events newer than the cursor through handleComment with the right kinds", async () => {
     const octokit = octokitFor({
       pulls: [forkPr(1, bodyWithCursor)],

@@ -58,6 +58,19 @@ function isSlashCommand(body: string | null | undefined): boolean {
   return isAiReviewCommand(body ?? undefined) || (body ?? "").trim() === "/review";
 }
 
+/** A PR younger than this gets its events replayed on first sight. */
+const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Where the DM cursor starts on a PR the reconciler has not seen. A young PR starts at its
+ * creation time, so an event that arrived before the first run still gets its DM. An older PR
+ * starts now, so enabling the reconciler on a repository does not replay its backlog.
+ */
+function firstCursor(pr: PullSummary): string {
+  const ageMs = Date.now() - Date.parse(pr.created_at);
+  return ageMs < REPLAY_WINDOW_MS ? pr.created_at : new Date().toISOString();
+}
+
 interface CursorHome {
   /** The ownership comment, which holds the cursor once the PR is routed. */
   comment: { id: number } | null;
@@ -241,11 +254,15 @@ async function reconcilePull(
     comment: comment ? { id: comment.id } : null,
     descriptionHasCursor: extractDmCursor(body) !== null,
   };
-  const cursor = (comment && extractDmCursor(comment.body)) ?? extractDmCursor(body);
+  let cursor = (comment && extractDmCursor(comment.body)) ?? extractDmCursor(body);
   if (!cursor) {
-    await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, new Date().toISOString(), home);
-    core.info(`Set the DM cursor on fork PR #${pr.number}; earlier events are not replayed`);
-    return;
+    cursor = firstCursor(pr);
+    await writeCursor(octokit, ctx.owner, ctx.repo, pr.number, cursor, home);
+    if (cursor !== pr.created_at) {
+      core.info(`Set the DM cursor on fork PR #${pr.number}; earlier events are not replayed`);
+      return;
+    }
+    core.info(`Set the DM cursor on fork PR #${pr.number} to its creation time`);
   }
 
   const events = await collectEvents(octokit, ctx, pr, reviews, cursor);

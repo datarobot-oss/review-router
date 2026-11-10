@@ -235,7 +235,7 @@ jobs:
           permission-pull-requests: read
           permission-contents: read
 
-      - uses: datarobot-oss/review-router@<COMMIT_SHA> # main
+      - uses: datarobot-oss/review-router@<COMMIT_SHA> # the commit that v1 pointed to
         with:
           mode: gate
           github-token: ${{ steps.token.outputs.token }}
@@ -257,6 +257,8 @@ Pin the action to a commit, not to `v1`. The job holds the key that lets a pull 
 ```bash
 gh api repos/datarobot-oss/review-router/commits/v1 --jq .sha
 ```
+
+Write a comment that names no branch. Workflow linters such as zizmor compare a branch name in a pin comment with the head of that branch, so a comment of `main` fails every pull request after the next merge into Review Router.
 
 Workflow linters such as zizmor flag `pull_request_target` and `workflow_run` in `gate.yml`. The warning targets workflows that run pull request code. This one doesn't, so ignore it for this file only.
 

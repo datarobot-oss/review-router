@@ -138,7 +138,7 @@ The Gate App runs this action with `mode: gate`, so the decision logic stays in 
 The Gate App posts results only for a repository that has joined the gate. [Enable the gate](#enable-the-gate) first: the default branch needs `.github/review-router.yml`, or a ruleset that requires `Bouncer`.
 
 > [!IMPORTANT]
-> An App's private key mints a token for every installation of that App. Create the Gate App in your own organization, and install it only on repositories whose administrators you trust with the key. Don't share one App, or one key, across organizations.
+> An App's private key mints a token for every installation of that App. By default, create the Gate App in your own organization and install it only on repositories whose administrators you trust with the key. To share one App across organizations, one team must own it and enroll each repository itself. See [Choose who owns the Apps](repository-setup.md#choose-who-owns-the-apps).
 
 ### Create the Gate App
 

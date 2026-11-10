@@ -4,7 +4,7 @@ See AGENTS.md for project overview, structure, and commands.
 
 ## Claude-Specific
 
-- **Always rebuild `dist/` before pushing, in the commit that changes `src/`.** Run `npm ci --ignore-scripts` first, then `npm run build`. CI builds from the lockfile, so a stale `node_modules` gives a different bundle and CI adds a `chore: rebuild dist` commit to the PR.
+- **Don't commit `dist/` in a PR.** The Release workflow rebuilds it on main with `npm ci --ignore-scripts` and `npm run build` and commits `chore: rebuild dist`. Run `npm run build` locally to check that the bundle compiles, then discard the `dist/` changes.
 - Run `npm run all` (lint + test + build) before declaring work complete.
 - Tests live in `__tests__/` and mirror the `src/` file structure.
 - The bundled config (`config/teams.yml`) is a placeholder. Real config lives in an external repo loaded at runtime.

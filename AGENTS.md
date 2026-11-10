@@ -37,7 +37,7 @@ npm run all           # lint + test + build
 - TypeScript strict mode, ES2022 target
 - ESLint with TypeScript recommended rules
 - Jest with ts-jest, coverage collected from `src/**/*.ts` (excluding `src/index.ts`)
-- `dist/` must be rebuilt before pushing (`npm run build`). CI auto-commits it on PRs, but include it in your commit.
+- Don't commit `dist/` changes in a PR. The Release workflow rebuilds `dist/` on main and commits it, so concurrent PRs don't conflict on the bundle.
 
 ## Workflows
 

@@ -31,7 +31,7 @@ npm run build   # compile to dist/
 npm run all     # lint + test + build
 ```
 
-CI auto-rebuilds `dist/` on PRs when it's out of date.
+Don't commit `dist/` changes in a PR. The Release workflow rebuilds `dist/` on `main` after each merge.
 
 ## Responding to issues and pull requests
 

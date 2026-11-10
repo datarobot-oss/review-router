@@ -8,6 +8,5 @@ dependabot:
   defaults:
     update_types: [patch, minor]
     min_compatibility: 70
-    # A runtime or indirect update changes the bundle, and CI pushes the rebuilt dist/.
-    # That push takes the pull request out of the family, so a person reviews it anyway.
+    # A runtime or indirect update changes the shipped bundle, so a person reviews it.
     dependency_types: [direct:development]

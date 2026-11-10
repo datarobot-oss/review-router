@@ -281,7 +281,9 @@ infra/ @acme-corp/infra-team
 - [External config](docs/setup/external-config.md): store team config in a GitHub repo or S3
 - [Reusable workflows](docs/setup/reusable-workflows.md): centralize the setup for an entire org
 - [Dependabot auto-merge](docs/setup/auto-merge.md): automatically merge approved dependabot PRs
+- [Set up a repository for the merge flow](docs/setup/repository-setup.md): the ordered steps for the gate, the merge queue, and Dependabot, with a verification checklist
 - [Review Router gate](docs/setup/gate.md): a required check that replaces required approvals and passes trusted automation
+- [Merge queue App](docs/setup/merge-queue.md): add ready pull requests to the merge queue without a click
 - [Troubleshooting](docs/setup/troubleshooting.md): common issues and fixes
 
 ## Adding a new team

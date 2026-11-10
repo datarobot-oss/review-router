@@ -7,6 +7,8 @@ on:
     branches: [main]
   # The merge queue runs the required check on its temporary merge commit.
   merge_group:
+  # The dist/ rebuild step starts this run on the branch it pushed to.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,8 +21,10 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Write access is for pushing the rebuilt dist/ back to a same-repo PR branch.
+    # Write access is for pushing the rebuilt dist/ back to a same-repo PR branch and starting
+    # a run on it.
     permissions:
+      actions: write
       contents: write
     env:
       EVENT_NAME: ${{ github.event_name }}
@@ -47,6 +51,9 @@ jobs:
       - run: npm run build
 
       - name: Verify and auto-rebuild dist/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ -z "$(git diff --name-only dist/)" ]; then
             echo "dist/ is up to date"
@@ -66,3 +73,8 @@ jobs:
           git add dist/
           git commit -m "chore: rebuild dist"
           git push
+
+          # GitHub holds the pull_request runs for a commit the workflow token pushed until
+          # someone approves them, so the required check never reports. A dispatched run
+          # reports it on the new head.
+          gh workflow run ci.yml --ref "$HEAD_REF"

@@ -32,6 +32,7 @@ The setup needs two GitHub Apps: the Gate App that posts `Bouncer`, and the merg
 3. Create the policy file `.github/review-router.yml` on the default branch. See [Enable the gate](gate.md#enable-the-gate).
 4. Add the workflows on the default branch:
    - The Review Router workflow. See [Basic setup](basic.md).
+   - `Review Router replay`, in a repository that accepts fork pull requests. It sends the DMs and label changes that a fork's skipped review run missed. See [Fork PRs](notifications.md#fork-prs).
    - `Gate trigger` and `Gate`. See [Add the workflows](gate.md#add-the-workflows).
    - `merge-queue`. See [Add the workflow](merge-queue.md#add-the-workflow).
 5. Add `.github/dependabot.yml` for the ecosystems that the repository uses. The native [Dependabot auto-merge](auto-merge.md) workflow isn't needed. In a repository with a merge queue it never enqueues.

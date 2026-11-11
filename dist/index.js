@@ -84026,6 +84026,31 @@ async function run() {
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        action === "review_requested") {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        // A team request is not a person's to hear about: the Router's own requests and the channel post cover it.
+        const reviewer = context.payload.requested_reviewer?.login;
+        const requester = context.payload.sender?.login;
+        if (!reviewer || !requester || context.payload.sender?.type === "Bot")
+            return;
+        await (0, router_1.handleReviewRequested)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            prBody: pr.body ?? "",
+            prUrl: pr.html_url ?? "",
+            requester,
+            reviewer,
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         (action === "synchronize" || action === "reopened")) {
         const pr = context.payload.pull_request;
         if (!pr) {
@@ -84677,24 +84702,28 @@ async function writeCursor(octokit, owner, repo, prNumber, iso, home) {
     }
 }
 /**
- * The events that get a DM: the first per commenter, kind and set of mentioned people, so a burst of
- * inline comments does not flood the author, and a comment that mentions someone new still goes out.
+ * The events that get a DM, each with whether it is for the mentioned people only. A burst is the events
+ * of one commenter and kind. Its first event goes to everyone, so a burst of inline comments does not
+ * flood the author. A later event goes out only when it mentions a new set of people, and then only to them.
  */
 function firstOfEachBurst(events) {
-    const seen = new Set();
-    const first = new Set();
+    const bursts = new Set();
+    const sets = new Set();
+    const toSend = new Map();
     for (const event of events) {
         const mentioned = (0, mentions_1.extractMentions)(event.body)
             .map((login) => login.toLowerCase())
             .sort()
             .join(",");
-        const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}:${mentioned}`;
-        if (seen.has(key))
+        const burst = `${event.kind}:${event.commenter}:${event.commentUrl === ""}`;
+        const repeat = bursts.has(burst);
+        bursts.add(burst);
+        if (repeat && (mentioned === "" || sets.has(`${burst}:${mentioned}`)))
             continue;
-        seen.add(key);
-        first.add(event);
+        sets.add(`${burst}:${mentioned}`);
+        toSend.set(event, repeat);
     }
-    return first;
+    return toSend;
 }
 async function collectEvents(octokit, ctx, pr, reviews, cursor) {
     const author = pr.user?.login ?? "";
@@ -84823,7 +84852,8 @@ async function reconcilePull(octokit, ctx, pr) {
     let lastHandled;
     try {
         for (const event of events) {
-            if (toSend.has(event)) {
+            const mentionsOnly = toSend.get(event);
+            if (mentionsOnly !== undefined) {
                 await (0, router_1.handleComment)(octokit, {
                     owner: ctx.owner,
                     repo: ctx.repo,
@@ -84834,6 +84864,7 @@ async function reconcilePull(octokit, ctx, pr) {
                     commenter: event.commenter,
                     commentUrl: event.commentUrl,
                     body: event.body,
+                    mentionsOnly,
                     assignees: (pr.assignees ?? []).map((a) => a.login),
                     kind: event.kind,
                     inputs: ctx.inputs,
@@ -85149,6 +85180,7 @@ exports.handleReadyForReview = handleReadyForReview;
 exports.handleClosed = handleClosed;
 exports.formatGitHubUser = formatGitHubUser;
 exports.handleComment = handleComment;
+exports.handleReviewRequested = handleReviewRequested;
 exports.getFileTypeEmojis = getFileTypeEmojis;
 exports.getStatusEmoji = getStatusEmoji;
 const core = __importStar(__nccwpck_require__(7484));
@@ -85737,7 +85769,6 @@ async function handleComment(octokit, ctx) {
         core.debug("No Slack token provided, skipping thread notification");
         return;
     }
-    const client = new web_api_1.WebClient(ctx.inputs.slackToken);
     const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
     const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
     const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
@@ -85745,7 +85776,7 @@ async function handleComment(octokit, ctx) {
     // The author's own comment tells the author and the assignees nothing, but it can mention others.
     // A requested-changes summary is the same: it reaches only the people it mentions.
     const ownComment = ctx.commenter === ctx.author;
-    const mentionsOnly = ownComment || ctx.kind === "changes_requested";
+    const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
     const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
     if (authorSlackId && !mentionsOnly) {
         const approved = ctx.kind === "review" && ctx.commentUrl === "";
@@ -85788,10 +85819,39 @@ async function handleComment(octokit, ctx) {
             threadText: `:bell: <@${slackId}>, ${person} mentioned you.${readLink}`,
         });
     }
+    await notifyRecipients(octokit, ctx, recipients);
+}
+/** Tells a person that someone asked them, by name, to review the PR. Teams are not handled here. */
+async function handleReviewRequested(octokit, ctx) {
+    if (!ctx.inputs.slackToken) {
+        core.debug("No Slack token provided, skipping review request notification");
+        return;
+    }
+    if (ctx.reviewer.toLowerCase() === ctx.requester.toLowerCase())
+        return;
+    const slackId = findSlackId(ctx.teamsConfig.users, ctx.reviewer);
+    if (!slackId) {
+        core.debug(`No Slack user for ${ctx.reviewer}, skipping review request notification`);
+        return;
+    }
+    const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const person = formatGitHubUser(ctx.requester, ctx.teamsConfig.users);
+    await notifyRecipients(octokit, ctx, [
+        {
+            login: ctx.reviewer,
+            slackId,
+            dmText: `:eyes: ${person} requested your review on ${prLink}.`,
+            threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
+        },
+    ]);
+}
+/** Sends each recipient a DM, and a reply in the PR's Slack thread when DMs are off or the DM fails. */
+async function notifyRecipients(octokit, ctx, recipients) {
     if (recipients.length === 0) {
         core.debug("No recipients with Slack IDs found, skipping notifications");
         return;
     }
+    const client = new web_api_1.WebClient(ctx.inputs.slackToken);
     const needsThreadReply = [];
     for (const recipient of recipients) {
         const dmSent = (0, config_1.isDmEnabled)(ctx.teamsConfig) &&

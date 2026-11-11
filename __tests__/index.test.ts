@@ -31,6 +31,7 @@ async function runAction(
     pullRequest?: object;
     gateDecision?: object | null;
     inputs?: Record<string, string>;
+    payload?: object;
   } = {}
 ): Promise<jest.Mocked<typeof import("../src/router")>> {
   jest.resetModules();
@@ -46,6 +47,7 @@ async function runAction(
       base: { ref: "main" },
       ...options.pullRequest,
     },
+    ...options.payload,
   };
   jest
     .requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run")
@@ -92,6 +94,68 @@ describe("pull request events that change the head commit", () => {
   it("does nothing without a token, as on a fork PR run with no secrets", async () => {
     const router = await runAction("synchronize", { token: "" });
     expect(router.syncReviewCheck).not.toHaveBeenCalled();
+  });
+});
+
+describe("review requests", () => {
+  const pullRequest = { html_url: "https://github.com/acme/api/pull/7", body: "desc" };
+
+  it("tells a requested person who asked", async () => {
+    const router = await runAction("review_requested", {
+      pullRequest,
+      payload: {
+        requested_reviewer: { login: "carol" },
+        sender: { login: "bob", type: "User" },
+      },
+    });
+
+    expect(router.handleReviewRequested).toHaveBeenCalledTimes(1);
+    expect(router.handleReviewRequested).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        owner: "acme",
+        repo: "api",
+        prNumber: 7,
+        prUrl: "https://github.com/acme/api/pull/7",
+        requester: "bob",
+        reviewer: "carol",
+        teamsConfig,
+      })
+    );
+  });
+
+  it("ignores a request for a team, which the Router and the channel post already cover", async () => {
+    const router = await runAction("review_requested", {
+      pullRequest,
+      payload: { requested_team: { slug: "labs" }, sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleReviewRequested).not.toHaveBeenCalled();
+  });
+
+  it("ignores a request that a bot made", async () => {
+    const router = await runAction("review_requested", {
+      pullRequest,
+      payload: {
+        requested_reviewer: { login: "carol" },
+        sender: { login: "dependabot[bot]", type: "Bot" },
+      },
+    });
+
+    expect(router.handleReviewRequested).not.toHaveBeenCalled();
+  });
+
+  it("does nothing without a token, as on a fork PR run with no secrets", async () => {
+    const router = await runAction("review_requested", {
+      token: "",
+      pullRequest,
+      payload: {
+        requested_reviewer: { login: "carol" },
+        sender: { login: "bob", type: "User" },
+      },
+    });
+
+    expect(router.handleReviewRequested).not.toHaveBeenCalled();
   });
 });
 

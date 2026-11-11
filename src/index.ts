@@ -8,6 +8,7 @@ import {
   handleReadyForReview,
   handleClosed,
   handleComment,
+  handleReviewRequested,
   syncReviewCheck,
   classifyLabel,
   shouldSkipDuplicateRouting,
@@ -302,6 +303,35 @@ async function run(): Promise<void> {
       prNumber: pr.number,
       author: pr.user?.login ?? "",
       isFork: pr.head?.repo?.full_name !== pr.base?.repo?.full_name,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "review_requested"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    // A team request is not a person's to hear about: the Router's own requests and the channel post cover it.
+    const reviewer = context.payload.requested_reviewer?.login;
+    const requester = context.payload.sender?.login;
+    if (!reviewer || !requester || context.payload.sender?.type === "Bot") return;
+
+    await handleReviewRequested(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      prBody: pr.body ?? "",
+      prUrl: pr.html_url ?? "",
+      requester,
+      reviewer,
       inputs,
       teamsConfig,
     });

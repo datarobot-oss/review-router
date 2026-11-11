@@ -7,6 +7,7 @@ import {
   handleClosed,
   syncReviewCheck,
   handleComment,
+  handleReviewRequested,
   formatGitHubUser,
   resolveTeamSlugFromLabel,
   getFileTypeEmojis,
@@ -2109,6 +2110,83 @@ describe("handleComment DMs", () => {
 
     expect(slack.sendSlackDm).not.toHaveBeenCalled();
     expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+  });
+
+  describe("handleReviewRequested", () => {
+    const prLink = "<https://github.com/org/repo/pull/1|org/repo#1>";
+    const withReviewer: OrgConfig = { ...teamsConfig, users: { carol: "U_CAROL" } };
+    const request = {
+      owner: "org",
+      repo: "repo",
+      prNumber: 1,
+      prBody: slackBody,
+      prUrl: "https://github.com/org/repo/pull/1",
+      requester: "bob",
+      reviewer: "carol",
+      inputs,
+      teamsConfig: withReviewer,
+    };
+
+    beforeEach(() => {
+      (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    });
+
+    it("sends the requested reviewer a DM", async () => {
+      await handleReviewRequested(mockOctokit as any, request);
+
+      expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CAROL",
+        `:eyes: <https://github.com/bob|bob> requested your review on ${prLink}.`
+      );
+    });
+
+    it("matches the reviewer's login to the Slack user whatever its case", async () => {
+      await handleReviewRequested(mockOctokit as any, { ...request, reviewer: "Carol" });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CAROL",
+        expect.stringContaining("requested your review")
+      );
+    });
+
+    it("sends nothing to a reviewer without a Slack user", async () => {
+      await handleReviewRequested(mockOctokit as any, { ...request, reviewer: "dave" });
+
+      expect(slack.sendSlackDm).not.toHaveBeenCalled();
+      expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+    });
+
+    it("sends nothing when people request their own review", async () => {
+      await handleReviewRequested(mockOctokit as any, { ...request, requester: "carol" });
+
+      expect(slack.sendSlackDm).not.toHaveBeenCalled();
+    });
+
+    it("falls back to a thread reply when the DM fails", async () => {
+      (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+
+      await handleReviewRequested(mockOctokit as any, request);
+
+      expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+        expect.anything(),
+        "C111",
+        "1111.0000",
+        ":eyes: <@U_CAROL>, <https://github.com/bob|bob> requested your review."
+      );
+    });
+
+    it("does nothing without a Slack token", async () => {
+      await handleReviewRequested(mockOctokit as any, {
+        ...request,
+        inputs: { ...inputs, slackToken: "" },
+      });
+
+      expect(slack.sendSlackDm).not.toHaveBeenCalled();
+      expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+    });
   });
 
   describe("mentions", () => {

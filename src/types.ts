@@ -116,6 +116,20 @@ export interface Capabilities {
   hasOrgAccess: boolean;
 }
 
+export interface ReviewRequestContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prBody: string;
+  prUrl: string;
+  /** The GitHub login of the person who asked for the review. */
+  requester: string;
+  /** The GitHub login of the person asked to review. */
+  reviewer: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
 export interface CommentContext {
   owner: string;
   repo: string;

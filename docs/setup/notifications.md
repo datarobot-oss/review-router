@@ -6,15 +6,15 @@ Review Router sends Slack messages to team channels and direct messages (DMs) to
 
 Each row is one trigger. A DM goes to the person's Slack account. If DMs are off or a DM fails, the message goes to the [Slack thread](#thread-replies) instead.
 
-| Trigger                                                                     | Who gets it                                                      | Where        |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------ |
-| A PR gets the "Ready for Review" label and is routed                        | The channel of each owning team, with a cc for individual owners | Team channel |
-| A PR stays unreviewed past `stale_hours`, with reminders on                 | The channel of each team that still needs to review              | Team channel |
-| Someone adds a person, not a team, to the PR's reviewers                    | That person                                                      | DM           |
-| Someone approves the PR                                                     | The PR author                                                    | DM           |
-| Someone other than the author comments, replies inline, or submits a review | The PR author                                                    | DM           |
-| Someone other than the author comments or replies inline                    | The PR's assignees                                               | DM           |
-| Anyone writes `@login` in a comment, an inline comment, or a review summary | The mentioned person                                             | DM           |
+| Trigger                                                                               | Who gets it                                                      | Where        |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------ |
+| A PR gets the "Ready for Review" label and is routed                                  | The channel of each owning team, with a cc for individual owners | Team channel |
+| A PR stays unreviewed past `stale_hours`, with reminders on                           | The channel of each team that still needs to review              | Team channel |
+| Someone adds a person, not a team, to the PR's reviewers, or re-requests their review | That person                                                      | DM           |
+| Someone approves the PR                                                               | The PR author                                                    | DM           |
+| Someone other than the author comments, replies inline, or submits a review           | The PR author                                                    | DM           |
+| Someone other than the author comments or replies inline                              | The PR's assignees                                               | DM           |
+| Anyone writes `@login` in a comment, an inline comment, or a review summary           | The mentioned person                                             | DM           |
 
 A review that requests changes follows the last row only. Its summary reaches the people it mentions, and nobody else.
 
@@ -72,7 +72,7 @@ These don't count as mentions:
 
 ## Ask for a review by name
 
-When someone adds a person to the **Reviewers** list, that person gets a DM that says who asked. Team requests, requests that a bot makes, and a request for your own review send nothing.
+When someone adds a person to the **Reviewers** list, or re-requests their review, that person gets a DM that says who asked. Team requests, requests that a bot makes, and a request for your own review send nothing.
 
 The workflow must listen for the `review_requested` event. Add it to the `pull_request_target` types:
 

@@ -480,7 +480,7 @@ async function run(): Promise<void> {
           teamsConfig,
         });
       }
-    } else if (review.state === "commented") {
+    } else if (review.state === "commented" || review.state === "changes_requested") {
       const prAuthor = pr.user?.login ?? "";
       const reviewer = review.user?.login ?? "";
 

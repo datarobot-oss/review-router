@@ -678,6 +678,46 @@ describe("reconcileOpenPulls", () => {
       expect(calledWith()).toEqual([["review", "bob", "LGTM, @carol FYI"]]);
     });
 
+    it("replays the summary of a requested-changes review, so a mention in it notifies", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "CHANGES_REQUESTED",
+            body: "Needs a test, @carol can you help?",
+            submitted_at: created,
+            html_url: "r",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([["review", "bob", "Needs a test, @carol can you help?"]]);
+    });
+
+    it("skips a requested-changes review with no summary text", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "CHANGES_REQUESTED",
+            body: "",
+            submitted_at: created,
+            html_url: "r",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).not.toHaveBeenCalled();
+    });
+
     it("replays the author's own comment that mentions someone", async () => {
       const octokit = octokitFor({
         pulls: [forkPr(1, bodyWithCursor)],

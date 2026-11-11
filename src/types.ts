@@ -125,6 +125,8 @@ export interface CommentContext {
   author: string;
   commenter: string;
   commentUrl: string;
+  /** The text of the comment or review, which decides who is mentioned. */
+  body?: string | null;
   assignees: string[];
   kind: "comment" | "review" | "review_comment";
   inputs: ActionInputs;

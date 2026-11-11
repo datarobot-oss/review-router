@@ -13,6 +13,7 @@ import {
   shouldSkipDuplicateRouting,
 } from "./router";
 import { isRouterComment } from "./comment";
+import { notifiesAnyone } from "./mentions";
 import { handleSchedule } from "./reminders";
 import { reconcileOpenPulls } from "./reconcile";
 import { detectCapabilities } from "./auth";
@@ -163,8 +164,15 @@ async function run(): Promise<void> {
 
     const prAuthor = issue.user?.login ?? "";
     const commenterLogin = comment.user?.login ?? "";
-    if (commenterLogin === prAuthor) {
-      core.info("Ignoring comment from PR author");
+    if (
+      !notifiesAnyone({
+        commenter: commenterLogin,
+        author: prAuthor,
+        body: comment.body,
+        isBot: false,
+      })
+    ) {
+      core.info("Ignoring comment from PR author that mentions nobody");
       return;
     }
 
@@ -193,6 +201,7 @@ async function run(): Promise<void> {
       author: prAuthor,
       commenter: commenterLogin,
       commentUrl: comment.html_url ?? "",
+      body: comment.body,
       assignees: (pr.assignees ?? []).map((a: { login: string }) => a.login),
       kind: "comment",
       inputs,
@@ -475,8 +484,12 @@ async function run(): Promise<void> {
       const reviewer = review.user?.login ?? "";
 
       if (
-        reviewer !== prAuthor &&
-        context.payload.sender?.type !== "Bot" &&
+        notifiesAnyone({
+          commenter: reviewer,
+          author: prAuthor,
+          body: review.body,
+          isBot: context.payload.sender?.type === "Bot",
+        }) &&
         !isRouterComment(review.body) &&
         (review.body ?? "").trim().length > 0
       ) {
@@ -489,6 +502,7 @@ async function run(): Promise<void> {
           author: prAuthor,
           commenter: reviewer,
           commentUrl: review.html_url ?? "",
+          body: review.body,
           assignees: (pr.assignees ?? []).map((a: { login: string }) => a.login),
           kind: "review",
           inputs,
@@ -509,8 +523,15 @@ async function run(): Promise<void> {
     const prAuthor = pr.user?.login ?? "";
     const commenter = reviewComment.user?.login ?? "";
 
-    if (context.payload.sender?.type === "Bot" || commenter === prAuthor) {
-      core.info("Ignoring bot or self review comment");
+    if (
+      !notifiesAnyone({
+        commenter,
+        author: prAuthor,
+        body: reviewComment.body,
+        isBot: context.payload.sender?.type === "Bot",
+      })
+    ) {
+      core.info("Ignoring bot comment or self review comment that mentions nobody");
       return;
     }
 
@@ -523,6 +544,7 @@ async function run(): Promise<void> {
       author: prAuthor,
       commenter,
       commentUrl: reviewComment.html_url ?? "",
+      body: reviewComment.body,
       assignees: (pr.assignees ?? []).map((a: { login: string }) => a.login),
       kind: "review_comment",
       inputs,

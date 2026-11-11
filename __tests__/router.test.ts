@@ -2110,6 +2110,153 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).not.toHaveBeenCalled();
     expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
   });
+
+  describe("mentions", () => {
+    const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
+    const prLink = "<https://github.com/org/repo/pull/1|org/repo#1>";
+    const withUsers: OrgConfig = {
+      ...teamsConfig,
+      users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
+    };
+    const mentioning = {
+      ...approval,
+      kind: "comment" as const,
+      commentUrl,
+      body: "@charlie what do you think?",
+      teamsConfig: withUsers,
+    };
+
+    beforeEach(() => {
+      (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    });
+
+    it("sends a mentioned person a DM next to the author's", async () => {
+      await handleComment(mockOctokit as any, mentioning);
+
+      expect(slack.sendSlackDm).toHaveBeenCalledTimes(2);
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CHARLIE",
+        `:bell: <https://github.com/bob|bob> mentioned you in ${prLink}. ` +
+          `<${commentUrl}|Read the comment>.`
+      );
+    });
+
+    it("matches the mentioned login to the Slack user whatever its case", async () => {
+      await handleComment(mockOctokit as any, { ...mentioning, body: "@Charlie ping" });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CHARLIE",
+        expect.stringContaining("mentioned you")
+      );
+    });
+
+    it("sends the author one DM when the comment mentions the author", async () => {
+      await handleComment(mockOctokit as any, { ...mentioning, body: "@alice please look" });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_ALICE",
+        expect.stringContaining("commented on your pull request")
+      );
+    });
+
+    it("sends an assignee one DM when the comment mentions the assignee", async () => {
+      await handleComment(mockOctokit as any, { ...mentioning, assignees: ["charlie"] });
+
+      const toCharlie = (slack.sendSlackDm as jest.Mock).mock.calls.filter(
+        ([, id]) => id === "U_CHARLIE"
+      );
+      expect(toCharlie).toHaveLength(1);
+      expect(toCharlie[0][2]).toContain("assigned pull request");
+    });
+
+    it("sends nothing to a mentioned person without a Slack user", async () => {
+      await handleComment(mockOctokit as any, { ...mentioning, body: "@dave look" });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_ALICE",
+        expect.any(String)
+      );
+    });
+
+    it("sends nothing to the commenter who mentions themselves", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        body: "note to self @bob",
+        teamsConfig: { ...withUsers, users: { ...withUsers.users, bob: "U_BOB" } },
+      });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_ALICE"]);
+    });
+
+    it("sends one DM to a person mentioned twice", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        body: "@charlie and again @charlie",
+      });
+
+      const toCharlie = (slack.sendSlackDm as jest.Mock).mock.calls.filter(
+        ([, id]) => id === "U_CHARLIE"
+      );
+      expect(toCharlie).toHaveLength(1);
+    });
+
+    it("sends nothing for a mention in a code block", async () => {
+      await handleComment(mockOctokit as any, { ...mentioning, body: "```\n@charlie\n```" });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_ALICE"]);
+    });
+
+    it("falls back to a thread reply for a mentioned person when the DM fails", async () => {
+      (slack.sendSlackDm as jest.Mock).mockImplementation(
+        async (_client: unknown, id: string) => id !== "U_CHARLIE"
+      );
+
+      await handleComment(mockOctokit as any, mentioning);
+
+      expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+        expect.anything(),
+        "C111",
+        "1111.0000",
+        `:bell: <@U_CHARLIE>, <https://github.com/bob|bob> mentioned you. <${commentUrl}|Read the comment>.`
+      );
+    });
+
+    it("sends nothing for an approval, which has no body", async () => {
+      await handleComment(mockOctokit as any, { ...approval, teamsConfig: withUsers });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+    });
+
+    describe("when the author is the commenter", () => {
+      const own = { ...mentioning, commenter: "alice", assignees: ["charlie"] };
+
+      it("sends the mentioned person a DM and nobody else", async () => {
+        await handleComment(mockOctokit as any, own);
+
+        expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+        expect(slack.sendSlackDm).toHaveBeenCalledWith(
+          expect.anything(),
+          "U_CHARLIE",
+          expect.stringContaining("<@U_ALICE> mentioned you")
+        );
+      });
+
+      it("sends nothing when the comment mentions nobody", async () => {
+        await handleComment(mockOctokit as any, { ...own, body: "pushed a fix" });
+
+        expect(slack.sendSlackDm).not.toHaveBeenCalled();
+        expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
+      });
+    });
+  });
 });
 
 describe("review check wiring", () => {

@@ -116,6 +116,20 @@ export interface Capabilities {
   hasOrgAccess: boolean;
 }
 
+export interface ReviewRequestContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prBody: string;
+  prUrl: string;
+  /** The GitHub login of the person who asked for the review. */
+  requester: string;
+  /** The GitHub login of the person asked to review. */
+  reviewer: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
 export interface CommentContext {
   owner: string;
   repo: string;
@@ -127,6 +141,8 @@ export interface CommentContext {
   commentUrl: string;
   /** The text of the comment or review, which decides who is mentioned. */
   body?: string | null;
+  /** Skip the author and the assignees, because an earlier comment of the same burst already told them. */
+  mentionsOnly?: boolean;
   assignees: string[];
   kind: "comment" | "review" | "review_comment" | "changes_requested";
   inputs: ActionInputs;

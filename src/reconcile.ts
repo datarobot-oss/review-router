@@ -134,23 +134,27 @@ async function writeCursor(
 }
 
 /**
- * The events that get a DM: the first per commenter, kind and set of mentioned people, so a burst of
- * inline comments does not flood the author, and a comment that mentions someone new still goes out.
+ * The events that get a DM, each with whether it is for the mentioned people only. A burst is the events
+ * of one commenter and kind. Its first event goes to everyone, so a burst of inline comments does not
+ * flood the author. A later event goes out only when it mentions a new set of people, and then only to them.
  */
-function firstOfEachBurst(events: CommentEvent[]): Set<CommentEvent> {
-  const seen = new Set<string>();
-  const first = new Set<CommentEvent>();
+function firstOfEachBurst(events: CommentEvent[]): Map<CommentEvent, boolean> {
+  const bursts = new Set<string>();
+  const sets = new Set<string>();
+  const toSend = new Map<CommentEvent, boolean>();
   for (const event of events) {
     const mentioned = extractMentions(event.body)
       .map((login) => login.toLowerCase())
       .sort()
       .join(",");
-    const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}:${mentioned}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    first.add(event);
+    const burst = `${event.kind}:${event.commenter}:${event.commentUrl === ""}`;
+    const repeat = bursts.has(burst);
+    bursts.add(burst);
+    if (repeat && (mentioned === "" || sets.has(`${burst}:${mentioned}`))) continue;
+    sets.add(`${burst}:${mentioned}`);
+    toSend.set(event, repeat);
   }
-  return first;
+  return toSend;
 }
 
 type PullSummary = Awaited<ReturnType<Octokit["rest"]["pulls"]["list"]>>["data"][number];
@@ -297,7 +301,8 @@ async function reconcilePull(
   let lastHandled: string | undefined;
   try {
     for (const event of events) {
-      if (toSend.has(event)) {
+      const mentionsOnly = toSend.get(event);
+      if (mentionsOnly !== undefined) {
         await handleComment(octokit, {
           owner: ctx.owner,
           repo: ctx.repo,
@@ -308,6 +313,7 @@ async function reconcilePull(
           commenter: event.commenter,
           commentUrl: event.commentUrl,
           body: event.body,
+          mentionsOnly,
           assignees: (pr.assignees ?? []).map((a) => a.login),
           kind: event.kind,
           inputs: ctx.inputs,

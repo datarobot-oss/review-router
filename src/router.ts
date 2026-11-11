@@ -41,6 +41,7 @@ import {
   OrgConfig,
   OwnershipMap,
   CommentContext,
+  ReviewRequestContext,
   Octokit,
 } from "./types";
 
@@ -933,7 +934,6 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     return;
   }
 
-  const client = new WebClient(ctx.inputs.slackToken);
   const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
   const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
@@ -943,7 +943,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   // The author's own comment tells the author and the assignees nothing, but it can mention others.
   // A requested-changes summary is the same: it reaches only the people it mentions.
   const ownComment = ctx.commenter === ctx.author;
-  const mentionsOnly = ownComment || ctx.kind === "changes_requested";
+  const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
 
   const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
   if (authorSlackId && !mentionsOnly) {
@@ -986,11 +986,53 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     });
   }
 
+  await notifyRecipients(octokit, ctx, recipients);
+}
+
+/** Tells a person that someone asked them, by name, to review the PR. Teams are not handled here. */
+export async function handleReviewRequested(
+  octokit: Octokit,
+  ctx: ReviewRequestContext
+): Promise<void> {
+  if (!ctx.inputs.slackToken) {
+    core.debug("No Slack token provided, skipping review request notification");
+    return;
+  }
+  if (ctx.reviewer.toLowerCase() === ctx.requester.toLowerCase()) return;
+
+  const slackId = findSlackId(ctx.teamsConfig.users, ctx.reviewer);
+  if (!slackId) {
+    core.debug(`No Slack user for ${ctx.reviewer}, skipping review request notification`);
+    return;
+  }
+
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const person = formatGitHubUser(ctx.requester, ctx.teamsConfig.users);
+  await notifyRecipients(octokit, ctx, [
+    {
+      login: ctx.reviewer,
+      slackId,
+      dmText: `:eyes: ${person} requested your review on ${prLink}.`,
+      threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
+    },
+  ]);
+}
+
+/** Sends each recipient a DM, and a reply in the PR's Slack thread when DMs are off or the DM fails. */
+async function notifyRecipients(
+  octokit: Octokit,
+  ctx: Pick<
+    ReviewRequestContext,
+    "owner" | "repo" | "prNumber" | "prBody" | "inputs" | "teamsConfig"
+  >,
+  recipients: CommentRecipient[]
+): Promise<void> {
   if (recipients.length === 0) {
     core.debug("No recipients with Slack IDs found, skipping notifications");
     return;
   }
 
+  const client = new WebClient(ctx.inputs.slackToken);
   const needsThreadReply: CommentRecipient[] = [];
   for (const recipient of recipients) {
     const dmSent =

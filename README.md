@@ -33,7 +33,7 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, opened, closed, ready_for_review]
+    types: [labeled, opened, closed, ready_for_review, review_requested]
   pull_request_review:
     types: [submitted]
   pull_request_review_comment:
@@ -69,6 +69,7 @@ The action handles these event types:
 
 - **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added; when a person adds a "Needs Review: {team}" label, notifies only that team
 - **`pull_request_target: opened`** -- triggers dependabot auto-labeling when enabled in config
+- **`pull_request_target: review_requested`** -- sends a Slack DM to a person asked by name to review; team requests and requests made by bots are ignored
 - **`pull_request_target: synchronize`, `reopened`** -- refreshes the Review Router check on the new head commit
 - **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
 - **`pull_request_review: submitted`** -- removes team labels on approval
@@ -205,7 +206,7 @@ A scheduled run costs about 10 API calls plus 10 per open PR. It stops when less
 
 ### Slack DMs
 
-When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees receive one for comments. A person mentioned with `@login` in a comment, an inline comment or a review also receives one, whoever wrote it, including the PR author. The summary of a review that requests changes reaches only the people it mentions. Mentions in code, quotes and HTML comments, team mentions and bots don't count. A mention reaches a person only when their GitHub login is in the `users` mapping. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
+When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees receive one for comments. A person asked by name to review a PR receives one too, when the workflow listens for `review_requested`. A person mentioned with `@login` in a comment, an inline comment or a review also receives one, whoever wrote it, including the PR author. The summary of a review that requests changes reaches only the people it mentions. Mentions in code, quotes and HTML comments, team mentions and bots don't count. A mention reaches a person only when their GitHub login is in the `users` mapping. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
 
 DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org. When DMs are off or a DM fails, the person receives the Slack thread notification instead. To stop DMs for yourself, mute the bot's conversation in Slack.
 

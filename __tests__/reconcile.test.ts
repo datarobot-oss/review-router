@@ -804,6 +804,50 @@ describe("reconcileOpenPulls", () => {
         "@dave and you?",
       ]);
     });
+
+    it("tells the author once per burst, and sends later mentions to the mentioned people only", async () => {
+      const inline = (minute: number, body: string) => ({
+        user: human("bob"),
+        body,
+        created_at: `2026-10-23T10:${String(minute).padStart(2, "0")}:00Z`,
+        html_url: `https://github.com/org/repo/pull/1#discussion_r${minute}`,
+      });
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviewComments: [inline(10, "nit"), inline(11, "@carol thoughts?"), inline(12, "@dave?")],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      const calls = (handleComment as jest.Mock).mock.calls.map(([, c]) => [
+        c.body,
+        c.mentionsOnly,
+      ]);
+      expect(calls).toEqual([
+        ["nit", false],
+        ["@carol thoughts?", true],
+        ["@dave?", true],
+      ]);
+    });
+
+    it("skips a later comment of a burst that mentions nobody new", async () => {
+      const inline = (minute: number, body: string) => ({
+        user: human("bob"),
+        body,
+        created_at: `2026-10-23T10:${String(minute).padStart(2, "0")}:00Z`,
+        html_url: `https://github.com/org/repo/pull/1#discussion_r${minute}`,
+      });
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviewComments: [inline(10, "@carol first"), inline(11, "no mention here")],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith().map(([, , body]) => body)).toEqual(["@carol first"]);
+    });
   });
 
   it("ignores /review and /ai-review slash commands, as the live comment path does", async () => {

@@ -206,9 +206,7 @@ A scheduled run costs about 10 API calls plus 10 per open PR. It stops when less
 
 ### Slack DMs
 
-When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees receive one for comments. A person asked by name to review a PR receives one too, when the workflow listens for `review_requested`. A person mentioned with `@login` in a comment, an inline comment or a review also receives one, whoever wrote it, including the PR author. The summary of a review that requests changes reaches only the people it mentions. Mentions in code, quotes and HTML comments, team mentions and bots don't count. A mention reaches a person only when their GitHub login is in the `users` mapping. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
-
-DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org. When DMs are off or a DM fails, the person receives the Slack thread notification instead. To stop DMs for yourself, mute the bot's conversation in Slack.
+The bot sends Slack direct messages to PR authors, assignees, reviewers asked by name, and mentioned people. DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org. See [Slack notifications](docs/setup/notifications.md) for who gets which message and for setup.
 
 ### Review Router check
 
@@ -218,9 +216,7 @@ The check needs the GitHub App permission **Checks**: Read and write. Without it
 
 ### Thread Notifications
 
-When someone comments on or approves a PR that was routed by review-router,
-the PR author receives an @-mention in the Slack thread of the original
-notification, unless a DM was sent instead. This requires the `users` mapping in the config.
+When a DM is off or fails, the person receives an @-mention in the Slack thread of the original notification instead. See [Slack notifications](docs/setup/notifications.md#thread-replies).
 
 **Fork PRs are reconciled on a schedule.** GitHub withholds secrets from
 `pull_request_review`, `pull_request_review_comment`, and `issue_comment`
@@ -231,9 +227,7 @@ current approvals, adds the `approved` reaction, updates the Review Router
 check, and sends DMs for approvals and comments that arrived since the
 previous run. Fork PRs in a repo without a `schedule` trigger get none of
 this. For every open PR, the run also rewrites the check on the latest commit, because a
-push leaves the new commit without one and a removed label leaves a queued one. The first run on a PR sets a cursor. For a PR opened less than a week
-earlier, the cursor starts at the creation time, so a review that arrived before the first run, over a weekend for example, still gets its DM.
-For an older PR, it starts now and earlier events aren't replayed. Routing, labels and the file-type/merged/closed
+push leaves the new commit without one and a removed label leaves a queued one. Routing, labels and the file-type/merged/closed
 reactions run on `pull_request_target` and work in real time. See
 [troubleshooting.md](docs/setup/troubleshooting.md#fork-prs-get-mergedfile-type-reactions-but-never-an-approval-reaction-or-thread-reply)
 for details.

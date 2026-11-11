@@ -286,6 +286,7 @@ infra/ @acme-corp/infra-team
 - [Set up a repository for the merge flow](docs/setup/repository-setup.md): the ordered steps for the gate, the merge queue, and Dependabot, with a verification checklist
 - [Review Router gate](docs/setup/gate.md): a required check that replaces required approvals and passes trusted automation
 - [Merge queue App](docs/setup/merge-queue.md): add ready pull requests to the merge queue without a click
+- [Slack notifications](docs/setup/notifications.md): every Slack message the Router sends, who gets it, and how to fix a missing DM
 - [Troubleshooting](docs/setup/troubleshooting.md): common issues and fixes
 
 ## Adding a new team

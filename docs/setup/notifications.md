@@ -95,12 +95,48 @@ To silence the thread for one PR, add a `:mute:` or `:no_bell:` reaction to the 
 
 ## Fork PRs
 
-GitHub withholds secrets from review and comment runs that belong to a PR from a fork. Review Router can't send a DM at that moment, so each `schedule` run replays the events it missed. A fork PR in a repository without a `schedule` trigger gets no DMs.
+GitHub withholds secrets from review and comment runs that belong to a PR from a fork. Review Router can't send a DM at that moment, so a later run replays the events it missed. Two triggers start a replay:
+
+- **A replay workflow**, which starts when the skipped run completes. The DM follows the review closely.
+- **A `schedule` run**, which replays every open fork PR. It is the backstop when the replay workflow is missing or a run fails.
+
+A fork PR in a repository with neither trigger gets no DMs.
+
+To add the replay workflow, create `.github/workflows/review-router-replay.yml` on the default branch. Use the same `uses:` line and `secrets: inherit` as your Review Router workflow, and keep its `name` as `Review Router`, because the replay waits for runs of that name:
+
+```yaml
+name: Review Router replay
+
+on:
+  workflow_run:
+    workflows: ["Review Router"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: review-router-replay
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    if: >-
+      contains(fromJSON('["pull_request_review", "pull_request_review_comment", "issue_comment"]'), github.event.workflow_run.event)
+      && (github.event.workflow_run.event == 'issue_comment'
+      || github.event.workflow_run.head_repository.full_name != github.repository)
+    uses: your-org/.github/.github/workflows/review-router.yml@main
+    secrets: inherit
+```
+
+A `workflow_run` always runs the file on the default branch, with secrets. The replay reads the PR through the API and never checks out PR code.
 
 How the replay works:
 
-- **Delay.** A DM arrives on the next scheduled run. With the default schedule, `0 3,9,15,21 * * 1-5`, that is up to 6 hours, and nothing runs on weekends. An hourly schedule shortens the wait.
-- **Replay marker.** Review Router records how far it replayed in a hidden marker in its code ownership comment. A run never sends the same event twice.
+- **Delay.** With the replay workflow, a DM follows the review closely. With only a schedule, it arrives on the next run. The default schedule, `0 3,9,15,21 * * 1-5`, adds up to 6 hours, and nothing runs on weekends.
+- **First review from a new contributor.** GitHub holds the first run of a new contributor until someone approves it. The replay starts after that approval, or at the next scheduled run.
+- **Replay marker.** Review Router records how far it replayed in a hidden marker in its code ownership comment. A replay never sends the same event twice. When two replays overlap, they can send one event twice, which is rare.
 - **First run.** On a PR opened less than 7 days ago, the replay starts at the creation time. On an older PR, it starts now and skips earlier events.
 - **Bursts.** A reviewer who leaves many inline comments gets one DM to the author for the burst. A later comment in the burst sends a DM only when it mentions someone new, and only to that person.
 
@@ -117,6 +153,6 @@ If a DM doesn't arrive, check these in order:
 5. The Slack app has `chat:write` and the **Messages** tab on.
 6. The person hasn't muted the bot's conversation.
 7. The comment isn't from a bot, and isn't the author's own comment without a mention.
-8. For a fork PR, the workflow has a `schedule` trigger, and enough time passed for the next run.
+8. For a fork PR, the repository has the replay workflow or a `schedule` trigger, and enough time passed.
 
 When a DM falls back to the thread and no reply appears, the PR was never routed, or someone muted the Slack message.

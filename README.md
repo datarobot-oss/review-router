@@ -75,6 +75,7 @@ The action handles these event types:
 - **`pull_request_review: submitted`** -- removes team labels on approval
 - **`pull_request_review_comment: created`** -- notifies PR author in Slack thread on inline review comments
 - **`issue_comment: created`** -- when a contributor comments `/review` on a PR, adds the "Ready for Review" label (with a rocket reaction) which triggers routing; also notifies PR author in Slack thread on general PR comments
+- **`workflow_run`** (from the separate replay workflow) -- replays the DMs, labels and reaction that a fork PR's review run missed. See [Slack notifications](docs/setup/notifications.md#fork-prs)
 - **`schedule`** -- reconciles open fork PRs (label removal on approval, the `approved` reaction, the Review Router check, and Slack DMs for new approvals and comments), refreshes the Review Router check on the latest commit of every open PR, then sends stale PR reminders when enabled
 
 Uses `pull_request_target` so fork PRs work -- the workflow always runs from the base
@@ -218,14 +219,15 @@ The check needs the GitHub App permission **Checks**: Read and write. Without it
 
 When a DM is off or fails, the person receives an @-mention in the Slack thread of the original notification instead. See [Slack notifications](docs/setup/notifications.md#thread-replies).
 
-**Fork PRs are reconciled on a schedule.** GitHub withholds secrets from
+**Fork PRs are reconciled by a replay workflow and on a schedule.** GitHub withholds secrets from
 `pull_request_review`, `pull_request_review_comment`, and `issue_comment`
 runs whenever they're tied to a PR from a fork, regardless of the author's
 org membership, so review-router can't react to those events in real time.
-Instead, each `schedule` run scans open fork PRs. It removes team labels for
+Instead, a replay workflow starts when the skipped run completes, and each
+`schedule` run is the backstop. Both scan open fork PRs. It removes team labels for
 current approvals, adds the `approved` reaction, updates the Review Router
 check, and sends DMs for approvals and comments that arrived since the
-previous run. Fork PRs in a repo without a `schedule` trigger get none of
+previous run. Fork PRs in a repo with neither trigger get none of
 this. For every open PR, the run also rewrites the check on the latest commit, because a
 push leaves the new commit without one and a removed label leaves a queued one. Routing, labels and the file-type/merged/closed
 reactions run on `pull_request_target` and work in real time. See

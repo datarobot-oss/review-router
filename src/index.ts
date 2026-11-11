@@ -72,11 +72,13 @@ async function run(): Promise<void> {
   const eventName = context.eventName;
   const action = context.payload.action;
 
-  // A scheduled run touches every open PR, so it stops before it starves the events of the org.
-  const quota = eventName === "schedule" ? await readQuota(octokit) : undefined;
+  // A scheduled or replay run touches many open PRs, so it stops before it starves the events of the org.
+  const replaysPulls =
+    eventName === "schedule" || (eventName === "workflow_run" && mode === "router");
+  const quota = replaysPulls ? await readQuota(octokit) : undefined;
   if (quota && quotaLow(quota)) {
     core.warning(
-      `Skipping the scheduled run: ${quota.remaining} of ${quota.limit} calls of the API budget remain.`
+      `Skipping the ${eventName} run: ${quota.remaining} of ${quota.limit} calls of the API budget remain.`
     );
     return;
   }
@@ -259,6 +261,16 @@ async function run(): Promise<void> {
     if (quota && after) {
       core.info(`The scheduled run used about ${quota.remaining - after.remaining} API calls.`);
     }
+    return;
+  }
+
+  if (eventName === "workflow_run" && action === "completed") {
+    // A fork's review run has no secrets and skips, so this run, which has them, delivers what it missed.
+    await reconcileOpenPulls(
+      octokit,
+      { owner, repo, inputs, capabilities, teamsConfig },
+      { forksOnly: true }
+    );
     return;
   }
 

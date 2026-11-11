@@ -155,8 +155,7 @@ workflow configuration.
 
 Routing, labels, the ownership comment, and the `merged`/`closed`/file-type
 Slack reactions all work fine on a fork PR. But approving the PR doesn't add
-the `approved` reaction or remove the team label until the next scheduled
-run, and comments and reviews don't notify the author until then, even when
+the `approved` reaction or remove the team label until a replay runs, and comments and reviews don't notify the author until then, even when
 the PR author is a member of your GitHub org.
 
 **Cause**: This isn't about the author's permissions. GitHub withholds
@@ -170,14 +169,17 @@ event types, which `pull_request_target` does not cover. The action logs
 [pull-request-target.md](../security/pull-request-target.md) for the full
 explanation.
 
-**Fix**: Add a `schedule` trigger to the consumer workflow. The action
-reconciles open fork PRs on each scheduled run. It removes team labels for
+**Fix**: Add the replay workflow from
+[Slack notifications](notifications.md#fork-prs). It starts when the skipped
+run completes, so the work follows the review closely. Also keep a `schedule`
+trigger as the backstop. The action reconciles open fork PRs on each
+scheduled run. It removes team labels for
 current approvals, adds the `approved` reaction, updates the Review Router
-check, and sends DMs for new approvals and comments. The delay equals the
+check, and sends DMs for new approvals and comments. Without the replay workflow, the delay equals the
 schedule interval. The run also rewrites the check on the latest commit of every
 open PR, because a push leaves the new commit without one and a removed label
 leaves a queued one.
 GitHub still doesn't run the real-time handlers for fork
-PRs, so without a `schedule` trigger these PRs get none of this. Everything
+PRs, so without the replay workflow or a `schedule` trigger these PRs get none of this. Everything
 driven by `pull_request_target` (opened/labeled/closed) is unaffected and
 continues to work normally.

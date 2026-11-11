@@ -68,6 +68,30 @@ describe("extractMentions", () => {
     expect(extractMentions(body)).toEqual(["carol"]);
   });
 
+  it("ignores mentions in a fenced block that has an info string", () => {
+    expect(extractMentions("```ts\n@alice\n```\n@bob")).toEqual(["bob"]);
+  });
+
+  it("keeps a fenced block open past backticks in the middle of a line", () => {
+    expect(extractMentions("```\nuse ``` here @alice\n```\n@bob")).toEqual(["bob"]);
+  });
+
+  it("keeps a fenced block open past a shorter run of backticks than its opener", () => {
+    expect(extractMentions("````\n```\n@alice\n````\n@bob")).toEqual(["bob"]);
+  });
+
+  it("treats a fenced block with no closing fence as running to the end of the text", () => {
+    expect(extractMentions("@alice\n```\n@bob\n@carol")).toEqual(["alice"]);
+  });
+
+  it("scans a body of many unclosed fence openers in linear time", () => {
+    const started = Date.now();
+
+    extractMentions("```a\n".repeat(13000));
+
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
   it("ignores mentions in quoted lines", () => {
     expect(extractMentions("> @alice said so\n@bob agrees")).toEqual(["bob"]);
   });

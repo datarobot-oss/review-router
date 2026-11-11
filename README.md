@@ -205,7 +205,7 @@ A scheduled run costs about 10 API calls plus 10 per open PR. It stops when less
 
 ### Slack DMs
 
-When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees receive one for comments. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
+When someone approves or comments on a PR, the PR author receives a Slack direct message from the bot. Assignees receive one for comments. A person mentioned with `@login` in a comment, an inline comment or a review also receives one, whoever wrote it, including the PR author. The summary of a review that requests changes reaches only the people it mentions. Mentions in code, quotes and HTML comments, team mentions and bots don't count. A mention reaches a person only when their GitHub login is in the `users` mapping. DMs need the `users` mapping in the config, the `chat:write` scope, and the Messages tab enabled on the Slack app's App Home page.
 
 DMs are on by default. Set `notifications.dm.enabled: false` to turn them off for an org. When DMs are off or a DM fails, the person receives the Slack thread notification instead. To stop DMs for yourself, mute the bot's conversation in Slack.
 

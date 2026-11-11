@@ -614,6 +614,198 @@ describe("reconcileOpenPulls", () => {
     expect(handleComment).not.toHaveBeenCalled();
   });
 
+  describe("mentions", () => {
+    const created = "2026-10-23T10:05:00Z";
+    const calledWith = () =>
+      (handleComment as jest.Mock).mock.calls.map(([, c]) => [c.kind, c.commenter, c.body]);
+
+    it("passes the text of each comment on, so handleComment can find the mentions", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "COMMENTED",
+            body: "overall @carol",
+            submitted_at: "2026-10-23T10:05:00Z",
+            html_url: "r",
+          },
+        ],
+        reviewComments: [
+          {
+            user: human("dave"),
+            body: "nit @carol",
+            created_at: "2026-10-23T10:10:00Z",
+            html_url: "i",
+          },
+        ],
+        issueComments: [
+          {
+            user: human("erin"),
+            body: "ping @carol",
+            created_at: "2026-10-23T10:15:00Z",
+            html_url: "c",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([
+        ["review", "bob", "overall @carol"],
+        ["review_comment", "dave", "nit @carol"],
+        ["comment", "erin", "ping @carol"],
+      ]);
+    });
+
+    it("passes the text of an approval on, so a mention in its summary notifies", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "APPROVED",
+            body: "LGTM, @carol FYI",
+            submitted_at: created,
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([["review", "bob", "LGTM, @carol FYI"]]);
+    });
+
+    it("replays the summary of a requested-changes review, so a mention in it notifies", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "CHANGES_REQUESTED",
+            body: "Needs a test, @carol can you help?",
+            submitted_at: created,
+            html_url: "r",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([
+        ["changes_requested", "bob", "Needs a test, @carol can you help?"],
+      ]);
+    });
+
+    it("skips a requested-changes review with no summary text", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "CHANGES_REQUESTED",
+            body: "",
+            submitted_at: created,
+            html_url: "r",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).not.toHaveBeenCalled();
+    });
+
+    it("replays the author's own comment that mentions someone", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        issueComments: [
+          { user: human("alice"), body: "@bob fixed", created_at: created, html_url: "own" },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([["comment", "alice", "@bob fixed"]]);
+    });
+
+    it("replays the author's own inline comment and review that mention someone", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("alice"),
+            state: "COMMENTED",
+            body: "@bob see below",
+            submitted_at: created,
+            html_url: "r",
+          },
+        ],
+        reviewComments: [
+          { user: human("alice"), body: "@carol why?", created_at: created, html_url: "i" },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([
+        ["review", "alice", "@bob see below"],
+        ["review_comment", "alice", "@carol why?"],
+      ]);
+    });
+
+    it("ignores the author's own comments that mention nobody", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        issueComments: [
+          { user: human("alice"), body: "pushed", created_at: created, html_url: "own" },
+        ],
+        reviewComments: [
+          { user: human("alice"), body: "done", created_at: created, html_url: "i" },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).not.toHaveBeenCalled();
+    });
+
+    it("sends each inline comment of a burst that mentions someone new, and drops the repeats", async () => {
+      const inline = (minute: number, body: string) => ({
+        user: human("bob"),
+        body,
+        created_at: `2026-10-23T10:${String(minute).padStart(2, "0")}:00Z`,
+        html_url: `https://github.com/org/repo/pull/1#discussion_r${minute}`,
+      });
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviewComments: [
+          inline(10, "nit"),
+          inline(11, "nit again"),
+          inline(12, "@carol thoughts?"),
+          inline(13, "@Carol, same ask"),
+          inline(14, "@dave and you?"),
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith().map(([, , body]) => body)).toEqual([
+        "nit",
+        "@carol thoughts?",
+        "@dave and you?",
+      ]);
+    });
+  });
+
   it("ignores /review and /ai-review slash commands, as the live comment path does", async () => {
     const created = "2026-10-23T10:05:00Z";
     const octokit = octokitFor({
@@ -894,7 +1086,40 @@ describe("the DM cursor in the ownership comment", () => {
     expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
   });
 
-  it("does not look for the ownership comment when nobody on the PR can be messaged", async () => {
+  describe("when nobody on the PR has a Slack ID but someone else in the org does", () => {
+    const orgConfig: OrgConfig = { teams: {}, users: { carol: "U_CAROL" } };
+    const mentionOfCarol = {
+      user: human("bob"),
+      body: "@carol can you look?",
+      created_at: "2026-10-23T10:05:00Z",
+      html_url: "https://github.com/org/repo/pull/1#issuecomment-9",
+    };
+
+    it("replays the mention when the ownership comment holds the cursor", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, "body")],
+        issueComments: [ownership(withCursor), mentionOfCarol],
+      });
+
+      await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: orgConfig });
+
+      expect(handleComment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ commenter: "bob", body: "@carol can you look?" })
+      );
+    });
+
+    it("leaves the description alone when the PR has no ownership comment to hold the cursor", async () => {
+      const octokit = octokitFor({ pulls: [forkPr(1, "body")], issueComments: [mentionOfCarol] });
+
+      await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: orgConfig });
+
+      expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+      expect(handleComment).not.toHaveBeenCalled();
+    });
+  });
+
+  it("does not look for the ownership comment when nobody in the org has a Slack ID", async () => {
     const octokit = octokitFor({ pulls: [forkPr(1, "body")] });
 
     await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: { teams: {}, users: {} } });

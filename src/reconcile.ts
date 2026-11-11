@@ -7,6 +7,7 @@ import {
   removeDmCursor,
 } from "./comment";
 import { isAiReviewCommand } from "./ai-review/trigger";
+import { extractMentions, notifiesAnyone } from "./mentions";
 import { handleComment, handleReviewSubmitted, syncReviewCheck } from "./router";
 import { ActionInputs, Capabilities, CommentContext, OrgConfig, Octokit } from "./types";
 
@@ -32,6 +33,8 @@ interface CommentEvent {
   kind: CommentContext["kind"];
   commenter: string;
   commentUrl: string;
+  /** The text of the comment, review or approval summary, or null when there is none. */
+  body: string | null;
   at: string;
 }
 
@@ -49,8 +52,15 @@ function isNewer(at: string | null | undefined, cursor: string): boolean {
   return !!at && Date.parse(at) > Date.parse(cursor);
 }
 
-function isRealPerson(user: Actor | null | undefined, author: string): user is Actor {
-  return !!user && user.type !== "Bot" && user.login !== author;
+/** A person whose comment can notify someone: anyone but a bot, and the author only when mentioning someone. */
+function isNotifiable(
+  user: Actor | null | undefined,
+  author: string,
+  body: string | null | undefined
+): user is Actor {
+  return (
+    !!user && notifiesAnyone({ commenter: user.login, author, body, isBot: user.type === "Bot" })
+  );
 }
 
 /** The live issue_comment path handles these as commands and never notifies on them. */
@@ -123,12 +133,19 @@ async function writeCursor(
   }
 }
 
-/** The events that get a DM: the first per commenter and kind, so a burst of inline comments does not flood the author. */
+/**
+ * The events that get a DM: the first per commenter, kind and set of mentioned people, so a burst of
+ * inline comments does not flood the author, and a comment that mentions someone new still goes out.
+ */
 function firstOfEachBurst(events: CommentEvent[]): Set<CommentEvent> {
   const seen = new Set<string>();
   const first = new Set<CommentEvent>();
   for (const event of events) {
-    const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}`;
+    const mentioned = extractMentions(event.body)
+      .map((login) => login.toLowerCase())
+      .sort()
+      .join(",");
+    const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}:${mentioned}`;
     if (seen.has(key)) continue;
     seen.add(key);
     first.add(event);
@@ -150,24 +167,28 @@ async function collectEvents(
   const currentApprovers = new Set(latestApprovers(reviews));
 
   for (const review of reviews) {
-    if (!isNewer(review.submitted_at, cursor) || !isRealPerson(review.user, author)) continue;
+    if (!isNewer(review.submitted_at, cursor) || !isNotifiable(review.user, author, review.body)) {
+      continue;
+    }
     if (review.state === "APPROVED") {
       if (!currentApprovers.has(review.user.login)) continue;
       events.push({
         kind: "review",
         commenter: review.user.login,
         commentUrl: "",
+        body: review.body ?? null,
         at: review.submitted_at as string,
       });
     } else if (
-      review.state === "COMMENTED" &&
+      (review.state === "COMMENTED" || review.state === "CHANGES_REQUESTED") &&
       (review.body ?? "").trim().length > 0 &&
       !isRouterComment(review.body)
     ) {
       events.push({
-        kind: "review",
+        kind: review.state === "CHANGES_REQUESTED" ? "changes_requested" : "review",
         commenter: review.user.login,
         commentUrl: review.html_url ?? "",
+        body: review.body ?? null,
         at: review.submitted_at as string,
       });
     }
@@ -185,11 +206,12 @@ async function collectEvents(
   for (const c of reviewComments) {
     const at =
       (c.pull_request_review_id && submittedAt.get(c.pull_request_review_id)) || c.created_at;
-    if (!isNewer(at, cursor) || !isRealPerson(c.user, author)) continue;
+    if (!isNewer(at, cursor) || !isNotifiable(c.user, author, c.body)) continue;
     events.push({
       kind: "review_comment",
       commenter: c.user.login,
       commentUrl: c.html_url ?? "",
+      body: c.body ?? null,
       at,
     });
   }
@@ -202,12 +224,13 @@ async function collectEvents(
     per_page: 100,
   });
   for (const c of issueComments) {
-    if (!isNewer(c.created_at, cursor) || !isRealPerson(c.user, author)) continue;
+    if (!isNewer(c.created_at, cursor) || !isNotifiable(c.user, author, c.body)) continue;
     if (isRouterComment(c.body) || isSlashCommand(c.body)) continue;
     events.push({
       kind: "comment",
       commenter: c.user.login,
       commentUrl: c.html_url ?? "",
+      body: c.body ?? null,
       at: c.created_at,
     });
   }
@@ -246,10 +269,14 @@ async function reconcilePull(
   }
 
   const watchers = [author, ...(pr.assignees ?? []).map((a) => a.login)];
-  const canMessage = watchers.some((login) => ctx.teamsConfig.users?.[login]);
-  if (!ctx.inputs.slackToken || !canMessage) return;
+  const watcherCanBeMessaged = watchers.some((login) => ctx.teamsConfig.users?.[login]);
+  // A mention can reach any mapped person, whoever is on the PR.
+  const anyoneCanBeMessaged = Object.keys(ctx.teamsConfig.users ?? {}).length > 0;
+  if (!ctx.inputs.slackToken || !anyoneCanBeMessaged) return;
 
   const comment = await findExistingComment(octokit, ctx.owner, ctx.repo, pr.number);
+  // When only a mention can reach someone, the cursor goes in the router's own comment, never in the description.
+  if (!watcherCanBeMessaged && !comment) return;
   const home: CursorHome = {
     comment: comment ? { id: comment.id } : null,
     descriptionHasCursor: extractDmCursor(body) !== null,
@@ -280,6 +307,7 @@ async function reconcilePull(
           author,
           commenter: event.commenter,
           commentUrl: event.commentUrl,
+          body: event.body,
           assignees: (pr.assignees ?? []).map((a) => a.login),
           kind: event.kind,
           inputs: ctx.inputs,

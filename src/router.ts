@@ -19,6 +19,7 @@ import {
   postExternalComment,
 } from "./comment";
 import { postJiraComment } from "./jira";
+import { extractMentions } from "./mentions";
 import { resolveAiReviewSettings } from "./ai-review/settings";
 import {
   sendSlackNotification,
@@ -913,6 +914,12 @@ export function formatGitHubUser(login: string, users: Record<string, string> | 
   return `<https://github.com/${page}|${login}>`;
 }
 
+/** Looks up a Slack user by GitHub login, ignoring case as GitHub does. */
+function findSlackId(users: Record<string, string> | undefined, login: string): string | undefined {
+  const key = Object.keys(users ?? {}).find((k) => k.toLowerCase() === login.toLowerCase());
+  return key === undefined ? undefined : users?.[key];
+}
+
 interface CommentRecipient {
   login: string;
   slackId: string;
@@ -933,8 +940,13 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
 
   const recipients: CommentRecipient[] = [];
 
+  // The author's own comment tells the author and the assignees nothing, but it can mention others.
+  // A requested-changes summary is the same: it reaches only the people it mentions.
+  const ownComment = ctx.commenter === ctx.author;
+  const mentionsOnly = ownComment || ctx.kind === "changes_requested";
+
   const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-  if (authorSlackId) {
+  if (authorSlackId && !mentionsOnly) {
     const approved = ctx.kind === "review" && ctx.commentUrl === "";
     recipients.push({
       login: ctx.author,
@@ -948,7 +960,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     });
   }
 
-  if (ctx.kind !== "review") {
+  if (ctx.kind !== "review" && !mentionsOnly) {
     for (const assignee of ctx.assignees) {
       if (assignee === ctx.commenter || assignee === ctx.author) continue;
       const slackId = ctx.teamsConfig.users?.[assignee];
@@ -960,6 +972,18 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
         threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
       });
     }
+  }
+
+  for (const login of extractMentions(ctx.body)) {
+    if (login.toLowerCase() === ctx.commenter.toLowerCase()) continue;
+    const slackId = findSlackId(ctx.teamsConfig.users, login);
+    if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
+    recipients.push({
+      login,
+      slackId,
+      dmText: `:bell: ${person} mentioned you in ${prLink}.${readLink}`,
+      threadText: `:bell: <@${slackId}>, ${person} mentioned you.${readLink}`,
+    });
   }
 
   if (recipients.length === 0) {

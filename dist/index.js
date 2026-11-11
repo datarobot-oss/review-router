@@ -83794,6 +83794,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 const router_1 = __nccwpck_require__(8954);
 const comment_1 = __nccwpck_require__(2246);
+const mentions_1 = __nccwpck_require__(3076);
 const reminders_1 = __nccwpck_require__(9924);
 const reconcile_1 = __nccwpck_require__(1175);
 const auth_1 = __nccwpck_require__(9081);
@@ -83912,8 +83913,13 @@ async function run() {
         }
         const prAuthor = issue.user?.login ?? "";
         const commenterLogin = comment.user?.login ?? "";
-        if (commenterLogin === prAuthor) {
-            core.info("Ignoring comment from PR author");
+        if (!(0, mentions_1.notifiesAnyone)({
+            commenter: commenterLogin,
+            author: prAuthor,
+            body: comment.body,
+            isBot: false,
+        })) {
+            core.info("Ignoring comment from PR author that mentions nobody");
             return;
         }
         const teamsConfig = await (0, config_1.loadTeamsConfigForOrg)(owner, octokit, inputs.configRepo, inputs.configToken, inputs.configPath, inputs.configS3);
@@ -83932,6 +83938,7 @@ async function run() {
             author: prAuthor,
             commenter: commenterLogin,
             commentUrl: comment.html_url ?? "",
+            body: comment.body,
             assignees: (pr.assignees ?? []).map((a) => a.login),
             kind: "comment",
             inputs,
@@ -84154,6 +84161,7 @@ async function run() {
                     author: prAuthor,
                     commenter: reviewer,
                     commentUrl: "",
+                    body: review.body,
                     assignees: [],
                     kind: "review",
                     inputs,
@@ -84161,11 +84169,15 @@ async function run() {
                 });
             }
         }
-        else if (review.state === "commented") {
+        else if (review.state === "commented" || review.state === "changes_requested") {
             const prAuthor = pr.user?.login ?? "";
             const reviewer = review.user?.login ?? "";
-            if (reviewer !== prAuthor &&
-                context.payload.sender?.type !== "Bot" &&
+            if ((0, mentions_1.notifiesAnyone)({
+                commenter: reviewer,
+                author: prAuthor,
+                body: review.body,
+                isBot: context.payload.sender?.type === "Bot",
+            }) &&
                 !(0, comment_1.isRouterComment)(review.body) &&
                 (review.body ?? "").trim().length > 0) {
                 await (0, router_1.handleComment)(octokit, {
@@ -84177,8 +84189,9 @@ async function run() {
                     author: prAuthor,
                     commenter: reviewer,
                     commentUrl: review.html_url ?? "",
+                    body: review.body,
                     assignees: (pr.assignees ?? []).map((a) => a.login),
-                    kind: "review",
+                    kind: review.state === "changes_requested" ? "changes_requested" : "review",
                     inputs,
                     teamsConfig,
                 });
@@ -84197,8 +84210,13 @@ async function run() {
         }
         const prAuthor = pr.user?.login ?? "";
         const commenter = reviewComment.user?.login ?? "";
-        if (context.payload.sender?.type === "Bot" || commenter === prAuthor) {
-            core.info("Ignoring bot or self review comment");
+        if (!(0, mentions_1.notifiesAnyone)({
+            commenter,
+            author: prAuthor,
+            body: reviewComment.body,
+            isBot: context.payload.sender?.type === "Bot",
+        })) {
+            core.info("Ignoring bot comment or self review comment that mentions nobody");
             return;
         }
         await (0, router_1.handleComment)(octokit, {
@@ -84210,6 +84228,7 @@ async function run() {
             author: prAuthor,
             commenter,
             commentUrl: reviewComment.html_url ?? "",
+            body: reviewComment.body,
             assignees: (pr.assignees ?? []).map((a) => a.login),
             kind: "review_comment",
             inputs,
@@ -84467,6 +84486,54 @@ async function removeLabel(octokit, owner, repo, prNumber, labelName) {
 
 /***/ }),
 
+/***/ 3076:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.notifiesAnyone = notifiesAnyone;
+exports.extractMentions = extractMentions;
+// One pass over the text: the first four alternatives are the spans that hide a mention, and they are skipped
+// as a whole. A code fence opens and closes at the start of a line, and the closing run is at least as long
+// as the opening one, as on GitHub. A fence with no closer runs to the end, which also keeps the scan linear. The last alternative is a login after a character that can't continue a
+// word, an email or a team path, and not followed by a team slash. Skipping spans, instead of stripping
+// them first, leaves no text behind that could join into a new span.
+const SCAN = new RegExp([
+    "^ {0,3}(?<fence>`{3,})[^`\\n]*\\n(?:[\\s\\S]*?^ {0,3}\\k<fence>`*[ \\t]*$|[\\s\\S]*)",
+    "<!--[\\s\\S]*?-->",
+    "`[^`\\n]*`",
+    "^[ \\t]*>.*$",
+    "(?<![\\w@/`])@(?<login>[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)(?![\\w/-])",
+].join("|"), "gm");
+/** Whether a comment can notify anyone: a bot never does, and the author's own comment does only by mentioning someone. */
+function notifiesAnyone(comment) {
+    if (comment.isBot)
+        return false;
+    return comment.commenter !== comment.author || extractMentions(comment.body).length > 0;
+}
+/**
+ * Returns the GitHub logins mentioned in a comment, once each in order of first appearance.
+ * Mentions in code, quotes and HTML comments, team mentions and email addresses don't count.
+ */
+function extractMentions(body) {
+    if (!body)
+        return [];
+    const seen = new Set();
+    const logins = [];
+    for (const match of body.matchAll(SCAN)) {
+        const login = match.groups?.login;
+        if (login === undefined || seen.has(login.toLowerCase()))
+            continue;
+        seen.add(login.toLowerCase());
+        logins.push(login);
+    }
+    return logins;
+}
+
+
+/***/ }),
+
 /***/ 9419:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -84539,6 +84606,7 @@ exports.reconcileOpenPulls = reconcileOpenPulls;
 const core = __importStar(__nccwpck_require__(7484));
 const comment_1 = __nccwpck_require__(2246);
 const trigger_1 = __nccwpck_require__(5789);
+const mentions_1 = __nccwpck_require__(3076);
 const router_1 = __nccwpck_require__(8954);
 /** Logins whose latest non-COMMENTED review is an approval. Reviews must be in chronological order. */
 function latestApprovers(reviews) {
@@ -84553,8 +84621,9 @@ function latestApprovers(reviews) {
 function isNewer(at, cursor) {
     return !!at && Date.parse(at) > Date.parse(cursor);
 }
-function isRealPerson(user, author) {
-    return !!user && user.type !== "Bot" && user.login !== author;
+/** A person whose comment can notify someone: anyone but a bot, and the author only when mentioning someone. */
+function isNotifiable(user, author, body) {
+    return (!!user && (0, mentions_1.notifiesAnyone)({ commenter: user.login, author, body, isBot: user.type === "Bot" }));
 }
 /** The live issue_comment path handles these as commands and never notifies on them. */
 function isSlashCommand(body) {
@@ -84607,12 +84676,19 @@ async function writeCursor(octokit, owner, repo, prNumber, iso, home) {
         });
     }
 }
-/** The events that get a DM: the first per commenter and kind, so a burst of inline comments does not flood the author. */
+/**
+ * The events that get a DM: the first per commenter, kind and set of mentioned people, so a burst of
+ * inline comments does not flood the author, and a comment that mentions someone new still goes out.
+ */
 function firstOfEachBurst(events) {
     const seen = new Set();
     const first = new Set();
     for (const event of events) {
-        const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}`;
+        const mentioned = (0, mentions_1.extractMentions)(event.body)
+            .map((login) => login.toLowerCase())
+            .sort()
+            .join(",");
+        const key = `${event.kind}:${event.commenter}:${event.commentUrl === ""}:${mentioned}`;
         if (seen.has(key))
             continue;
         seen.add(key);
@@ -84625,8 +84701,9 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
     const events = [];
     const currentApprovers = new Set(latestApprovers(reviews));
     for (const review of reviews) {
-        if (!isNewer(review.submitted_at, cursor) || !isRealPerson(review.user, author))
+        if (!isNewer(review.submitted_at, cursor) || !isNotifiable(review.user, author, review.body)) {
             continue;
+        }
         if (review.state === "APPROVED") {
             if (!currentApprovers.has(review.user.login))
                 continue;
@@ -84634,16 +84711,18 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
                 kind: "review",
                 commenter: review.user.login,
                 commentUrl: "",
+                body: review.body ?? null,
                 at: review.submitted_at,
             });
         }
-        else if (review.state === "COMMENTED" &&
+        else if ((review.state === "COMMENTED" || review.state === "CHANGES_REQUESTED") &&
             (review.body ?? "").trim().length > 0 &&
             !(0, comment_1.isRouterComment)(review.body)) {
             events.push({
-                kind: "review",
+                kind: review.state === "CHANGES_REQUESTED" ? "changes_requested" : "review",
                 commenter: review.user.login,
                 commentUrl: review.html_url ?? "",
+                body: review.body ?? null,
                 at: review.submitted_at,
             });
         }
@@ -84659,12 +84738,13 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
     });
     for (const c of reviewComments) {
         const at = (c.pull_request_review_id && submittedAt.get(c.pull_request_review_id)) || c.created_at;
-        if (!isNewer(at, cursor) || !isRealPerson(c.user, author))
+        if (!isNewer(at, cursor) || !isNotifiable(c.user, author, c.body))
             continue;
         events.push({
             kind: "review_comment",
             commenter: c.user.login,
             commentUrl: c.html_url ?? "",
+            body: c.body ?? null,
             at,
         });
     }
@@ -84676,7 +84756,7 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
         per_page: 100,
     });
     for (const c of issueComments) {
-        if (!isNewer(c.created_at, cursor) || !isRealPerson(c.user, author))
+        if (!isNewer(c.created_at, cursor) || !isNotifiable(c.user, author, c.body))
             continue;
         if ((0, comment_1.isRouterComment)(c.body) || isSlashCommand(c.body))
             continue;
@@ -84684,6 +84764,7 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
             kind: "comment",
             commenter: c.user.login,
             commentUrl: c.html_url ?? "",
+            body: c.body ?? null,
             at: c.created_at,
         });
     }
@@ -84714,10 +84795,15 @@ async function reconcilePull(octokit, ctx, pr) {
         });
     }
     const watchers = [author, ...(pr.assignees ?? []).map((a) => a.login)];
-    const canMessage = watchers.some((login) => ctx.teamsConfig.users?.[login]);
-    if (!ctx.inputs.slackToken || !canMessage)
+    const watcherCanBeMessaged = watchers.some((login) => ctx.teamsConfig.users?.[login]);
+    // A mention can reach any mapped person, whoever is on the PR.
+    const anyoneCanBeMessaged = Object.keys(ctx.teamsConfig.users ?? {}).length > 0;
+    if (!ctx.inputs.slackToken || !anyoneCanBeMessaged)
         return;
     const comment = await (0, comment_1.findExistingComment)(octokit, ctx.owner, ctx.repo, pr.number);
+    // When only a mention can reach someone, the cursor goes in the router's own comment, never in the description.
+    if (!watcherCanBeMessaged && !comment)
+        return;
     const home = {
         comment: comment ? { id: comment.id } : null,
         descriptionHasCursor: (0, comment_1.extractDmCursor)(body) !== null,
@@ -84747,6 +84833,7 @@ async function reconcilePull(octokit, ctx, pr) {
                     author,
                     commenter: event.commenter,
                     commentUrl: event.commentUrl,
+                    body: event.body,
                     assignees: (pr.assignees ?? []).map((a) => a.login),
                     kind: event.kind,
                     inputs: ctx.inputs,
@@ -85070,6 +85157,7 @@ const codeowners_1 = __nccwpck_require__(3586);
 const labels_1 = __nccwpck_require__(4584);
 const comment_1 = __nccwpck_require__(2246);
 const jira_1 = __nccwpck_require__(7647);
+const mentions_1 = __nccwpck_require__(3076);
 const settings_1 = __nccwpck_require__(9188);
 const slack_1 = __nccwpck_require__(6691);
 const config_1 = __nccwpck_require__(2973);
@@ -85639,6 +85727,11 @@ function formatGitHubUser(login, users) {
     const page = login.endsWith(botSuffix) ? `apps/${login.slice(0, -botSuffix.length)}` : login;
     return `<https://github.com/${page}|${login}>`;
 }
+/** Looks up a Slack user by GitHub login, ignoring case as GitHub does. */
+function findSlackId(users, login) {
+    const key = Object.keys(users ?? {}).find((k) => k.toLowerCase() === login.toLowerCase());
+    return key === undefined ? undefined : users?.[key];
+}
 async function handleComment(octokit, ctx) {
     if (!ctx.inputs.slackToken) {
         core.debug("No Slack token provided, skipping thread notification");
@@ -85649,8 +85742,12 @@ async function handleComment(octokit, ctx) {
     const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
     const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
     const recipients = [];
+    // The author's own comment tells the author and the assignees nothing, but it can mention others.
+    // A requested-changes summary is the same: it reaches only the people it mentions.
+    const ownComment = ctx.commenter === ctx.author;
+    const mentionsOnly = ownComment || ctx.kind === "changes_requested";
     const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-    if (authorSlackId) {
+    if (authorSlackId && !mentionsOnly) {
         const approved = ctx.kind === "review" && ctx.commentUrl === "";
         recipients.push({
             login: ctx.author,
@@ -85663,7 +85760,7 @@ async function handleComment(octokit, ctx) {
                 : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
         });
     }
-    if (ctx.kind !== "review") {
+    if (ctx.kind !== "review" && !mentionsOnly) {
         for (const assignee of ctx.assignees) {
             if (assignee === ctx.commenter || assignee === ctx.author)
                 continue;
@@ -85677,6 +85774,19 @@ async function handleComment(octokit, ctx) {
                 threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
             });
         }
+    }
+    for (const login of (0, mentions_1.extractMentions)(ctx.body)) {
+        if (login.toLowerCase() === ctx.commenter.toLowerCase())
+            continue;
+        const slackId = findSlackId(ctx.teamsConfig.users, login);
+        if (!slackId || recipients.some((r) => r.slackId === slackId))
+            continue;
+        recipients.push({
+            login,
+            slackId,
+            dmText: `:bell: ${person} mentioned you in ${prLink}.${readLink}`,
+            threadText: `:bell: <@${slackId}>, ${person} mentioned you.${readLink}`,
+        });
     }
     if (recipients.length === 0) {
         core.debug("No recipients with Slack IDs found, skipping notifications");

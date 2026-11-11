@@ -505,7 +505,7 @@ async function run(): Promise<void> {
           commentUrl: review.html_url ?? "",
           body: review.body,
           assignees: (pr.assignees ?? []).map((a: { login: string }) => a.login),
-          kind: "review",
+          kind: review.state === "changes_requested" ? "changes_requested" : "review",
           inputs,
           teamsConfig,
         });

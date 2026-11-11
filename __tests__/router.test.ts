@@ -2173,6 +2173,28 @@ describe("handleComment DMs", () => {
       expect(toCharlie[0][2]).toContain("assigned pull request");
     });
 
+    it("sends only the mentioned person a DM for a requested-changes summary", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        kind: "changes_requested",
+        assignees: ["charlie"],
+        body: "Needs a test, @charlie can you help?",
+      });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_CHARLIE"]);
+    });
+
+    it("sends nothing for a requested-changes summary that mentions nobody", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        kind: "changes_requested",
+        body: "Needs a test",
+      });
+
+      expect(slack.sendSlackDm).not.toHaveBeenCalled();
+    });
+
     it("sends nothing to a mentioned person without a Slack user", async () => {
       await handleComment(mockOctokit as any, { ...mentioning, body: "@dave look" });
 

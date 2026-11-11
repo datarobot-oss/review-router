@@ -695,7 +695,9 @@ describe("reconcileOpenPulls", () => {
 
       await reconcileOpenPulls(octokit as any, ctx);
 
-      expect(calledWith()).toEqual([["review", "bob", "Needs a test, @carol can you help?"]]);
+      expect(calledWith()).toEqual([
+        ["changes_requested", "bob", "Needs a test, @carol can you help?"],
+      ]);
     });
 
     it("skips a requested-changes review with no summary text", async () => {

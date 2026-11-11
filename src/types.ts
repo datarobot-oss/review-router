@@ -128,7 +128,7 @@ export interface CommentContext {
   /** The text of the comment or review, which decides who is mentioned. */
   body?: string | null;
   assignees: string[];
-  kind: "comment" | "review" | "review_comment";
+  kind: "comment" | "review" | "review_comment" | "changes_requested";
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
 }

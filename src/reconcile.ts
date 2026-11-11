@@ -185,7 +185,7 @@ async function collectEvents(
       !isRouterComment(review.body)
     ) {
       events.push({
-        kind: "review",
+        kind: review.state === "CHANGES_REQUESTED" ? "changes_requested" : "review",
         commenter: review.user.login,
         commentUrl: review.html_url ?? "",
         body: review.body ?? null,

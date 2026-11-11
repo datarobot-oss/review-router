@@ -941,10 +941,12 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   const recipients: CommentRecipient[] = [];
 
   // The author's own comment tells the author and the assignees nothing, but it can mention others.
+  // A requested-changes summary is the same: it reaches only the people it mentions.
   const ownComment = ctx.commenter === ctx.author;
+  const mentionsOnly = ownComment || ctx.kind === "changes_requested";
 
   const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-  if (authorSlackId && !ownComment) {
+  if (authorSlackId && !mentionsOnly) {
     const approved = ctx.kind === "review" && ctx.commentUrl === "";
     recipients.push({
       login: ctx.author,
@@ -958,7 +960,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     });
   }
 
-  if (ctx.kind !== "review" && !ownComment) {
+  if (ctx.kind !== "review" && !mentionsOnly) {
     for (const assignee of ctx.assignees) {
       if (assignee === ctx.commenter || assignee === ctx.author) continue;
       const slackId = ctx.teamsConfig.users?.[assignee];

@@ -141,6 +141,8 @@ export interface CommentContext {
   commentUrl: string;
   /** The text of the comment or review, which decides who is mentioned. */
   body?: string | null;
+  /** Skip the author and the assignees, because an earlier comment of the same burst already told them. */
+  mentionsOnly?: boolean;
   assignees: string[];
   kind: "comment" | "review" | "review_comment" | "changes_requested";
   inputs: ActionInputs;

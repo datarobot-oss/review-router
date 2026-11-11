@@ -2263,6 +2263,17 @@ describe("handleComment DMs", () => {
       expect(ids).toEqual(["U_CHARLIE"]);
     });
 
+    it("sends only the mentioned person a DM when the context says mentions only", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        assignees: ["charlie"],
+        mentionsOnly: true,
+      });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_CHARLIE"]);
+    });
+
     it("sends nothing for a requested-changes summary that mentions nobody", async () => {
       await handleComment(mockOctokit as any, {
         ...mentioning,

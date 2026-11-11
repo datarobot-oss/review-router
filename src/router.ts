@@ -943,7 +943,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   // The author's own comment tells the author and the assignees nothing, but it can mention others.
   // A requested-changes summary is the same: it reaches only the people it mentions.
   const ownComment = ctx.commenter === ctx.author;
-  const mentionsOnly = ownComment || ctx.kind === "changes_requested";
+  const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
 
   const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
   if (authorSlackId && !mentionsOnly) {

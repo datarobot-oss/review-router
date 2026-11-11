@@ -473,6 +473,7 @@ async function run(): Promise<void> {
           author: prAuthor,
           commenter: reviewer,
           commentUrl: "",
+          body: review.body,
           assignees: [],
           kind: "review",
           inputs,

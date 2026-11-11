@@ -76,6 +76,10 @@ describe("extractMentions", () => {
     expect(extractMentions("<!-- @alice -->\n@bob")).toEqual(["bob"]);
   });
 
+  it("keeps a mention that follows a comment opener the removal left behind", () => {
+    expect(extractMentions("<!<!-- hidden -->-- @alice")).toEqual(["alice"]);
+  });
+
   it("ignores an at sign with no login after it", () => {
     expect(extractMentions("look @ this, and @-bad")).toEqual([]);
   });

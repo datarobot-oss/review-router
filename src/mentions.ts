@@ -1,9 +1,17 @@
-const FENCED_CODE = /```[\s\S]*?```/g;
-const HTML_COMMENT = /<!--[\s\S]*?-->/g;
-const INLINE_CODE = /`[^`\n]*`/g;
-const QUOTED_LINE = /^[ \t]*>.*$/gm;
-// A login after a character that can't continue a word, an email or a team path, and not followed by a team slash.
-const MENTION = /(?<![\w@/`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)(?![\w/-])/g;
+// One pass over the text: the first four alternatives are the spans that hide a mention, and they are skipped
+// as a whole. The last one is a login after a character that can't continue a word, an email or a team
+// path, and not followed by a team slash. Skipping spans, instead of stripping them first, leaves no text
+// behind that could join into a new span.
+const SCAN = new RegExp(
+  [
+    "```[\\s\\S]*?```",
+    "<!--[\\s\\S]*?-->",
+    "`[^`\\n]*`",
+    "^[ \\t]*>.*$",
+    "(?<![\\w@/`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)(?![\\w/-])",
+  ].join("|"),
+  "gm"
+);
 
 /** Whether a comment can notify anyone: a bot never does, and the author's own comment does only by mentioning someone. */
 export function notifiesAnyone(comment: {
@@ -22,16 +30,11 @@ export function notifiesAnyone(comment: {
  */
 export function extractMentions(body: string | null | undefined): string[] {
   if (!body) return [];
-  const text = body
-    .replace(FENCED_CODE, "")
-    .replace(HTML_COMMENT, "")
-    .replace(INLINE_CODE, "")
-    .replace(QUOTED_LINE, "");
   const seen = new Set<string>();
   const logins: string[] = [];
-  for (const match of text.matchAll(MENTION)) {
+  for (const match of body.matchAll(SCAN)) {
     const login = match[1];
-    if (seen.has(login.toLowerCase())) continue;
+    if (login === undefined || seen.has(login.toLowerCase())) continue;
     seen.add(login.toLowerCase());
     logins.push(login);
   }

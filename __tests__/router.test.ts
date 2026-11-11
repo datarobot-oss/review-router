@@ -2229,6 +2229,20 @@ describe("handleComment DMs", () => {
       );
     });
 
+    it("sends a person mentioned in an approval's summary a DM without a comment link", async () => {
+      await handleComment(mockOctokit as any, {
+        ...approval,
+        body: "LGTM, @charlie FYI",
+        teamsConfig: withUsers,
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CHARLIE",
+        `:bell: <https://github.com/bob|bob> mentioned you in ${prLink}.`
+      );
+    });
+
     it("sends nothing for an approval, which has no body", async () => {
       await handleComment(mockOctokit as any, { ...approval, teamsConfig: withUsers });
 

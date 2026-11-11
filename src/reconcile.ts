@@ -33,7 +33,7 @@ interface CommentEvent {
   kind: CommentContext["kind"];
   commenter: string;
   commentUrl: string;
-  /** The text of the comment, or null for an approval. */
+  /** The text of the comment, review or approval summary, or null when there is none. */
   body: string | null;
   at: string;
 }
@@ -176,7 +176,7 @@ async function collectEvents(
         kind: "review",
         commenter: review.user.login,
         commentUrl: "",
-        body: null,
+        body: review.body ?? null,
         at: review.submitted_at as string,
       });
     } else if (
@@ -269,10 +269,14 @@ async function reconcilePull(
   }
 
   const watchers = [author, ...(pr.assignees ?? []).map((a) => a.login)];
-  const canMessage = watchers.some((login) => ctx.teamsConfig.users?.[login]);
-  if (!ctx.inputs.slackToken || !canMessage) return;
+  const watcherCanBeMessaged = watchers.some((login) => ctx.teamsConfig.users?.[login]);
+  // A mention can reach any mapped person, whoever is on the PR.
+  const anyoneCanBeMessaged = Object.keys(ctx.teamsConfig.users ?? {}).length > 0;
+  if (!ctx.inputs.slackToken || !anyoneCanBeMessaged) return;
 
   const comment = await findExistingComment(octokit, ctx.owner, ctx.repo, pr.number);
+  // When only a mention can reach someone, the cursor goes in the router's own comment, never in the description.
+  if (!watcherCanBeMessaged && !comment) return;
   const home: CursorHome = {
     comment: comment ? { id: comment.id } : null,
     descriptionHasCursor: extractDmCursor(body) !== null,

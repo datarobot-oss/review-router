@@ -659,6 +659,25 @@ describe("reconcileOpenPulls", () => {
       ]);
     });
 
+    it("passes the text of an approval on, so a mention in its summary notifies", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "APPROVED",
+            body: "LGTM, @carol FYI",
+            submitted_at: created,
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(calledWith()).toEqual([["review", "bob", "LGTM, @carol FYI"]]);
+    });
+
     it("replays the author's own comment that mentions someone", async () => {
       const octokit = octokitFor({
         pulls: [forkPr(1, bodyWithCursor)],
@@ -1025,7 +1044,40 @@ describe("the DM cursor in the ownership comment", () => {
     expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
   });
 
-  it("does not look for the ownership comment when nobody on the PR can be messaged", async () => {
+  describe("when nobody on the PR has a Slack ID but someone else in the org does", () => {
+    const orgConfig: OrgConfig = { teams: {}, users: { carol: "U_CAROL" } };
+    const mentionOfCarol = {
+      user: human("bob"),
+      body: "@carol can you look?",
+      created_at: "2026-10-23T10:05:00Z",
+      html_url: "https://github.com/org/repo/pull/1#issuecomment-9",
+    };
+
+    it("replays the mention when the ownership comment holds the cursor", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, "body")],
+        issueComments: [ownership(withCursor), mentionOfCarol],
+      });
+
+      await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: orgConfig });
+
+      expect(handleComment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ commenter: "bob", body: "@carol can you look?" })
+      );
+    });
+
+    it("leaves the description alone when the PR has no ownership comment to hold the cursor", async () => {
+      const octokit = octokitFor({ pulls: [forkPr(1, "body")], issueComments: [mentionOfCarol] });
+
+      await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: orgConfig });
+
+      expect(octokit.rest.pulls.update).not.toHaveBeenCalled();
+      expect(handleComment).not.toHaveBeenCalled();
+    });
+  });
+
+  it("does not look for the ownership comment when nobody in the org has a Slack ID", async () => {
     const octokit = octokitFor({ pulls: [forkPr(1, "body")] });
 
     await reconcileOpenPulls(octokit as any, { ...ctx, teamsConfig: { teams: {}, users: {} } });

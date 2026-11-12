@@ -54,6 +54,13 @@ describe("buildSlackBlocks", () => {
     expect(blocks[1].text.text).toBe("*Add feature X*");
   });
 
+  it("escapes a title that would ping the channel", () => {
+    const { blocks, fallback } = buildSlackBlocks({ ...params, prTitle: "Fix <!channel> & co" });
+    expect(blocks[1].text.text).toBe("*Fix &lt;!channel&gt; &amp; co*");
+    expect(fallback).toContain("Fix &lt;!channel&gt; &amp; co");
+    expect(fallback).not.toContain("<!channel>");
+  });
+
   it("has author context with avatar and merge target", () => {
     const { blocks } = buildSlackBlocks(params);
     const elements = blocks[2].elements;
@@ -194,6 +201,14 @@ describe("buildSlackReminderBlocks", () => {
     expect(header).toContain(":info: *Reminder*");
     expect(header).toContain("still needs review");
     expect(header).toContain("<https://github.com/org/repo/pull/10|org/repo #10>");
+  });
+
+  it("escapes a title that would ping the channel", () => {
+    const { blocks } = buildSlackReminderBlocks({
+      ...reminderParams,
+      prTitle: "Fix <!channel> & co",
+    });
+    expect(blocks[1].text.text).toBe("*Fix &lt;!channel&gt; &amp; co*");
   });
 
   it("shows age and team name in context", () => {

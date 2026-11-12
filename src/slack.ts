@@ -79,7 +79,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${params.prTitle}*`,
+        text: `*${escapeMrkdwn(params.prTitle)}*`,
       },
     },
     {
@@ -138,7 +138,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
     }
   }
 
-  const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${params.prTitle}`;
+  const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${escapeMrkdwn(params.prTitle)}`;
 
   return { blocks, fallback };
 }
@@ -173,7 +173,7 @@ export function buildSlackReminderBlocks(params: SlackReminderParams): {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${params.prTitle}*`,
+        text: `*${escapeMrkdwn(params.prTitle)}*`,
       },
     },
     {

@@ -83795,6 +83795,7 @@ const github = __importStar(__nccwpck_require__(3228));
 const router_1 = __nccwpck_require__(8954);
 const comment_1 = __nccwpck_require__(2246);
 const mentions_1 = __nccwpck_require__(3076);
+const unmapped_1 = __nccwpck_require__(1215);
 const reminders_1 = __nccwpck_require__(9924);
 const reconcile_1 = __nccwpck_require__(1175);
 const auth_1 = __nccwpck_require__(9081);
@@ -84011,6 +84012,19 @@ async function run() {
             inputs,
             teamsConfig,
         });
+        // The description is read once, when the PR opens, so an edit never tells anyone twice.
+        if (context.payload.sender?.type !== "Bot") {
+            await (0, router_1.handleDescriptionMentions)(octokit, {
+                owner,
+                repo,
+                prNumber: pr.number,
+                prBody: pr.body ?? "",
+                prUrl: pr.html_url ?? "",
+                author: pr.user?.login ?? "",
+                inputs,
+                teamsConfig,
+            });
+        }
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
@@ -84057,6 +84071,51 @@ async function run() {
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        action === "assigned") {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        const assignee = context.payload.assignee?.login;
+        const assigner = context.payload.sender?.login;
+        if (!assignee || !assigner || context.payload.sender?.type === "Bot")
+            return;
+        await (0, router_1.handleAssigned)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            prBody: pr.body ?? "",
+            prUrl: pr.html_url ?? "",
+            assigner,
+            assignee,
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
+        action === "dequeued") {
+        const pr = context.payload.pull_request;
+        if (!pr) {
+            core.setFailed("No pull_request in payload");
+            return;
+        }
+        await (0, router_1.handleDequeued)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            prBody: pr.body ?? "",
+            prUrl: pr.html_url ?? "",
+            author: pr.user?.login ?? "",
+            remover: context.payload.sender?.login ?? "",
+            reason: context.payload.reason ?? "UNKNOWN_REMOVAL_REASON",
+            inputs,
+            teamsConfig,
+        });
+        return;
+    }
+    if ((eventName === "pull_request" || eventName === "pull_request_target") &&
         (action === "synchronize" || action === "reopened")) {
         const pr = context.payload.pull_request;
         if (!pr) {
@@ -84082,6 +84141,22 @@ async function run() {
             inputs,
             teamsConfig,
         });
+        const pusher = context.payload.sender?.login;
+        const before = context.payload.before;
+        if (action === "synchronize" && pusher && before && context.payload.sender?.type !== "Bot") {
+            await (0, router_1.handleReviewedPush)(octokit, {
+                owner,
+                repo,
+                prNumber: pr.number,
+                prBody: pr.body ?? "",
+                prUrl: pr.html_url ?? "",
+                author: pr.user?.login ?? "",
+                pusher,
+                before,
+                inputs,
+                teamsConfig,
+            });
+        }
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
@@ -84270,9 +84345,11 @@ async function run() {
         core.info(`Ignoring event: ${eventName}/${action}`);
     }
 }
-run().catch((error) => {
+run()
+    .catch((error) => {
     core.setFailed(error instanceof Error ? error.message : String(error));
-});
+})
+    .finally(unmapped_1.reportUnmapped);
 
 
 /***/ }),
@@ -85192,6 +85269,10 @@ exports.handleClosed = handleClosed;
 exports.formatGitHubUser = formatGitHubUser;
 exports.handleComment = handleComment;
 exports.handleReviewRequested = handleReviewRequested;
+exports.handleDescriptionMentions = handleDescriptionMentions;
+exports.handleAssigned = handleAssigned;
+exports.handleReviewedPush = handleReviewedPush;
+exports.handleDequeued = handleDequeued;
 exports.getFileTypeEmojis = getFileTypeEmojis;
 exports.getStatusEmoji = getStatusEmoji;
 const core = __importStar(__nccwpck_require__(7484));
@@ -85206,6 +85287,7 @@ const slack_1 = __nccwpck_require__(6691);
 const config_1 = __nccwpck_require__(2973);
 const checks_1 = __nccwpck_require__(2122);
 const auth_1 = __nccwpck_require__(9081);
+const unmapped_1 = __nccwpck_require__(1215);
 async function withRetry(fn, maxAttempts = 3, delayMs = 1000) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -85775,6 +85857,18 @@ function findSlackId(users, login) {
     const key = Object.keys(users ?? {}).find((k) => k.toLowerCase() === login.toLowerCase());
     return key === undefined ? undefined : users?.[key];
 }
+/**
+ * Looks up the Slack user of a person who works on the PR: a reviewer, an assignee, or an author
+ * the merge queue took in. A login with no Slack user is noted, so the run can report the
+ * notifications it skipped. Authors of comments and the targets of mentions are not looked up
+ * here, because they can be bots or contributors from outside the org.
+ */
+function findTeamMemberSlackId(users, login) {
+    const slackId = findSlackId(users, login);
+    if (slackId === undefined)
+        (0, unmapped_1.noteUnmapped)(login);
+    return slackId;
+}
 async function handleComment(octokit, ctx) {
     if (!ctx.inputs.slackToken) {
         core.debug("No Slack token provided, skipping thread notification");
@@ -85788,7 +85882,7 @@ async function handleComment(octokit, ctx) {
     // A requested-changes summary is the same: it reaches only the people it mentions.
     const ownComment = ctx.commenter === ctx.author;
     const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
-    const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+    const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
     if (authorSlackId && !mentionsOnly) {
         const approved = ctx.kind === "review" && ctx.commentUrl === "";
         recipients.push({
@@ -85806,7 +85900,7 @@ async function handleComment(octokit, ctx) {
         for (const assignee of ctx.assignees) {
             if (assignee === ctx.commenter || assignee === ctx.author)
                 continue;
-            const slackId = ctx.teamsConfig.users?.[assignee];
+            const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, assignee);
             if (!slackId || recipients.some((r) => r.slackId === slackId))
                 continue;
             recipients.push({
@@ -85840,7 +85934,7 @@ async function handleReviewRequested(octokit, ctx) {
     }
     if (ctx.reviewer.toLowerCase() === ctx.requester.toLowerCase())
         return;
-    const slackId = findSlackId(ctx.teamsConfig.users, ctx.reviewer);
+    const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.reviewer);
     if (!slackId) {
         core.debug(`No Slack user for ${ctx.reviewer}, skipping review request notification`);
         return;
@@ -85853,6 +85947,186 @@ async function handleReviewRequested(octokit, ctx) {
             slackId,
             dmText: `:eyes: ${person} requested your review on ${prLink}.`,
             threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
+        },
+    ]);
+}
+/** Tells the people named with @login in the description of a PR that was just opened. */
+async function handleDescriptionMentions(octokit, ctx) {
+    if (!ctx.inputs.slackToken) {
+        core.debug("No Slack token provided, skipping description mention notifications");
+        return;
+    }
+    const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const person = formatGitHubUser(ctx.author, ctx.teamsConfig.users);
+    const recipients = [];
+    for (const login of (0, mentions_1.extractMentions)(ctx.prBody)) {
+        if (login.toLowerCase() === ctx.author.toLowerCase())
+            continue;
+        const slackId = findSlackId(ctx.teamsConfig.users, login);
+        if (!slackId || recipients.some((r) => r.slackId === slackId))
+            continue;
+        recipients.push({
+            login,
+            slackId,
+            dmText: `:bell: ${person} mentioned you in ${prLink}.`,
+            threadText: `:bell: <@${slackId}>, ${person} mentioned you.`,
+        });
+    }
+    await notifyRecipients(octokit, ctx, recipients);
+}
+/** Tells a person that someone assigned the PR to them. */
+async function handleAssigned(octokit, ctx) {
+    if (!ctx.inputs.slackToken) {
+        core.debug("No Slack token provided, skipping assignment notification");
+        return;
+    }
+    if (ctx.assignee.toLowerCase() === ctx.assigner.toLowerCase())
+        return;
+    const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.assignee);
+    if (!slackId)
+        return;
+    const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const person = formatGitHubUser(ctx.assigner, ctx.teamsConfig.users);
+    await notifyRecipients(octokit, ctx, [
+        {
+            login: ctx.assignee,
+            slackId,
+            dmText: `:eyes: ${person} assigned you to ${prLink}.`,
+            threadText: `:eyes: <@${slackId}>, ${person} assigned you.`,
+        },
+    ]);
+}
+/** The review states that decide where a reviewer stands. A plain comment review changes nothing. */
+const STANDING_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "DISMISSED"]);
+function isBotCommit(commit) {
+    return commit.author?.type === "Bot" || commit.author?.login?.endsWith("[bot]") === true;
+}
+/**
+ * True when every commit after the reviewed one, up to and including the previous head, came from
+ * a bot. A bot's push sends no DM, so the first push of a person after it is still the first one
+ * the reviewer hears about. A reviewed commit that left the PR, as after a force push, can't be
+ * placed, so it counts as not.
+ */
+function onlyBotCommitsBetween(commits, reviewed, before) {
+    const from = commits.findIndex((c) => c.sha === reviewed);
+    const to = commits.findIndex((c) => c.sha === before);
+    if (from < 0 || to <= from)
+        return false;
+    return commits.slice(from + 1, to + 1).every(isBotCommit);
+}
+/**
+ * Tells each reviewer whose request for changes is still standing on the commit before this push
+ * that new commits arrived. A later push finds a newer head, so one review gets one DM per
+ * reviewer however often the author pushes. Commits that bots pushed in between don't count.
+ */
+async function handleReviewedPush(octokit, ctx) {
+    if (!ctx.inputs.slackToken) {
+        core.debug("No Slack token provided, skipping push notification");
+        return;
+    }
+    let reviews;
+    try {
+        reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
+            owner: ctx.owner,
+            repo: ctx.repo,
+            pull_number: ctx.prNumber,
+            per_page: 100,
+        });
+    }
+    catch (error) {
+        core.warning(`Failed to read the reviews of PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
+    // The API lists reviews oldest first, so the last standing review of a person wins.
+    const standing = new Map();
+    for (const review of reviews) {
+        const login = review.user?.login;
+        if (!login || !STANDING_STATES.has(review.state))
+            continue;
+        standing.set(login.toLowerCase(), {
+            login,
+            state: review.state,
+            commitId: review.commit_id ?? "",
+        });
+    }
+    const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const person = formatGitHubUser(ctx.pusher, ctx.teamsConfig.users);
+    const recipients = [];
+    // Read once, and only when a review is not on the previous head. A failed read leaves it empty.
+    let commits;
+    for (const { login, state, commitId } of standing.values()) {
+        if (state !== "CHANGES_REQUESTED")
+            continue;
+        if (login.toLowerCase() === ctx.pusher.toLowerCase())
+            continue;
+        if (login.toLowerCase() === ctx.author.toLowerCase())
+            continue;
+        if (commitId !== ctx.before) {
+            if (commits === undefined) {
+                try {
+                    commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
+                        owner: ctx.owner,
+                        repo: ctx.repo,
+                        pull_number: ctx.prNumber,
+                        per_page: 100,
+                    });
+                }
+                catch (error) {
+                    core.warning(`Failed to read the commits of PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                    commits = [];
+                }
+            }
+            if (!onlyBotCommitsBetween(commits, commitId, ctx.before))
+                continue;
+        }
+        const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, login);
+        if (!slackId)
+            continue;
+        recipients.push({
+            login,
+            slackId,
+            dmText: `:repeat: ${person} pushed new commits to ${prLink}, where you requested changes.`,
+            threadText: `:repeat: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
+        });
+    }
+    await notifyRecipients(octokit, ctx, recipients);
+}
+/** Removals that follow a merge are not news, because the PR is done. */
+const MERGED_REASONS = new Set(["MERGE", "ALREADY_MERGED"]);
+const DEQUEUE_REASONS = {
+    CI_FAILURE: "the queue checks failed",
+    CI_TIMEOUT: "the queue checks timed out",
+    MERGE_CONFLICT: "of a merge conflict",
+    BRANCH_PROTECTIONS: "it no longer meets the branch rules",
+    QUEUE_CLEARED: "the queue was cleared",
+    ROLL_BACK: "the queue rolled back",
+    GIT_TREE_INVALID: "the merge commit could not be built",
+    INVALID_MERGE_COMMIT: "the merge commit could not be built",
+};
+/** Tells the author that the merge queue took the PR out before it merged. */
+async function handleDequeued(octokit, ctx) {
+    if (!ctx.inputs.slackToken) {
+        core.debug("No Slack token provided, skipping merge queue removal notification");
+        return;
+    }
+    if (MERGED_REASONS.has(ctx.reason))
+        return;
+    const byAuthor = ctx.remover.toLowerCase() === ctx.author.toLowerCase();
+    if (ctx.reason === "MANUAL" && byAuthor)
+        return;
+    const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.author);
+    if (!slackId)
+        return;
+    const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+    const why = ctx.reason === "MANUAL"
+        ? `${formatGitHubUser(ctx.remover, ctx.teamsConfig.users)} removed it`
+        : (DEQUEUE_REASONS[ctx.reason] ?? "the reason is unknown");
+    await notifyRecipients(octokit, ctx, [
+        {
+            login: ctx.author,
+            slackId,
+            dmText: `:warning: Your pull request ${prLink} left the merge queue: ${why}.`,
+            threadText: `:warning: <@${slackId}>, your pull request left the merge queue: ${why}.`,
         },
     ]);
 }
@@ -86358,6 +86632,80 @@ async function addSlackReactions(token, ref, emojis) {
             }
         }
     }
+}
+
+
+/***/ }),
+
+/***/ 1215:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.noteUnmapped = noteUnmapped;
+exports.takeUnmapped = takeUnmapped;
+exports.reportUnmapped = reportUnmapped;
+const core = __importStar(__nccwpck_require__(7484));
+const NAMED_LIMIT = 20;
+const BOT_SUFFIX = "[bot]";
+const unmapped = new Map();
+/** Records a GitHub login that a notification skipped because the config has no Slack user for it. */
+function noteUnmapped(login) {
+    if (login.endsWith(BOT_SUFFIX))
+        return;
+    const key = login.toLowerCase();
+    if (!unmapped.has(key))
+        unmapped.set(key, login);
+}
+/** Returns the logins recorded so far, once each, and clears the record. */
+function takeUnmapped() {
+    const logins = [...unmapped.values()];
+    unmapped.clear();
+    return logins;
+}
+/** Adds one notice to the run for the logins that were skipped, so a rollout gap shows in the run. */
+function reportUnmapped() {
+    const logins = takeUnmapped();
+    if (logins.length === 0)
+        return;
+    const named = logins.slice(0, NAMED_LIMIT).join(", ");
+    const more = logins.length > NAMED_LIMIT ? `, and ${logins.length - NAMED_LIMIT} more` : "";
+    const subject = logins.length === 1 ? "1 GitHub login has" : `${logins.length} GitHub logins have`;
+    core.notice(`${subject} no Slack user in the config, so notifications for them were skipped: ${named}${more}. Add them under users.`);
 }
 
 

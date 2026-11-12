@@ -135,6 +135,48 @@ describe("reconcileOpenPulls", () => {
     expect(handleReviewSubmitted).toHaveBeenCalledTimes(1);
   });
 
+  describe("with forksOnly", () => {
+    const sameRepo = { ...forkPr(2), head: { sha: "s2", repo: { full_name: "org/repo" } } };
+
+    it("replays a fork PR and refreshes its check", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1)],
+        reviews: [{ user: human("bob"), state: "APPROVED" }],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx, { forksOnly: true });
+
+      expect(handleReviewSubmitted).toHaveBeenCalledTimes(1);
+      expect(syncReviewCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ prNumber: 1, headSha: "sha1" })
+      );
+    });
+
+    it("leaves a same-repo PR and its check alone", async () => {
+      const octokit = octokitFor({ pulls: [sameRepo, forkPr(1)] });
+
+      await reconcileOpenPulls(octokit as any, ctx, { forksOnly: true });
+
+      expect(syncReviewCheck).toHaveBeenCalledTimes(1);
+      expect(syncReviewCheck).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ prNumber: 2 })
+      );
+    });
+
+    it("still refreshes the check of a same-repo PR in a full run", async () => {
+      const octokit = octokitFor({ pulls: [sameRepo] });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(syncReviewCheck).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ prNumber: 2 })
+      );
+    });
+  });
+
   it("calls handleReviewSubmitted once per current approver", async () => {
     const octokit = octokitFor({
       pulls: [forkPr(1)],

@@ -37,6 +37,18 @@ const DEFAULT_ICONS: Required<NotificationIcons> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SlackBlock = Record<string, any>;
 
+/** A link styled as the call to action. Slack buttons need an interactivity callback, links don't. */
+function callToAction(url: string, label: string): SlackBlock {
+  return { type: "section", text: { type: "mrkdwn", text: `:point_right: *<${url}|${label}>*` } };
+}
+
+/** The divider that closes a message, so consecutive messages read as separate. */
+const END_OF_MESSAGE: SlackBlock = { type: "divider" };
+
+function escapeMrkdwn(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export function buildSlackBlocks(params: SlackMessageParams): {
   blocks: SlackBlock[];
   fallback: string;
@@ -67,7 +79,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${params.prTitle}*`,
+        text: `*${escapeMrkdwn(params.prTitle)}*`,
       },
     },
     {
@@ -85,9 +97,6 @@ export function buildSlackBlocks(params: SlackMessageParams): {
       ],
     },
     {
-      type: "divider",
-    },
-    {
       type: "section",
       text: {
         type: "mrkdwn",
@@ -103,16 +112,8 @@ export function buildSlackBlocks(params: SlackMessageParams): {
         },
       ],
     },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "View pull request" },
-          url: params.prUrl,
-        },
-      ],
-    },
+    callToAction(params.prUrl, "View PR"),
+    END_OF_MESSAGE,
   ];
 
   if (params.individualOwners?.length) {
@@ -125,7 +126,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
       .filter((v): v is string => v !== null)
       .filter((v, i, a) => a.indexOf(v) === i);
     if (mentions.length > 0) {
-      blocks.splice(-1, 0, {
+      blocks.splice(-2, 0, {
         type: "context",
         elements: [
           {
@@ -137,7 +138,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
     }
   }
 
-  const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${params.prTitle}`;
+  const fallback = `PR by ${params.author} needs a review: ${repoFullName}#${params.prNumber}: ${escapeMrkdwn(params.prTitle)}`;
 
   return { blocks, fallback };
 }
@@ -172,7 +173,7 @@ export function buildSlackReminderBlocks(params: SlackReminderParams): {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${params.prTitle}*`,
+        text: `*${escapeMrkdwn(params.prTitle)}*`,
       },
     },
     {
@@ -184,16 +185,8 @@ export function buildSlackReminderBlocks(params: SlackReminderParams): {
         },
       ],
     },
-    {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: { type: "plain_text", text: "View pull request" },
-          url: params.prUrl,
-        },
-      ],
-    },
+    callToAction(params.prUrl, "View PR"),
+    END_OF_MESSAGE,
   ];
 
   const fallback = `:info: Reminder · ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
@@ -292,13 +285,50 @@ export async function postSlackThreadReply(
   });
 }
 
+export interface SlackDm {
+  /** The first line, with the emoji, the bold event name and the person involved. */
+  headline: string;
+  prUrl: string;
+  prTitle: string;
+  prNumber: number;
+  orgName: string;
+  repoName: string;
+  /** The comment to link as the call to action, in place of the pull request. */
+  commentUrl?: string;
+}
+
+export function buildSlackDmBlocks(dm: SlackDm): { blocks: SlackBlock[]; fallback: string } {
+  const repoFullName = `${dm.orgName}/${dm.repoName}`;
+  const title = dm.prTitle ? ` ${escapeMrkdwn(dm.prTitle)}` : "";
+  const cta = dm.commentUrl
+    ? callToAction(dm.commentUrl, "Read the comment")
+    : callToAction(dm.prUrl, "View PR");
+
+  const blocks: SlackBlock[] = [
+    { type: "section", text: { type: "mrkdwn", text: dm.headline } },
+    {
+      type: "context",
+      elements: [{ type: "mrkdwn", text: `<${dm.prUrl}|#${dm.prNumber}${title}>` }],
+    },
+    { type: "context", elements: [{ type: "mrkdwn", text: repoFullName }] },
+    cta,
+    END_OF_MESSAGE,
+  ];
+  return { blocks, fallback: `${dm.headline} ${repoFullName}#${dm.prNumber}` };
+}
+
 export async function sendSlackDm(
   client: WebClient,
   slackUserId: string,
-  text: string
+  dm: SlackDm
 ): Promise<boolean> {
   try {
-    await client.chat.postMessage({ channel: slackUserId, text });
+    const { blocks, fallback } = buildSlackDmBlocks(dm);
+    await client.chat.postMessage({
+      channel: slackUserId,
+      text: fallback,
+      blocks: blocks as never[],
+    });
     return true;
   } catch (error) {
     core.warning(

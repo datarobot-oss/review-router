@@ -37,8 +37,16 @@ const teamsConfig: OrgConfig = {
 };
 
 const prUrl = "https://github.com/org/repo/pull/1";
-const prLink = `<${prUrl}|org/repo#1>`;
-const base = { owner: "org", repo: "repo", prNumber: 1, prBody: "", prUrl, inputs, teamsConfig };
+const base = {
+  owner: "org",
+  repo: "repo",
+  prNumber: 1,
+  prBody: "",
+  prUrl,
+  prTitle: "Add retry",
+  inputs,
+  teamsConfig,
+};
 
 const octokit = {} as never;
 
@@ -58,7 +66,11 @@ describe("handleDescriptionMentions", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      `:bell: <@U_BOB> mentioned you in ${prLink}.`
+      expect.objectContaining({
+        headline: ":bell: *Mention* from <@U_BOB>",
+        prUrl,
+        prTitle: "Add retry",
+      })
     );
   });
 
@@ -107,7 +119,7 @@ describe("handleAssigned", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      `:eyes: <@U_BOB> assigned you to ${prLink}.`
+      expect.objectContaining({ headline: ":eyes: *Assigned* to you by <@U_BOB>" })
     );
   });
 
@@ -123,7 +135,7 @@ describe("handleAssigned", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      expect.stringContaining("assigned you")
+      expect.objectContaining({ headline: expect.stringContaining("*Assigned*") })
     );
   });
 
@@ -161,7 +173,7 @@ describe("handleDequeued", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      `:warning: Your pull request ${prLink} left the merge queue: ${why}.`
+      expect.objectContaining({ headline: `:warning: *Left the merge queue*: ${why}` })
     );
   });
 
@@ -181,7 +193,7 @@ describe("handleDequeued", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      `:warning: Your pull request ${prLink} left the merge queue: <@U_BOB> removed it.`
+      expect.objectContaining({ headline: ":warning: *Left the merge queue*: <@U_BOB> removed it" })
     );
   });
 
@@ -248,7 +260,7 @@ describe("notes of logins without a Slack user in the other handlers", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_BOB",
-      expect.stringContaining("commented on your pull request")
+      expect.objectContaining({ headline: expect.stringContaining("*Comment* from") })
     );
     expect(takeUnmapped()).toEqual([]);
   });
@@ -259,7 +271,7 @@ describe("notes of logins without a Slack user in the other handlers", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_ERIN",
-      expect.stringContaining("commented on your assigned pull request")
+      expect.objectContaining({ headline: expect.stringContaining("assigned to you") })
     );
     expect(takeUnmapped()).toEqual([]);
   });
@@ -363,7 +375,9 @@ describe("handleReviewedPush", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      `:repeat: <@U_BOB> pushed new commits to ${prLink}, where you requested changes.`
+      expect.objectContaining({
+        headline: ":repeat: *New commits* from <@U_BOB>, where you requested changes",
+      })
     );
   });
 
@@ -393,7 +407,7 @@ describe("handleReviewedPush", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
-      expect.stringContaining("where you requested changes")
+      expect.objectContaining({ headline: expect.stringContaining("where you requested changes") })
     );
   });
 

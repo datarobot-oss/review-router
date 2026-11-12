@@ -1625,6 +1625,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:C222:2222.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
@@ -1657,6 +1658,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
@@ -1681,6 +1683,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "unknown-user",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
@@ -1702,6 +1705,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
@@ -1729,6 +1733,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "",
@@ -1765,6 +1770,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
@@ -1809,6 +1815,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
@@ -1847,6 +1854,7 @@ describe("handleComment", () => {
       prBody:
         "body\n<!-- rr:slack:start -->\n<!-- rr:slack:C111:1111.0000 -->\n<!-- rr:slack:end -->",
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       author: "alice",
       commenter: "bob",
       commentUrl: "",
@@ -1910,6 +1918,7 @@ describe("handleComment DMs", () => {
     prNumber: 1,
     prBody: slackBody,
     prUrl: "https://github.com/org/repo/pull/1",
+    prTitle: "Add retry",
     author: "alice",
     commenter: "bob",
     commentUrl: "",
@@ -1936,8 +1945,9 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U12345",
-      ":white_check_mark: <https://github.com/bob|bob> approved your pull request " +
-        "<https://github.com/org/repo/pull/1|org/repo#1>."
+      expect.objectContaining({
+        headline: ":white_check_mark: *Approved* by <https://github.com/bob|bob>",
+      })
     );
     expect(slack.postSlackThreadReply).not.toHaveBeenCalled();
     expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
@@ -1952,8 +1962,7 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U12345",
-      ":white_check_mark: <@U_BOB> approved your pull request " +
-        "<https://github.com/org/repo/pull/1|org/repo#1>."
+      expect.objectContaining({ headline: ":white_check_mark: *Approved* by <@U_BOB>" })
     );
   });
 
@@ -1972,14 +1981,15 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U12345",
-        ":speech_balloon: <https://github.com/bob|bob> commented on your pull request " +
-          "<https://github.com/org/repo/pull/1|org/repo#1>. " +
-          "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+        expect.objectContaining({
+          headline: ":speech_balloon: *Comment* from <https://github.com/bob|bob>",
+          commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+        })
       );
     }
   );
 
-  it("ends the comment DM after the PR link when there is no comment URL", async () => {
+  it("has no comment link when there is no comment URL", async () => {
     (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
 
     await handleComment(mockOctokit as any, {
@@ -1992,8 +2002,10 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U12345",
-      ":speech_balloon: <https://github.com/bob|bob> commented on your pull request " +
-        "<https://github.com/org/repo/pull/1|org/repo#1>."
+      expect.objectContaining({
+        headline: ":speech_balloon: *Comment* from <https://github.com/bob|bob>",
+        commentUrl: undefined,
+      })
     );
   });
 
@@ -2012,9 +2024,11 @@ describe("handleComment DMs", () => {
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CHARLIE",
-      ":eyes: <https://github.com/bob|bob> commented on your assigned pull request " +
-        "<https://github.com/org/repo/pull/1|org/repo#1>. " +
-        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+      expect.objectContaining({
+        headline:
+          ":eyes: *Comment* from <https://github.com/bob|bob> on a pull request assigned to you",
+        commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      })
     );
   });
 
@@ -2113,7 +2127,6 @@ describe("handleComment DMs", () => {
   });
 
   describe("handleReviewRequested", () => {
-    const prLink = "<https://github.com/org/repo/pull/1|org/repo#1>";
     const withReviewer: OrgConfig = { ...teamsConfig, users: { carol: "U_CAROL" } };
     const request = {
       owner: "org",
@@ -2121,6 +2134,7 @@ describe("handleComment DMs", () => {
       prNumber: 1,
       prBody: slackBody,
       prUrl: "https://github.com/org/repo/pull/1",
+      prTitle: "Add retry",
       requester: "bob",
       reviewer: "carol",
       inputs,
@@ -2138,7 +2152,9 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_CAROL",
-        `:eyes: <https://github.com/bob|bob> requested your review on ${prLink}.`
+        expect.objectContaining({
+          headline: ":eyes: *Review requested* by <https://github.com/bob|bob>",
+        })
       );
     });
 
@@ -2148,7 +2164,7 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_CAROL",
-        expect.stringContaining("requested your review")
+        expect.objectContaining({ headline: expect.stringContaining("*Review requested*") })
       );
     });
 
@@ -2191,7 +2207,6 @@ describe("handleComment DMs", () => {
 
   describe("mentions", () => {
     const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
-    const prLink = "<https://github.com/org/repo/pull/1|org/repo#1>";
     const withUsers: OrgConfig = {
       ...teamsConfig,
       users: { alice: "U_ALICE", charlie: "U_CHARLIE" },
@@ -2215,8 +2230,10 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_CHARLIE",
-        `:bell: <https://github.com/bob|bob> mentioned you in ${prLink}. ` +
-          `<${commentUrl}|Read the comment>.`
+        expect.objectContaining({
+          headline: ":bell: *Mention* from <https://github.com/bob|bob>",
+          commentUrl,
+        })
       );
     });
 
@@ -2226,7 +2243,7 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_CHARLIE",
-        expect.stringContaining("mentioned you")
+        expect.objectContaining({ headline: expect.stringContaining("*Mention*") })
       );
     });
 
@@ -2237,7 +2254,7 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_ALICE",
-        expect.stringContaining("commented on your pull request")
+        expect.objectContaining({ headline: expect.stringContaining("*Comment* from") })
       );
     });
 
@@ -2248,7 +2265,7 @@ describe("handleComment DMs", () => {
         ([, id]) => id === "U_CHARLIE"
       );
       expect(toCharlie).toHaveLength(1);
-      expect(toCharlie[0][2]).toContain("assigned pull request");
+      expect(toCharlie[0][2].headline).toContain("assigned to you");
     });
 
     it("sends only the mentioned person a DM for a requested-changes summary", async () => {
@@ -2291,7 +2308,7 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_ALICE",
-        expect.any(String)
+        expect.any(Object)
       );
     });
 
@@ -2350,7 +2367,7 @@ describe("handleComment DMs", () => {
       expect(slack.sendSlackDm).toHaveBeenCalledWith(
         expect.anything(),
         "U_CHARLIE",
-        `:bell: <https://github.com/bob|bob> mentioned you in ${prLink}.`
+        expect.objectContaining({ headline: ":bell: *Mention* from <https://github.com/bob|bob>" })
       );
     });
 
@@ -2370,7 +2387,9 @@ describe("handleComment DMs", () => {
         expect(slack.sendSlackDm).toHaveBeenCalledWith(
           expect.anything(),
           "U_CHARLIE",
-          expect.stringContaining("<@U_ALICE> mentioned you")
+          expect.objectContaining({
+            headline: expect.stringContaining("*Mention* from <@U_ALICE>"),
+          })
         );
       });
 

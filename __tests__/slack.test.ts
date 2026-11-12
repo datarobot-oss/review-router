@@ -6,6 +6,7 @@ import {
   isSlackMessageMuted,
   postSlackThreadReply,
   sendSlackDm,
+  buildSlackDmBlocks,
 } from "../src/slack";
 
 const params = {
@@ -27,16 +28,16 @@ const params = {
 };
 
 describe("buildSlackBlocks", () => {
-  it("builds 7-block structure: header, title, author context, divider, files, footer, button", () => {
+  it("builds 7-block structure: header, title, author context, files, footer, call to action, divider", () => {
     const { blocks } = buildSlackBlocks(params);
     expect(blocks).toHaveLength(7);
     expect(blocks[0].type).toBe("section");
     expect(blocks[1].type).toBe("section");
     expect(blocks[2].type).toBe("context");
-    expect(blocks[3].type).toBe("divider");
-    expect(blocks[4].type).toBe("section");
-    expect(blocks[5].type).toBe("context");
-    expect(blocks[6].type).toBe("actions");
+    expect(blocks[3].type).toBe("section");
+    expect(blocks[4].type).toBe("context");
+    expect(blocks[5].type).toBe("section");
+    expect(blocks[6].type).toBe("divider");
   });
 
   it("has review requested header with PR link and diff stats", () => {
@@ -66,7 +67,7 @@ describe("buildSlackBlocks", () => {
 
   it("lists files with header and per-file stats", () => {
     const { blocks } = buildSlackBlocks(params);
-    const files = blocks[4].text.text;
+    const files = blocks[3].text.text;
     expect(files).toContain("*Files changed:*");
     expect(files).toContain("· `src/app.py` `+10 -2`");
     expect(files).toContain("· `src/utils.py` `+5 -1`");
@@ -79,7 +80,7 @@ describe("buildSlackBlocks", () => {
       deletions: 0,
     }));
     const { blocks } = buildSlackBlocks({ ...params, allFiles: manyFiles });
-    const files = blocks[4].text.text;
+    const files = blocks[3].text.text;
     expect(files).toContain("`src/file9.ts`");
     expect(files).not.toContain("`src/file10.ts`");
     expect(files).toContain("and 5 more files");
@@ -87,7 +88,7 @@ describe("buildSlackBlocks", () => {
 
   it("has a footer with branch, commits, files, and labels in backticks", () => {
     const { blocks } = buildSlackBlocks(params);
-    const footer = blocks[5].elements[0].text;
+    const footer = blocks[4].elements[0].text;
     expect(footer).toContain("`main`");
     expect(footer).toContain("3 commits");
     expect(footer).toContain("2 files");
@@ -96,15 +97,20 @@ describe("buildSlackBlocks", () => {
 
   it("omits labels from footer when none present", () => {
     const { blocks } = buildSlackBlocks({ ...params, labels: [] });
-    const footer = blocks[5].elements[0].text;
+    const footer = blocks[4].elements[0].text;
     expect(footer).not.toContain(":rr-label:");
   });
 
-  it("has View pull request button after footer", () => {
+  it("has a View PR link after the footer", () => {
     const { blocks } = buildSlackBlocks(params);
-    const button = blocks[6].elements[0];
-    expect(button.text.text).toBe("View pull request");
-    expect(button.url).toBe("https://github.com/org/repo/pull/1");
+    expect(blocks[5].text.text).toBe(
+      ":point_right: *<https://github.com/org/repo/pull/1|View PR>*"
+    );
+  });
+
+  it("has no buttons, which need an interactivity callback", () => {
+    const { blocks } = buildSlackBlocks(params);
+    expect(blocks.some((b) => b.type === "actions")).toBe(false);
   });
 
   it("has a plain text fallback", () => {
@@ -126,6 +132,7 @@ describe("buildSlackBlocks", () => {
     expect(ccBlock).toBeDefined();
     expect(ccBlock!.elements[0].text).toContain("<@U123ABC>");
     expect(ccBlock!.elements[0].text).toContain("<@U456DEF>");
+    expect(blocks.indexOf(ccBlock!)).toBe(blocks.length - 3);
   });
 
   it("skips cc block when no Slack mapping exists for owners", () => {
@@ -171,13 +178,14 @@ describe("buildSlackReminderBlocks", () => {
     ageDisplay: "2 days",
   };
 
-  it("builds 4-block structure: header, title, context, button", () => {
+  it("builds 5-block structure: header, title, context, call to action, divider", () => {
     const { blocks } = buildSlackReminderBlocks(reminderParams);
-    expect(blocks).toHaveLength(4);
+    expect(blocks).toHaveLength(5);
     expect(blocks[0].type).toBe("section");
     expect(blocks[1].type).toBe("section");
     expect(blocks[2].type).toBe("context");
-    expect(blocks[3].type).toBe("actions");
+    expect(blocks[3].type).toBe("section");
+    expect(blocks[4].type).toBe("divider");
   });
 
   it("has reminder header with PR link", () => {
@@ -195,11 +203,16 @@ describe("buildSlackReminderBlocks", () => {
     expect(context).toContain("Frontend");
   });
 
-  it("has view PR button", () => {
+  it("has a View PR link", () => {
     const { blocks } = buildSlackReminderBlocks(reminderParams);
-    const button = blocks[3].elements[0];
-    expect(button.text.text).toBe("View pull request");
-    expect(button.url).toBe("https://github.com/org/repo/pull/10");
+    expect(blocks[3].text.text).toBe(
+      ":point_right: *<https://github.com/org/repo/pull/10|View PR>*"
+    );
+  });
+
+  it("has no buttons, which need an interactivity callback", () => {
+    const { blocks } = buildSlackReminderBlocks(reminderParams);
+    expect(blocks.some((b) => b.type === "actions")).toBe(false);
   });
 
   it("has plain text fallback", () => {
@@ -275,6 +288,72 @@ describe("isSlackMessageMuted", () => {
   });
 });
 
+const dm = {
+  headline: ":white_check_mark: *Approved* by <@U_BOB>",
+  prUrl: "https://github.com/org/repo/pull/1",
+  prTitle: "Add feature X",
+  prNumber: 1,
+  orgName: "org",
+  repoName: "repo",
+};
+
+describe("buildSlackDmBlocks", () => {
+  it("builds headline, PR link, repo, call to action and closing divider", () => {
+    const { blocks } = buildSlackDmBlocks(dm);
+    expect(blocks).toEqual([
+      { type: "section", text: { type: "mrkdwn", text: dm.headline } },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: "<https://github.com/org/repo/pull/1|#1 Add feature X>" },
+        ],
+      },
+      { type: "context", elements: [{ type: "mrkdwn", text: "org/repo" }] },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: ":point_right: *<https://github.com/org/repo/pull/1|View PR>*",
+        },
+      },
+      { type: "divider" },
+    ]);
+  });
+
+  it("links the comment as the call to action when there is one", () => {
+    const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
+    const { blocks } = buildSlackDmBlocks({ ...dm, commentUrl });
+    expect(blocks[3].text.text).toBe(`:point_right: *<${commentUrl}|Read the comment>*`);
+  });
+
+  it("links the pull request when the comment URL is empty", () => {
+    const { blocks } = buildSlackDmBlocks({ ...dm, commentUrl: "" });
+    expect(blocks[3].text.text).toContain("View PR");
+  });
+
+  it("shows only the number when the title is empty", () => {
+    const { blocks } = buildSlackDmBlocks({ ...dm, prTitle: "" });
+    expect(blocks[1].elements[0].text).toBe("<https://github.com/org/repo/pull/1|#1>");
+  });
+
+  it("escapes the characters Slack reads as markup in the title", () => {
+    const { blocks } = buildSlackDmBlocks({ ...dm, prTitle: "Fix <b> & more" });
+    expect(blocks[1].elements[0].text).toBe(
+      "<https://github.com/org/repo/pull/1|#1 Fix &lt;b&gt; &amp; more>"
+    );
+  });
+
+  it("has no buttons, which need an interactivity callback", () => {
+    const { blocks } = buildSlackDmBlocks(dm);
+    expect(blocks.some((b) => b.type === "actions")).toBe(false);
+  });
+
+  it("has a fallback with the headline and the PR", () => {
+    const { fallback } = buildSlackDmBlocks(dm);
+    expect(fallback).toBe(":white_check_mark: *Approved* by <@U_BOB> org/repo#1");
+  });
+});
+
 describe("sendSlackDm", () => {
   const mockPostMessage = jest.fn();
   const mockWebClient = { chat: { postMessage: mockPostMessage } };
@@ -283,8 +362,9 @@ describe("sendSlackDm", () => {
 
   it("posts to the user ID and returns true", async () => {
     mockPostMessage.mockResolvedValue({ ok: true });
-    await expect(sendSlackDm(mockWebClient as any, "U123", "hi")).resolves.toBe(true);
-    expect(mockPostMessage).toHaveBeenCalledWith({ channel: "U123", text: "hi" });
+    await expect(sendSlackDm(mockWebClient as any, "U123", dm)).resolves.toBe(true);
+    const { blocks, fallback } = buildSlackDmBlocks(dm);
+    expect(mockPostMessage).toHaveBeenCalledWith({ channel: "U123", text: fallback, blocks });
   });
 
   it("returns false on channel_not_found", async () => {
@@ -293,12 +373,12 @@ describe("sendSlackDm", () => {
         data: { error: "channel_not_found" },
       })
     );
-    await expect(sendSlackDm(mockWebClient as any, "U123", "hi")).resolves.toBe(false);
+    await expect(sendSlackDm(mockWebClient as any, "U123", dm)).resolves.toBe(false);
   });
 
   it("returns false on a generic error", async () => {
     mockPostMessage.mockRejectedValue(new Error("network down"));
-    await expect(sendSlackDm(mockWebClient as any, "U123", "hi")).resolves.toBe(false);
+    await expect(sendSlackDm(mockWebClient as any, "U123", dm)).resolves.toBe(false);
   });
 });
 

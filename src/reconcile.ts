@@ -309,6 +309,7 @@ async function reconcilePull(
           prNumber: pr.number,
           prBody: body,
           prUrl: pr.html_url ?? "",
+          prTitle: pr.title ?? "",
           author,
           commenter: event.commenter,
           commentUrl: event.commentUrl,

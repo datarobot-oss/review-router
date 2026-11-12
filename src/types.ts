@@ -122,6 +122,7 @@ export interface ReviewRequestContext {
   prNumber: number;
   prBody: string;
   prUrl: string;
+  prTitle: string;
   /** The GitHub login of the person who asked for the review. */
   requester: string;
   /** The GitHub login of the person asked to review. */
@@ -137,6 +138,7 @@ export interface DescriptionContext {
   /** The description, which decides who is mentioned. */
   prBody: string;
   prUrl: string;
+  prTitle: string;
   author: string;
   inputs: ActionInputs;
   teamsConfig: OrgConfig;
@@ -148,6 +150,7 @@ export interface AssignedContext {
   prNumber: number;
   prBody: string;
   prUrl: string;
+  prTitle: string;
   /** The GitHub login of the person who assigned the PR. */
   assigner: string;
   /** The GitHub login of the person who was assigned. */
@@ -162,6 +165,7 @@ export interface ReviewedPushContext {
   prNumber: number;
   prBody: string;
   prUrl: string;
+  prTitle: string;
   author: string;
   /** The GitHub login of the person who pushed. */
   pusher: string;
@@ -177,6 +181,7 @@ export interface DequeuedContext {
   prNumber: number;
   prBody: string;
   prUrl: string;
+  prTitle: string;
   author: string;
   /** The GitHub login of whoever or whatever took the PR out of the merge queue. */
   remover: string;
@@ -192,6 +197,7 @@ export interface CommentContext {
   prNumber: number;
   prBody: string;
   prUrl: string;
+  prTitle: string;
   author: string;
   commenter: string;
   commentUrl: string;

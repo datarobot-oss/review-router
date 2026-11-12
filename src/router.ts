@@ -944,7 +944,10 @@ function findTeamMemberSlackId(
 interface CommentRecipient {
   login: string;
   slackId: string;
-  dmText: string;
+  /** The first line of the DM. */
+  headline: string;
+  /** Linked as the call to action in place of the pull request. */
+  commentUrl?: string;
   threadText: string;
 }
 
@@ -954,9 +957,9 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     return;
   }
 
-  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
   const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
+  const commentUrl = ctx.commentUrl || undefined;
 
   const recipients: CommentRecipient[] = [];
 
@@ -971,9 +974,10 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     recipients.push({
       login: ctx.author,
       slackId: authorSlackId,
-      dmText: approved
-        ? `:white_check_mark: ${person} approved your pull request ${prLink}.`
-        : `:speech_balloon: ${person} commented on your pull request ${prLink}.${readLink}`,
+      headline: approved
+        ? `:white_check_mark: *Approved* by ${person}`
+        : `:speech_balloon: *Comment* from ${person}`,
+      commentUrl,
       threadText: approved
         ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
         : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
@@ -988,7 +992,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       recipients.push({
         login: assignee,
         slackId,
-        dmText: `:eyes: ${person} commented on your assigned pull request ${prLink}.${readLink}`,
+        headline: `:eyes: *Comment* from ${person} on a pull request assigned to you`,
+        commentUrl,
         threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
       });
     }
@@ -1001,7 +1006,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     recipients.push({
       login,
       slackId,
-      dmText: `:bell: ${person} mentioned you in ${prLink}.${readLink}`,
+      headline: `:bell: *Mention* from ${person}`,
+      commentUrl,
       threadText: `:bell: <@${slackId}>, ${person} mentioned you.${readLink}`,
     });
   }
@@ -1026,13 +1032,12 @@ export async function handleReviewRequested(
     return;
   }
 
-  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.requester, ctx.teamsConfig.users);
   await notifyRecipients(octokit, ctx, [
     {
       login: ctx.reviewer,
       slackId,
-      dmText: `:eyes: ${person} requested your review on ${prLink}.`,
+      headline: `:eyes: *Review requested* by ${person}`,
       threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
     },
   ]);
@@ -1048,7 +1053,6 @@ export async function handleDescriptionMentions(
     return;
   }
 
-  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.author, ctx.teamsConfig.users);
   const recipients: CommentRecipient[] = [];
   for (const login of extractMentions(ctx.prBody)) {
@@ -1058,7 +1062,7 @@ export async function handleDescriptionMentions(
     recipients.push({
       login,
       slackId,
-      dmText: `:bell: ${person} mentioned you in ${prLink}.`,
+      headline: `:bell: *Mention* from ${person}`,
       threadText: `:bell: <@${slackId}>, ${person} mentioned you.`,
     });
   }
@@ -1076,13 +1080,12 @@ export async function handleAssigned(octokit: Octokit, ctx: AssignedContext): Pr
   const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.assignee);
   if (!slackId) return;
 
-  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.assigner, ctx.teamsConfig.users);
   await notifyRecipients(octokit, ctx, [
     {
       login: ctx.assignee,
       slackId,
-      dmText: `:eyes: ${person} assigned you to ${prLink}.`,
+      headline: `:eyes: *Assigned* to you by ${person}`,
       threadText: `:eyes: <@${slackId}>, ${person} assigned you.`,
     },
   ]);
@@ -1154,7 +1157,6 @@ export async function handleReviewedPush(
     });
   }
 
-  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.pusher, ctx.teamsConfig.users);
   const recipients: CommentRecipient[] = [];
   // Read once, and only when a review is not on the previous head. A failed read leaves it empty.
@@ -1186,7 +1188,7 @@ export async function handleReviewedPush(
     recipients.push({
       login,
       slackId,
-      dmText: `:repeat: ${person} pushed new commits to ${prLink}, where you requested changes.`,
+      headline: `:repeat: *New commits* from ${person}, where you requested changes`,
       threadText: `:repeat: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
     });
   }
@@ -1220,7 +1222,6 @@ export async function handleDequeued(octokit: Octokit, ctx: DequeuedContext): Pr
   const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.author);
   if (!slackId) return;
 
-  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const why =
     ctx.reason === "MANUAL"
       ? `${formatGitHubUser(ctx.remover, ctx.teamsConfig.users)} removed it`
@@ -1229,7 +1230,7 @@ export async function handleDequeued(octokit: Octokit, ctx: DequeuedContext): Pr
     {
       login: ctx.author,
       slackId,
-      dmText: `:warning: Your pull request ${prLink} left the merge queue: ${why}.`,
+      headline: `:warning: *Left the merge queue*: ${why}`,
       threadText: `:warning: <@${slackId}>, your pull request left the merge queue: ${why}.`,
     },
   ]);
@@ -1240,7 +1241,7 @@ async function notifyRecipients(
   octokit: Octokit,
   ctx: Pick<
     ReviewRequestContext,
-    "owner" | "repo" | "prNumber" | "prBody" | "inputs" | "teamsConfig"
+    "owner" | "repo" | "prNumber" | "prBody" | "prUrl" | "prTitle" | "inputs" | "teamsConfig"
   >,
   recipients: CommentRecipient[]
 ): Promise<void> {
@@ -1254,7 +1255,15 @@ async function notifyRecipients(
   for (const recipient of recipients) {
     const dmSent =
       isDmEnabled(ctx.teamsConfig) &&
-      (await sendSlackDm(client, recipient.slackId, recipient.dmText));
+      (await sendSlackDm(client, recipient.slackId, {
+        headline: recipient.headline,
+        commentUrl: recipient.commentUrl,
+        prUrl: ctx.prUrl,
+        prTitle: ctx.prTitle,
+        prNumber: ctx.prNumber,
+        orgName: ctx.owner,
+        repoName: ctx.repo,
+      }));
     if (dmSent) {
       core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);
     } else {

@@ -45,14 +45,14 @@ Create a GitHub App in your organization with these settings:
 | Repository permissions | Contents: read and write. Pull requests: read and write. Metadata: read-only. |
 | Where to install       | Only on this account.                                                         |
 
-Generate a private key and keep it in a password manager. Install the App on the repositories that use the queue. Note the **Client ID** from the App's settings page.
+Generate a private key and keep it in a password manager. An organization owner installs the App on selected repositories, one for each repository that uses the queue. Note the **Client ID** from the App's settings page.
 
 > [!IMPORTANT]
 > **Contents: write** lets a token push to any branch that no ruleset protects. Protect every branch that matters with a ruleset, and treat the key like the key of the [Gate App](gate.md#run-the-gate-under-its-own-app).
 
 ## Store the key in an environment
 
-Store the App's identity in a `merge-queue` environment that only the default branch can read, as the gate does for the Gate App. Run these commands as a repository administrator. Use the Client ID and the key file of your App:
+Store the App's identity in a `merge-queue` environment that only the default branch can read, as the gate does for the Gate App. Run these commands as an organization owner, so a repository administrator never receives the key file. Use the Client ID and the key file of your App:
 
 ```bash
 REPO=OWNER/REPO
@@ -179,7 +179,7 @@ Add the `hold` label to a pull request to keep it out of the queue.
 
 ## Limits
 
-- A pull request that becomes `CLEAN` with no CI run or `Gate` run behind it, for example when someone removes the `hold` label, waits for the next scheduled run. A `*/15` schedule runs about every 15 minutes, and GitHub can delay it.
+- A pull request that becomes `CLEAN` with no CI run or `Gate` run behind it, for example when someone removes the `hold` label or you create the ruleset, waits for the next scheduled run. A `*/15` schedule runs about every 15 minutes, and GitHub can delay it.
 - A pull request from a fork never enters the queue through this workflow. Someone with write access clicks **Merge when ready**, and the queue then runs as usual.
 - A sweep checks the 200 newest open pull requests. Raise `--limit` in the workflow for a repository with more.
 - A merge with `GITHUB_TOKEN` starts no push workflow, so Release jobs and deploys don't run after one. The queue merges as the App, whose events start workflows.

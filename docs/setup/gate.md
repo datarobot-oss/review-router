@@ -138,7 +138,7 @@ The Gate App runs this action with `mode: gate`, so the decision logic stays in 
 The Gate App posts results only for a repository that has joined the gate. [Enable the gate](#enable-the-gate) first: the default branch needs `.github/review-router.yml`, or a ruleset that requires `Bouncer`.
 
 > [!IMPORTANT]
-> An App's private key mints a token for every installation of that App. By default, create the Gate App in your own organization and install it only on repositories whose administrators you trust with the key. To share one App across organizations, one team must own it and enroll each repository itself. See [Choose who owns the Apps](repository-setup.md#choose-who-owns-the-apps).
+> An App's private key mints a token for every installation of that App. By default, create the Gate App in your own organization and install it on selected repositories, never on all, and only on repositories whose administrators you trust with the key. To share one App across organizations, one team must own it and enroll each repository itself. See [Choose who owns the Apps](repository-setup.md#choose-who-owns-the-apps).
 
 ### Create the Gate App
 
@@ -152,11 +152,11 @@ Create a GitHub App in your organization with these settings:
 | Repository permissions | Checks: read and write. Pull requests: read-only. Contents: read-only. Metadata: read-only. |
 | Where to install       | Only on this account.                                                                       |
 
-Generate a private key and keep it in a password manager. Delete the downloaded file after you upload the key to your repositories. Install the App on the repositories that use the gate. Note the **Client ID** and the **App ID** from the App's settings page.
+Generate a private key and keep it in a password manager. Delete the downloaded file after you upload the key to your repositories. An organization owner installs the App on selected repositories, one for each repository that uses the gate. Note the **Client ID** and the **App ID** from the App's settings page.
 
 ### Store the key in an environment
 
-An environment secret reaches only a job that declares the environment, and a deployment branch policy decides which branches may declare it. Create a `gate` environment in each repository, allow only the default branch, and store the App's identity in it. Run these commands as a repository administrator. Use the Client ID, the App ID and the key file of your App:
+An environment secret reaches only a job that declares the environment, and a deployment branch policy decides which branches may declare it. Create a `gate` environment in each repository, allow only the default branch, and store the App's identity in it. Run these commands as an organization owner, so a repository administrator never receives the key file. Use the Client ID, the App ID and the key file of your App:
 
 ```bash
 REPO=OWNER/REPO
@@ -292,7 +292,7 @@ To roll back, restore the required approvals and remove the check from the rules
 ## Limits
 
 - A workflow on a branch can't read the Gate key. It can read the Review Router key and the other organization secrets, and post a `Bouncer` result with the Review Router key. The ruleset doesn't count that result, because the required check names the Gate App.
-- A person with write access controls the copy of `Gate trigger` that runs on the review events of their own pull request. They can delete it or make it fail, so a dismissal or a change request starts no re-evaluation, and the last result stands until the next scheduled run. A merge queue closes the gap: each entry runs `merge_group`, which gives the queue commit a fresh result, and an entry with no result fails when the check timeout ends. Require a merge queue, and sweep hourly to shorten the window.
+- A person with write access controls the copy of `Gate trigger` that runs on the review events of their own pull request. They can delete it or make it fail, so a dismissal or a change request starts no re-evaluation, and the last result stands until the next scheduled run. A merge queue closes the gap: each entry runs `merge_group`, which gives the queue commit a fresh result, and an entry with no result fails when the check timeout ends, without merging. The entry holds the queue until then. Require a merge queue, and sweep hourly to shorten the window.
 - The Gate App doesn't stop an administrator, who can bypass the ruleset or change the `gate` environment, or two people with write access who approve each other's pull requests. Treat administrators and colluding writers as the remaining risk.
 - The gate posts nothing between a push and the first run, so a new commit shows the required check as expected, with no link, until the run posts.
 - A pending run stays until a person approves or the next push.

@@ -83841,10 +83841,11 @@ async function run() {
     const octokit = github.getOctokit(inputs.githubToken);
     const eventName = context.eventName;
     const action = context.payload.action;
-    // A scheduled run touches every open PR, so it stops before it starves the events of the org.
-    const quota = eventName === "schedule" ? await (0, rate_limit_1.readQuota)(octokit) : undefined;
+    // A scheduled or replay run touches many open PRs, so it stops before it starves the events of the org.
+    const replaysPulls = eventName === "schedule" || (eventName === "workflow_run" && mode === "router");
+    const quota = replaysPulls ? await (0, rate_limit_1.readQuota)(octokit) : undefined;
     if (quota && (0, rate_limit_1.quotaLow)(quota)) {
-        core.warning(`Skipping the scheduled run: ${quota.remaining} of ${quota.limit} calls of the API budget remain.`);
+        core.warning(`Skipping the ${eventName} run: ${quota.remaining} of ${quota.limit} calls of the API budget remain.`);
         return;
     }
     // First and on its own: the gate must not wait for, or fail with, the team config.
@@ -83984,6 +83985,11 @@ async function run() {
         if (quota && after) {
             core.info(`The scheduled run used about ${quota.remaining - after.remaining} API calls.`);
         }
+        return;
+    }
+    if (eventName === "workflow_run" && action === "completed") {
+        // A fork's review run has no secrets and skips, so this run, which has them, delivers what it missed.
+        await (0, reconcile_1.reconcileOpenPulls)(octokit, { owner, repo, inputs, capabilities, teamsConfig }, { forksOnly: true });
         return;
     }
     if ((eventName === "pull_request" || eventName === "pull_request_target") &&
@@ -84895,9 +84901,11 @@ async function refreshCheck(octokit, ctx, pr) {
  * Replays what review events could not deliver for open fork PRs, whose workflow runs have no
  * secrets: label removal and the approved reaction on approvals, and DMs for new approvals and
  * comments. For every open PR it also rewrites the review check on the current head, which
- * pushes and hand-removed labels leave behind. Runs from the schedule trigger. Never throws.
+ * pushes and hand-removed labels leave behind. Runs from the schedule trigger, and with
+ * `forksOnly` from the `workflow_run` that follows a fork's review run, which touches fork PRs
+ * only. Never throws.
  */
-async function reconcileOpenPulls(octokit, ctx) {
+async function reconcileOpenPulls(octokit, ctx, options = {}) {
     let pulls;
     try {
         pulls = await octokit.paginate(octokit.rest.pulls.list, {
@@ -84912,7 +84920,10 @@ async function reconcileOpenPulls(octokit, ctx) {
         return;
     }
     for (const pr of pulls) {
-        if (pr.head.repo?.full_name !== pr.base.repo.full_name) {
+        const isFork = pr.head.repo?.full_name !== pr.base.repo.full_name;
+        if (options.forksOnly && !isFork)
+            continue;
+        if (isFork) {
             try {
                 await reconcilePull(octokit, ctx, pr);
             }

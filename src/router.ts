@@ -920,17 +920,25 @@ export function formatGitHubUser(login: string, users: Record<string, string> | 
   return `<https://github.com/${page}|${login}>`;
 }
 
-/**
- * Looks up a Slack user by GitHub login, ignoring case as GitHub does. A login with no Slack user
- * is noted, so the run can report the notifications it skipped.
- */
+/** Looks up a Slack user by GitHub login, ignoring case as GitHub does. */
 function findSlackId(users: Record<string, string> | undefined, login: string): string | undefined {
   const key = Object.keys(users ?? {}).find((k) => k.toLowerCase() === login.toLowerCase());
-  if (key === undefined) {
-    noteUnmapped(login);
-    return undefined;
-  }
-  return users?.[key];
+  return key === undefined ? undefined : users?.[key];
+}
+
+/**
+ * Looks up the Slack user of a person who works on the PR: a reviewer, an assignee, or an author
+ * the merge queue took in. A login with no Slack user is noted, so the run can report the
+ * notifications it skipped. Authors of comments and the targets of mentions are not looked up
+ * here, because they can be bots or contributors from outside the org.
+ */
+function findTeamMemberSlackId(
+  users: Record<string, string> | undefined,
+  login: string
+): string | undefined {
+  const slackId = findSlackId(users, login);
+  if (slackId === undefined) noteUnmapped(login);
+  return slackId;
 }
 
 interface CommentRecipient {
@@ -957,8 +965,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   const ownComment = ctx.commenter === ctx.author;
   const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
 
-  const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
-  if (!authorSlackId && !mentionsOnly) noteUnmapped(ctx.author);
+  const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
   if (authorSlackId && !mentionsOnly) {
     const approved = ctx.kind === "review" && ctx.commentUrl === "";
     recipients.push({
@@ -976,12 +983,8 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   if (ctx.kind !== "review" && !mentionsOnly) {
     for (const assignee of ctx.assignees) {
       if (assignee === ctx.commenter || assignee === ctx.author) continue;
-      const slackId = ctx.teamsConfig.users?.[assignee];
-      if (!slackId) {
-        noteUnmapped(assignee);
-        continue;
-      }
-      if (recipients.some((r) => r.slackId === slackId)) continue;
+      const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, assignee);
+      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
       recipients.push({
         login: assignee,
         slackId,
@@ -1017,7 +1020,7 @@ export async function handleReviewRequested(
   }
   if (ctx.reviewer.toLowerCase() === ctx.requester.toLowerCase()) return;
 
-  const slackId = findSlackId(ctx.teamsConfig.users, ctx.reviewer);
+  const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.reviewer);
   if (!slackId) {
     core.debug(`No Slack user for ${ctx.reviewer}, skipping review request notification`);
     return;
@@ -1070,7 +1073,7 @@ export async function handleAssigned(octokit: Octokit, ctx: AssignedContext): Pr
   }
   if (ctx.assignee.toLowerCase() === ctx.assigner.toLowerCase()) return;
 
-  const slackId = findSlackId(ctx.teamsConfig.users, ctx.assignee);
+  const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.assignee);
   if (!slackId) return;
 
   const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
@@ -1136,7 +1139,7 @@ export async function handleReviewedPush(
     if (state !== "CHANGES_REQUESTED" || commitId !== ctx.before) continue;
     if (login.toLowerCase() === ctx.pusher.toLowerCase()) continue;
     if (login.toLowerCase() === ctx.author.toLowerCase()) continue;
-    const slackId = findSlackId(ctx.teamsConfig.users, login);
+    const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, login);
     if (!slackId) continue;
     recipients.push({
       login,
@@ -1172,7 +1175,7 @@ export async function handleDequeued(octokit: Octokit, ctx: DequeuedContext): Pr
   const byAuthor = ctx.remover.toLowerCase() === ctx.author.toLowerCase();
   if (ctx.reason === "MANUAL" && byAuthor) return;
 
-  const slackId = findSlackId(ctx.teamsConfig.users, ctx.author);
+  const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, ctx.author);
   if (!slackId) return;
 
   const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;

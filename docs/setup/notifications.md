@@ -47,7 +47,7 @@ users:
   janedoe: U02DEF456
 ```
 
-The login match ignores case. A GitHub login with no entry in `users` gets no DM. Review Router adds a notice to the run that lists these logins, so a missing entry shows in the run summary.
+The login match ignores case. A GitHub login with no entry in `users` gets no DM. For reviewers, assignees, and authors of PRs in the merge queue, Review Router also adds a notice to the run that lists the logins with no entry, so a gap shows in the run summary. Authors of comments and mentioned people are left out, because they can be bots or contributors from outside the org.
 
 DMs are on by default. To turn them off for an org, set `notifications.dm.enabled`:
 
@@ -187,7 +187,7 @@ If a DM doesn't arrive, check these in order:
 
 1. The workflow lists the event type of the message. See [Workflow event types](#workflow-event-types).
 2. The workflow passes `slack-token`.
-3. The person's GitHub login is in `users`, and the Slack ID is correct. The run's notice lists the logins that have no entry.
+3. The person's GitHub login is in `users`, and the Slack ID is correct. The run's notice lists reviewers and assignees that have no entry.
 4. `notifications.dm.enabled` isn't `false` for the org.
 5. The Slack app has `chat:write` and the **Messages** tab on.
 6. The person hasn't muted the bot's conversation.

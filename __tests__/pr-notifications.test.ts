@@ -33,7 +33,7 @@ const inputs = {
 
 const teamsConfig: OrgConfig = {
   teams: {},
-  users: { bob: "U_BOB", carol: "U_CAROL" },
+  users: { bob: "U_BOB", carol: "U_CAROL", erin: "U_ERIN" },
 };
 
 const prUrl = "https://github.com/org/repo/pull/1";
@@ -80,11 +80,11 @@ describe("handleDescriptionMentions", () => {
     expect(slack.sendSlackDm).not.toHaveBeenCalled();
   });
 
-  it("notes a mentioned login that has no Slack user", async () => {
-    await handleDescriptionMentions(octokit, { ...opened, prBody: "@dave please look" });
+  it("does not note a mentioned login that has no Slack user, which can be a bot or an outsider", async () => {
+    await handleDescriptionMentions(octokit, { ...opened, prBody: "@dependabot rebase" });
 
     expect(slack.sendSlackDm).not.toHaveBeenCalled();
-    expect(takeUnmapped()).toEqual(["dave"]);
+    expect(takeUnmapped()).toEqual([]);
   });
 
   it("does nothing without a Slack token", async () => {
@@ -230,28 +230,44 @@ describe("notes of logins without a Slack user in the other handlers", () => {
     kind: "comment" as const,
   };
 
-  it("notes a mentioned login in a comment", async () => {
-    await handleComment(octokit, { ...comment, body: "@dave look" });
+  it("does not note a mentioned login in a comment, which can be a bot or an outsider", async () => {
+    await handleComment(octokit, { ...comment, body: "@dependabot rebase" });
 
-    expect(takeUnmapped()).toEqual(["dave"]);
+    expect(takeUnmapped()).toEqual([]);
   });
 
-  it("notes the author of a commented pull request", async () => {
+  it("does not note the author of a commented pull request, who can be an outsider", async () => {
     await handleComment(octokit, { ...comment, author: "dave" });
 
-    expect(takeUnmapped()).toEqual(["dave"]);
+    expect(takeUnmapped()).toEqual([]);
+  });
+
+  it("matches the author of a commented pull request to the Slack user whatever its case", async () => {
+    await handleComment(octokit, { ...comment, author: "Bob" });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_BOB",
+      expect.stringContaining("commented on your pull request")
+    );
+    expect(takeUnmapped()).toEqual([]);
+  });
+
+  it("matches an assignee of a commented pull request to the Slack user whatever its case", async () => {
+    await handleComment(octokit, { ...comment, assignees: ["Erin"] });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_ERIN",
+      expect.stringContaining("commented on your assigned pull request")
+    );
+    expect(takeUnmapped()).toEqual([]);
   });
 
   it("notes an assignee of a commented pull request", async () => {
     await handleComment(octokit, { ...comment, assignees: ["dave"] });
 
     expect(takeUnmapped()).toEqual(["dave"]);
-  });
-
-  it("does not note the author when only the mentioned people hear about a comment", async () => {
-    await handleComment(octokit, { ...comment, author: "dave", mentionsOnly: true });
-
-    expect(takeUnmapped()).toEqual([]);
   });
 
   it("notes a requested reviewer", async () => {

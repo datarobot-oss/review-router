@@ -33,7 +33,7 @@ The workflow only ever queues auto-merge. If a PR already meets every requiremen
 
 - Merges performed with `GITHUB_TOKEN` don't trigger other workflows. Push-triggered jobs such as deploys or releases don't run after an auto-merged bump, and neither does the `closed` event, so review-router's label cleanup and Slack merge reaction skip these PRs. The next human merge triggers them as usual.
 - A commit that a workflow pushes back to the PR with `GITHUB_TOKEN`, such as rebuilt generated files, gets no required checks. In a public repo, GitHub holds the `pull_request` runs for that commit until someone approves them, so auto-merge waits. Generate such files on the default branch instead, or approve the runs. A merge with `GITHUB_TOKEN` starts no push workflow, so files generated on the default branch update on the next push-triggered run.
-- Don't combine this workflow with the `datarobot-oss/github-actions` automerge workflow. That one approves and merges on its own, and the two would compete for the same PRs.
+- Don't combine this workflow with another automerge workflow that approves and merges on its own. The two would compete for the same PRs.
 
 ## Security
 

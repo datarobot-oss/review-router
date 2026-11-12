@@ -68,10 +68,10 @@ Replace `main` with the default branch. Don't add another branch to the environm
 
 ## Add the workflow
 
-The workflow calls two shell scripts. Copy them into `scripts/` on the default branch from the reference copies in the Hermes agent repository:
+The workflow calls two shell scripts. Copy them into `scripts/` on the default branch from this repository:
 
-- [`merge-queue-posture.sh`](https://github.com/datarobot-labs/datarobot-labs-hermes-agent/blob/main/scripts/merge-queue-posture.sh) checks the rules on the default branch.
-- [`merge-queue-enqueue.sh`](https://github.com/datarobot-labs/datarobot-labs-hermes-agent/blob/main/scripts/merge-queue-enqueue.sh) adds one pull request to the queue.
+- [`merge-queue-posture.sh`](scripts/merge-queue-posture.sh) checks the rules on the default branch.
+- [`merge-queue-enqueue.sh`](scripts/merge-queue-enqueue.sh) adds one pull request to the queue.
 
 Create `.github/workflows/merge-queue.yml`. Replace `CI` in `workflows` with the name of the workflow that runs your required checks, and keep `Gate`, the name of the [gate workflow](gate.md#add-the-workflows):
 

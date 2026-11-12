@@ -15,8 +15,12 @@ Each row is one trigger. A DM goes to the person's Slack account. If DMs are off
 | Someone other than the author comments, replies inline, or submits a review           | The PR author                                                    | DM           |
 | Someone other than the author comments or replies inline                              | The PR's assignees                                               | DM           |
 | Anyone writes `@login` in a comment, an inline comment, or a review summary           | The mentioned person                                             | DM           |
+| Someone writes `@login` in the description of a PR when it opens                      | The mentioned person                                             | DM           |
+| Someone assigns the PR to a person                                                    | That person                                                      | DM           |
+| The author pushes after a reviewer requested changes                                  | The reviewer whose request for changes is still open             | DM           |
+| The merge queue removes the PR before it merges                                       | The PR author                                                    | DM           |
 
-A review that requests changes follows the last row only. Its summary reaches the people it mentions, and nobody else.
+A review that requests changes sends only the mention DMs. Its summary reaches the people it mentions, and nobody else.
 
 Review Router sends nothing for these:
 
@@ -43,7 +47,7 @@ users:
   janedoe: U02DEF456
 ```
 
-The login match ignores case. A GitHub login with no entry in `users` gets no DM.
+The login match ignores case. A GitHub login with no entry in `users` gets no DM. Review Router adds a notice to the run that lists these logins, so a missing entry shows in the run summary.
 
 DMs are on by default. To turn them off for an org, set `notifications.dm.enabled`:
 
@@ -59,7 +63,9 @@ To stop DMs for yourself, mute the bot's conversation in Slack.
 
 ## Mentions
 
-A mention is `@login`, written in a comment, an inline comment, or a review summary. The mentioned person gets a DM from anyone, including the PR author.
+A mention is `@login`, written in a comment, an inline comment, a review summary, or the description of a PR. The mentioned person gets a DM from anyone, including the PR author.
+
+Review Router reads the description once, when the PR opens. A mention that someone adds later by editing the description sends nothing.
 
 These don't count as mentions:
 
@@ -74,15 +80,48 @@ These don't count as mentions:
 
 When someone adds a person to the **Reviewers** list, or re-requests their review, that person gets a DM that says who asked. Team requests, requests that a bot makes, and a request for your own review send nothing.
 
-The workflow must listen for the `review_requested` event. Add it to the `pull_request_target` types:
+## Assignments
+
+When someone assigns the PR to a person, that person gets a DM that says who assigned it. Assigning yourself and assignments that a bot makes send nothing.
+
+## Pushes after a request for changes
+
+When the author pushes after a reviewer requested changes, that reviewer gets a DM. Review Router sends it for the first push after the review. Later pushes send nothing until the reviewer reviews again. A reviewer who approved or whose review was dismissed gets nothing, and neither does the person who pushed.
+
+## Merge queue removals
+
+When the merge queue removes a PR before it merges, the author gets a DM with the reason: the queue checks failed or timed out, a merge conflict, a branch rule that no longer holds, a cleared or rolled back queue, or a removal by hand. A removal that follows the merge sends nothing, and neither does a removal that the author makes.
+
+## Workflow event types
+
+Each message needs its event in the `types` of the workflow. A repository that doesn't list a type gets none of the messages for it. The other messages don't change.
+
+| Event type         | Message                                       |
+| ------------------ | --------------------------------------------- |
+| `review_requested` | A person is asked to review                   |
+| `assigned`         | A person is assigned                          |
+| `dequeued`         | The merge queue removes the PR                |
+| `synchronize`      | The author pushes after a request for changes |
+| `opened`           | A person is named in the description          |
 
 ```yaml
 on:
   pull_request_target:
-    types: [labeled, opened, closed, ready_for_review, review_requested]
+    types:
+      [
+        labeled,
+        opened,
+        closed,
+        ready_for_review,
+        review_requested,
+        assigned,
+        dequeued,
+        synchronize,
+        reopened,
+      ]
 ```
 
-A repository that doesn't list the type gets no review request DMs. The other messages don't change.
+The comment messages come from the `pull_request_review`, `pull_request_review_comment`, and `issue_comment` events.
 
 ## Thread replies
 
@@ -146,9 +185,9 @@ For events that need no secrets, such as routing and labels, the workflow runs i
 
 If a DM doesn't arrive, check these in order:
 
-1. The workflow lists the event type: `pull_request_review`, `pull_request_review_comment`, `issue_comment`, and `review_requested` for review requests.
+1. The workflow lists the event type of the message. See [Workflow event types](#workflow-event-types).
 2. The workflow passes `slack-token`.
-3. The person's GitHub login is in `users`, and the Slack ID is correct.
+3. The person's GitHub login is in `users`, and the Slack ID is correct. The run's notice lists the logins that have no entry.
 4. `notifications.dm.enabled` isn't `false` for the org.
 5. The Slack app has `chat:write` and the **Messages** tab on.
 6. The person hasn't muted the bot's conversation.

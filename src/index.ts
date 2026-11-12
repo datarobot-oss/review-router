@@ -9,12 +9,17 @@ import {
   handleClosed,
   handleComment,
   handleReviewRequested,
+  handleDescriptionMentions,
+  handleReviewedPush,
+  handleAssigned,
+  handleDequeued,
   syncReviewCheck,
   classifyLabel,
   shouldSkipDuplicateRouting,
 } from "./router";
 import { isRouterComment } from "./comment";
 import { notifiesAnyone } from "./mentions";
+import { reportUnmapped } from "./unmapped";
 import { handleSchedule } from "./reminders";
 import { reconcileOpenPulls } from "./reconcile";
 import { detectCapabilities } from "./auth";
@@ -296,6 +301,20 @@ async function run(): Promise<void> {
       inputs,
       teamsConfig,
     });
+
+    // The description is read once, when the PR opens, so an edit never tells anyone twice.
+    if (context.payload.sender?.type !== "Bot") {
+      await handleDescriptionMentions(octokit, {
+        owner,
+        repo,
+        prNumber: pr.number,
+        prBody: pr.body ?? "",
+        prUrl: pr.html_url ?? "",
+        author: pr.user?.login ?? "",
+        inputs,
+        teamsConfig,
+      });
+    }
     return;
   }
 
@@ -352,6 +371,59 @@ async function run(): Promise<void> {
 
   if (
     (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "assigned"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    const assignee = context.payload.assignee?.login;
+    const assigner = context.payload.sender?.login;
+    if (!assignee || !assigner || context.payload.sender?.type === "Bot") return;
+
+    await handleAssigned(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      prBody: pr.body ?? "",
+      prUrl: pr.html_url ?? "",
+      assigner,
+      assignee,
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
+    action === "dequeued"
+  ) {
+    const pr = context.payload.pull_request;
+    if (!pr) {
+      core.setFailed("No pull_request in payload");
+      return;
+    }
+
+    await handleDequeued(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      prBody: pr.body ?? "",
+      prUrl: pr.html_url ?? "",
+      author: pr.user?.login ?? "",
+      remover: context.payload.sender?.login ?? "",
+      reason: context.payload.reason ?? "UNKNOWN_REMOVAL_REASON",
+      inputs,
+      teamsConfig,
+    });
+    return;
+  }
+
+  if (
+    (eventName === "pull_request" || eventName === "pull_request_target") &&
     (action === "synchronize" || action === "reopened")
   ) {
     const pr = context.payload.pull_request;
@@ -380,6 +452,23 @@ async function run(): Promise<void> {
       inputs,
       teamsConfig,
     });
+
+    const pusher = context.payload.sender?.login;
+    const before = context.payload.before;
+    if (action === "synchronize" && pusher && before && context.payload.sender?.type !== "Bot") {
+      await handleReviewedPush(octokit, {
+        owner,
+        repo,
+        prNumber: pr.number,
+        prBody: pr.body ?? "",
+        prUrl: pr.html_url ?? "",
+        author: pr.user?.login ?? "",
+        pusher,
+        before,
+        inputs,
+        teamsConfig,
+      });
+    }
     return;
   }
 
@@ -598,6 +687,8 @@ async function run(): Promise<void> {
   }
 }
 
-run().catch((error) => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
-});
+run()
+  .catch((error) => {
+    core.setFailed(error instanceof Error ? error.message : String(error));
+  })
+  .finally(reportUnmapped);

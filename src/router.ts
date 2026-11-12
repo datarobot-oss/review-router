@@ -40,10 +40,15 @@ import {
   ReactionsConfig,
   OrgConfig,
   OwnershipMap,
+  AssignedContext,
   CommentContext,
+  DequeuedContext,
+  DescriptionContext,
   ReviewRequestContext,
+  ReviewedPushContext,
   Octokit,
 } from "./types";
+import { noteUnmapped } from "./unmapped";
 
 async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, delayMs = 1000): Promise<T> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -915,10 +920,17 @@ export function formatGitHubUser(login: string, users: Record<string, string> | 
   return `<https://github.com/${page}|${login}>`;
 }
 
-/** Looks up a Slack user by GitHub login, ignoring case as GitHub does. */
+/**
+ * Looks up a Slack user by GitHub login, ignoring case as GitHub does. A login with no Slack user
+ * is noted, so the run can report the notifications it skipped.
+ */
 function findSlackId(users: Record<string, string> | undefined, login: string): string | undefined {
   const key = Object.keys(users ?? {}).find((k) => k.toLowerCase() === login.toLowerCase());
-  return key === undefined ? undefined : users?.[key];
+  if (key === undefined) {
+    noteUnmapped(login);
+    return undefined;
+  }
+  return users?.[key];
 }
 
 interface CommentRecipient {
@@ -946,6 +958,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
 
   const authorSlackId = ctx.teamsConfig.users?.[ctx.author];
+  if (!authorSlackId && !mentionsOnly) noteUnmapped(ctx.author);
   if (authorSlackId && !mentionsOnly) {
     const approved = ctx.kind === "review" && ctx.commentUrl === "";
     recipients.push({
@@ -964,7 +977,11 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     for (const assignee of ctx.assignees) {
       if (assignee === ctx.commenter || assignee === ctx.author) continue;
       const slackId = ctx.teamsConfig.users?.[assignee];
-      if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
+      if (!slackId) {
+        noteUnmapped(assignee);
+        continue;
+      }
+      if (recipients.some((r) => r.slackId === slackId)) continue;
       recipients.push({
         login: assignee,
         slackId,
@@ -1014,6 +1031,161 @@ export async function handleReviewRequested(
       slackId,
       dmText: `:eyes: ${person} requested your review on ${prLink}.`,
       threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
+    },
+  ]);
+}
+
+/** Tells the people named with @login in the description of a PR that was just opened. */
+export async function handleDescriptionMentions(
+  octokit: Octokit,
+  ctx: DescriptionContext
+): Promise<void> {
+  if (!ctx.inputs.slackToken) {
+    core.debug("No Slack token provided, skipping description mention notifications");
+    return;
+  }
+
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const person = formatGitHubUser(ctx.author, ctx.teamsConfig.users);
+  const recipients: CommentRecipient[] = [];
+  for (const login of extractMentions(ctx.prBody)) {
+    if (login.toLowerCase() === ctx.author.toLowerCase()) continue;
+    const slackId = findSlackId(ctx.teamsConfig.users, login);
+    if (!slackId || recipients.some((r) => r.slackId === slackId)) continue;
+    recipients.push({
+      login,
+      slackId,
+      dmText: `:bell: ${person} mentioned you in ${prLink}.`,
+      threadText: `:bell: <@${slackId}>, ${person} mentioned you.`,
+    });
+  }
+  await notifyRecipients(octokit, ctx, recipients);
+}
+
+/** Tells a person that someone assigned the PR to them. */
+export async function handleAssigned(octokit: Octokit, ctx: AssignedContext): Promise<void> {
+  if (!ctx.inputs.slackToken) {
+    core.debug("No Slack token provided, skipping assignment notification");
+    return;
+  }
+  if (ctx.assignee.toLowerCase() === ctx.assigner.toLowerCase()) return;
+
+  const slackId = findSlackId(ctx.teamsConfig.users, ctx.assignee);
+  if (!slackId) return;
+
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const person = formatGitHubUser(ctx.assigner, ctx.teamsConfig.users);
+  await notifyRecipients(octokit, ctx, [
+    {
+      login: ctx.assignee,
+      slackId,
+      dmText: `:eyes: ${person} assigned you to ${prLink}.`,
+      threadText: `:eyes: <@${slackId}>, ${person} assigned you.`,
+    },
+  ]);
+}
+
+/** The review states that decide where a reviewer stands. A plain comment review changes nothing. */
+const STANDING_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "DISMISSED"]);
+
+/**
+ * Tells each reviewer whose request for changes is still standing on the previous head commit
+ * that new commits arrived. The next push finds a newer head, so one review gets one DM per
+ * reviewer however often the author pushes.
+ */
+export async function handleReviewedPush(
+  octokit: Octokit,
+  ctx: ReviewedPushContext
+): Promise<void> {
+  if (!ctx.inputs.slackToken) {
+    core.debug("No Slack token provided, skipping push notification");
+    return;
+  }
+
+  let reviews;
+  try {
+    reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
+      owner: ctx.owner,
+      repo: ctx.repo,
+      pull_number: ctx.prNumber,
+      per_page: 100,
+    });
+  } catch (error) {
+    core.warning(
+      `Failed to read the reviews of PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return;
+  }
+
+  // The API lists reviews oldest first, so the last standing review of a person wins.
+  const standing = new Map<string, { login: string; state: string; commitId: string }>();
+  for (const review of reviews) {
+    const login = review.user?.login;
+    if (!login || !STANDING_STATES.has(review.state)) continue;
+    standing.set(login.toLowerCase(), {
+      login,
+      state: review.state,
+      commitId: review.commit_id ?? "",
+    });
+  }
+
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const person = formatGitHubUser(ctx.pusher, ctx.teamsConfig.users);
+  const recipients: CommentRecipient[] = [];
+  for (const { login, state, commitId } of standing.values()) {
+    if (state !== "CHANGES_REQUESTED" || commitId !== ctx.before) continue;
+    if (login.toLowerCase() === ctx.pusher.toLowerCase()) continue;
+    if (login.toLowerCase() === ctx.author.toLowerCase()) continue;
+    const slackId = findSlackId(ctx.teamsConfig.users, login);
+    if (!slackId) continue;
+    recipients.push({
+      login,
+      slackId,
+      dmText: `:repeat: ${person} pushed new commits to ${prLink}, where you requested changes.`,
+      threadText: `:repeat: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
+    });
+  }
+  await notifyRecipients(octokit, ctx, recipients);
+}
+
+/** Removals that follow a merge are not news, because the PR is done. */
+const MERGED_REASONS = new Set(["MERGE", "ALREADY_MERGED"]);
+
+const DEQUEUE_REASONS: Record<string, string> = {
+  CI_FAILURE: "the queue checks failed",
+  CI_TIMEOUT: "the queue checks timed out",
+  MERGE_CONFLICT: "of a merge conflict",
+  BRANCH_PROTECTIONS: "it no longer meets the branch rules",
+  QUEUE_CLEARED: "the queue was cleared",
+  ROLL_BACK: "the queue rolled back",
+  GIT_TREE_INVALID: "the merge commit could not be built",
+  INVALID_MERGE_COMMIT: "the merge commit could not be built",
+};
+
+/** Tells the author that the merge queue took the PR out before it merged. */
+export async function handleDequeued(octokit: Octokit, ctx: DequeuedContext): Promise<void> {
+  if (!ctx.inputs.slackToken) {
+    core.debug("No Slack token provided, skipping merge queue removal notification");
+    return;
+  }
+  if (MERGED_REASONS.has(ctx.reason)) return;
+  const byAuthor = ctx.remover.toLowerCase() === ctx.author.toLowerCase();
+  if (ctx.reason === "MANUAL" && byAuthor) return;
+
+  const slackId = findSlackId(ctx.teamsConfig.users, ctx.author);
+  if (!slackId) return;
+
+  const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
+  const why =
+    ctx.reason === "MANUAL"
+      ? `${formatGitHubUser(ctx.remover, ctx.teamsConfig.users)} removed it`
+      : (DEQUEUE_REASONS[ctx.reason] ?? "the reason is unknown");
+  await notifyRecipients(octokit, ctx, [
+    {
+      login: ctx.author,
+      slackId,
+      dmText: `:warning: Your pull request ${prLink} left the merge queue: ${why}.`,
+      threadText: `:warning: <@${slackId}>, your pull request left the merge queue: ${why}.`,
     },
   ]);
 }

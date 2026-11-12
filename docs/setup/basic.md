@@ -112,7 +112,6 @@ on:
         ready_for_review,
         review_requested,
         assigned,
-        dequeued,
         synchronize,
         reopened,
       ]

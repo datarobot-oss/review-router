@@ -115,11 +115,12 @@ on:
         ready_for_review,
         review_requested,
         assigned,
-        dequeued,
         synchronize,
         reopened,
       ]
 ```
+
+Add `dequeued` to the list in a repository with a merge queue. A repository without one never receives the event, and an older actionlint rejects the type for `pull_request_target`.
 
 The comment messages come from the `pull_request_review`, `pull_request_review_comment`, and `issue_comment` events.
 

@@ -72,7 +72,7 @@ These don't count as mentions:
 - A login inside inline code or a fenced code block.
 - A login in a quoted line, which starts with `>`.
 - A login inside an HTML comment.
-- A team mention such as `@datarobot/labs`.
+- A team mention such as `@your-org/labs`.
 - An email address such as `dev@example.com`.
 - A mention of yourself.
 

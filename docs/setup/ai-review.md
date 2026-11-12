@@ -14,7 +14,7 @@ A review usually takes about 5 minutes and costs about $1 to $1.50 at list price
 
 ## Enable it
 
-1. Store a DataRobot API token for a service account as the `REVIEW_ROUTER_AI_TOKEN` secret, at the org or repo level.
+1. Store a DataRobot API token as the `REVIEW_ROUTER_AI_TOKEN` secret, at the org or repo level. Use an account with only the access that the review needs.
 2. Pass it to the action in your reusable workflow:
 
    ```yaml

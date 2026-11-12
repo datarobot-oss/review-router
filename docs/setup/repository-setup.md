@@ -80,7 +80,7 @@ Install each App on selected repositories, never on all of them. A key mints tok
 2. Create the `gate` environment with its [variables and key](gate.md#store-the-key-in-an-environment), and the `merge-queue` environment with its [variable and key](merge-queue.md#store-the-key-in-an-environment). Each environment allows only the default branch.
 3. Create the policy file `.github/review-router.yml` on the default branch. See [Enable the gate](gate.md#enable-the-gate).
 4. Add the workflows on the default branch:
-   - The Review Router workflow. See [Basic setup](basic.md), or [Reusable workflows](reusable-workflows.md) in a DataRobot organization.
+   - The Review Router workflow. See [Basic setup](basic.md).
    - `Review Router replay`, in a repository that accepts fork pull requests. It sends the DMs and label changes that a fork's skipped review run missed. See [Fork PRs](notifications.md#fork-prs).
    - `Gate trigger` and `Gate`. See [Add the workflows](gate.md#add-the-workflows).
    - `merge-queue`. See [Add the workflow](merge-queue.md#add-the-workflow).

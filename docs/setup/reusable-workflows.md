@@ -4,17 +4,6 @@ If you manage multiple repositories in an organization, you can centralize
 the review-router setup using GitHub's reusable workflows. This means
 downstream repos need a single minimal workflow file with no secrets.
 
-DataRobot organizations don't create their own. Each repository calls the shared workflow in `datarobot-oss/.github`, pinned to a commit, with `secrets: inherit`. The organization secrets `REVIEW_ROUTER_APP_ID`, `REVIEW_ROUTER_APP_PRIVATE_KEY` and `REVIEW_ROUTER_SLACK_TOKEN` must reach the repository:
-
-```yaml
-jobs:
-  route:
-    uses: datarobot-oss/.github/.github/workflows/review-router.yml@<COMMIT_SHA> # main at the time of the pin
-    secrets: inherit
-```
-
-Take the `on:` block from the sample under [Setting up downstream repos](#setting-up-downstream-repos).
-
 ## How it works
 
 1. A **reusable workflow** in your org's `.github` repo handles token

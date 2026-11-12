@@ -12,11 +12,47 @@ This guide sets up a repository so that a Dependabot update inside a policy merg
 
 ## Prerequisites
 
-- Admin access to the repository, and an organization owner for the Apps.
+- An organization owner. The owner holds the App keys, adds the repository to the Apps, and stores the keys in the repository, so a repository administrator never receives a key file.
 - A plan that offers merge queues: public repositories owned by an organization, or private repositories on GitHub Enterprise Cloud.
-- A CI workflow that provides one required check that always reports. A required check that a path filter or a skipped job leaves out never reports, and the pull request waits forever. Roll the jobs up in one job that runs with `if: always()` and fails when a job that had to run didn't succeed.
+- A CI workflow that provides one required check that always reports. A required check that a path filter or a skipped job leaves out never reports, and the pull request waits forever. Roll the jobs up in one job that runs with `if: always()` and fails when a job that had to run didn't succeed. See [Roll up the CI check](#roll-up-the-ci-check).
 - The `merge_group` trigger on every workflow that provides a required check.
-- A second person with write access for the verification.
+- A second person with write access for the verification. A new repository gives nobody write access, so add the person as a collaborator or through a team first.
+
+## Roll up the CI check
+
+The required check is the name of the roll-up job. This workflow provides a required check named `ci`. List every job that must pass in `needs` and test each result in the last step:
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "Run the checks of the repository here."
+
+  ci:
+    if: always()
+    needs: [check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a job did not succeed
+        env:
+          RESULT: ${{ needs.check.result }}
+        run: test "$RESULT" = success
+```
 
 ## Choose who owns the Apps
 
@@ -25,13 +61,26 @@ The setup needs two GitHub Apps: the Gate App that posts `Bouncer`, and the merg
 - **One App pair per organization.** Each organization's owners hold the keys, and a key never leaves the organization. Use this model by default.
 - **One App pair for several organizations.** One team owns the Apps, installs them in the other organizations, and enrolls each repository itself, so repository administrators never receive the key file. A leaked key then forges `Bouncer` in every organization where the App is installed, and every enrolled repository holds a copy of the key as an environment secret. A person who can merge a change to the default branch of an enrolled repository can read that copy.
 
+Install each App on selected repositories, never on all of them. A key mints tokens for every repository where its App is installed, so an installation on all repositories lets a leaked key reach repositories that never joined the flow. The merge queue key holds **Contents: write**, which pushes to any branch that no ruleset protects. Every enrolled repository holds a copy of each key as an environment secret, and the administrators of that repository keep the reach that comes with it. An organization owner adds a repository to both installations when it joins, and stores the keys in it.
+
 ## Set up the repository
 
-1. Create the [Gate App](gate.md#create-the-gate-app) and the [merge queue App](merge-queue.md#create-the-merge-queue-app), then install both on the repository. Skip this step when the App owner already created them.
+1. Create the [Gate App](gate.md#create-the-gate-app) and the [merge queue App](merge-queue.md#create-the-merge-queue-app), then add the repository to both installations as an organization owner. Skip the creation when the owner already created the Apps. List the installations of the organization, then add the repository to the installation of each App:
+
+   ```bash
+   ORG=OWNER
+   REPO=OWNER/REPO
+   gh api "orgs/$ORG/installations?per_page=100" \
+     --jq '.installations[] | [.id, .app_slug, .repository_selection] | @tsv'
+   REPO_ID=$(gh api "repos/$REPO" --jq .id)
+   gh api -X PUT "user/installations/INSTALLATION_ID/repositories/$REPO_ID"
+   ```
+
+   Run the last command once for each App, with its installation ID. An installation that lists `all` already covers every repository, and the command isn't needed.
 2. Create the `gate` environment with its [variables and key](gate.md#store-the-key-in-an-environment), and the `merge-queue` environment with its [variable and key](merge-queue.md#store-the-key-in-an-environment). Each environment allows only the default branch.
 3. Create the policy file `.github/review-router.yml` on the default branch. See [Enable the gate](gate.md#enable-the-gate).
 4. Add the workflows on the default branch:
-   - The Review Router workflow. See [Basic setup](basic.md).
+   - The Review Router workflow. See [Basic setup](basic.md), or [Reusable workflows](reusable-workflows.md) in a DataRobot organization.
    - `Review Router replay`, in a repository that accepts fork pull requests. It sends the DMs and label changes that a fork's skipped review run missed. See [Fork PRs](notifications.md#fork-prs).
    - `Gate trigger` and `Gate`. See [Add the workflows](gate.md#add-the-workflows).
    - `merge-queue`. See [Add the workflow](merge-queue.md#add-the-workflow).

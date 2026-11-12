@@ -12,7 +12,18 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, opened, closed, ready_for_review, review_requested, synchronize, reopened]
+    types:
+      [
+        labeled,
+        opened,
+        closed,
+        ready_for_review,
+        review_requested,
+        assigned,
+        dequeued,
+        synchronize,
+        reopened,
+      ]
   pull_request_review:
     types: [submitted, dismissed]
   pull_request_review_comment:

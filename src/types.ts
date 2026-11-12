@@ -130,6 +130,62 @@ export interface ReviewRequestContext {
   teamsConfig: OrgConfig;
 }
 
+export interface DescriptionContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  /** The description, which decides who is mentioned. */
+  prBody: string;
+  prUrl: string;
+  author: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export interface AssignedContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prBody: string;
+  prUrl: string;
+  /** The GitHub login of the person who assigned the PR. */
+  assigner: string;
+  /** The GitHub login of the person who was assigned. */
+  assignee: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export interface ReviewedPushContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prBody: string;
+  prUrl: string;
+  author: string;
+  /** The GitHub login of the person who pushed. */
+  pusher: string;
+  /** The head commit before the push. */
+  before: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
+export interface DequeuedContext {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prBody: string;
+  prUrl: string;
+  author: string;
+  /** The GitHub login of whoever or whatever took the PR out of the merge queue. */
+  remover: string;
+  /** The `reason` of the `dequeued` event, such as CI_FAILURE or MERGE. */
+  reason: string;
+  inputs: ActionInputs;
+  teamsConfig: OrgConfig;
+}
+
 export interface CommentContext {
   owner: string;
   repo: string;

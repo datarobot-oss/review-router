@@ -116,7 +116,17 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, opened, closed, ready_for_review, review_requested]
+    types:
+      [
+        labeled,
+        opened,
+        closed,
+        ready_for_review,
+        review_requested,
+        assigned,
+        synchronize,
+        reopened,
+      ]
   pull_request_review:
     types: [submitted]
   pull_request_review_comment:

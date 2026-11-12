@@ -12,6 +12,7 @@ jest.mock("../src/reminders");
 jest.mock("../src/reconcile");
 jest.mock("../src/ai-review");
 jest.mock("../src/gate/run");
+jest.mock("../src/unmapped");
 
 const mockContext = {
   eventName: "pull_request_target",
@@ -156,6 +157,243 @@ describe("review requests", () => {
     });
 
     expect(router.handleReviewRequested).not.toHaveBeenCalled();
+  });
+});
+
+describe("description mentions", () => {
+  const pullRequest = {
+    html_url: "https://github.com/acme/api/pull/7",
+    body: "@carol please look",
+    user: { login: "bob" },
+  };
+
+  it("tells the people named in the description of a new PR", async () => {
+    const router = await runAction("opened", {
+      pullRequest,
+      payload: { sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleDescriptionMentions).toHaveBeenCalledTimes(1);
+    expect(router.handleDescriptionMentions).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        owner: "acme",
+        repo: "api",
+        prNumber: 7,
+        prBody: "@carol please look",
+        prUrl: "https://github.com/acme/api/pull/7",
+        author: "bob",
+        teamsConfig,
+      })
+    );
+  });
+
+  it("ignores a PR that a bot opened", async () => {
+    const router = await runAction("opened", {
+      pullRequest: { ...pullRequest, user: { login: "dependabot[bot]" } },
+      payload: { sender: { login: "dependabot[bot]", type: "Bot" } },
+    });
+
+    expect(router.handleDescriptionMentions).not.toHaveBeenCalled();
+  });
+
+  it("does not run again when the description is edited", async () => {
+    const router = await runAction("edited", { pullRequest });
+
+    expect(router.handleDescriptionMentions).not.toHaveBeenCalled();
+  });
+
+  it("does nothing without a token, as on a fork PR run with no secrets", async () => {
+    const router = await runAction("opened", {
+      token: "",
+      pullRequest,
+      payload: { sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleDescriptionMentions).not.toHaveBeenCalled();
+  });
+});
+
+describe("assignments", () => {
+  const pullRequest = { html_url: "https://github.com/acme/api/pull/7", body: "desc" };
+
+  it("tells an assigned person who assigned them", async () => {
+    const router = await runAction("assigned", {
+      pullRequest,
+      payload: { assignee: { login: "carol" }, sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleAssigned).toHaveBeenCalledTimes(1);
+    expect(router.handleAssigned).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        owner: "acme",
+        repo: "api",
+        prNumber: 7,
+        prUrl: "https://github.com/acme/api/pull/7",
+        assigner: "bob",
+        assignee: "carol",
+        teamsConfig,
+      })
+    );
+  });
+
+  it("ignores an assignment that a bot made", async () => {
+    const router = await runAction("assigned", {
+      pullRequest,
+      payload: {
+        assignee: { login: "carol" },
+        sender: { login: "dependabot[bot]", type: "Bot" },
+      },
+    });
+
+    expect(router.handleAssigned).not.toHaveBeenCalled();
+  });
+
+  it("ignores an event with no assignee", async () => {
+    const router = await runAction("assigned", {
+      pullRequest,
+      payload: { sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleAssigned).not.toHaveBeenCalled();
+  });
+
+  it("does nothing without a token, as on a fork PR run with no secrets", async () => {
+    const router = await runAction("assigned", {
+      token: "",
+      pullRequest,
+      payload: { assignee: { login: "carol" }, sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleAssigned).not.toHaveBeenCalled();
+  });
+});
+
+describe("merge queue removals", () => {
+  const pullRequest = {
+    html_url: "https://github.com/acme/api/pull/7",
+    body: "desc",
+    user: { login: "carol" },
+  };
+
+  it("tells the author why the PR left the queue", async () => {
+    const router = await runAction("dequeued", {
+      pullRequest,
+      payload: { reason: "CI_FAILURE", sender: { login: "github-merge-queue[bot]", type: "Bot" } },
+    });
+
+    expect(router.handleDequeued).toHaveBeenCalledTimes(1);
+    expect(router.handleDequeued).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        owner: "acme",
+        repo: "api",
+        prNumber: 7,
+        prUrl: "https://github.com/acme/api/pull/7",
+        author: "carol",
+        remover: "github-merge-queue[bot]",
+        reason: "CI_FAILURE",
+        teamsConfig,
+      })
+    );
+  });
+
+  it("passes on a removal with no reason as unknown", async () => {
+    const router = await runAction("dequeued", {
+      pullRequest,
+      payload: { sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleDequeued).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reason: "UNKNOWN_REMOVAL_REASON" })
+    );
+  });
+
+  it("does nothing without a token, as on a fork PR run with no secrets", async () => {
+    const router = await runAction("dequeued", {
+      token: "",
+      pullRequest,
+      payload: { reason: "CI_FAILURE", sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleDequeued).not.toHaveBeenCalled();
+  });
+});
+
+describe("pushes after a review", () => {
+  const pullRequest = {
+    html_url: "https://github.com/acme/api/pull/7",
+    body: "desc",
+    user: { login: "bob" },
+  };
+
+  it("tells the reviewers who asked for changes that the head moved", async () => {
+    const router = await runAction("synchronize", {
+      pullRequest,
+      payload: { before: "oldhead", sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleReviewedPush).toHaveBeenCalledTimes(1);
+    expect(router.handleReviewedPush).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        owner: "acme",
+        repo: "api",
+        prNumber: 7,
+        prUrl: "https://github.com/acme/api/pull/7",
+        author: "bob",
+        pusher: "bob",
+        before: "oldhead",
+        teamsConfig,
+      })
+    );
+  });
+
+  it("ignores a reopened PR, whose head did not move", async () => {
+    const router = await runAction("reopened", {
+      pullRequest,
+      payload: { before: "oldhead", sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleReviewedPush).not.toHaveBeenCalled();
+  });
+
+  it("ignores a push that a bot made", async () => {
+    const router = await runAction("synchronize", {
+      pullRequest,
+      payload: { before: "oldhead", sender: { login: "dependabot[bot]", type: "Bot" } },
+    });
+
+    expect(router.handleReviewedPush).not.toHaveBeenCalled();
+  });
+
+  it("ignores an event with no previous head", async () => {
+    const router = await runAction("synchronize", {
+      pullRequest,
+      payload: { sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.handleReviewedPush).not.toHaveBeenCalled();
+  });
+
+  it("still refreshes the Review Router check after the notification", async () => {
+    const router = await runAction("synchronize", {
+      pullRequest,
+      payload: { before: "oldhead", sender: { login: "bob", type: "User" } },
+    });
+
+    expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the report of logins without a Slack user", () => {
+  it("is added to the run once the event is handled", async () => {
+    await runAction("ready_for_review");
+
+    const unmapped = jest.requireMock<typeof import("../src/unmapped")>("../src/unmapped");
+    expect(unmapped.reportUnmapped).toHaveBeenCalledTimes(1);
   });
 });
 

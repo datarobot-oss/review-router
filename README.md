@@ -33,7 +33,8 @@ name: Review Router
 
 on:
   pull_request_target:
-    types: [labeled, opened, closed, ready_for_review, review_requested]
+    types:
+      [labeled, opened, closed, ready_for_review, review_requested, assigned, synchronize, reopened]
   pull_request_review:
     types: [submitted]
   pull_request_review_comment:
@@ -68,9 +69,11 @@ jobs:
 The action handles these event types:
 
 - **`pull_request_target: labeled`** -- routes review when "Ready for Review" is added; when a person adds a "Needs Review: {team}" label, notifies only that team
-- **`pull_request_target: opened`** -- triggers dependabot auto-labeling when enabled in config
+- **`pull_request_target: opened`** -- triggers dependabot auto-labeling when enabled in config; sends a Slack DM to each person named with `@login` in the description
 - **`pull_request_target: review_requested`** -- sends a Slack DM to a person asked by name to review; team requests and requests made by bots are ignored
-- **`pull_request_target: synchronize`, `reopened`** -- refreshes the Review Router check on the new head commit
+- **`pull_request_target: assigned`** -- sends a Slack DM to the person who was assigned; self assignments and assignments made by bots are ignored
+- **`pull_request_target: dequeued`** -- sends the author a Slack DM when the merge queue removes the PR before it merges; removals after a merge are ignored
+- **`pull_request_target: synchronize`, `reopened`** -- refreshes the Review Router check on the new head commit; on `synchronize`, also sends a Slack DM to each reviewer whose request for changes is still open on the previous commit
 - **`pull_request_target: closed`** -- cleans up review labels and adds Slack reactions on merge/close
 - **`pull_request_review: submitted`** -- removes team labels on approval
 - **`pull_request_review_comment: created`** -- notifies PR author in Slack thread on inline review comments

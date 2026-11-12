@@ -337,13 +337,21 @@ describe("handleReviewedPush", () => {
     state,
     commit_id: commitId,
   });
-  const reviewsOf = (reviews: object[]) => {
+  const listReviews = jest.fn();
+  const listCommits = jest.fn();
+  const reviewsOf = (reviews: object[], commits: object[] = []) => {
     const client = {
-      paginate: jest.fn().mockResolvedValue(reviews),
-      rest: { pulls: { listReviews: jest.fn() } },
+      paginate: jest.fn((endpoint: unknown) =>
+        Promise.resolve(endpoint === listCommits ? commits : reviews)
+      ),
+      rest: { pulls: { listReviews, listCommits } },
     };
     return client as never;
   };
+  const commit = (sha: string, login: string | null, type = "User") => ({
+    sha,
+    author: login === null ? null : { login, type },
+  });
   const pushed = { ...base, author: "bob", pusher: "bob", before: "sha1" };
 
   it("tells a reviewer who requested changes on the reviewed commit that the author pushed", async () => {
@@ -371,6 +379,109 @@ describe("handleReviewedPush", () => {
     });
 
     expect(slack.sendSlackDm).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells the reviewer after a bot commit that followed the review", async () => {
+    const client = reviewsOf(
+      [review("carol", "CHANGES_REQUESTED", "sha1")],
+      [commit("sha1", "bob"), commit("shaBot", "github-actions[bot]", "Bot"), commit("sha3", "bob")]
+    );
+
+    await handleReviewedPush(client, { ...pushed, before: "shaBot" });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CAROL",
+      expect.stringContaining("where you requested changes")
+    );
+  });
+
+  it("sends nothing when a person's commit already followed the review", async () => {
+    const client = reviewsOf(
+      [review("carol", "CHANGES_REQUESTED", "sha1")],
+      [
+        commit("sha1", "bob"),
+        commit("shaHuman", "bob"),
+        commit("shaBot", "dependabot[bot]", "Bot"),
+        commit("sha4", "bob"),
+      ]
+    );
+
+    await handleReviewedPush(client, { ...pushed, before: "shaBot" });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+  });
+
+  it("counts a commit with no GitHub user as a person's commit", async () => {
+    const client = reviewsOf(
+      [review("carol", "CHANGES_REQUESTED", "sha1")],
+      [commit("sha1", "bob"), commit("shaUnlinked", null), commit("sha3", "bob")]
+    );
+
+    await handleReviewedPush(client, { ...pushed, before: "shaUnlinked" });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when the reviewed commit is no longer in the pull request", async () => {
+    const client = reviewsOf(
+      [review("carol", "CHANGES_REQUESTED", "sha1")],
+      [commit("shaX", "bob"), commit("shaBot", "github-actions[bot]", "Bot")]
+    );
+
+    await handleReviewedPush(client, { ...pushed, before: "shaBot" });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when the previous head is older than the reviewed commit", async () => {
+    const client = reviewsOf(
+      [review("carol", "CHANGES_REQUESTED", "sha3")],
+      [commit("sha1", "bob"), commit("sha2", "bob"), commit("sha3", "bob")]
+    );
+
+    await handleReviewedPush(client, { ...pushed, before: "sha1" });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when only bot commits remain and the reviewed commit is gone", async () => {
+    const client = reviewsOf(
+      [review("carol", "CHANGES_REQUESTED", "sha1")],
+      [commit("shaBot1", "github-actions[bot]", "Bot"), commit("shaBot", "dependabot[bot]", "Bot")]
+    );
+
+    await handleReviewedPush(client, { ...pushed, before: "shaBot" });
+
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
+  });
+
+  it("does not read the commits when the review is on the previous head", async () => {
+    const client = reviewsOf([review("carol", "CHANGES_REQUESTED", "sha1")]);
+
+    await handleReviewedPush(client, pushed);
+
+    const calls = (client as unknown as { paginate: jest.Mock }).paginate.mock.calls;
+    expect(calls.map((call) => call[0])).not.toContain(listCommits);
+  });
+
+  it("warns and sends nothing when the commits can't be read", async () => {
+    const client = {
+      paginate: jest.fn((endpoint: unknown) =>
+        endpoint === listCommits
+          ? Promise.reject(new Error("commits down"))
+          : Promise.resolve([review("carol", "CHANGES_REQUESTED", "sha1")])
+      ),
+      rest: { pulls: { listReviews, listCommits } },
+    } as never;
+
+    await expect(
+      handleReviewedPush(client, { ...pushed, before: "shaBot" })
+    ).resolves.toBeUndefined();
+
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("commits down"));
+    expect(slack.sendSlackDm).not.toHaveBeenCalled();
   });
 
   it("sends nothing on a later push, when the previous head is not the reviewed commit", async () => {

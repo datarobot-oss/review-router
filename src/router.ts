@@ -1091,10 +1091,32 @@ export async function handleAssigned(octokit: Octokit, ctx: AssignedContext): Pr
 /** The review states that decide where a reviewer stands. A plain comment review changes nothing. */
 const STANDING_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "DISMISSED"]);
 
+interface PullCommit {
+  sha: string;
+  author?: { login?: string; type?: string } | null;
+}
+
+function isBotCommit(commit: PullCommit): boolean {
+  return commit.author?.type === "Bot" || commit.author?.login?.endsWith("[bot]") === true;
+}
+
 /**
- * Tells each reviewer whose request for changes is still standing on the previous head commit
- * that new commits arrived. The next push finds a newer head, so one review gets one DM per
- * reviewer however often the author pushes.
+ * True when every commit after the reviewed one, up to and including the previous head, came from
+ * a bot. A bot's push sends no DM, so the first push of a person after it is still the first one
+ * the reviewer hears about. A reviewed commit that left the PR, as after a force push, can't be
+ * placed, so it counts as not.
+ */
+function onlyBotCommitsBetween(commits: PullCommit[], reviewed: string, before: string): boolean {
+  const from = commits.findIndex((c) => c.sha === reviewed);
+  const to = commits.findIndex((c) => c.sha === before);
+  if (from < 0 || to <= from) return false;
+  return commits.slice(from + 1, to + 1).every(isBotCommit);
+}
+
+/**
+ * Tells each reviewer whose request for changes is still standing on the commit before this push
+ * that new commits arrived. A later push finds a newer head, so one review gets one DM per
+ * reviewer however often the author pushes. Commits that bots pushed in between don't count.
  */
 export async function handleReviewedPush(
   octokit: Octokit,
@@ -1135,10 +1157,30 @@ export async function handleReviewedPush(
   const prLink = `<${ctx.prUrl}|${ctx.owner}/${ctx.repo}#${ctx.prNumber}>`;
   const person = formatGitHubUser(ctx.pusher, ctx.teamsConfig.users);
   const recipients: CommentRecipient[] = [];
+  // Read once, and only when a review is not on the previous head. A failed read leaves it empty.
+  let commits: PullCommit[] | undefined;
   for (const { login, state, commitId } of standing.values()) {
-    if (state !== "CHANGES_REQUESTED" || commitId !== ctx.before) continue;
+    if (state !== "CHANGES_REQUESTED") continue;
     if (login.toLowerCase() === ctx.pusher.toLowerCase()) continue;
     if (login.toLowerCase() === ctx.author.toLowerCase()) continue;
+    if (commitId !== ctx.before) {
+      if (commits === undefined) {
+        try {
+          commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
+            owner: ctx.owner,
+            repo: ctx.repo,
+            pull_number: ctx.prNumber,
+            per_page: 100,
+          });
+        } catch (error) {
+          core.warning(
+            `Failed to read the commits of PR #${ctx.prNumber}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          commits = [];
+        }
+      }
+      if (!onlyBotCommitsBetween(commits, commitId, ctx.before)) continue;
+    }
     const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, login);
     if (!slackId) continue;
     recipients.push({

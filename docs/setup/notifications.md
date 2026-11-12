@@ -88,6 +88,8 @@ When someone assigns the PR to a person, that person gets a DM that says who ass
 
 When the author pushes after a reviewer requested changes, that reviewer gets a DM. Review Router sends it for the first push after the review. Later pushes send nothing until the reviewer reviews again. A reviewer who approved or whose review was dismissed gets nothing, and neither does the person who pushed.
 
+Pushes from bots send nothing, and commits that a bot authored since the review don't count as a push. Review Router recognizes a bot by the author of the commit, so a bot that commits under a person's name counts as that person's push, and the reviewer gets no DM for the next push.
+
 ## Merge queue removals
 
 When the merge queue removes a PR before it merges, the author gets a DM with the reason: the queue checks failed or timed out, a merge conflict, a branch rule that no longer holds, a cleared or rolled back queue, or a removal by hand. A removal that follows the merge sends nothing, and neither does a removal that the author makes.
@@ -108,16 +110,7 @@ Each message needs its event in the `types` of the workflow. A repository that d
 on:
   pull_request_target:
     types:
-      [
-        labeled,
-        opened,
-        closed,
-        ready_for_review,
-        review_requested,
-        assigned,
-        synchronize,
-        reopened,
-      ]
+      [labeled, opened, closed, ready_for_review, review_requested, assigned, synchronize, reopened]
 ```
 
 Add `dequeued` to the list in a repository with a merge queue. A repository without one never receives the event, and an older actionlint rejects the type for `pull_request_target`.

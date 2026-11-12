@@ -1,8 +1,8 @@
 # Review Router
 
-A GitHub Action that automates code review routing based on CODEOWNERS for DataRobot open-source repositories.
+A GitHub Action that automates code review routing based on CODEOWNERS.
 
-GitHub App: https://github.com/apps/datarobot-pr-review-router
+The action runs with a GitHub App that you create for your organization. See [Basic setup](docs/setup/basic.md).
 
 When the **"Ready for Review"** label is added to a PR, this action:
 

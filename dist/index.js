@@ -84292,7 +84292,7 @@ async function run() {
                 isBot: context.payload.sender?.type === "Bot",
             }) &&
                 !(0, comment_1.isRouterComment)(review.body) &&
-                (review.body ?? "").trim().length > 0) {
+                (review.state === "changes_requested" || (review.body ?? "").trim().length > 0)) {
                 await (0, router_1.handleComment)(octokit, {
                     owner,
                     repo,
@@ -84836,8 +84836,8 @@ async function collectEvents(octokit, ctx, pr, reviews, cursor) {
                 at: review.submitted_at,
             });
         }
-        else if ((review.state === "COMMENTED" || review.state === "CHANGES_REQUESTED") &&
-            (review.body ?? "").trim().length > 0 &&
+        else if ((review.state === "CHANGES_REQUESTED" ||
+            (review.state === "COMMENTED" && (review.body ?? "").trim().length > 0)) &&
             !(0, comment_1.isRouterComment)(review.body)) {
             events.push({
                 kind: review.state === "CHANGES_REQUESTED" ? "changes_requested" : "review",
@@ -85889,10 +85889,22 @@ async function handleComment(octokit, ctx) {
     const commentUrl = ctx.commentUrl || undefined;
     const recipients = [];
     // The author's own comment tells the author and the assignees nothing, but it can mention others.
-    // A requested-changes summary is the same: it reaches only the people it mentions.
+    // A requested-changes summary tells the author the verdict, because the inline comments of the
+    // review say "comment". The assignees and everyone else hear of it only by a mention.
     const ownComment = ctx.commenter === ctx.author;
     const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
     const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
+    if (authorSlackId && ctx.kind === "changes_requested" && !ownComment && !ctx.mentionsOnly) {
+        const icon = ctx.teamsConfig.reactions?.icons?.changes_requested ?? slack_1.DEFAULT_ICONS.changes_requested;
+        recipients.push({
+            login: ctx.author,
+            slackId: authorSlackId,
+            headline: `:${icon}: *Changes requested* by ${person}`,
+            commentUrl,
+            commentLabel: "Read the review",
+            threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${ctx.commentUrl ? ` <${ctx.commentUrl}|Read the review>.` : ""}`,
+        });
+    }
     if (authorSlackId && !mentionsOnly) {
         const approved = ctx.kind === "review" && ctx.commentUrl === "";
         recipients.push({
@@ -86151,6 +86163,7 @@ async function notifyRecipients(octokit, ctx, recipients) {
             (await (0, slack_1.sendSlackDm)(client, recipient.slackId, {
                 headline: recipient.headline,
                 commentUrl: recipient.commentUrl,
+                commentLabel: recipient.commentLabel,
                 prUrl: ctx.prUrl,
                 prTitle: ctx.prTitle,
                 prNumber: ctx.prNumber,
@@ -86403,6 +86416,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_ICONS = void 0;
 exports.buildSlackBlocks = buildSlackBlocks;
 exports.buildSlackReminderBlocks = buildSlackReminderBlocks;
 exports.sendSlackReminder = sendSlackReminder;
@@ -86414,12 +86428,13 @@ exports.sendSlackDm = sendSlackDm;
 exports.addSlackReactions = addSlackReactions;
 const core = __importStar(__nccwpck_require__(7484));
 const web_api_1 = __nccwpck_require__(5105);
-const DEFAULT_ICONS = {
+exports.DEFAULT_ICONS = {
     header: "mag",
     branch: "twisted_rightwards_arrows",
     commits: "arrow_heading_up",
     files: "page_facing_up",
     labels: "label",
+    changes_requested: "no_entry",
 };
 /** A link styled as the call to action. Slack buttons need an interactivity callback, links don't. */
 function callToAction(url, label) {
@@ -86442,7 +86457,7 @@ function buildSlackBlocks(params) {
     }
     const repoFullName = `${params.orgName}/${params.repoName}`;
     const avatarUrl = `https://github.com/${params.author}.png?size=24`;
-    const icons = { ...DEFAULT_ICONS, ...params.icons };
+    const icons = { ...exports.DEFAULT_ICONS, ...params.icons };
     const blocks = [
         {
             type: "section",
@@ -86517,7 +86532,7 @@ function buildSlackBlocks(params) {
 }
 function buildSlackReminderBlocks(params) {
     const repoFullName = `${params.orgName}/${params.repoName}`;
-    const headerIcon = params.icons?.header ?? DEFAULT_ICONS.header;
+    const headerIcon = params.icons?.header ?? exports.DEFAULT_ICONS.header;
     const blocks = [
         {
             type: "section",
@@ -86611,7 +86626,7 @@ function buildSlackDmBlocks(dm) {
     const repoFullName = `${dm.orgName}/${dm.repoName}`;
     const title = dm.prTitle ? ` ${escapeMrkdwn(dm.prTitle)}` : "";
     const cta = dm.commentUrl
-        ? callToAction(dm.commentUrl, "Read the comment")
+        ? callToAction(dm.commentUrl, dm.commentLabel ?? "Read the comment")
         : callToAction(dm.prUrl, "View PR");
     const blocks = [
         { type: "section", text: { type: "mrkdwn", text: dm.headline } },

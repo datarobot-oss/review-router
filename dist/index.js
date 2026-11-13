@@ -84333,6 +84333,13 @@ async function run() {
             core.info("Ignoring bot comment or self review comment that mentions nobody");
             return;
         }
+        const first = await (0, router_1.isFirstCommentOfReview)(octokit, {
+            owner,
+            repo,
+            prNumber: pr.number,
+            reviewId: reviewComment.pull_request_review_id,
+            commentId: reviewComment.id,
+        });
         await (0, router_1.handleComment)(octokit, {
             owner,
             repo,
@@ -84344,6 +84351,7 @@ async function run() {
             commenter,
             commentUrl: reviewComment.html_url ?? "",
             body: reviewComment.body,
+            mentionsOnly: !first,
             assignees: (pr.assignees ?? []).map((a) => a.login),
             kind: "review_comment",
             inputs,
@@ -85277,6 +85285,7 @@ exports.handleOpened = handleOpened;
 exports.handleReadyForReview = handleReadyForReview;
 exports.handleClosed = handleClosed;
 exports.formatGitHubUser = formatGitHubUser;
+exports.isFirstCommentOfReview = isFirstCommentOfReview;
 exports.handleComment = handleComment;
 exports.handleReviewRequested = handleReviewRequested;
 exports.handleDescriptionMentions = handleDescriptionMentions;
@@ -85878,6 +85887,29 @@ function findTeamMemberSlackId(users, login) {
     if (slackId === undefined)
         (0, unmapped_1.noteUnmapped)(login);
     return slackId;
+}
+/**
+ * Whether a review comment has the lowest id among the comments of its review. A review with many
+ * inline comments starts one run per comment, and only the first one tells the author and the
+ * assignees. A comment outside a review, or a failed read, counts as first, so a DM is never lost.
+ */
+async function isFirstCommentOfReview(octokit, params) {
+    if (!params.reviewId)
+        return true;
+    try {
+        const comments = await octokit.paginate(octokit.rest.pulls.listCommentsForReview, {
+            owner: params.owner,
+            repo: params.repo,
+            pull_number: params.prNumber,
+            review_id: params.reviewId,
+            per_page: 100,
+        });
+        return comments.every((c) => c.id >= params.commentId);
+    }
+    catch (error) {
+        core.warning(`Failed to read the comments of review ${params.reviewId}: ${error instanceof Error ? error.message : String(error)}`);
+        return true;
+    }
 }
 async function handleComment(octokit, ctx) {
     if (!ctx.inputs.slackToken) {

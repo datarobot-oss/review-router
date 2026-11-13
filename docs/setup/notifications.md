@@ -31,6 +31,8 @@ Review Router sends nothing for these:
 
 One event sends one DM per person. An author who is also an assignee and a mentioned person gets a single DM.
 
+A review with several inline comments sends the author and the assignees one DM, for its first comment. The other comments of the review send DMs only to the people they mention.
+
 ## Set up DMs
 
 DMs need three things:

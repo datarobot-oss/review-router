@@ -33,6 +33,7 @@ async function runAction(
     gateDecision?: object | null;
     inputs?: Record<string, string>;
     payload?: object;
+    firstOfReview?: boolean;
   } = {}
 ): Promise<jest.Mocked<typeof import("../src/router")>> {
   jest.resetModules();
@@ -54,6 +55,7 @@ async function runAction(
     .requireMock<jest.Mocked<typeof import("../src/gate/run")>>("../src/gate/run")
     .runGate.mockResolvedValue((options.gateDecision ?? null) as never);
   const router = jest.requireMock<jest.Mocked<typeof import("../src/router")>>("../src/router");
+  router.isFirstCommentOfReview.mockResolvedValue(options.firstOfReview ?? true);
   jest
     .requireMock<jest.Mocked<typeof import("../src/config")>>("../src/config")
     .loadTeamsConfigForOrg.mockResolvedValue(teamsConfig as never);
@@ -385,6 +387,67 @@ describe("pushes after a review", () => {
     });
 
     expect(router.syncReviewCheck).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("inline review comments", () => {
+  const pullRequest = {
+    html_url: "https://github.com/acme/api/pull/7",
+    title: "Add retry",
+    body: "desc",
+    user: { login: "alice" },
+    assignees: [{ login: "carol" }],
+  };
+  const payload = {
+    comment: {
+      id: 11,
+      pull_request_review_id: 500,
+      body: "nit",
+      html_url: "https://github.com/acme/api/pull/7#discussion_r11",
+      user: { login: "bob" },
+    },
+    sender: { login: "bob", type: "User" },
+  };
+
+  async function runComment(isFirst: boolean) {
+    mockContext.eventName = "pull_request_review_comment";
+    const result = await runAction("created", {
+      pullRequest,
+      payload,
+      firstOfReview: isFirst,
+    });
+    mockContext.eventName = "pull_request_target";
+    return result;
+  }
+
+  it("tells the author and the assignees about the first comment of a review", async () => {
+    const router = await runComment(true);
+
+    expect(router.handleComment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: "review_comment", mentionsOnly: false })
+    );
+  });
+
+  it("tells only the mentioned people about a later comment of the same review", async () => {
+    const router = await runComment(false);
+
+    expect(router.handleComment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ kind: "review_comment", mentionsOnly: true })
+    );
+  });
+
+  it("looks up the comment among the comments of its own review", async () => {
+    const router = await runComment(true);
+
+    expect(router.isFirstCommentOfReview).toHaveBeenCalledWith(expect.anything(), {
+      owner: "acme",
+      repo: "api",
+      prNumber: 7,
+      reviewId: 500,
+      commentId: 11,
+    });
   });
 });
 

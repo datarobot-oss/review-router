@@ -8,6 +8,7 @@ import {
   handleReadyForReview,
   handleClosed,
   handleComment,
+  isFirstCommentOfReview,
   handleReviewRequested,
   handleDescriptionMentions,
   handleReviewedPush,
@@ -675,6 +676,14 @@ async function run(): Promise<void> {
       return;
     }
 
+    const first = await isFirstCommentOfReview(octokit, {
+      owner,
+      repo,
+      prNumber: pr.number,
+      reviewId: reviewComment.pull_request_review_id,
+      commentId: reviewComment.id,
+    });
+
     await handleComment(octokit, {
       owner,
       repo,
@@ -686,6 +695,7 @@ async function run(): Promise<void> {
       commenter,
       commentUrl: reviewComment.html_url ?? "",
       body: reviewComment.body,
+      mentionsOnly: !first,
       assignees: (pr.assignees ?? []).map((a: { login: string }) => a.login),
       kind: "review_comment",
       inputs,

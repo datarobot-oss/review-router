@@ -981,7 +981,9 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       headline: `:${icon}: *Changes requested* by ${person}`,
       commentUrl,
       commentLabel: "Read the review",
-      threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${readLink}`,
+      threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${
+        ctx.commentUrl ? ` <${ctx.commentUrl}|Read the review>.` : ""
+      }`,
     });
   }
   if (authorSlackId && !mentionsOnly) {

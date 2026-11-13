@@ -2053,6 +2053,26 @@ describe("handleComment DMs", () => {
     );
   });
 
+  it("falls back to a thread reply that links the review when the verdict DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+    const withAuthor: OrgConfig = { ...teamsConfig, users: { alice: "U12345" } };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "changes_requested",
+      commentUrl: "https://github.com/org/repo/pull/1#pullrequestreview-5",
+      teamsConfig: withAuthor,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      ":no_entry: <@U12345>, <https://github.com/bob|bob> requested changes. " +
+        "<https://github.com/org/repo/pull/1#pullrequestreview-5|Read the review>."
+    );
+  });
+
   it("sends a DM when the PR has no Slack refs", async () => {
     (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
 

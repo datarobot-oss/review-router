@@ -32,7 +32,7 @@ export const DEFAULT_ICONS: Required<NotificationIcons> = {
   commits: "arrow_heading_up",
   files: "page_facing_up",
   labels: "label",
-  changes_requested: "git_requested_changes",
+  changes_requested: "no_entry",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

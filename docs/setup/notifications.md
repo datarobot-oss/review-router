@@ -21,7 +21,7 @@ Each row is one trigger. A DM goes to the person's Slack account. If DMs are off
 | The author pushes after a reviewer requested changes                                  | The reviewer whose request for changes is still open             | DM           |
 | The merge queue removes the PR before it merges                                       | The PR author                                                    | DM           |
 
-A review that requests changes sends the author one DM that states the verdict, and the DMs of the inline comments stay separate. The summary reaches the other people only when it mentions them. The verdict DM uses the `git_requested_changes` emoji. In a workspace without that emoji, set `reactions.icons.changes_requested` in the team config to another emoji name, such as `no_entry`.
+A review that requests changes sends the author one DM that states the verdict, and the DMs of the inline comments stay separate. The summary reaches the other people only when it mentions them. The verdict DM uses the `no_entry` emoji. To use another emoji, such as a custom `git_requested_changes`, set `reactions.icons.changes_requested` in the team config.
 
 Review Router sends nothing for these:
 

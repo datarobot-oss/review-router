@@ -2303,7 +2303,7 @@ describe("handleComment DMs", () => {
         expect.anything(),
         "U_ALICE",
         expect.objectContaining({
-          headline: ":git_requested_changes: *Changes requested* by <https://github.com/bob|bob>",
+          headline: ":no_entry: *Changes requested* by <https://github.com/bob|bob>",
           commentUrl,
           commentLabel: "Read the review",
         })
@@ -2328,7 +2328,7 @@ describe("handleComment DMs", () => {
         body: "Needs a test",
         teamsConfig: {
           ...withUsers,
-          reactions: { enabled: true, icons: { changes_requested: "no_entry" } },
+          reactions: { enabled: true, icons: { changes_requested: "git_requested_changes" } },
         },
       });
 
@@ -2336,7 +2336,7 @@ describe("handleComment DMs", () => {
         expect.anything(),
         "U_ALICE",
         expect.objectContaining({
-          headline: ":no_entry: *Changes requested* by <https://github.com/bob|bob>",
+          headline: ":git_requested_changes: *Changes requested* by <https://github.com/bob|bob>",
         })
       );
     });

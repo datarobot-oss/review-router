@@ -7,6 +7,7 @@ import {
   handleClosed,
   syncReviewCheck,
   handleComment,
+  isFirstCommentOfReview,
   handleReviewRequested,
   formatGitHubUser,
   resolveTeamSlugFromLabel,
@@ -1871,6 +1872,45 @@ describe("handleComment", () => {
       "1111.0000",
       expect.stringContaining("<https://github.com/bob|bob> approved your pull request.")
     );
+  });
+});
+
+describe("isFirstCommentOfReview", () => {
+  const params = { owner: "org", repo: "repo", prNumber: 1, reviewId: 500, commentId: 11 };
+
+  beforeEach(() => {
+    mockOctokit.paginate.mockReset();
+  });
+
+  it("is true for the comment with the lowest id in its review", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ id: 13 }, { id: 11 }, { id: 12 }]);
+
+    await expect(isFirstCommentOfReview(mockOctokit as any, params)).resolves.toBe(true);
+  });
+
+  it("is false for a comment that has a lower id before it in its review", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ id: 10 }, { id: 11 }, { id: 12 }]);
+
+    await expect(isFirstCommentOfReview(mockOctokit as any, params)).resolves.toBe(false);
+  });
+
+  it("is true for the only comment of a review", async () => {
+    mockOctokit.paginate.mockResolvedValue([{ id: 11 }]);
+
+    await expect(isFirstCommentOfReview(mockOctokit as any, params)).resolves.toBe(true);
+  });
+
+  it("is true without reading anything when the comment has no review", async () => {
+    await expect(
+      isFirstCommentOfReview(mockOctokit as any, { ...params, reviewId: null })
+    ).resolves.toBe(true);
+    expect(mockOctokit.paginate).not.toHaveBeenCalled();
+  });
+
+  it("is true when the comments can't be read, so the DM is never lost", async () => {
+    mockOctokit.paginate.mockRejectedValue(new Error("boom"));
+
+    await expect(isFirstCommentOfReview(mockOctokit as any, params)).resolves.toBe(true);
   });
 });
 

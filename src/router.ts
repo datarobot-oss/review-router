@@ -953,6 +953,39 @@ interface CommentRecipient {
   threadText: string;
 }
 
+/**
+ * Whether a review comment has the lowest id among the comments of its review. A review with many
+ * inline comments starts one run per comment, and only the first one tells the author and the
+ * assignees. A comment outside a review, or a failed read, counts as first, so a DM is never lost.
+ */
+export async function isFirstCommentOfReview(
+  octokit: Octokit,
+  params: {
+    owner: string;
+    repo: string;
+    prNumber: number;
+    reviewId: number | null | undefined;
+    commentId: number;
+  }
+): Promise<boolean> {
+  if (!params.reviewId) return true;
+  try {
+    const comments = await octokit.paginate(octokit.rest.pulls.listCommentsForReview, {
+      owner: params.owner,
+      repo: params.repo,
+      pull_number: params.prNumber,
+      review_id: params.reviewId,
+      per_page: 100,
+    });
+    return comments.every((c) => c.id >= params.commentId);
+  } catch (error) {
+    core.warning(
+      `Failed to read the comments of review ${params.reviewId}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return true;
+  }
+}
+
 export async function handleComment(octokit: Octokit, ctx: CommentContext): Promise<void> {
   if (!ctx.inputs.slackToken) {
     core.debug("No Slack token provided, skipping thread notification");

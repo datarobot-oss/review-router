@@ -35,6 +35,7 @@ export interface NotificationIcons {
   commits?: string;
   files?: string;
   labels?: string;
+  changes_requested?: string;
 }
 
 export interface ReactionsConfig {

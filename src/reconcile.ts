@@ -184,8 +184,8 @@ async function collectEvents(
         at: review.submitted_at as string,
       });
     } else if (
-      (review.state === "COMMENTED" || review.state === "CHANGES_REQUESTED") &&
-      (review.body ?? "").trim().length > 0 &&
+      (review.state === "CHANGES_REQUESTED" ||
+        (review.state === "COMMENTED" && (review.body ?? "").trim().length > 0)) &&
       !isRouterComment(review.body)
     ) {
       events.push({

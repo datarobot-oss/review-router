@@ -2053,6 +2053,26 @@ describe("handleComment DMs", () => {
     );
   });
 
+  it("falls back to a thread reply that links the review when the verdict DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+    const withAuthor: OrgConfig = { ...teamsConfig, users: { alice: "U12345" } };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "changes_requested",
+      commentUrl: "https://github.com/org/repo/pull/1#pullrequestreview-5",
+      teamsConfig: withAuthor,
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      ":no_entry: <@U12345>, <https://github.com/bob|bob> requested changes. " +
+        "<https://github.com/org/repo/pull/1#pullrequestreview-5|Read the review>."
+    );
+  });
+
   it("sends a DM when the PR has no Slack refs", async () => {
     (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
 
@@ -2268,16 +2288,16 @@ describe("handleComment DMs", () => {
       expect(toCharlie[0][2].headline).toContain("assigned to you");
     });
 
-    it("sends only the mentioned person a DM for a requested-changes summary", async () => {
+    it("sends the author and the mentioned person a DM for a requested-changes summary, and nobody else", async () => {
       await handleComment(mockOctokit as any, {
         ...mentioning,
         kind: "changes_requested",
-        assignees: ["charlie"],
+        assignees: ["dave"],
         body: "Needs a test, @charlie can you help?",
       });
 
       const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
-      expect(ids).toEqual(["U_CHARLIE"]);
+      expect(ids).toEqual(["U_ALICE", "U_CHARLIE"]);
     });
 
     it("sends only the mentioned person a DM when the context says mentions only", async () => {
@@ -2291,9 +2311,72 @@ describe("handleComment DMs", () => {
       expect(ids).toEqual(["U_CHARLIE"]);
     });
 
-    it("sends nothing for a requested-changes summary that mentions nobody", async () => {
+    it("sends the author the verdict for a requested-changes summary that mentions nobody", async () => {
       await handleComment(mockOctokit as any, {
         ...mentioning,
+        kind: "changes_requested",
+        body: "Needs a test",
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_ALICE",
+        expect.objectContaining({
+          headline: ":no_entry: *Changes requested* by <https://github.com/bob|bob>",
+          commentUrl,
+          commentLabel: "Read the review",
+        })
+      );
+    });
+
+    it("sends the author the verdict for a requested-changes review with no summary text", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        kind: "changes_requested",
+        body: "",
+      });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_ALICE"]);
+    });
+
+    it("uses the configured icon for the verdict", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        kind: "changes_requested",
+        body: "Needs a test",
+        teamsConfig: {
+          ...withUsers,
+          reactions: { enabled: true, icons: { changes_requested: "git_requested_changes" } },
+        },
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_ALICE",
+        expect.objectContaining({
+          headline: ":git_requested_changes: *Changes requested* by <https://github.com/bob|bob>",
+        })
+      );
+    });
+
+    it("sends no second verdict, only the mentions, for a later review of the same burst", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        kind: "changes_requested",
+        mentionsOnly: true,
+        body: "Still needs a test, @charlie can you help?",
+      });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_CHARLIE"]);
+    });
+
+    it("sends no verdict when the author requests changes on their own pull request", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        commenter: "alice",
         kind: "changes_requested",
         body: "Needs a test",
       });

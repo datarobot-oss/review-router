@@ -972,7 +972,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
 
   const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
-  if (authorSlackId && ctx.kind === "changes_requested" && !ownComment) {
+  if (authorSlackId && ctx.kind === "changes_requested" && !ownComment && !ctx.mentionsOnly) {
     const icon =
       ctx.teamsConfig.reactions?.icons?.changes_requested ?? DEFAULT_ICONS.changes_requested;
     recipients.push({

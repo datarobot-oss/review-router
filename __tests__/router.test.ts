@@ -2341,6 +2341,18 @@ describe("handleComment DMs", () => {
       );
     });
 
+    it("sends no second verdict, only the mentions, for a later review of the same burst", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        kind: "changes_requested",
+        mentionsOnly: true,
+        body: "Still needs a test, @charlie can you help?",
+      });
+
+      const ids = (slack.sendSlackDm as jest.Mock).mock.calls.map(([, id]) => id);
+      expect(ids).toEqual(["U_CHARLIE"]);
+    });
+
     it("sends no verdict when the author requests changes on their own pull request", async () => {
       await handleComment(mockOctokit as any, {
         ...mentioning,

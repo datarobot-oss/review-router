@@ -26,12 +26,13 @@ export interface SlackMessageParams {
   icons?: NotificationIcons;
 }
 
-const DEFAULT_ICONS: Required<NotificationIcons> = {
+export const DEFAULT_ICONS: Required<NotificationIcons> = {
   header: "mag",
   branch: "twisted_rightwards_arrows",
   commits: "arrow_heading_up",
   files: "page_facing_up",
   labels: "label",
+  changes_requested: "git_requested_changes",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -295,13 +296,15 @@ export interface SlackDm {
   repoName: string;
   /** The comment to link as the call to action, in place of the pull request. */
   commentUrl?: string;
+  /** The text of the comment link. Default: Read the comment. */
+  commentLabel?: string;
 }
 
 export function buildSlackDmBlocks(dm: SlackDm): { blocks: SlackBlock[]; fallback: string } {
   const repoFullName = `${dm.orgName}/${dm.repoName}`;
   const title = dm.prTitle ? ` ${escapeMrkdwn(dm.prTitle)}` : "";
   const cta = dm.commentUrl
-    ? callToAction(dm.commentUrl, "Read the comment")
+    ? callToAction(dm.commentUrl, dm.commentLabel ?? "Read the comment")
     : callToAction(dm.prUrl, "View PR");
 
   const blocks: SlackBlock[] = [

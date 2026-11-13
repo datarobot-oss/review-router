@@ -27,6 +27,7 @@ import {
   isSlackMessageMuted,
   postSlackThreadReply,
   sendSlackDm,
+  DEFAULT_ICONS,
   FileStats,
   SlackMessageRef,
 } from "./slack";
@@ -948,6 +949,7 @@ interface CommentRecipient {
   headline: string;
   /** Linked as the call to action in place of the pull request. */
   commentUrl?: string;
+  commentLabel?: string;
   threadText: string;
 }
 
@@ -964,11 +966,24 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   const recipients: CommentRecipient[] = [];
 
   // The author's own comment tells the author and the assignees nothing, but it can mention others.
-  // A requested-changes summary is the same: it reaches only the people it mentions.
+  // A requested-changes summary tells the author the verdict, because the inline comments of the
+  // review say "comment". The assignees and everyone else hear of it only by a mention.
   const ownComment = ctx.commenter === ctx.author;
   const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
 
   const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
+  if (authorSlackId && ctx.kind === "changes_requested" && !ownComment) {
+    const icon =
+      ctx.teamsConfig.reactions?.icons?.changes_requested ?? DEFAULT_ICONS.changes_requested;
+    recipients.push({
+      login: ctx.author,
+      slackId: authorSlackId,
+      headline: `:${icon}: *Changes requested* by ${person}`,
+      commentUrl,
+      commentLabel: "Read the review",
+      threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${readLink}`,
+    });
+  }
   if (authorSlackId && !mentionsOnly) {
     const approved = ctx.kind === "review" && ctx.commentUrl === "";
     recipients.push({
@@ -1258,6 +1273,7 @@ async function notifyRecipients(
       (await sendSlackDm(client, recipient.slackId, {
         headline: recipient.headline,
         commentUrl: recipient.commentUrl,
+        commentLabel: recipient.commentLabel,
         prUrl: ctx.prUrl,
         prTitle: ctx.prTitle,
         prNumber: ctx.prNumber,

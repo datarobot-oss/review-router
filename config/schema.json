@@ -148,6 +148,10 @@
         "labels": {
           "type": "string",
           "description": "Labels icon in footer. Default: label."
+        },
+        "changes_requested": {
+          "type": "string",
+          "description": "Icon of the Changes requested DM. Default: git_requested_changes, a custom emoji. Set it to no_entry in a workspace without that emoji."
         }
       }
     },

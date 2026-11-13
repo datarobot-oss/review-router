@@ -430,8 +430,10 @@ describe("reconcileOpenPulls", () => {
 
     await reconcileOpenPulls(octokit as any, ctx);
 
-    const commenters = (handleComment as jest.Mock).mock.calls.map(([, c]) => c.commenter);
-    expect(commenters).toEqual(["carol"]);
+    const events = (handleComment as jest.Mock).mock.calls.map(
+      ([, c]) => `${c.kind}:${c.commenter}`
+    );
+    expect(events).toEqual(["review:carol", "changes_requested:bob"]);
   });
 
   it("sends one DM for a burst of inline comments from the same reviewer and links the first", async () => {
@@ -742,7 +744,7 @@ describe("reconcileOpenPulls", () => {
       ]);
     });
 
-    it("skips a requested-changes review with no summary text", async () => {
+    it("replays a requested-changes review with no summary text, because the author needs the verdict", async () => {
       const octokit = octokitFor({
         pulls: [forkPr(1, bodyWithCursor)],
         freshBody: bodyWithCursor,
@@ -750,6 +752,30 @@ describe("reconcileOpenPulls", () => {
           {
             user: human("bob"),
             state: "CHANGES_REQUESTED",
+            body: "",
+            submitted_at: created,
+            html_url: "r",
+          },
+        ],
+      });
+
+      await reconcileOpenPulls(octokit as any, ctx);
+
+      expect(handleComment).toHaveBeenCalledTimes(1);
+      expect(handleComment).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ kind: "changes_requested", commenter: "bob" })
+      );
+    });
+
+    it("skips a comment review with no summary text", async () => {
+      const octokit = octokitFor({
+        pulls: [forkPr(1, bodyWithCursor)],
+        freshBody: bodyWithCursor,
+        reviews: [
+          {
+            user: human("bob"),
+            state: "COMMENTED",
             body: "",
             submitted_at: created,
             html_url: "r",

@@ -13,6 +13,7 @@ Each row is one trigger. A DM goes to the person's Slack account. If DMs are off
 | Someone adds a person, not a team, to the PR's reviewers, or re-requests their review | That person                                                      | DM           |
 | Someone approves the PR                                                               | The PR author                                                    | DM           |
 | Someone other than the author comments, replies inline, or submits a review           | The PR author                                                    | DM           |
+| Someone submits a review that requests changes, with or without a summary             | The PR author                                                    | DM           |
 | Someone other than the author comments or replies inline                              | The PR's assignees                                               | DM           |
 | Anyone writes `@login` in a comment, an inline comment, or a review summary           | The mentioned person                                             | DM           |
 | Someone writes `@login` in the description of a PR when it opens                      | The mentioned person                                             | DM           |
@@ -20,7 +21,7 @@ Each row is one trigger. A DM goes to the person's Slack account. If DMs are off
 | The author pushes after a reviewer requested changes                                  | The reviewer whose request for changes is still open             | DM           |
 | The merge queue removes the PR before it merges                                       | The PR author                                                    | DM           |
 
-A review that requests changes sends only the mention DMs. Its summary reaches the people it mentions, and nobody else.
+A review that requests changes sends the author one DM that states the verdict, and the DMs of the inline comments stay separate. The summary reaches the other people only when it mentions them. The verdict DM uses the `git_requested_changes` emoji. In a workspace without that emoji, set `reactions.icons.changes_requested` in the team config to another emoji name, such as `no_entry`.
 
 Review Router sends nothing for these:
 

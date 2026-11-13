@@ -630,7 +630,7 @@ async function run(): Promise<void> {
           isBot: context.payload.sender?.type === "Bot",
         }) &&
         !isRouterComment(review.body) &&
-        (review.body ?? "").trim().length > 0
+        (review.state === "changes_requested" || (review.body ?? "").trim().length > 0)
       ) {
         await handleComment(octokit, {
           owner,

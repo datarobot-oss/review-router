@@ -33,6 +33,8 @@ One event sends one DM per person. An author who is also an assignee and a menti
 
 A review with several inline comments sends the author and the assignees one DM, for its first comment. The other comments of the review send DMs only to the people they mention.
 
+Don't put the comment events of one PR in a shared `concurrency` group. GitHub keeps one pending run per group and cancels the rest, so the run that sends the DM of a review can be one of the cancelled ones. Give each comment its own group, for example by starting the group name with `github.event.comment.id`.
+
 ## Set up DMs
 
 DMs need three things:

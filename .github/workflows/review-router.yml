@@ -38,8 +38,9 @@ permissions:
   pull-requests: write
 
 # Runs for one pull request finish in order, so a slow run can't post a stale gate result.
+# A comment gets its own group, because a group cancels all but one pending run and a DM would be lost.
 concurrency:
-  group: review-router-${{ github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
+  group: review-router-${{ github.event.comment.id || github.event.pull_request.number || github.event.merge_group.head_ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:

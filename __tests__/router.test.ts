@@ -1993,6 +1993,106 @@ describe("handleComment DMs", () => {
     expect(slack.isSlackMessageMuted).not.toHaveBeenCalled();
   });
 
+  it("uses the configured icon for an approval", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      teamsConfig: {
+        ...config,
+        reactions: { enabled: true, icons: { approved: "github_approve" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      expect.objectContaining({
+        headline: ":github_approve: *Approved* by <https://github.com/bob|bob>",
+      })
+    );
+  });
+
+  it("uses the configured icon for a comment", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      teamsConfig: {
+        ...config,
+        reactions: { enabled: true, icons: { comment: "rr-speech_balloon" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      expect.objectContaining({
+        headline: ":rr-speech_balloon: *Comment* from <https://github.com/bob|bob>",
+      })
+    );
+  });
+
+  it("uses the configured icon in the thread reply when the DM fails", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(false);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      teamsConfig: {
+        ...config,
+        reactions: { enabled: true, icons: { comment: "rr-speech_balloon" } },
+      },
+    });
+
+    expect(slack.postSlackThreadReply).toHaveBeenCalledWith(
+      expect.anything(),
+      "C111",
+      "1111.0000",
+      ":rr-speech_balloon: <@U12345>, <https://github.com/bob|bob> commented on your pull request. " +
+        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+    );
+  });
+
+  it("passes the configured icons to the DM, so its closing link takes the cta icon", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+    const icons = { cta: "rr-point_right" };
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      teamsConfig: { ...config, reactions: { enabled: true, icons } },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      expect.objectContaining({ icons })
+    );
+  });
+
+  it("keeps the standard icon of a DM when the config sets the icon of another", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      teamsConfig: {
+        ...config,
+        reactions: { enabled: true, icons: { comment: "rr-speech_balloon" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U12345",
+      expect.objectContaining({
+        headline: ":white_check_mark: *Approved* by <https://github.com/bob|bob>",
+      })
+    );
+  });
+
   it("mentions the commenter when the commenter has a Slack user", async () => {
     (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
     const mapped: OrgConfig = { ...teamsConfig, users: { alice: "U12345", bob: "U_BOB" } };
@@ -2068,6 +2168,31 @@ describe("handleComment DMs", () => {
         headline:
           ":eyes: *Comment* from <https://github.com/bob|bob> on a pull request assigned to you",
         commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      })
+    );
+  });
+
+  it("uses the configured assigned icon for an assignee's comment DM", async () => {
+    (slack.sendSlackDm as jest.Mock).mockResolvedValue(true);
+
+    await handleComment(mockOctokit as any, {
+      ...approval,
+      kind: "comment",
+      commentUrl: "https://github.com/org/repo/pull/1#issuecomment-1",
+      assignees: ["charlie"],
+      teamsConfig: {
+        ...teamsConfig,
+        users: { charlie: "U_CHARLIE" },
+        reactions: { enabled: true, icons: { assigned: "rr-eyes" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CHARLIE",
+      expect.objectContaining({
+        headline:
+          ":rr-eyes: *Comment* from <https://github.com/bob|bob> on a pull request assigned to you",
       })
     );
   });
@@ -2218,6 +2343,24 @@ describe("handleComment DMs", () => {
       );
     });
 
+    it("uses the configured icon for the review request", async () => {
+      await handleReviewRequested(mockOctokit as any, {
+        ...request,
+        teamsConfig: {
+          ...withReviewer,
+          reactions: { enabled: true, icons: { review_requested: "rr-eyes" } },
+        },
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CAROL",
+        expect.objectContaining({
+          headline: ":rr-eyes: *Review requested* by <https://github.com/bob|bob>",
+        })
+      );
+    });
+
     it("matches the reviewer's login to the Slack user whatever its case", async () => {
       await handleReviewRequested(mockOctokit as any, { ...request, reviewer: "Carol" });
 
@@ -2293,6 +2436,27 @@ describe("handleComment DMs", () => {
         expect.objectContaining({
           headline: ":bell: *Mention* from <https://github.com/bob|bob>",
           commentUrl,
+        })
+      );
+    });
+
+    it("uses the mention icon, not the description mention icon, for a mention in a comment", async () => {
+      await handleComment(mockOctokit as any, {
+        ...mentioning,
+        teamsConfig: {
+          ...withUsers,
+          reactions: {
+            enabled: true,
+            icons: { mention: "rr-at", description_mention: "rr-bell" },
+          },
+        },
+      });
+
+      expect(slack.sendSlackDm).toHaveBeenCalledWith(
+        expect.anything(),
+        "U_CHARLIE",
+        expect.objectContaining({
+          headline: ":rr-at: *Mention* from <https://github.com/bob|bob>",
         })
       );
     });

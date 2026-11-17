@@ -149,6 +149,42 @@
           "type": "string",
           "description": "Labels icon in footer. Default: label."
         },
+        "cta": {
+          "type": "string",
+          "description": "Icon before the link that closes a message, such as View PR. Default: point_right."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Icon of the Comment DM. Default: speech_balloon."
+        },
+        "mention": {
+          "type": "string",
+          "description": "Icon of the Mention DM for a mention in a comment or review. Default: bell."
+        },
+        "description_mention": {
+          "type": "string",
+          "description": "Icon of the Mention DM for a mention in the description of a PR. Default: bell."
+        },
+        "review_requested": {
+          "type": "string",
+          "description": "Icon of the Review requested DM. Default: eyes."
+        },
+        "assigned": {
+          "type": "string",
+          "description": "Icon of the Assigned DM, and of the Comment DM for an assignee. Default: eyes."
+        },
+        "approved": {
+          "type": "string",
+          "description": "Icon of the Approved DM. Default: white_check_mark."
+        },
+        "new_commits": {
+          "type": "string",
+          "description": "Icon of the New commits DM. Default: repeat."
+        },
+        "dequeued": {
+          "type": "string",
+          "description": "Icon of the Left the merge queue DM. Default: warning."
+        },
         "changes_requested": {
           "type": "string",
           "description": "Icon of the Changes requested DM. Default: no_entry. Set it to a custom emoji such as git_requested_changes."

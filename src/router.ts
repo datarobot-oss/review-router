@@ -38,6 +38,7 @@ import { GateDecision } from "./gate/decide";
 import {
   ActionInputs,
   Capabilities,
+  NotificationIcons,
   ReactionsConfig,
   OrgConfig,
   OwnershipMap,
@@ -942,6 +943,11 @@ function findTeamMemberSlackId(
   return slackId;
 }
 
+/** The emoji name of a DM type: the team config override, else the standard emoji. */
+function iconOf(teamsConfig: OrgConfig, name: keyof NotificationIcons): string {
+  return teamsConfig.reactions?.icons?.[name] ?? DEFAULT_ICONS[name];
+}
+
 interface CommentRecipient {
   login: string;
   slackId: string;
@@ -1006,8 +1012,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
 
   const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
   if (authorSlackId && ctx.kind === "changes_requested" && !ownComment && !ctx.mentionsOnly) {
-    const icon =
-      ctx.teamsConfig.reactions?.icons?.changes_requested ?? DEFAULT_ICONS.changes_requested;
+    const icon = iconOf(ctx.teamsConfig, "changes_requested");
     recipients.push({
       login: ctx.author,
       slackId: authorSlackId,
@@ -1021,20 +1026,22 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   }
   if (authorSlackId && !mentionsOnly) {
     const approved = ctx.kind === "review" && ctx.commentUrl === "";
+    const icon = iconOf(ctx.teamsConfig, approved ? "approved" : "comment");
     recipients.push({
       login: ctx.author,
       slackId: authorSlackId,
       headline: approved
-        ? `:white_check_mark: *Approved* by ${person}`
-        : `:speech_balloon: *Comment* from ${person}`,
+        ? `:${icon}: *Approved* by ${person}`
+        : `:${icon}: *Comment* from ${person}`,
       commentUrl,
       threadText: approved
-        ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
-        : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
+        ? `:${icon}: <@${authorSlackId}>, ${person} approved your pull request.`
+        : `:${icon}: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
     });
   }
 
   if (ctx.kind !== "review" && !mentionsOnly) {
+    const icon = iconOf(ctx.teamsConfig, "assigned");
     for (const assignee of ctx.assignees) {
       if (assignee === ctx.commenter || assignee === ctx.author) continue;
       const slackId = findTeamMemberSlackId(ctx.teamsConfig.users, assignee);
@@ -1042,13 +1049,14 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       recipients.push({
         login: assignee,
         slackId,
-        headline: `:eyes: *Comment* from ${person} on a pull request assigned to you`,
+        headline: `:${icon}: *Comment* from ${person} on a pull request assigned to you`,
         commentUrl,
-        threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
+        threadText: `:${icon}: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
       });
     }
   }
 
+  const mentionIcon = iconOf(ctx.teamsConfig, "mention");
   for (const login of extractMentions(ctx.body)) {
     if (login.toLowerCase() === ctx.commenter.toLowerCase()) continue;
     const slackId = findSlackId(ctx.teamsConfig.users, login);
@@ -1056,9 +1064,9 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
     recipients.push({
       login,
       slackId,
-      headline: `:bell: *Mention* from ${person}`,
+      headline: `:${mentionIcon}: *Mention* from ${person}`,
       commentUrl,
-      threadText: `:bell: <@${slackId}>, ${person} mentioned you.${readLink}`,
+      threadText: `:${mentionIcon}: <@${slackId}>, ${person} mentioned you.${readLink}`,
     });
   }
 
@@ -1083,12 +1091,13 @@ export async function handleReviewRequested(
   }
 
   const person = formatGitHubUser(ctx.requester, ctx.teamsConfig.users);
+  const icon = iconOf(ctx.teamsConfig, "review_requested");
   await notifyRecipients(octokit, ctx, [
     {
       login: ctx.reviewer,
       slackId,
-      headline: `:eyes: *Review requested* by ${person}`,
-      threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
+      headline: `:${icon}: *Review requested* by ${person}`,
+      threadText: `:${icon}: <@${slackId}>, ${person} requested your review.`,
     },
   ]);
 }
@@ -1104,6 +1113,7 @@ export async function handleDescriptionMentions(
   }
 
   const person = formatGitHubUser(ctx.author, ctx.teamsConfig.users);
+  const icon = iconOf(ctx.teamsConfig, "description_mention");
   const recipients: CommentRecipient[] = [];
   for (const login of extractMentions(ctx.prBody)) {
     if (login.toLowerCase() === ctx.author.toLowerCase()) continue;
@@ -1112,8 +1122,8 @@ export async function handleDescriptionMentions(
     recipients.push({
       login,
       slackId,
-      headline: `:bell: *Mention* from ${person}`,
-      threadText: `:bell: <@${slackId}>, ${person} mentioned you.`,
+      headline: `:${icon}: *Mention* from ${person}`,
+      threadText: `:${icon}: <@${slackId}>, ${person} mentioned you.`,
     });
   }
   await notifyRecipients(octokit, ctx, recipients);
@@ -1131,12 +1141,13 @@ export async function handleAssigned(octokit: Octokit, ctx: AssignedContext): Pr
   if (!slackId) return;
 
   const person = formatGitHubUser(ctx.assigner, ctx.teamsConfig.users);
+  const icon = iconOf(ctx.teamsConfig, "assigned");
   await notifyRecipients(octokit, ctx, [
     {
       login: ctx.assignee,
       slackId,
-      headline: `:eyes: *Assigned* to you by ${person}`,
-      threadText: `:eyes: <@${slackId}>, ${person} assigned you.`,
+      headline: `:${icon}: *Assigned* to you by ${person}`,
+      threadText: `:${icon}: <@${slackId}>, ${person} assigned you.`,
     },
   ]);
 }
@@ -1208,6 +1219,7 @@ export async function handleReviewedPush(
   }
 
   const person = formatGitHubUser(ctx.pusher, ctx.teamsConfig.users);
+  const icon = iconOf(ctx.teamsConfig, "new_commits");
   const recipients: CommentRecipient[] = [];
   // Read once, and only when a review is not on the previous head. A failed read leaves it empty.
   let commits: PullCommit[] | undefined;
@@ -1238,8 +1250,8 @@ export async function handleReviewedPush(
     recipients.push({
       login,
       slackId,
-      headline: `:repeat: *New commits* from ${person}, where you requested changes`,
-      threadText: `:repeat: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
+      headline: `:${icon}: *New commits* from ${person}, where you requested changes`,
+      threadText: `:${icon}: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
     });
   }
   await notifyRecipients(octokit, ctx, recipients);
@@ -1276,12 +1288,13 @@ export async function handleDequeued(octokit: Octokit, ctx: DequeuedContext): Pr
     ctx.reason === "MANUAL"
       ? `${formatGitHubUser(ctx.remover, ctx.teamsConfig.users)} removed it`
       : (DEQUEUE_REASONS[ctx.reason] ?? "the reason is unknown");
+  const icon = iconOf(ctx.teamsConfig, "dequeued");
   await notifyRecipients(octokit, ctx, [
     {
       login: ctx.author,
       slackId,
-      headline: `:warning: *Left the merge queue*: ${why}`,
-      threadText: `:warning: <@${slackId}>, your pull request left the merge queue: ${why}.`,
+      headline: `:${icon}: *Left the merge queue*: ${why}`,
+      threadText: `:${icon}: <@${slackId}>, your pull request left the merge queue: ${why}.`,
     },
   ]);
 }
@@ -1314,6 +1327,7 @@ async function notifyRecipients(
         prNumber: ctx.prNumber,
         orgName: ctx.owner,
         repoName: ctx.repo,
+        icons: ctx.teamsConfig.reactions?.icons,
       }));
     if (dmSent) {
       core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);

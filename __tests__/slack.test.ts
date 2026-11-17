@@ -111,21 +111,21 @@ describe("buildSlackBlocks", () => {
   it("has a View PR link after the footer", () => {
     const { blocks } = buildSlackBlocks(params);
     expect(blocks[5].text.text).toBe(
-      ":point_right: *<https://github.com/org/repo/pull/1|View PR>*"
+      ":point_right:  *<https://github.com/org/repo/pull/1|View PR>*"
     );
   });
 
   it("uses the configured cta icon for the View PR link", () => {
     const { blocks } = buildSlackBlocks({ ...params, icons: { cta: "rr-point_right" } });
     expect(blocks[5].text.text).toBe(
-      ":rr-point_right: *<https://github.com/org/repo/pull/1|View PR>*"
+      ":rr-point_right:  *<https://github.com/org/repo/pull/1|View PR>*"
     );
   });
 
   it("keeps the standard cta icon when the config sets the icon of another element", () => {
     const { blocks } = buildSlackBlocks({ ...params, icons: { header: "rr-mag" } });
     expect(blocks[5].text.text).toBe(
-      ":point_right: *<https://github.com/org/repo/pull/1|View PR>*"
+      ":point_right:  *<https://github.com/org/repo/pull/1|View PR>*"
     );
   });
 
@@ -235,7 +235,7 @@ describe("buildSlackReminderBlocks", () => {
   it("has a View PR link", () => {
     const { blocks } = buildSlackReminderBlocks(reminderParams);
     expect(blocks[3].text.text).toBe(
-      ":point_right: *<https://github.com/org/repo/pull/10|View PR>*"
+      ":point_right:  *<https://github.com/org/repo/pull/10|View PR>*"
     );
   });
 
@@ -245,7 +245,7 @@ describe("buildSlackReminderBlocks", () => {
       icons: { cta: "rr-point_right" },
     });
     expect(blocks[3].text.text).toBe(
-      ":rr-point_right: *<https://github.com/org/repo/pull/10|View PR>*"
+      ":rr-point_right:  *<https://github.com/org/repo/pull/10|View PR>*"
     );
   });
 
@@ -352,7 +352,7 @@ describe("buildSlackDmBlocks", () => {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: ":point_right: *<https://github.com/org/repo/pull/1|View PR>*",
+          text: ":point_right:  *<https://github.com/org/repo/pull/1|View PR>*",
         },
       },
       { type: "divider" },
@@ -362,27 +362,27 @@ describe("buildSlackDmBlocks", () => {
   it("uses the configured cta icon for the closing link", () => {
     const { blocks } = buildSlackDmBlocks({ ...dm, icons: { cta: "rr-point_right" } });
     expect(blocks[3].text.text).toBe(
-      ":rr-point_right: *<https://github.com/org/repo/pull/1|View PR>*"
+      ":rr-point_right:  *<https://github.com/org/repo/pull/1|View PR>*"
     );
   });
 
   it("uses the configured cta icon for the comment link", () => {
     const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
     const { blocks } = buildSlackDmBlocks({ ...dm, commentUrl, icons: { cta: "rr-point_right" } });
-    expect(blocks[3].text.text).toBe(`:rr-point_right: *<${commentUrl}|Read the comment>*`);
+    expect(blocks[3].text.text).toBe(`:rr-point_right:  *<${commentUrl}|Read the comment>*`);
   });
 
   it("keeps the standard cta icon when the config sets the icon of another element", () => {
     const { blocks } = buildSlackDmBlocks({ ...dm, icons: { header: "rr-mag" } });
     expect(blocks[3].text.text).toBe(
-      ":point_right: *<https://github.com/org/repo/pull/1|View PR>*"
+      ":point_right:  *<https://github.com/org/repo/pull/1|View PR>*"
     );
   });
 
   it("links the comment as the call to action when there is one", () => {
     const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
     const { blocks } = buildSlackDmBlocks({ ...dm, commentUrl });
-    expect(blocks[3].text.text).toBe(`:point_right: *<${commentUrl}|Read the comment>*`);
+    expect(blocks[3].text.text).toBe(`:point_right:  *<${commentUrl}|Read the comment>*`);
   });
 
   it("links the pull request when the comment URL is empty", () => {

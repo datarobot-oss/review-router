@@ -49,7 +49,7 @@ export type SlackBlock = Record<string, any>;
 
 /** A link styled as the call to action. Slack buttons need an interactivity callback, links don't. */
 function callToAction(url: string, label: string, icon: string): SlackBlock {
-  return { type: "section", text: { type: "mrkdwn", text: `:${icon}: *<${url}|${label}>*` } };
+  return { type: "section", text: { type: "mrkdwn", text: `:${icon}:  *<${url}|${label}>*` } };
 }
 
 /** The divider that closes a message, so consecutive messages read as separate. */

@@ -85942,6 +85942,10 @@ function findTeamMemberSlackId(users, login) {
         (0, unmapped_1.noteUnmapped)(login);
     return slackId;
 }
+/** The emoji name of a DM type: the team config override, else the standard emoji. */
+function iconOf(teamsConfig, name) {
+    return teamsConfig.reactions?.icons?.[name] ?? slack_1.DEFAULT_ICONS[name];
+}
 /**
  * Whether a review comment has the lowest id among the comments of its review. A review with many
  * inline comments starts one run per comment, and only the first one tells the author and the
@@ -85971,7 +85975,7 @@ async function handleComment(octokit, ctx) {
         return;
     }
     const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
-    const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
+    const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|View comment>.` : "";
     const commentUrl = ctx.commentUrl || undefined;
     const recipients = [];
     // The author's own comment tells the author and the assignees nothing, but it can mention others.
@@ -85981,31 +85985,33 @@ async function handleComment(octokit, ctx) {
     const mentionsOnly = ownComment || ctx.kind === "changes_requested" || ctx.mentionsOnly === true;
     const authorSlackId = findSlackId(ctx.teamsConfig.users, ctx.author);
     if (authorSlackId && ctx.kind === "changes_requested" && !ownComment && !ctx.mentionsOnly) {
-        const icon = ctx.teamsConfig.reactions?.icons?.changes_requested ?? slack_1.DEFAULT_ICONS.changes_requested;
+        const icon = iconOf(ctx.teamsConfig, "changes_requested");
         recipients.push({
             login: ctx.author,
             slackId: authorSlackId,
             headline: `:${icon}: *Changes requested* by ${person}`,
             commentUrl,
-            commentLabel: "Read the review",
-            threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${ctx.commentUrl ? ` <${ctx.commentUrl}|Read the review>.` : ""}`,
+            commentLabel: "View review",
+            threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${ctx.commentUrl ? ` <${ctx.commentUrl}|View review>.` : ""}`,
         });
     }
     if (authorSlackId && !mentionsOnly) {
         const approved = ctx.kind === "review" && ctx.commentUrl === "";
+        const icon = iconOf(ctx.teamsConfig, approved ? "approved" : "comment");
         recipients.push({
             login: ctx.author,
             slackId: authorSlackId,
             headline: approved
-                ? `:white_check_mark: *Approved* by ${person}`
-                : `:speech_balloon: *Comment* from ${person}`,
+                ? `:${icon}: *Approved* by ${person}`
+                : `:${icon}: *Comment* from ${person}`,
             commentUrl,
             threadText: approved
-                ? `:white_check_mark: <@${authorSlackId}>, ${person} approved your pull request.`
-                : `:speech_balloon: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
+                ? `:${icon}: <@${authorSlackId}>, ${person} approved your pull request.`
+                : `:${icon}: <@${authorSlackId}>, ${person} commented on your pull request.${readLink}`,
         });
     }
     if (ctx.kind !== "review" && !mentionsOnly) {
+        const icon = iconOf(ctx.teamsConfig, "assigned");
         for (const assignee of ctx.assignees) {
             if (assignee === ctx.commenter || assignee === ctx.author)
                 continue;
@@ -86015,12 +86021,13 @@ async function handleComment(octokit, ctx) {
             recipients.push({
                 login: assignee,
                 slackId,
-                headline: `:eyes: *Comment* from ${person} on a pull request assigned to you`,
+                headline: `:${icon}: *Comment* from ${person} on a pull request assigned to you`,
                 commentUrl,
-                threadText: `:eyes: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
+                threadText: `:${icon}: <@${slackId}>, ${person} commented on your assigned pull request.${readLink}`,
             });
         }
     }
+    const mentionIcon = iconOf(ctx.teamsConfig, "mention");
     for (const login of (0, mentions_1.extractMentions)(ctx.body)) {
         if (login.toLowerCase() === ctx.commenter.toLowerCase())
             continue;
@@ -86030,9 +86037,9 @@ async function handleComment(octokit, ctx) {
         recipients.push({
             login,
             slackId,
-            headline: `:bell: *Mention* from ${person}`,
+            headline: `:${mentionIcon}: *Mention* from ${person}`,
             commentUrl,
-            threadText: `:bell: <@${slackId}>, ${person} mentioned you.${readLink}`,
+            threadText: `:${mentionIcon}: <@${slackId}>, ${person} mentioned you.${readLink}`,
         });
     }
     await notifyRecipients(octokit, ctx, recipients);
@@ -86051,12 +86058,13 @@ async function handleReviewRequested(octokit, ctx) {
         return;
     }
     const person = formatGitHubUser(ctx.requester, ctx.teamsConfig.users);
+    const icon = iconOf(ctx.teamsConfig, "review_requested");
     await notifyRecipients(octokit, ctx, [
         {
             login: ctx.reviewer,
             slackId,
-            headline: `:eyes: *Review requested* by ${person}`,
-            threadText: `:eyes: <@${slackId}>, ${person} requested your review.`,
+            headline: `:${icon}: *Review requested* by ${person}`,
+            threadText: `:${icon}: <@${slackId}>, ${person} requested your review.`,
         },
     ]);
 }
@@ -86067,6 +86075,7 @@ async function handleDescriptionMentions(octokit, ctx) {
         return;
     }
     const person = formatGitHubUser(ctx.author, ctx.teamsConfig.users);
+    const icon = iconOf(ctx.teamsConfig, "description_mention");
     const recipients = [];
     for (const login of (0, mentions_1.extractMentions)(ctx.prBody)) {
         if (login.toLowerCase() === ctx.author.toLowerCase())
@@ -86077,8 +86086,8 @@ async function handleDescriptionMentions(octokit, ctx) {
         recipients.push({
             login,
             slackId,
-            headline: `:bell: *Mention* from ${person}`,
-            threadText: `:bell: <@${slackId}>, ${person} mentioned you.`,
+            headline: `:${icon}: *Mention* from ${person}`,
+            threadText: `:${icon}: <@${slackId}>, ${person} mentioned you.`,
         });
     }
     await notifyRecipients(octokit, ctx, recipients);
@@ -86095,12 +86104,13 @@ async function handleAssigned(octokit, ctx) {
     if (!slackId)
         return;
     const person = formatGitHubUser(ctx.assigner, ctx.teamsConfig.users);
+    const icon = iconOf(ctx.teamsConfig, "assigned");
     await notifyRecipients(octokit, ctx, [
         {
             login: ctx.assignee,
             slackId,
-            headline: `:eyes: *Assigned* to you by ${person}`,
-            threadText: `:eyes: <@${slackId}>, ${person} assigned you.`,
+            headline: `:${icon}: *Assigned* to you by ${person}`,
+            threadText: `:${icon}: <@${slackId}>, ${person} assigned you.`,
         },
     ]);
 }
@@ -86158,6 +86168,7 @@ async function handleReviewedPush(octokit, ctx) {
         });
     }
     const person = formatGitHubUser(ctx.pusher, ctx.teamsConfig.users);
+    const icon = iconOf(ctx.teamsConfig, "new_commits");
     const recipients = [];
     // Read once, and only when a review is not on the previous head. A failed read leaves it empty.
     let commits;
@@ -86192,8 +86203,8 @@ async function handleReviewedPush(octokit, ctx) {
         recipients.push({
             login,
             slackId,
-            headline: `:repeat: *New commits* from ${person}, where you requested changes`,
-            threadText: `:repeat: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
+            headline: `:${icon}: *New commits* from ${person}, where you requested changes`,
+            threadText: `:${icon}: <@${slackId}>, ${person} pushed new commits, where you requested changes.`,
         });
     }
     await notifyRecipients(octokit, ctx, recipients);
@@ -86227,12 +86238,13 @@ async function handleDequeued(octokit, ctx) {
     const why = ctx.reason === "MANUAL"
         ? `${formatGitHubUser(ctx.remover, ctx.teamsConfig.users)} removed it`
         : (DEQUEUE_REASONS[ctx.reason] ?? "the reason is unknown");
+    const icon = iconOf(ctx.teamsConfig, "dequeued");
     await notifyRecipients(octokit, ctx, [
         {
             login: ctx.author,
             slackId,
-            headline: `:warning: *Left the merge queue*: ${why}`,
-            threadText: `:warning: <@${slackId}>, your pull request left the merge queue: ${why}.`,
+            headline: `:${icon}: *Left the merge queue*: ${why}`,
+            threadText: `:${icon}: <@${slackId}>, your pull request left the merge queue: ${why}.`,
         },
     ]);
 }
@@ -86255,6 +86267,7 @@ async function notifyRecipients(octokit, ctx, recipients) {
                 prNumber: ctx.prNumber,
                 orgName: ctx.owner,
                 repoName: ctx.repo,
+                icons: ctx.teamsConfig.reactions?.icons,
             }));
         if (dmSent) {
             core.info(`Sent Slack DM to ${recipient.login} for PR #${ctx.prNumber}`);
@@ -86520,11 +86533,20 @@ exports.DEFAULT_ICONS = {
     commits: "arrow_heading_up",
     files: "page_facing_up",
     labels: "label",
+    cta: "point_right",
+    comment: "speech_balloon",
+    mention: "bell",
+    description_mention: "bell",
+    review_requested: "eyes",
+    assigned: "eyes",
+    approved: "white_check_mark",
+    new_commits: "repeat",
+    dequeued: "warning",
     changes_requested: "no_entry",
 };
 /** A link styled as the call to action. Slack buttons need an interactivity callback, links don't. */
-function callToAction(url, label) {
-    return { type: "section", text: { type: "mrkdwn", text: `:point_right: *<${url}|${label}>*` } };
+function callToAction(url, label, icon) {
+    return { type: "section", text: { type: "mrkdwn", text: `:${icon}:  *<${url}|${label}>*` } };
 }
 /** The divider that closes a message, so consecutive messages read as separate. */
 const END_OF_MESSAGE = { type: "divider" };
@@ -86589,7 +86611,7 @@ function buildSlackBlocks(params) {
                 },
             ],
         },
-        callToAction(params.prUrl, "View PR"),
+        callToAction(params.prUrl, "View PR", icons.cta),
         END_OF_MESSAGE,
     ];
     if (params.individualOwners?.length) {
@@ -86643,7 +86665,7 @@ function buildSlackReminderBlocks(params) {
                 },
             ],
         },
-        callToAction(params.prUrl, "View PR"),
+        callToAction(params.prUrl, "View PR", params.icons?.cta ?? exports.DEFAULT_ICONS.cta),
         END_OF_MESSAGE,
     ];
     const fallback = `:info: Reminder · ${repoFullName}#${params.prNumber} still needs review (open for ${params.ageDisplay})`;
@@ -86711,9 +86733,10 @@ async function postSlackThreadReply(client, channel, threadTs, text) {
 function buildSlackDmBlocks(dm) {
     const repoFullName = `${dm.orgName}/${dm.repoName}`;
     const title = dm.prTitle ? ` ${escapeMrkdwn(dm.prTitle)}` : "";
+    const ctaIcon = dm.icons?.cta ?? exports.DEFAULT_ICONS.cta;
     const cta = dm.commentUrl
-        ? callToAction(dm.commentUrl, dm.commentLabel ?? "Read the comment")
-        : callToAction(dm.prUrl, "View PR");
+        ? callToAction(dm.commentUrl, dm.commentLabel ?? "View comment", ctaIcon)
+        : callToAction(dm.prUrl, "View PR", ctaIcon);
     const blocks = [
         { type: "section", text: { type: "mrkdwn", text: dm.headline } },
         {

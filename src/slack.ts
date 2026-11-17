@@ -305,7 +305,7 @@ export interface SlackDm {
   repoName: string;
   /** The comment to link as the call to action, in place of the pull request. */
   commentUrl?: string;
-  /** The text of the comment link. Default: Read the comment. */
+  /** The text of the comment link. Default: View comment. */
   commentLabel?: string;
   icons?: NotificationIcons;
 }
@@ -315,7 +315,7 @@ export function buildSlackDmBlocks(dm: SlackDm): { blocks: SlackBlock[]; fallbac
   const title = dm.prTitle ? ` ${escapeMrkdwn(dm.prTitle)}` : "";
   const ctaIcon = dm.icons?.cta ?? DEFAULT_ICONS.cta;
   const cta = dm.commentUrl
-    ? callToAction(dm.commentUrl, dm.commentLabel ?? "Read the comment", ctaIcon)
+    ? callToAction(dm.commentUrl, dm.commentLabel ?? "View comment", ctaIcon)
     : callToAction(dm.prUrl, "View PR", ctaIcon);
 
   const blocks: SlackBlock[] = [

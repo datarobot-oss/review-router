@@ -999,7 +999,7 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
   }
 
   const person = formatGitHubUser(ctx.commenter, ctx.teamsConfig.users);
-  const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|Read the comment>.` : "";
+  const readLink = ctx.commentUrl ? ` <${ctx.commentUrl}|View comment>.` : "";
   const commentUrl = ctx.commentUrl || undefined;
 
   const recipients: CommentRecipient[] = [];
@@ -1018,9 +1018,9 @@ export async function handleComment(octokit: Octokit, ctx: CommentContext): Prom
       slackId: authorSlackId,
       headline: `:${icon}: *Changes requested* by ${person}`,
       commentUrl,
-      commentLabel: "Read the review",
+      commentLabel: "View review",
       threadText: `:${icon}: <@${authorSlackId}>, ${person} requested changes.${
-        ctx.commentUrl ? ` <${ctx.commentUrl}|Read the review>.` : ""
+        ctx.commentUrl ? ` <${ctx.commentUrl}|View review>.` : ""
       }`,
     });
   }

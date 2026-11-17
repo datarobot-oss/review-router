@@ -1642,7 +1642,7 @@ describe("handleComment", () => {
       "C111",
       "1111.0000",
       ":speech_balloon: <@U12345>, <https://github.com/bob|bob> commented on your pull request. " +
-        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+        "<https://github.com/org/repo/pull/1#issuecomment-1|View comment>."
     );
   });
 
@@ -2053,7 +2053,7 @@ describe("handleComment DMs", () => {
       "C111",
       "1111.0000",
       ":rr-speech_balloon: <@U12345>, <https://github.com/bob|bob> commented on your pull request. " +
-        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+        "<https://github.com/org/repo/pull/1#issuecomment-1|View comment>."
     );
   });
 
@@ -2214,7 +2214,7 @@ describe("handleComment DMs", () => {
       "C111",
       "1111.0000",
       ":eyes: <@U_CHARLIE>, <https://github.com/bob|bob> commented on your assigned pull request. " +
-        "<https://github.com/org/repo/pull/1#issuecomment-1|Read the comment>."
+        "<https://github.com/org/repo/pull/1#issuecomment-1|View comment>."
     );
   });
 
@@ -2234,7 +2234,7 @@ describe("handleComment DMs", () => {
       "C111",
       "1111.0000",
       ":no_entry: <@U12345>, <https://github.com/bob|bob> requested changes. " +
-        "<https://github.com/org/repo/pull/1#pullrequestreview-5|Read the review>."
+        "<https://github.com/org/repo/pull/1#pullrequestreview-5|View review>."
     );
   });
 
@@ -2529,7 +2529,7 @@ describe("handleComment DMs", () => {
         expect.objectContaining({
           headline: ":no_entry: *Changes requested* by <https://github.com/bob|bob>",
           commentUrl,
-          commentLabel: "Read the review",
+          commentLabel: "View review",
         })
       );
     });
@@ -2640,7 +2640,7 @@ describe("handleComment DMs", () => {
         expect.anything(),
         "C111",
         "1111.0000",
-        `:bell: <@U_CHARLIE>, <https://github.com/bob|bob> mentioned you. <${commentUrl}|Read the comment>.`
+        `:bell: <@U_CHARLIE>, <https://github.com/bob|bob> mentioned you. <${commentUrl}|View comment>.`
       );
     });
 

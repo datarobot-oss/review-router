@@ -369,7 +369,7 @@ describe("buildSlackDmBlocks", () => {
   it("uses the configured cta icon for the comment link", () => {
     const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
     const { blocks } = buildSlackDmBlocks({ ...dm, commentUrl, icons: { cta: "rr-point_right" } });
-    expect(blocks[3].text.text).toBe(`:rr-point_right:  *<${commentUrl}|Read the comment>*`);
+    expect(blocks[3].text.text).toBe(`:rr-point_right:  *<${commentUrl}|View comment>*`);
   });
 
   it("keeps the standard cta icon when the config sets the icon of another element", () => {
@@ -382,7 +382,7 @@ describe("buildSlackDmBlocks", () => {
   it("links the comment as the call to action when there is one", () => {
     const commentUrl = "https://github.com/org/repo/pull/1#issuecomment-1";
     const { blocks } = buildSlackDmBlocks({ ...dm, commentUrl });
-    expect(blocks[3].text.text).toBe(`:point_right:  *<${commentUrl}|Read the comment>*`);
+    expect(blocks[3].text.text).toBe(`:point_right:  *<${commentUrl}|View comment>*`);
   });
 
   it("links the pull request when the comment URL is empty", () => {

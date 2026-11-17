@@ -21,7 +21,7 @@ Each row is one trigger. A DM goes to the person's Slack account. If DMs are off
 | The author pushes after a reviewer requested changes                                  | The reviewer whose request for changes is still open             | DM           |
 | The merge queue removes the PR before it merges                                       | The PR author                                                    | DM           |
 
-A review that requests changes sends the author one DM that states the verdict, and the DMs of the inline comments stay separate. The summary reaches the other people only when it mentions them. The verdict DM uses the `no_entry` emoji. To use another emoji, such as a custom `git_requested_changes`, set `reactions.icons.changes_requested` in the team config.
+A review that requests changes sends the author one DM that states the verdict, and the DMs of the inline comments stay separate. The summary reaches the other people only when it mentions them.
 
 Review Router sends nothing for these:
 
@@ -98,6 +98,38 @@ Pushes from bots send nothing, and commits that a bot authored since the review 
 ## Merge queue removals
 
 When the merge queue removes a PR before it merges, the author gets a DM with the reason: the queue checks failed or timed out, a merge conflict, a branch rule that no longer holds, a cleared or rolled back queue, or a removal by hand. A removal that follows the merge sends nothing, and neither does a removal that the author makes.
+
+## Change the icons
+
+Each message starts with an emoji, and the link that closes it has one too. The defaults are standard Slack emoji. To use others, such as the [custom emoji in this repository](../../assets/slack-emojis/README.md), set their names under `reactions.icons` in the team config. A name that the Slack workspace doesn't have shows as plain text, such as `:rr-eyes:`.
+
+| Key                   | Where it shows                                               | Default                     |
+| --------------------- | ------------------------------------------------------------ | --------------------------- |
+| `cta`                 | The link that closes a message, such as View PR              | `point_right`               |
+| `comment`             | The Comment DM                                               | `speech_balloon`            |
+| `mention`             | The Mention DM for a comment, a review, or an inline comment | `bell`                      |
+| `description_mention` | The Mention DM for the description of a PR                   | `bell`                      |
+| `review_requested`    | The Review requested DM                                      | `eyes`                      |
+| `assigned`            | The Assigned DM, and the Comment DM of an assignee           | `eyes`                      |
+| `approved`            | The Approved DM                                              | `white_check_mark`          |
+| `changes_requested`   | The Changes requested DM                                     | `no_entry`                  |
+| `new_commits`         | The New commits DM                                           | `repeat`                    |
+| `dequeued`            | The Left the merge queue DM                                  | `warning`                   |
+| `header`              | The header of the review request and the reminder            | `mag`                       |
+| `branch`              | The branch in the footer of the review request               | `twisted_rightwards_arrows` |
+| `commits`             | The commit count in the footer of the review request         | `arrow_heading_up`          |
+| `files`               | The file count in the footer of the review request           | `page_facing_up`            |
+| `labels`              | The labels in the footer of the review request               | `label`                     |
+
+```yaml
+reactions:
+  enabled: true
+  icons:
+    comment: rr-speech_balloon
+    changes_requested: git_requested_changes
+```
+
+The thread replies use the same icons as the DMs.
 
 ## Workflow event types
 

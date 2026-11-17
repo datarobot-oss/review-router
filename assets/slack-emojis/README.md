@@ -15,6 +15,12 @@ reactions:
     commits: "rr-git_commit"
     files: "rr-file"
     labels: "rr-label"
+    cta: "rr-point_right"
+    comment: "rr-speech_balloon"
+    mention: "rr-at"
+    description_mention: "rr-bell"
+    review_requested: "rr-eyes"
+    assigned: "rr-eyes"
   approved: "github_approve"
   merged: "merged"
   closed: "closed"
@@ -36,3 +42,8 @@ reactions:
 | `rr-file.png` | `:rr-file:` | File count in footer |
 | `rr-label.png` | `:rr-label:` | Labels in footer |
 | `rr-twisted_rightwards_arrows.png` | `:rr-twisted_rightwards_arrows:` | Branch name in footer |
+| `rr-point_right.png` | `:rr-point_right:` | Link that closes a message (`cta`) |
+| `rr-speech_balloon.png` | `:rr-speech_balloon:` | Comment DM (`comment`) |
+| `rr-at.png` | `:rr-at:` | Mention DM for a comment or review (`mention`) |
+| `rr-bell.png` | `:rr-bell:` | Mention DM for a PR description (`description_mention`) |
+| `rr-eyes.png` | `:rr-eyes:` | Review requested and Assigned DMs (`review_requested`, `assigned`) |

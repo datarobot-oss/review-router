@@ -74,6 +74,22 @@ describe("handleDescriptionMentions", () => {
     );
   });
 
+  it("uses the description mention icon, not the mention icon of comments", async () => {
+    await handleDescriptionMentions(octokit, {
+      ...opened,
+      teamsConfig: {
+        ...teamsConfig,
+        reactions: { enabled: true, icons: { mention: "rr-at", description_mention: "rr-bell" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CAROL",
+      expect.objectContaining({ headline: ":rr-bell: *Mention* from <@U_BOB>" })
+    );
+  });
+
   it("sends a person named twice one DM", async () => {
     await handleDescriptionMentions(octokit, { ...opened, prBody: "@carol and again @Carol" });
 
@@ -116,6 +132,35 @@ describe("handleAssigned", () => {
     await handleAssigned(octokit, assigned);
 
     expect(slack.sendSlackDm).toHaveBeenCalledTimes(1);
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CAROL",
+      expect.objectContaining({ headline: ":eyes: *Assigned* to you by <@U_BOB>" })
+    );
+  });
+
+  it("uses the configured icon for the assignment", async () => {
+    await handleAssigned(octokit, {
+      ...assigned,
+      teamsConfig: { ...teamsConfig, reactions: { enabled: true, icons: { assigned: "rr-eyes" } } },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CAROL",
+      expect.objectContaining({ headline: ":rr-eyes: *Assigned* to you by <@U_BOB>" })
+    );
+  });
+
+  it("keeps the standard icon of the assignment when the config sets the icon of another message", async () => {
+    await handleAssigned(octokit, {
+      ...assigned,
+      teamsConfig: {
+        ...teamsConfig,
+        reactions: { enabled: true, icons: { cta: "rr-point_right" } },
+      },
+    });
+
     expect(slack.sendSlackDm).toHaveBeenCalledWith(
       expect.anything(),
       "U_CAROL",
@@ -186,6 +231,25 @@ describe("handleDequeued", () => {
       expect(takeUnmapped()).toEqual([]);
     }
   );
+
+  it("uses the configured icon for the removal", async () => {
+    await handleDequeued(octokit, {
+      ...dequeued,
+      reason: "CI_FAILURE",
+      teamsConfig: {
+        ...teamsConfig,
+        reactions: { enabled: true, icons: { dequeued: "rotating_light" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CAROL",
+      expect.objectContaining({
+        headline: ":rotating_light: *Left the merge queue*: the queue checks failed",
+      })
+    );
+  });
 
   it("says who removed the pull request by hand", async () => {
     await handleDequeued(octokit, { ...dequeued, reason: "MANUAL", remover: "bob" });
@@ -377,6 +441,27 @@ describe("handleReviewedPush", () => {
       "U_CAROL",
       expect.objectContaining({
         headline: ":repeat: *New commits* from <@U_BOB>, where you requested changes",
+      })
+    );
+  });
+
+  it("uses the configured icon for the push", async () => {
+    const client = reviewsOf([review("carol", "CHANGES_REQUESTED", "sha1")]);
+
+    await handleReviewedPush(client, {
+      ...pushed,
+      teamsConfig: {
+        ...teamsConfig,
+        reactions: { enabled: true, icons: { new_commits: "arrows_counterclockwise" } },
+      },
+    });
+
+    expect(slack.sendSlackDm).toHaveBeenCalledWith(
+      expect.anything(),
+      "U_CAROL",
+      expect.objectContaining({
+        headline:
+          ":arrows_counterclockwise: *New commits* from <@U_BOB>, where you requested changes",
       })
     );
   });

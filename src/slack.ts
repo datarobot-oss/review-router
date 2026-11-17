@@ -32,6 +32,15 @@ export const DEFAULT_ICONS: Required<NotificationIcons> = {
   commits: "arrow_heading_up",
   files: "page_facing_up",
   labels: "label",
+  cta: "point_right",
+  comment: "speech_balloon",
+  mention: "bell",
+  description_mention: "bell",
+  review_requested: "eyes",
+  assigned: "eyes",
+  approved: "white_check_mark",
+  new_commits: "repeat",
+  dequeued: "warning",
   changes_requested: "no_entry",
 };
 
@@ -39,8 +48,8 @@ export const DEFAULT_ICONS: Required<NotificationIcons> = {
 export type SlackBlock = Record<string, any>;
 
 /** A link styled as the call to action. Slack buttons need an interactivity callback, links don't. */
-function callToAction(url: string, label: string): SlackBlock {
-  return { type: "section", text: { type: "mrkdwn", text: `:point_right: *<${url}|${label}>*` } };
+function callToAction(url: string, label: string, icon: string): SlackBlock {
+  return { type: "section", text: { type: "mrkdwn", text: `:${icon}:  *<${url}|${label}>*` } };
 }
 
 /** The divider that closes a message, so consecutive messages read as separate. */
@@ -113,7 +122,7 @@ export function buildSlackBlocks(params: SlackMessageParams): {
         },
       ],
     },
-    callToAction(params.prUrl, "View PR"),
+    callToAction(params.prUrl, "View PR", icons.cta),
     END_OF_MESSAGE,
   ];
 
@@ -186,7 +195,7 @@ export function buildSlackReminderBlocks(params: SlackReminderParams): {
         },
       ],
     },
-    callToAction(params.prUrl, "View PR"),
+    callToAction(params.prUrl, "View PR", params.icons?.cta ?? DEFAULT_ICONS.cta),
     END_OF_MESSAGE,
   ];
 
@@ -296,16 +305,18 @@ export interface SlackDm {
   repoName: string;
   /** The comment to link as the call to action, in place of the pull request. */
   commentUrl?: string;
-  /** The text of the comment link. Default: Read the comment. */
+  /** The text of the comment link. Default: View comment. */
   commentLabel?: string;
+  icons?: NotificationIcons;
 }
 
 export function buildSlackDmBlocks(dm: SlackDm): { blocks: SlackBlock[]; fallback: string } {
   const repoFullName = `${dm.orgName}/${dm.repoName}`;
   const title = dm.prTitle ? ` ${escapeMrkdwn(dm.prTitle)}` : "";
+  const ctaIcon = dm.icons?.cta ?? DEFAULT_ICONS.cta;
   const cta = dm.commentUrl
-    ? callToAction(dm.commentUrl, dm.commentLabel ?? "Read the comment")
-    : callToAction(dm.prUrl, "View PR");
+    ? callToAction(dm.commentUrl, dm.commentLabel ?? "View comment", ctaIcon)
+    : callToAction(dm.prUrl, "View PR", ctaIcon);
 
   const blocks: SlackBlock[] = [
     { type: "section", text: { type: "mrkdwn", text: dm.headline } },

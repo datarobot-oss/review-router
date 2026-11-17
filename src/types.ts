@@ -35,6 +35,15 @@ export interface NotificationIcons {
   commits?: string;
   files?: string;
   labels?: string;
+  cta?: string;
+  comment?: string;
+  mention?: string;
+  description_mention?: string;
+  review_requested?: string;
+  assigned?: string;
+  approved?: string;
+  new_commits?: string;
+  dequeued?: string;
   changes_requested?: string;
 }
 

@@ -24712,7 +24712,6 @@ exports.WebClient = exports.WebClientEvent = void 0;
 exports.buildThreadTsWarningMessage = buildThreadTsWarningMessage;
 const node_path_1 = __nccwpck_require__(6760);
 const node_querystring_1 = __nccwpck_require__(1792);
-const node_util_1 = __nccwpck_require__(7975);
 const node_zlib_1 = __importDefault(__nccwpck_require__(8522));
 const p_queue_1 = __importDefault(__nccwpck_require__(6459));
 const p_retry_1 = __importStar(__nccwpck_require__(2103));
@@ -24841,11 +24840,10 @@ class WebClient extends methods_1.Methods {
         if (options.token)
             headers.Authorization = `Bearer ${options.token}`;
         const url = this.deriveRequestUrl(method);
-        const response = await this.makeRequest(url, {
+        const { response, result } = await this.makeRequest(url, {
             team_id: this.teamId,
             ...options,
-        }, headers);
-        const result = await this.buildResult(response);
+        }, headers, async (response) => ({ response, result: await this.buildResult(response) }));
         this.logger.debug(`http request result: ${JSON.stringify(redact(result))}`);
         // log warnings in response metadata
         if (result.response_metadata !== undefined && result.response_metadata.warnings !== undefined) {
@@ -25046,13 +25044,9 @@ class WebClient extends methods_1.Methods {
                 const headers = {};
                 if (options.token)
                     headers.Authorization = `Bearer ${options.token}`;
-                const uploadRes = await this.makeRequest(upload_url, {
+                const responseBody = await this.makeRequest(upload_url, {
                     body,
-                }, headers);
-                if (uploadRes.status !== 200) {
-                    return Promise.reject(Error(`Failed to upload file (id:${file_id}, filename: ${filename})`));
-                }
-                const responseBody = await uploadRes.text();
+                }, headers, (response) => response.text());
                 const returnData = { ok: true, body: responseBody };
                 return Promise.resolve(returnData);
             }
@@ -25078,7 +25072,7 @@ class WebClient extends methods_1.Methods {
     /**
      * Low-level function to make a single API request. handles queuing, retries, and http-level errors
      */
-    async makeRequest(url, body, headers = {}) {
+    async makeRequest(url, body, headers, parseResponse) {
         const task = () => this.requestQueue.add(async () => {
             // apps.event.authorizations.list will reject HTTP requests that send token in the body
             // TODO: consider applying this change to all methods - though that will require thorough integration testing
@@ -25130,7 +25124,7 @@ class WebClient extends methods_1.Methods {
                     const responseBody = await response.text();
                     throw new errors_1.WebAPIHTTPError(response.status, response.statusText, Object.fromEntries(response.headers.entries()), responseBody);
                 }
-                return response;
+                return await parseResponse(response);
             }
             catch (error) {
                 if (error instanceof p_retry_1.AbortError) {
@@ -25232,8 +25226,8 @@ class WebClient extends methods_1.Methods {
         let data;
         // admin.analytics.getFile returns a gzip binary response that can be unzipped
         if (isGzipResponse) {
+            const buffer = Buffer.from(await response.arrayBuffer());
             try {
-                const buffer = Buffer.from(await response.arrayBuffer());
                 const unzippedData = await new Promise((resolve, reject) => {
                     node_zlib_1.default.unzip(buffer, (err, buf) => {
                         if (err) {
@@ -25255,12 +25249,6 @@ class WebClient extends methods_1.Methods {
             catch (err) {
                 data = { ok: false, error: err };
             }
-        }
-        else if (!isGzipResponse && response.url.endsWith('/admin.analytics.getFile')) {
-            // if it isn't a Gzip response but is from the admin.analytics.getFile request,
-            // decode the ArrayBuffer to JSON read the error
-            const buffer = await response.arrayBuffer();
-            data = JSON.parse(new node_util_1.TextDecoder().decode(buffer));
         }
         else {
             const text = await response.text();
@@ -26382,6 +26370,27 @@ class Methods extends eventemitter3_1.EventEmitter {
                  */
                 set: bindApiCall(this, 'admin.apps.config.set'),
             },
+            mcp: {
+                servers: {
+                    /**
+                     * @description List third-party app MCP servers approved for an organization.
+                     * @see {@link https://docs.slack.dev/reference/methods/admin.apps.mcp.servers.list `admin.apps.mcp.servers.list` API reference}.
+                     */
+                    list: bindApiCallWithOptionalArgument(this, 'admin.apps.mcp.servers.list'),
+                    permissions: {
+                        /**
+                         * @description List MCP servers for an app with their access control permissions.
+                         * @see {@link https://docs.slack.dev/reference/methods/admin.apps.mcp.servers.permissions.list `admin.apps.mcp.servers.permissions.list` API reference}.
+                         */
+                        list: bindApiCall(this, 'admin.apps.mcp.servers.permissions.list'),
+                        /**
+                         * @description Set the access control permission for who can use an MCP server.
+                         * @see {@link https://docs.slack.dev/reference/methods/admin.apps.mcp.servers.permissions.set `admin.apps.mcp.servers.permissions.set` API reference}.
+                         */
+                        set: bindApiCall(this, 'admin.apps.mcp.servers.permissions.set'),
+                    },
+                },
+            },
             requests: {
                 /**
                  * @description Cancel app request for team.
@@ -26682,6 +26691,30 @@ class Methods extends eventemitter3_1.EventEmitter {
              * @see {@link https://docs.slack.dev/reference/methods/admin.roles.removeAssignments `admin.roles.removeAssignments` API reference}.
              */
             removeAssignments: bindApiCall(this, 'admin.roles.removeAssignments'),
+        },
+        slackbot: {
+            skills: {
+                /**
+                 * @description Lists metadata for Slackbot skills owned by an organization.
+                 * @see {@link https://docs.slack.dev/reference/methods/admin.slackbot.skills.list `admin.slackbot.skills.list` API reference}.
+                 */
+                list: bindApiCallWithOptionalArgument(this, 'admin.slackbot.skills.list'),
+                /**
+                 * @description Publishes Slackbot skills to an organization's catalog.
+                 * @see {@link https://docs.slack.dev/reference/methods/admin.slackbot.skills.publish `admin.slackbot.skills.publish` API reference}.
+                 */
+                publish: bindApiCall(this, 'admin.slackbot.skills.publish'),
+                /**
+                 * @description Sets who a Slackbot skill is automatically turned on for.
+                 * @see {@link https://docs.slack.dev/reference/methods/admin.slackbot.skills.setAutoEnabled `admin.slackbot.skills.setAutoEnabled` API reference}.
+                 */
+                setAutoEnabled: bindApiCall(this, 'admin.slackbot.skills.setAutoEnabled'),
+                /**
+                 * @description Removes Slackbot skills from the org catalog, preserving access, libraries, and deployments.
+                 * @see {@link https://docs.slack.dev/reference/methods/admin.slackbot.skills.unpublish `admin.slackbot.skills.unpublish` API reference}.
+                 */
+                unpublish: bindApiCall(this, 'admin.slackbot.skills.unpublish'),
+            },
         },
         teams: {
             admins: {
@@ -27671,6 +27704,47 @@ class Methods extends eventemitter3_1.EventEmitter {
          * @see {@link https://docs.slack.dev/reference/methods/search.messages search.messages` API reference}.
          */
         messages: bindApiCall(this, 'search.messages'),
+    };
+    slackbot = {
+        skills: {
+            /**
+             * @description Creates a skill from markdown instructions, or turns an existing canvas the caller owns into a skill.
+             * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.create `slackbot.skills.create` API reference}.
+             */
+            create: bindApiCall(this, 'slackbot.skills.create'),
+            /**
+             * @description Deletes a Slackbot skill and its canvas, and removes it from every library, skill set, and the org catalog.
+             * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.delete `slackbot.skills.delete` API reference}.
+             */
+            delete: bindApiCall(this, 'slackbot.skills.delete'),
+            /**
+             * @description Returns one Slackbot skill, including its instructions.
+             * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.info `slackbot.skills.info` API reference}.
+             */
+            info: bindApiCall(this, 'slackbot.skills.info'),
+            library: {
+                /**
+                 * @description Turns a skill on in the caller's Slackbot library.
+                 * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.library.add `slackbot.skills.library.add` API reference}.
+                 */
+                add: bindApiCall(this, 'slackbot.skills.library.add'),
+                /**
+                 * @description Turns a skill off in the caller's Slackbot library.
+                 * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.library.remove `slackbot.skills.library.remove` API reference}.
+                 */
+                remove: bindApiCall(this, 'slackbot.skills.library.remove'),
+            },
+            /**
+             * @description Lists Slackbot skills from the caller's point of view. Instructions are not included.
+             * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.list `slackbot.skills.list` API reference}.
+             */
+            list: bindApiCallWithOptionalArgument(this, 'slackbot.skills.list'),
+            /**
+             * @description Changes a Slackbot skill's instructions or metadata.
+             * @see {@link https://docs.slack.dev/reference/methods/slackbot.skills.update `slackbot.skills.update` API reference}.
+             */
+            update: bindApiCall(this, 'slackbot.skills.update'),
+        },
     };
     slackLists = {
         access: {
@@ -91045,7 +91119,7 @@ module.exports = {
 /***/ ((module) => {
 
 "use strict";
-module.exports = /*#__PURE__*/JSON.parse('{"name":"@slack/web-api","version":"8.3.0","description":"Official library for using the Slack Platform\'s Web API","author":"Slack Technologies, LLC","license":"MIT","keywords":["slack","web-api","bot","client","http","api","proxy","rate-limiting","pagination"],"main":"dist/index.js","types":"./dist/index.d.ts","files":["dist/**/*"],"engines":{"node":">= 20","npm":">=9.6.4"},"repository":{"type":"git","url":"git+https://github.com/slackapi/node-slack-sdk.git"},"homepage":"https://docs.slack.dev/tools/node-slack-sdk/web-api/","publishConfig":{"access":"public"},"bugs":{"url":"https://github.com/slackapi/node-slack-sdk/issues"},"scripts":{"build":"npm run build:clean && tsc","build:clean":"shx rm -rf ./dist","docs":"npx typedoc --plugin typedoc-plugin-markdown","prepack":"npm run build","test":"npm run build && bash -c \'node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts\'","test:coverage":"npm run build && node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts","test:integration":"npm run build && node test/integration/commonjs-project/index.js && node test/integration/esm-project/index.mjs && npm run test:integration:ts","test:integration:ts":"cd test/integration/ts-4.7-project && npm i && npm run build","test:types":"tsd","watch":"npx nodemon --watch \'src\' --ext \'ts\' --exec npm run build"},"dependencies":{"@slack/logger":"^5.0.0","@slack/types":"^3.3.0","@types/node":">=20","@types/retry":"0.12.5","eventemitter3":"^5.0.1","p-queue":"^6.6.2","p-retry":"^4.6.2","retry":"^0.13.1"},"devDependencies":{"@types/busboy":"^1.5.5","@types/sinon":"^22.0.0","busboy":"^1","nock":"^14.0.17","sinon":"^22.1.0","tsd":"^0.33.0"},"tsd":{"directory":"test/types"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"@slack/web-api","version":"8.4.0","description":"Official library for using the Slack Platform\'s Web API","author":"Slack Technologies, LLC","license":"MIT","keywords":["slack","web-api","bot","client","http","api","proxy","rate-limiting","pagination"],"main":"dist/index.js","types":"./dist/index.d.ts","files":["dist/**/*"],"engines":{"node":">= 20","npm":">=9.6.4"},"repository":{"type":"git","url":"git+https://github.com/slackapi/node-slack-sdk.git"},"homepage":"https://docs.slack.dev/tools/node-slack-sdk/web-api/","publishConfig":{"access":"public"},"bugs":{"url":"https://github.com/slackapi/node-slack-sdk/issues"},"scripts":{"build":"npm run build:clean && tsc","build:clean":"shx rm -rf ./dist","docs":"npx typedoc --plugin typedoc-plugin-markdown","prepack":"npm run build","test":"npm run build && bash -c \'node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts\'","test:coverage":"npm run build && node --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --test-reporter=junit --test-reporter-destination=test-results.xml --import tsx --test src/*.test.ts","test:integration":"npm run build && node test/integration/commonjs-project/index.js && node test/integration/esm-project/index.mjs && npm run test:integration:ts","test:integration:ts":"cd test/integration/ts-4.7-project && npm i && npm run build","test:types":"tsd","watch":"npx nodemon --watch \'src\' --ext \'ts\' --exec npm run build"},"dependencies":{"@slack/logger":"^5.0.0","@slack/types":"^3.3.0","@types/node":">=20","@types/retry":"0.12.5","eventemitter3":"^5.0.1","p-queue":"^6.6.2","p-retry":"^4.6.2","retry":"^0.13.1"},"devDependencies":{"@types/busboy":"^1.5.5","@types/sinon":"^22.0.2","busboy":"^1","nock":"^14.0.17","sinon":"^22.1.0","tsd":"^0.33.0"},"tsd":{"directory":"test/types"}}');
 
 /***/ }),
 

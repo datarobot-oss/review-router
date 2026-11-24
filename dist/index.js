@@ -9594,7 +9594,7 @@ var WriteGetObjectResponse$ = [9, n0, _WGOR,
 class CreateSessionCommand extends command(_ep4, _mw0, "CreateSession", CreateSession$) {
 }
 
-var version = "3.1164.0";
+var version = "3.1169.0";
 var packageInfo = {
 	version: version};
 
@@ -11497,10 +11497,10 @@ exports.waitUntilObjectNotExists = waitUntilObjectNotExists;
 /***/ 5152:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
-const { Retry, RETRY_MODES } = __nccwpck_require__(3609);
 const { HttpRequest, parseUrl } = __nccwpck_require__(3422);
 const { InvokeStore } = __nccwpck_require__(9320);
 const { normalizeProvider } = __nccwpck_require__(402);
+const { RETRY_MODES } = __nccwpck_require__(3609);
 const { platform, release } = __nccwpck_require__(8161);
 const { versions, env } = __nccwpck_require__(1708);
 const { isValidHostLabel, isIpAddress, customEndpointFunctions } = __nccwpck_require__(2085);
@@ -11565,7 +11565,6 @@ function setCredentialFeature(credentials, feature, value) {
     return credentials;
 }
 
-Retry.v2026 ||= typeof process === "object" && process.env?.AWS_NEW_RETRIES_2026 === "true";
 function setFeature(context, feature, value) {
     if (!context.__aws_sdk_context) {
         context.__aws_sdk_context = {
@@ -15001,7 +15000,10 @@ class LoginCredentialsFetcher {
         const requestHandler = isH2(this.callerClientConfig?.requestHandler)
             ? undefined
             : this.callerClientConfig?.requestHandler;
-        const region = this.profileData.region ?? (await this.callerClientConfig?.region?.()) ?? process.env.AWS_REGION;
+        const signInRegion = typeof freshToken.signInRegion === "string" && freshToken.signInRegion.length > 0
+            ? freshToken.signInRegion
+            : undefined;
+        const region = signInRegion ?? this.profileData.region ?? (await this.callerClientConfig?.region?.()) ?? process.env.AWS_REGION;
         const client = new SigninClient({
             credentials: {
                 accessKeyId: "",
@@ -15012,6 +15014,7 @@ class LoginCredentialsFetcher {
             logger,
             userAgentAppId,
             ...this.init?.clientConfig,
+            ...(signInRegion && { region: signInRegion }),
         });
         this.createDPoPInterceptor(client.middlewareStack);
         const commandInput = {
@@ -16909,7 +16912,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.998.1";
+var version = "3.998.2";
 var packageInfo = {
 	version: version};
 
@@ -17519,7 +17522,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.998.1";
+var version = "3.998.2";
 var packageInfo = {
 	version: version};
 
@@ -18213,7 +18216,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.998.1";
+var version = "3.998.2";
 var packageInfo = {
 	version: version};
 
@@ -18874,7 +18877,7 @@ const commonParams = {
     UseDualStack: { type: "builtInParams", name: "useDualstackEndpoint" },
 };
 
-var version = "3.998.1";
+var version = "3.998.2";
 var packageInfo = {
 	version: version};
 
@@ -35412,7 +35415,7 @@ exports.universalEventStreamSerdeProvider = eventStreamSerdeProvider$1;
 /***/ 3422:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
-const { Uint8ArrayBlobAdapter, sdkStreamMixin, splitEvery, splitHeader, fromBase64, _parseEpochTimestamp, _parseRfc7231DateTime, _parseRfc3339DateTimeWithOffset, LazyJsonString, NumericValue, toUtf8, fromUtf8, generateIdempotencyToken, toBase64, dateToUtcString, quoteHeader, writeKey, parseEpochTimestamp, parseRfc7231DateTime, parseRfc3339DateTimeWithOffset } = __nccwpck_require__(2430);
+const { Uint8ArrayBlobAdapter, writeKey, sdkStreamMixin, splitEvery, splitHeader, NumericValue, toUtf8, fromBase64, LazyJsonString, _parseEpochTimestamp, _parseRfc7231DateTime, _parseRfc3339DateTimeWithOffset, fromUtf8, generateIdempotencyToken, toBase64, dateToUtcString, quoteHeader, parseEpochTimestamp, parseRfc7231DateTime, parseRfc3339DateTimeWithOffset } = __nccwpck_require__(2430);
 const { HttpRequest, HttpResponse, hasOwn, isValidHostname, getSmithyContext } = __nccwpck_require__(4534);
 const { parseQueryString, parseUrl } = __nccwpck_require__(4534);
 exports.HttpRequest = HttpRequest;
@@ -35420,7 +35423,7 @@ exports.HttpResponse = HttpResponse;
 exports.isValidHostname = isValidHostname;
 exports.parseQueryString = parseQueryString;
 exports.parseUrl = parseUrl;
-const { TypeRegistry, NormalizedSchema, translateTraits, deref } = __nccwpck_require__(6890);
+const { NormalizedSchema, translateTraits, TypeRegistry, deref } = __nccwpck_require__(6890);
 const { FieldPosition } = __nccwpck_require__(690);
 
 const collectBody = async (streamBody = new Uint8Array(), context) => {
@@ -35435,10 +35438,227 @@ const collectBody = async (streamBody = new Uint8Array(), context) => {
 };
 
 function extendedEncodeURIComponent(str) {
+    if (/^[\w.~-]+$/.test(str)) {
+        return str;
+    }
     return encodeURIComponent(str).replace(/[!'()*]/g, function (c) {
         return "%" + c.charCodeAt(0).toString(16).toUpperCase();
     });
 }
+
+const HTTP_BINDINGS = Symbol.for("@smithy/schema-x");
+class HttpBindingNormalizedSchema extends NormalizedSchema {
+    static identity = Symbol.for("@smithy/HttpBindingNormalizedSchema");
+    identity = HttpBindingNormalizedSchema.identity;
+    bindings;
+    constructor(schema) {
+        super(schema);
+    }
+    static of(schema) {
+        const ns = NormalizedSchema.of(schema);
+        if (ns.identity === HttpBindingNormalizedSchema.identity) {
+            return ns;
+        }
+        const schemaCache = ns.isMemberSchema() ? ns : ns.getSchema();
+        const cache = typeof schemaCache === "object" && schemaCache !== null ? schemaCache : ns;
+        return (cache[HTTP_BINDINGS] ??= new HttpBindingNormalizedSchema(ns));
+    }
+    getHttpBindingLocation(traits) {
+        if (traits.httpPayload) {
+            return 0b100_100;
+        }
+        if (traits.httpLabel) {
+            return 0b100_001;
+        }
+        if (traits.httpHeader) {
+            return 0b100_110;
+        }
+        if (typeof traits.httpPrefixHeaders === "string") {
+            return 0b100_111;
+        }
+        if (traits.httpQuery) {
+            return 0b100_010;
+        }
+        if (traits.httpQueryParams) {
+            return 0b100_011;
+        }
+        if (traits.httpResponseCode) {
+            return 0b100_101;
+        }
+        return 0b100_000;
+    }
+    getHttpBindingValue(location, traits, nested = false) {
+        const raw = this.getSchema();
+        const type = typeof raw === "number" ? raw & 0xff : this.isListSchema() ? 0b0100_0000 : 0xff;
+        const slot = location & 0b111;
+        const media = (traits.mediaType ? (traits.mediaType === "application/json" || traits.mediaType.endsWith("+json") ? 2 : 1) : 0);
+        const stream = (traits.streaming || type === 42 ? (this.isStructSchema() ? 2 : 1) : 0);
+        const timestamp = (type >= 4 && type <= 7
+            ? slot >= 6
+                ? 2
+                : slot > 0 && slot < 4
+                    ? 1
+                    : 0
+            : 0);
+        let flags = type |
+            (media << 8) |
+            ((traits.idempotencyToken ? 1 : 0) << 10) |
+            (stream << 11) |
+            ((traits.sparse ? 1 : 0) << 13) |
+            (timestamp << 14) |
+            ((traits.hostLabel ? 1 : 0) << 17) |
+            ((location === 0b100_100 && typeof raw !== "object" ? 1 : 0) << 18);
+        const category = type & 0b1100_0000;
+        const collectionValue = slot & 0b010 && (category === 0b0100_0000 || (!nested && slot & 1))
+            ? this.getHttpBindingCollectionValue(location, traits)
+            : undefined;
+        const valueType = (collectionValue?.[1] ?? 0) & 0xff;
+        flags |=
+            (slot >= 6 &&
+                (valueType === 4 || valueType === 6)
+                ? 1
+                : 0) << 16;
+        return [this, flags, collectionValue];
+    }
+    getHttpBindingCollectionValue(location, traits = this.getMergedTraits()) {
+        const valueSchema = HttpBindingNormalizedSchema.of(this.getValueSchema());
+        return valueSchema.getHttpBindingValue(location, { ...valueSchema.getMergedTraits(), ...traits }, true);
+    }
+    getHttpBindings() {
+        const source = this.getSchema();
+        return typeof source !== "object" || source === null ? EMPTY_BINDINGS : (this.bindings ??= buildHttpBindings(this));
+    }
+}
+const buildHttpBindings = (schema) => {
+    const bodyMemberNames = [];
+    const bodyMemberSchemas = [];
+    const requestBodyMemberNames = [];
+    const requestBodyMemberSchemas = [];
+    const memberBindings = [];
+    const byName = {};
+    const headers = {};
+    const prefixHeaders = [];
+    const responseBindings = { headers, prefixHeaders };
+    const bindings = {
+        request: { memberBindings, byName },
+        response: {
+            bodyMemberNames,
+            bindings: responseBindings,
+        },
+    };
+    const { request, response } = bindings;
+    for (const [name, member] of schema.structIterator()) {
+        const bindingSchema = HttpBindingNormalizedSchema.of(member);
+        const traits = bindingSchema.getMergedTraits();
+        const location = bindingSchema.getHttpBindingLocation(traits);
+        const wireName = traits.httpHeader?.toLowerCase() ?? traits.httpPrefixHeaders?.toLowerCase() ?? traits.httpQuery;
+        const value = bindingSchema.getHttpBindingValue(location, traits);
+        const binding = [name, value, location, wireName];
+        if (name === "__proto__") {
+            writeKey(byName);
+        }
+        byName[name] = binding;
+        if ((value[1] >> 10) & 1) {
+            request.hasIdempotency = true;
+        }
+        memberBindings.push(binding);
+        const slot = location & 0b111;
+        if (slot === 0) {
+            requestBodyMemberNames.push(name);
+            requestBodyMemberSchemas.push(member);
+        }
+        if ((slot & 0b100) === 0) {
+            bodyMemberNames.push(name);
+            bodyMemberSchemas.push(member);
+        }
+        else if ((slot & 0b110) === 0b100) {
+            if (slot & 0b001) {
+                responseBindings.statusCode = binding;
+            }
+            else {
+                responseBindings.payload = binding;
+                const type = value[1] & 0xff;
+                request.contentTypeInstruction =
+                    traits.mediaType ??
+                        (type === 0
+                            ? "text/plain"
+                            : type === 21 || type === 42
+                                ? "application/octet-stream"
+                                : null);
+            }
+        }
+        else if (slot & 0b001) {
+            request.hasPrefixHeaders = true;
+            prefixHeaders.push(binding);
+        }
+        else {
+            if (wireName === "__proto__") {
+                writeKey(headers);
+            }
+            headers[wireName] = binding;
+        }
+    }
+    if (request.contentTypeInstruction === undefined && requestBodyMemberNames.length) {
+        request.contentTypeInstruction = null;
+    }
+    request.syntheticBodySchema = createBodySchema(schema, requestBodyMemberNames, requestBodyMemberSchemas);
+    response.syntheticBodySchema = createBodySchema(schema, bodyMemberNames, bodyMemberSchemas);
+    return bindings;
+};
+const buildPathSegments = (path) => {
+    const segments = [];
+    let offset = 0;
+    for (const match of path.matchAll(/\{([^{}+]+)(\+)?\}/g)) {
+        if (match.index > offset) {
+            segments.push([path.slice(offset, match.index), 0]);
+        }
+        segments.push([match[1], match[2] ? 2 : 1]);
+        offset = match.index + match[0].length;
+    }
+    if (segments.length && offset < path.length) {
+        segments.push([path.slice(offset), 0]);
+    }
+    return segments.length ? segments : undefined;
+};
+const buildHttpOperationBindings = (schema) => {
+    const { http, endpoint } = translateTraits(schema.traits ?? {});
+    const [path, search] = http?.[1].split("?") ?? [];
+    return [
+        http?.[0],
+        path,
+        search ? [...new URLSearchParams(search)] : [],
+        path ? buildPathSegments(path) : undefined,
+        endpoint?.[0],
+    ];
+};
+const EMPTY_BINDINGS = {
+    request: { memberBindings: [], byName: {} },
+    response: {
+        bodyMemberNames: [],
+        bindings: { headers: {}, prefixHeaders: [] },
+    },
+};
+const getHttpOperationBindings = (schema) => (schema[HTTP_BINDINGS] ??= buildHttpOperationBindings(schema));
+const createBodySchema = (schema, memberNames, memberSchemas) => {
+    if (!memberNames.length) {
+        return undefined;
+    }
+    const source = schema.getSchema();
+    const body = [
+        3,
+        source[1],
+        source[2],
+        schema.getMergedTraits(),
+        memberNames,
+        memberSchemas,
+    ];
+    const required = source[6];
+    const bodyRequired = required && memberNames.reduce((count, name) => count + (source[4].indexOf(name) < required ? 1 : 0), 0);
+    if (bodyRequired) {
+        body[6] = bodyRequired;
+    }
+    return body;
+};
 
 class SerdeContext {
     serdeContext;
@@ -35516,30 +35736,29 @@ class HttpProtocol extends SerdeContext {
             return request;
         }
     }
-    setHostPrefix(request, operationSchema, input) {
+    setHostPrefix(request, operationSchema, input, operation = getHttpOperationBindings(operationSchema)) {
         if (this.serdeContext?.disableHostPrefix) {
             return;
         }
-        const inputNs = NormalizedSchema.of(operationSchema.input);
-        const opTraits = translateTraits(operationSchema.traits ?? {});
-        if (opTraits.endpoint) {
-            let hostPrefix = opTraits.endpoint?.[0];
-            if (typeof hostPrefix === "string") {
-                for (const [name, member] of inputNs.structIterator()) {
-                    if (!member.getMergedTraits().hostLabel) {
-                        continue;
-                    }
-                    const replacement = input[name];
-                    if (typeof replacement !== "string") {
-                        throw new Error(`@smithy/core/schema - ${name} in input must be a string as hostLabel.`);
-                    }
-                    hostPrefix = hostPrefix.replace(`{${name}}`, replacement);
-                }
-                request.hostname = hostPrefix + request.hostname;
-                if (!isValidHostname(request.hostname)) {
-                    throw new Error(`[${request.hostname}] is not a valid hostname.`);
-                }
+        const hostPrefix = operation[4];
+        if (typeof hostPrefix !== "string") {
+            return;
+        }
+        let resolvedHostPrefix = hostPrefix;
+        for (const [name, [, flags]] of HttpBindingNormalizedSchema.of(operationSchema.input).getHttpBindings().request
+            .memberBindings) {
+            if (!((flags >> 17) & 1)) {
+                continue;
             }
+            const replacement = input[name];
+            if (typeof replacement !== "string") {
+                throw new Error(`@smithy/core/schema - ${name} in input must be a string as hostLabel.`);
+            }
+            resolvedHostPrefix = resolvedHostPrefix.replace(`{${name}}`, replacement);
+        }
+        request.hostname = resolvedHostPrefix + request.hostname;
+        if (!isValidHostname(request.hostname)) {
+            throw new Error(`[${request.hostname}] is not a valid hostname.`);
         }
     }
     deserializeMetadata(output) {
@@ -35644,177 +35863,214 @@ class HttpProtocol extends SerdeContext {
 class HttpBindingProtocol extends HttpProtocol {
     async serializeRequest(operationSchema, _input, context) {
         const input = _input && typeof _input === "object" ? _input : {};
-        const serializer = this.serializer;
         const query = {};
         const headers = {};
         const endpoint = await context.endpoint();
-        const ns = NormalizedSchema.of(operationSchema?.input);
-        const payloadMemberNames = [];
-        const payloadMemberSchemas = [];
-        let hasNonHttpBindingMember = false;
-        let payload;
-        const request = new HttpRequest({
-            protocol: "",
-            hostname: "",
-            port: undefined,
-            path: "",
-            fragment: undefined,
-            query: query,
-            headers: headers,
-            body: undefined,
-        });
+        const ns = HttpBindingNormalizedSchema.of(operationSchema?.input);
+        const bindings = ns.getHttpBindings().request;
+        const operation = getHttpOperationBindings(operationSchema);
+        const request = new HttpRequest({ query, headers });
         if (endpoint) {
             this.updateServiceEndpoint(request, endpoint);
-            this.setHostPrefix(request, operationSchema, input);
-            const opTraits = translateTraits(operationSchema.traits);
-            if (opTraits.http) {
-                request.method = opTraits.http[0];
-                const [path, search] = opTraits.http[1].split("?");
-                if (request.path == "/") {
-                    request.path = path;
-                }
-                else {
-                    request.path += path;
-                }
-                const traitSearchParams = new URLSearchParams(search ?? "");
-                for (const [key, value] of traitSearchParams) {
+            this.setHostPrefix(request, operationSchema, input, operation);
+            const [method, path, staticQuery] = operation;
+            if (method) {
+                request.method = method;
+                request.path = request.path === "/" ? path : request.path + path;
+                for (const [key, value] of staticQuery) {
                     query[key] = value;
                 }
             }
         }
-        for (const [memberName, memberNs] of ns.structIterator()) {
-            const memberTraits = memberNs.getMergedTraits() ?? {};
-            const inputMemberValue = input[memberName];
-            if (inputMemberValue == null && !memberNs.isIdempotencyToken()) {
-                if (memberTraits.httpLabel) {
-                    if (request.path.includes(`{${memberName}+}`) || request.path.includes(`{${memberName}}`)) {
-                        throw new Error(`No value provided for input HTTP label: ${memberName}.`);
-                    }
-                }
+        request.query = query;
+        const eventStream = this.serializeHttpBindings(input, request, bindings, operation);
+        if (eventStream) {
+            request.body = await this.serializeEventStream({ eventStream, requestSchema: ns });
+        }
+        return request;
+    }
+    serializeHttpBindings(input, request, bindings, operation) {
+        const serializer = this.serializer;
+        const directSerializer = typeof serializer.writeCodec === "function"
+            ? serializer
+            : undefined;
+        const query = request.query;
+        const headers = request.headers;
+        const bodySchema = bindings.syntheticBodySchema;
+        let hasBodyValue = false;
+        let payload;
+        let eventStream;
+        let labels;
+        const names = Object.getOwnPropertyNames(input);
+        const prototype = Object.getPrototypeOf(input);
+        const sparse = (prototype === Object.prototype || prototype === null) &&
+            !bindings.hasIdempotency &&
+            !bindings.hasPrefixHeaders &&
+            names.length * 2 < bindings.memberBindings.length;
+        const length = sparse ? names.length : bindings.memberBindings.length;
+        for (let i = 0; i < length; ++i) {
+            const binding = sparse
+                ? hasOwn(bindings.byName, names[i])
+                    ? bindings.byName[names[i]]
+                    : undefined
+                : bindings.memberBindings[i];
+            if (!binding) {
                 continue;
             }
-            if (memberTraits.httpPayload) {
-                const isStreaming = memberNs.isStreaming();
-                if (isStreaming) {
-                    const isEventStream = memberNs.isStructSchema();
-                    if (isEventStream) {
-                        if (input[memberName]) {
-                            payload = await this.serializeEventStream({
-                                eventStream: input[memberName],
-                                requestSchema: ns,
-                            });
-                        }
+            const value = binding[1];
+            const memberName = binding[0];
+            const memberNs = value[0];
+            const flags = value[1];
+            const collectionValue = value[2];
+            const location = binding[2];
+            const wireName = binding[3];
+            const inputMemberValue = input[memberName];
+            if (inputMemberValue == null && !((flags >> 10) & 1)) {
+                continue;
+            }
+            if (location === 0b100_100) {
+                const stream = (flags >> 11) & 0b11;
+                if (stream) {
+                    if (stream === 2) {
+                        eventStream = inputMemberValue || undefined;
                     }
                     else {
                         payload = inputMemberValue;
                     }
                 }
                 else {
-                    serializer.write(memberNs, inputMemberValue);
+                    if (directSerializer) {
+                        directSerializer.writeCodec(memberNs, inputMemberValue);
+                    }
+                    else {
+                        serializer.write(memberNs, inputMemberValue);
+                    }
                     payload = serializer.flush();
                 }
             }
-            else if (memberTraits.httpLabel) {
-                serializer.write(memberNs, inputMemberValue);
-                const replacement = serializer.flush();
-                if (request.path.includes(`{${memberName}+}`)) {
-                    request.path = request.path.replace(`{${memberName}+}`, replacement.split("/").map(extendedEncodeURIComponent).join("/"));
+            else if (location === 0b100_001 || location === 0b100_110) {
+                const serialized = this.serializeHttpValue(value, inputMemberValue, location, directSerializer);
+                if (location === 0b100_001) {
+                    (labels ??= Object.create(null))[memberName] = serialized;
                 }
-                else if (request.path.includes(`{${memberName}}`)) {
-                    request.path = request.path.replace(`{${memberName}}`, extendedEncodeURIComponent(replacement));
+                else {
+                    headers[wireName] = serialized;
                 }
             }
-            else if (memberTraits.httpHeader) {
-                serializer.write(memberNs, inputMemberValue);
-                headers[memberTraits.httpHeader.toLowerCase()] = String(serializer.flush());
-            }
-            else if (typeof memberTraits.httpPrefixHeaders === "string") {
+            else if (location === 0b100_111) {
                 for (const key in inputMemberValue) {
                     if (!hasOwn(inputMemberValue, key)) {
                         continue;
                     }
-                    const val = inputMemberValue[key];
-                    const amalgam = memberTraits.httpPrefixHeaders + key;
-                    serializer.write([memberNs.getValueSchema(), { httpHeader: amalgam }], val);
-                    headers[amalgam.toLowerCase()] = serializer.flush();
+                    const amalgam = wireName + key;
+                    headers[amalgam.toLowerCase()] = this.serializeHttpValue(collectionValue, inputMemberValue[key], 0b100_110, directSerializer, directSerializer ? collectionValue[0] : [collectionValue[0], { httpHeader: amalgam }]);
                 }
             }
-            else if (memberTraits.httpQuery || memberTraits.httpQueryParams) {
-                this.serializeQuery(memberNs, inputMemberValue, query);
+            else if ((location & 0b111_110) === 0b100_010) {
+                this.serializeQuery(value, inputMemberValue, wireName, query, directSerializer);
             }
             else {
-                hasNonHttpBindingMember = true;
-                payloadMemberNames.push(memberName);
-                payloadMemberSchemas.push(memberNs);
+                hasBodyValue = true;
             }
         }
-        if (hasNonHttpBindingMember && input) {
-            const [namespace, name] = (ns.getName(true) ?? "#Unknown").split("#");
-            const requiredMembers = ns.getSchema()[6];
-            const payloadSchema = [
-                3,
-                namespace,
-                name,
-                ns.getMergedTraits(),
-                payloadMemberNames,
-                payloadMemberSchemas,
-                undefined,
-            ];
-            if (requiredMembers) {
-                payloadSchema[6] = requiredMembers;
+        const operationPath = operation[1];
+        const pathSegments = operation[3];
+        if (operationPath && pathSegments && request.path.endsWith(operationPath)) {
+            request.path = request.path.slice(0, -operationPath.length) + this.serializePath(pathSegments, labels, bindings);
+        }
+        if (hasBodyValue && bodySchema) {
+            if (directSerializer) {
+                directSerializer.writeCodec(bodySchema, input);
             }
             else {
-                payloadSchema.pop();
+                serializer.write(bodySchema, input);
             }
-            serializer.write(payloadSchema, input);
             payload = serializer.flush();
         }
-        request.headers = headers;
-        request.query = query;
         request.body = payload;
-        return request;
+        return eventStream;
     }
-    serializeQuery(ns, data, query) {
-        const serializer = this.serializer;
-        const traits = ns.getMergedTraits();
-        if (traits.httpQueryParams) {
+    serializeQuery(value, data, wireName, query, directSerializer) {
+        const [ns, flags, collectionValue] = value;
+        const traits = directSerializer ? undefined : ns.getMergedTraits();
+        if (wireName === undefined) {
             for (const key in data) {
-                if (!hasOwn(data, key)) {
+                if (!hasOwn(data, key) || key in query) {
                     continue;
                 }
-                if (!(key in query)) {
-                    const val = data[key];
-                    const valueSchema = ns.getValueSchema();
-                    Object.assign(valueSchema.getMergedTraits(), {
+                if (!directSerializer) {
+                    Object.assign(collectionValue[0].getMergedTraits(), {
                         ...traits,
                         httpQuery: key,
                         httpQueryParams: undefined,
                     });
-                    this.serializeQuery(valueSchema, val, query);
                 }
+                this.serializeQuery(collectionValue, data[key], key, query, directSerializer);
             }
             return;
         }
-        if (ns.isListSchema()) {
-            const sparse = !!ns.getMergedTraits().sparse;
+        if ((flags & 0b1100_0000) === 0b0100_0000) {
             const buffer = [];
             for (const item of data) {
-                serializer.write([ns.getValueSchema(), traits], item);
-                const serializable = serializer.flush();
-                if (sparse || serializable !== undefined) {
-                    buffer.push(serializable);
+                const serialized = this.serializeHttpValue(collectionValue, item, 0b100_010, directSerializer, directSerializer ? collectionValue[0] : [collectionValue[0], traits]);
+                if ((flags >> 13) & 1 || serialized !== undefined) {
+                    buffer.push(serialized);
                 }
             }
-            query[traits.httpQuery] = buffer;
+            query[wireName] = buffer;
         }
         else {
-            serializer.write([ns, traits], data);
-            query[traits.httpQuery] = serializer.flush();
+            query[wireName] = this.serializeHttpValue(value, data, 0b100_010, directSerializer, directSerializer ? ns : [ns, traits]);
         }
+    }
+    serializeHttpValue(value, data, location, directSerializer, schema = value[0]) {
+        const flags = value[1];
+        const type = flags & 0xff;
+        if (directSerializer &&
+            !(flags & 0x700) &&
+            (type <= 2 ||
+                type === 17 ||
+                type === 19)) {
+            return String(data);
+        }
+        if (directSerializer) {
+            directSerializer.writeHttpBinding(value, data, location);
+        }
+        else {
+            this.serializer.write(schema, data);
+        }
+        return this.serializer.flush();
+    }
+    serializePath(segments, labels, bindings) {
+        let path = "";
+        for (const [value, kind] of segments) {
+            if (kind === 0) {
+                path += value;
+                continue;
+            }
+            const replacement = labels?.[value];
+            if (replacement === undefined) {
+                if (hasOwn(bindings.byName, value) && bindings.byName[value][2] === 0b100_001) {
+                    throw new Error(`No value provided for input HTTP label: ${value}.`);
+                }
+                path += `{${value}${kind === 2 ? "+" : ""}}`;
+            }
+            else {
+                path +=
+                    kind === 2
+                        ? replacement.split("/").map(extendedEncodeURIComponent).join("/")
+                        : extendedEncodeURIComponent(replacement);
+            }
+        }
+        return path;
     }
     async deserializeResponse(operationSchema, context, response) {
         const deserializer = this.deserializer;
-        const ns = NormalizedSchema.of(operationSchema.output);
+        const directDeserializer = typeof deserializer.readCodec === "function"
+            ? deserializer
+            : undefined;
+        const ns = HttpBindingNormalizedSchema.of(operationSchema.output);
+        const responseBindings = ns.getHttpBindings().response;
         const dataObject = {};
         if (response.statusCode >= 300) {
             const bytes = await collectBody(response.body, context);
@@ -35824,19 +36080,13 @@ class HttpBindingProtocol extends HttpProtocol {
             await this.handleError(operationSchema, context, response, dataObject, this.deserializeMetadata(response));
             throw new Error("@smithy/core/protocols - HTTP Protocol error handler failed to throw.");
         }
-        for (const header in response.headers) {
-            if (!hasOwn(response.headers, header)) {
-                continue;
-            }
-            const value = response.headers[header];
-            delete response.headers[header];
-            response.headers[header.toLowerCase()] = value;
-        }
         const nonHttpBindingMembers = await this.deserializeHttpMessage(ns, context, response, dataObject);
         if (nonHttpBindingMembers.length) {
             const bytes = await collectBody(response.body, context);
             if (bytes.byteLength > 0) {
-                const dataFromBody = await deserializer.read(ns, bytes);
+                const dataFromBody = await (directDeserializer
+                    ? directDeserializer.readCodec(responseBindings.syntheticBodySchema, bytes)
+                    : deserializer.read(responseBindings.syntheticBodySchema, bytes));
                 for (const member of nonHttpBindingMembers) {
                     if (dataFromBody[member] != null) {
                         dataObject[member] = dataFromBody[member];
@@ -35844,97 +36094,95 @@ class HttpBindingProtocol extends HttpProtocol {
                 }
             }
         }
-        else if (nonHttpBindingMembers.discardResponseBody) {
+        else if (!responseBindings.bindings.payload) {
             await collectBody(response.body, context);
         }
         dataObject.$metadata = this.deserializeMetadata(response);
         return dataObject;
     }
     async deserializeHttpMessage(schema, context, response, arg4, arg5) {
-        let dataObject;
-        if (arg4 instanceof Set) {
-            dataObject = arg5;
-        }
-        else {
-            dataObject = arg4;
-        }
-        let discardResponseBody = true;
+        const dataObject = arg4 instanceof Set ? arg5 : arg4;
         const deserializer = this.deserializer;
-        const ns = NormalizedSchema.of(schema);
-        const nonHttpBindingMembers = [];
-        for (const [memberName, memberSchema] of ns.structIterator()) {
-            const memberTraits = memberSchema.getMemberTraits();
-            if (memberTraits.httpPayload) {
-                discardResponseBody = false;
-                const isStreaming = memberSchema.isStreaming();
-                if (isStreaming) {
-                    const isEventStream = memberSchema.isStructSchema();
-                    if (isEventStream) {
-                        dataObject[memberName] = await this.deserializeEventStream({
-                            response,
-                            responseSchema: ns,
-                        });
-                    }
-                    else {
-                        dataObject[memberName] = sdkStreamMixin(response.body);
-                    }
+        const directDeserializer = typeof deserializer.readCodec === "function"
+            ? deserializer
+            : undefined;
+        const ns = HttpBindingNormalizedSchema.of(schema);
+        const { bodyMemberNames, bindings: { payload, statusCode, headers: responseHeaders, prefixHeaders }, } = ns.getHttpBindings().response;
+        const headers = response.headers;
+        if (payload) {
+            const [memberName, value] = payload;
+            const [memberSchema, flags] = value;
+            const stream = (flags >> 11) & 0b11;
+            if (stream) {
+                if (stream === 2) {
+                    dataObject[memberName] = await this.deserializeEventStream({
+                        response,
+                        responseSchema: ns,
+                    });
                 }
-                else if (response.body) {
-                    const bytes = await collectBody(response.body, context);
-                    if (bytes.byteLength > 0) {
-                        dataObject[memberName] = await deserializer.read(memberSchema, bytes);
-                    }
+                else {
+                    dataObject[memberName] = sdkStreamMixin(response.body);
                 }
             }
-            else if (memberTraits.httpHeader) {
-                const key = String(memberTraits.httpHeader).toLowerCase();
-                const value = response.headers[key];
-                if (null != value) {
-                    if (memberSchema.isListSchema()) {
-                        const headerListValueSchema = memberSchema.getValueSchema();
-                        headerListValueSchema.getMergedTraits().httpHeader = key;
-                        let sections;
-                        if (headerListValueSchema.isTimestampSchema() &&
-                            headerListValueSchema.getSchema() === 4) {
-                            sections = splitEvery(value, ",", 2);
-                        }
-                        else {
-                            sections = splitHeader(value);
-                        }
-                        const list = [];
-                        for (const section of sections) {
-                            list.push(await deserializer.read(headerListValueSchema, section.trim()));
-                        }
-                        dataObject[memberName] = list;
-                    }
-                    else {
-                        dataObject[memberName] = await deserializer.read(memberSchema, value);
-                    }
+            else if (response.body) {
+                const bytes = await collectBody(response.body, context);
+                if (bytes.byteLength > 0) {
+                    dataObject[memberName] = await (directDeserializer
+                        ? directDeserializer.readPayload(value, bytes)
+                        : deserializer.read(memberSchema, bytes));
                 }
             }
-            else if (memberTraits.httpPrefixHeaders !== undefined) {
-                dataObject[memberName] = {};
-                for (const header in response.headers) {
-                    if (!hasOwn(response.headers, header)) {
-                        continue;
-                    }
-                    if (header.startsWith(memberTraits.httpPrefixHeaders)) {
-                        const value = response.headers[header];
-                        const valueSchema = memberSchema.getValueSchema();
-                        valueSchema.getMergedTraits().httpHeader = header;
-                        dataObject[memberName][header.slice(memberTraits.httpPrefixHeaders.length)] = await deserializer.read(valueSchema, value);
-                    }
-                }
+        }
+        for (const header in headers) {
+            if (!hasOwn(headers, header)) {
+                continue;
             }
-            else if (memberTraits.httpResponseCode) {
-                dataObject[memberName] = response.statusCode;
+            const lower = header.toLowerCase();
+            const headerValue = headers[header];
+            if (lower !== header) {
+                delete headers[header];
+                headers[lower] = headerValue;
+            }
+            const binding = hasOwn(responseHeaders, lower) ? responseHeaders[lower] : undefined;
+            if (!binding) {
+                continue;
+            }
+            const [memberName, [memberSchema, flags, collectionValue], , wireName] = binding;
+            if (collectionValue) {
+                const sections = (flags >> 16) & 1 ? splitEvery(headerValue, ",", 2) : splitHeader(headerValue);
+                const list = [];
+                for (const section of sections) {
+                    list.push(directDeserializer
+                        ? directDeserializer.readHttpBinding(collectionValue, section.trim(), 0b100_110)
+                        : await deserializer.read([collectionValue[0], { httpHeader: wireName }], section.trim()));
+                }
+                dataObject[memberName] = list;
             }
             else {
-                nonHttpBindingMembers.push(memberName);
+                dataObject[memberName] = directDeserializer
+                    ? directDeserializer.readHttpBinding(binding[1], headerValue, 0b100_110)
+                    : await deserializer.read(memberSchema, headerValue);
             }
         }
-        nonHttpBindingMembers.discardResponseBody = discardResponseBody;
-        return nonHttpBindingMembers;
+        for (const [memberName, [, , collectionValue], , wireName] of prefixHeaders) {
+            dataObject[memberName] = {};
+            for (const header in headers) {
+                if (!hasOwn(headers, header)) {
+                    continue;
+                }
+                if (!header.startsWith(wireName)) {
+                    continue;
+                }
+                const headerValue = headers[header];
+                dataObject[memberName][header.slice(wireName.length)] = directDeserializer
+                    ? directDeserializer.readHttpBinding(collectionValue, headerValue, 0b100_110)
+                    : await deserializer.read([collectionValue[0], { httpHeader: header }], headerValue);
+            }
+        }
+        if (statusCode) {
+            dataObject[statusCode[0]] = response.statusCode;
+        }
+        return bodyMemberNames;
     }
 }
 
@@ -36152,26 +36400,6 @@ class RequestBuilder {
     }
 }
 
-function determineTimestampFormat(ns, settings) {
-    if (settings.timestampFormat.useTrait) {
-        if (ns.isTimestampSchema() &&
-            (ns.getSchema() === 5 ||
-                ns.getSchema() === 6 ||
-                ns.getSchema() === 7)) {
-            return ns.getSchema();
-        }
-    }
-    const { httpLabel, httpPrefixHeaders, httpHeader, httpQuery } = ns.getMergedTraits();
-    const bindingFormat = settings.httpBindings
-        ? typeof httpPrefixHeaders === "string" || Boolean(httpHeader)
-            ? 6
-            : Boolean(httpQuery) || Boolean(httpLabel)
-                ? 5
-                : undefined
-        : undefined;
-    return bindingFormat ?? settings.timestampFormat.default;
-}
-
 class FromStringShapeDeserializer extends SerdeContext {
     settings;
     constructor(settings) {
@@ -36179,57 +36407,65 @@ class FromStringShapeDeserializer extends SerdeContext {
         this.settings = settings;
     }
     read(_schema, data) {
-        const ns = NormalizedSchema.of(_schema);
-        if (ns.isListSchema()) {
-            return splitHeader(data).map((item) => this.read(ns.getValueSchema(), item));
-        }
-        if (ns.isBlobSchema()) {
-            return (this.serdeContext?.base64Decoder ?? fromBase64)(data);
-        }
-        if (ns.isTimestampSchema()) {
-            const format = determineTimestampFormat(ns, this.settings);
-            switch (format) {
-                case 5:
-                    return _parseRfc3339DateTimeWithOffset(data);
-                case 6:
-                    return _parseRfc7231DateTime(data);
-                case 7:
-                    return _parseEpochTimestamp(data);
-                default:
-                    console.warn("Missing timestamp format, parsing value with Date constructor:", data);
-                    return new Date(data);
-            }
-        }
-        if (ns.isStringSchema()) {
-            const mediaType = ns.getMergedTraits().mediaType;
-            let intermediateValue = data;
-            if (mediaType) {
-                if (ns.getMergedTraits().httpHeader) {
-                    intermediateValue = this.base64ToUtf8(intermediateValue);
-                }
-                const isJson = mediaType === "application/json" || mediaType.endsWith("+json");
-                if (isJson) {
-                    intermediateValue = LazyJsonString.from(intermediateValue);
-                }
-                return intermediateValue;
-            }
-        }
-        if (ns.isNumericSchema()) {
-            return Number(data);
-        }
-        if (ns.isBigIntegerSchema()) {
-            return BigInt(data);
-        }
-        if (ns.isBigDecimalSchema()) {
-            return new NumericValue(data, "bigDecimal");
-        }
-        if (ns.isBooleanSchema()) {
-            return String(data).toLowerCase() === "true";
-        }
-        return data;
+        const ns = HttpBindingNormalizedSchema.of(_schema);
+        const traits = ns.getMergedTraits();
+        const location = ns.getHttpBindingLocation(traits);
+        return this.readHttpBinding(ns.getHttpBindingValue(location, traits), data, location);
     }
-    base64ToUtf8(base64String) {
-        return (this.serdeContext?.utf8Encoder ?? toUtf8)((this.serdeContext?.base64Decoder ?? fromBase64)(base64String));
+    readHttpBinding([ns, flags, collectionValue], data, location) {
+        const schema = flags & 0xff;
+        if ((schema & 0b1100_0000) === 0b0100_0000) {
+            collectionValue ??= ns.getHttpBindingCollectionValue(location);
+            return splitHeader(data).map((item) => this.readHttpBinding(collectionValue, item, location));
+        }
+        switch (schema) {
+            case 21:
+            case 42:
+                return (this.serdeContext?.base64Decoder ?? fromBase64)(data);
+            case 4:
+            case 5:
+            case 6:
+            case 7: {
+                const bindingFormat = this.settings.httpBindings ? (flags >> 14) & 0b11 : 0;
+                const format = this.settings.timestampFormat.useTrait && schema > 4
+                    ? schema
+                    : bindingFormat
+                        ? bindingFormat + 4
+                        : this.settings.timestampFormat.default;
+                switch (format) {
+                    case 5:
+                        return _parseRfc3339DateTimeWithOffset(data);
+                    case 6:
+                        return _parseRfc7231DateTime(data);
+                    case 7:
+                        return _parseEpochTimestamp(data);
+                    default:
+                        console.warn("Missing timestamp format, parsing value with Date constructor:", data);
+                        return new Date(data);
+                }
+            }
+            case 0: {
+                const media = (flags >> 8) & 0b11;
+                if (!media) {
+                    return data;
+                }
+                let intermediateValue = data;
+                if ((location & 0b110) === 0b110) {
+                    intermediateValue = (this.serdeContext?.utf8Encoder ?? toUtf8)((this.serdeContext?.base64Decoder ?? fromBase64)(intermediateValue));
+                }
+                return media === 2 ? LazyJsonString.from(intermediateValue) : intermediateValue;
+            }
+            case 1:
+                return Number(data);
+            case 2:
+                return data.toLowerCase() === "true";
+            case 17:
+                return BigInt(data);
+            case 19:
+                return new NumericValue(data, "bigDecimal");
+            default:
+                return data;
+        }
     }
 }
 
@@ -36247,28 +36483,33 @@ class HttpInterceptingShapeDeserializer extends SerdeContext {
         this.serdeContext = serdeContext;
     }
     read(schema, data) {
-        const ns = NormalizedSchema.of(schema);
+        const ns = HttpBindingNormalizedSchema.of(schema);
         const traits = ns.getMergedTraits();
-        const toString = this.serdeContext?.utf8Encoder ?? toUtf8;
         if (traits.httpHeader || traits.httpResponseCode) {
-            return this.stringDeserializer.read(ns, toString(data));
+            const value = ns.getHttpBindingValue(0b100_110, traits);
+            return this.readHttpBinding(value, data, 0b100_110);
         }
         if (traits.httpPayload) {
-            if (ns.isBlobSchema()) {
-                const toBytes = this.serdeContext?.utf8Decoder ?? fromUtf8;
-                if (typeof data === "string") {
-                    return toBytes(data);
-                }
-                return data;
-            }
-            else if (ns.isStringSchema()) {
-                if ("byteLength" in data) {
-                    return toString(data);
-                }
-                return data;
-            }
+            return this.readPayload(ns.getHttpBindingValue(0b100_100, traits), data);
         }
-        return this.codecDeserializer.read(ns, data);
+        return this.readCodec(ns, data);
+    }
+    readHttpBinding(binding, data, location) {
+        const value = typeof data === "string" ? data : (this.serdeContext?.utf8Encoder ?? toUtf8)(data);
+        return this.stringDeserializer.readHttpBinding(binding, value, location);
+    }
+    readPayload([schema, flags], data) {
+        const type = flags & 0xff;
+        if (type === 21 || type === 42) {
+            return typeof data === "string" ? (this.serdeContext?.utf8Decoder ?? fromUtf8)(data) : data;
+        }
+        if (type === 0) {
+            return typeof data === "string" ? data : (this.serdeContext?.utf8Encoder ?? toUtf8)(data);
+        }
+        return this.readCodec(schema, data);
+    }
+    readCodec(schema, data) {
+        return this.codecDeserializer.read(schema, data);
     }
 }
 
@@ -36280,18 +36521,29 @@ class ToStringShapeSerializer extends SerdeContext {
         this.settings = settings;
     }
     write(schema, value) {
-        const ns = NormalizedSchema.of(schema);
+        const ns = HttpBindingNormalizedSchema.of(schema);
+        const traits = ns.getMergedTraits();
+        const location = ns.getHttpBindingLocation(traits);
+        this.writeHttpBinding(ns.getHttpBindingValue(location, traits), value, location);
+    }
+    writeHttpBinding([ns, flags, collectionValue], value, location) {
+        const schema = flags & 0xff;
         switch (typeof value) {
             case "object":
                 if (value === null) {
                     this.stringBuffer = "null";
                     return;
                 }
-                if (ns.isTimestampSchema()) {
+                if (schema >= 4 && schema <= 7) {
                     if (!(value instanceof Date)) {
                         throw new Error(`@smithy/core/protocols - received non-Date value ${value} when schema expected Date in ${ns.getName(true)}`);
                     }
-                    const format = determineTimestampFormat(ns, this.settings);
+                    const bindingFormat = this.settings.httpBindings ? (flags >> 14) & 0b11 : 0;
+                    const format = this.settings.timestampFormat.useTrait && schema > 4
+                        ? schema
+                        : bindingFormat
+                            ? bindingFormat + 4
+                            : this.settings.timestampFormat.default;
                     switch (format) {
                         case 5:
                             this.stringBuffer = value.toISOString().replace(".000Z", "Z");
@@ -36308,20 +36560,24 @@ class ToStringShapeSerializer extends SerdeContext {
                     }
                     return;
                 }
-                if (ns.isBlobSchema() && "byteLength" in value) {
+                if ((schema === 21 || schema === 42) &&
+                    "byteLength" in value) {
                     this.stringBuffer = (this.serdeContext?.base64Encoder ?? toBase64)(value);
                     return;
                 }
-                if (ns.isListSchema() && Array.isArray(value)) {
+                if ((schema & 0b1100_0000) === 0b0100_0000 && Array.isArray(value)) {
+                    collectionValue ??= ns.getHttpBindingCollectionValue(location);
+                    const valueSchemaType = collectionValue[1] & 0xff;
+                    const isTimestamp = valueSchemaType >= 4 &&
+                        valueSchemaType <= 7;
                     let buffer = "";
                     for (const item of value) {
-                        this.write([ns.getValueSchema(), ns.getMergedTraits()], item);
+                        this.writeHttpBinding(collectionValue, item, location);
                         const headerItem = this.flush();
-                        const serialized = ns.getValueSchema().isTimestampSchema() ? headerItem : quoteHeader(headerItem);
-                        if (buffer !== "") {
+                        if (buffer) {
                             buffer += ", ";
                         }
-                        buffer += serialized;
+                        buffer += isTimestamp ? headerItem : quoteHeader(headerItem);
                     }
                     this.stringBuffer = buffer;
                     return;
@@ -36329,27 +36585,19 @@ class ToStringShapeSerializer extends SerdeContext {
                 this.stringBuffer = JSON.stringify(value, null, 2);
                 break;
             case "string":
-                const mediaType = ns.getMergedTraits().mediaType;
+                const media = (flags >> 8) & 0b11;
                 let intermediateValue = value;
-                if (mediaType) {
-                    const isJson = mediaType === "application/json" || mediaType.endsWith("+json");
-                    if (isJson) {
-                        intermediateValue = LazyJsonString.from(intermediateValue);
-                    }
-                    if (ns.getMergedTraits().httpHeader) {
-                        this.stringBuffer = (this.serdeContext?.base64Encoder ?? toBase64)(intermediateValue.toString());
-                        return;
-                    }
+                if (media === 2) {
+                    intermediateValue = LazyJsonString.from(intermediateValue);
+                }
+                if (media && (location & 0b110) === 0b110) {
+                    this.stringBuffer = (this.serdeContext?.base64Encoder ?? toBase64)(intermediateValue.toString());
+                    return;
                 }
                 this.stringBuffer = value;
                 break;
             default:
-                if (ns.isIdempotencyToken()) {
-                    this.stringBuffer = generateIdempotencyToken();
-                }
-                else {
-                    this.stringBuffer = String(value);
-                }
+                this.stringBuffer = (flags >> 10) & 1 ? generateIdempotencyToken() : String(value);
         }
     }
     flush() {
@@ -36372,14 +36620,21 @@ class HttpInterceptingShapeSerializer {
         this.stringSerializer.setSerdeContext(serdeContext);
     }
     write(schema, value) {
-        const ns = NormalizedSchema.of(schema);
+        const ns = HttpBindingNormalizedSchema.of(schema);
         const traits = ns.getMergedTraits();
         if (traits.httpHeader || traits.httpLabel || traits.httpQuery) {
-            this.stringSerializer.write(ns, value);
-            this.buffer = this.stringSerializer.flush();
+            const location = ns.getHttpBindingLocation(traits);
+            this.writeHttpBinding(ns.getHttpBindingValue(location, traits), value, location);
             return;
         }
-        return this.codecSerializer.write(ns, value);
+        this.writeCodec(ns, value);
+    }
+    writeHttpBinding(binding, value, location) {
+        this.stringSerializer.writeHttpBinding(binding, value, location);
+        this.buffer = this.stringSerializer.flush();
+    }
+    writeCodec(schema, value) {
+        this.codecSerializer.write(schema, value);
     }
     flush() {
         if (this.buffer !== undefined) {
@@ -36389,6 +36644,26 @@ class HttpInterceptingShapeSerializer {
         }
         return this.codecSerializer.flush();
     }
+}
+
+function determineTimestampFormat(ns, settings) {
+    if (settings.timestampFormat.useTrait) {
+        const schema = ns.getSchema();
+        if (schema === 5 ||
+            schema === 6 ||
+            schema === 7) {
+            return schema;
+        }
+    }
+    const { httpLabel, httpPrefixHeaders, httpHeader, httpQuery } = ns.getMergedTraits();
+    const bindingFormat = settings.httpBindings
+        ? typeof httpPrefixHeaders === "string" || Boolean(httpHeader)
+            ? 6
+            : Boolean(httpQuery) || Boolean(httpLabel)
+                ? 5
+                : undefined
+        : undefined;
+    return bindingFormat ?? settings.timestampFormat.default;
 }
 
 class Field {
@@ -38646,21 +38921,21 @@ class DefaultRateLimiter {
 }
 
 class Retry {
-    static v2026 = typeof process !== "undefined" && process.env?.SMITHY_NEW_RETRIES_2026 === "true";
+    static v2026 = true;
     static delay() {
-        return Retry.v2026 ? 50 : 100;
+        return 50;
     }
     static throttlingDelay() {
-        return Retry.v2026 ? 1_000 : 500;
+        return 1_000;
     }
     static cost() {
-        return Retry.v2026 ? 14 : 5;
+        return 14;
     }
     static throttlingCost() {
-        return Retry.v2026 ? 5 : 10;
+        return 5;
     }
     static modifiedCostType() {
-        return Retry.v2026 ? "THROTTLING" : "TRANSIENT";
+        return "THROTTLING";
     }
 }
 
@@ -38741,7 +39016,7 @@ let StandardRetryStrategy$1 = class StandardRetryStrategy {
         this.retryBackoffStrategy ??= new DefaultRetryBackoffStrategy();
     }
     async acquireInitialRetryToken(retryTokenScope) {
-        return new DefaultRetryToken(Retry.delay(), 0, undefined, Retry.v2026 && retryTokenScope.includes(":longpoll"));
+        return new DefaultRetryToken(Retry.delay(), 0, undefined, retryTokenScope.includes(":longpoll"));
     }
     async refreshRetryTokenForRetry(token, errorInfo) {
         const maxAttempts = await this.getMaxAttempts();
@@ -38757,7 +39032,7 @@ let StandardRetryStrategy$1 = class StandardRetryStrategy {
                 retryDelay = Math.max(delayFromErrorType, Math.min(errorInfo.retryAfterHint.getTime() - Date.now(), delayFromErrorType + 5_000));
             }
             if (!shouldRetry) {
-                const longPollBackoff = Retry.v2026 && retryCode === refusal.capacity && isLongPoll ? retryDelay : 0;
+                const longPollBackoff = retryCode === refusal.capacity && isLongPoll ? retryDelay : 0;
                 if (longPollBackoff > 0) {
                     await new Promise((r) => setTimeout(r, longPollBackoff));
                 }
@@ -40431,7 +40706,7 @@ LazyJsonString.fromObject = LazyJsonString.from;
 
 function quoteHeader(part) {
     if (part.includes(",") || part.includes('"')) {
-        part = `"${part.replace(/"/g, '\\"')}"`;
+        part = `"${part.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
     }
     return part;
 }
@@ -40442,6 +40717,7 @@ const time = `(\\d?\\d):(\\d{2}):(\\d{2})(?:\\.(\\d+))?`;
 const date = `(\\d?\\d)`;
 const year = `(\\d{4})`;
 const RFC3339_WITH_OFFSET = new RegExp(/^(\d{4})-(\d\d)-(\d\d)[tT](\d\d):(\d\d):(\d\d)(\.(\d+))?(([-+]\d\d:\d\d)|[zZ])$/);
+const IMF_FIXDATE_NATIVE = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), (?:0[1-9]|[12]\d|3[01]) (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [1-9]\d{3} (?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d GMT$/;
 const IMF_FIXDATE = new RegExp(`^${ddd}, ${date} ${mmm} ${year} ${time} GMT$`);
 const RFC_850_DATE = new RegExp(`^${ddd}, ${date}-${mmm}-(\\d\\d) ${time} GMT$`);
 const ASC_TIME = new RegExp(`^${ddd} ${mmm} ( [1-9]|\\d\\d) ${time} ${year}$`);
@@ -40500,6 +40776,9 @@ const _parseRfc7231DateTime = (value) => {
     }
     if (typeof value !== "string") {
         throw new TypeError("RFC7231 timestamps must be strings.");
+    }
+    if (IMF_FIXDATE_NATIVE.test(value)) {
+        return new Date(value);
     }
     let day;
     let month;
@@ -40570,13 +40849,13 @@ const splitHeader = (value) => {
     const z = value.length;
     const values = [];
     let withinQuotes = false;
-    let prevChar = undefined;
+    let escaped = false;
     let anchor = 0;
     for (let i = 0; i < z; ++i) {
         const char = value[i];
         switch (char) {
             case `"`:
-                if (prevChar !== "\\") {
+                if (!escaped) {
                     withinQuotes = !withinQuotes;
                 }
                 break;
@@ -40587,7 +40866,7 @@ const splitHeader = (value) => {
                 }
                 break;
         }
-        prevChar = char;
+        escaped = char === "\\" && !escaped;
     }
     values.push(value.slice(anchor));
     return values.map((v) => {
@@ -40598,6 +40877,7 @@ const splitHeader = (value) => {
         }
         if (v[0] === `"` && v[z - 1] === `"`) {
             v = v.slice(1, z - 1);
+            return v.replace(/\\(["\\])/g, "$1");
         }
         return v.replace(/\\"/g, '"');
     });
